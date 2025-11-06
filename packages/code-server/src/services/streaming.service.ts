@@ -37,12 +37,21 @@ import type { ToolCallPart, ToolResultPart } from '@ai-sdk/provider';
 
 // Re-export StreamEvent type from message router
 export type StreamEvent =
+  // Session-level events
   | { type: 'session-created'; sessionId: string; provider: string; model: string }
   | { type: 'session-title-start' }
   | { type: 'session-title-delta'; text: string }
   | { type: 'session-title-complete'; title: string }
+
+  // Message-level events
   | { type: 'user-message-created'; messageId: string; content: string }
   | { type: 'assistant-message-created'; messageId: string }
+
+  // Step-level events (NEW)
+  | { type: 'step-start'; stepId: string; stepIndex: number; metadata: { cpu: string; memory: string }; todoSnapshot: any[] }
+  | { type: 'step-complete'; stepId: string; usage: TokenUsage; duration: number; finishReason: string }
+
+  // Content streaming events (within a step)
   | { type: 'text-start' }
   | { type: 'text-delta'; text: string }
   | { type: 'text-end' }
@@ -50,8 +59,13 @@ export type StreamEvent =
   | { type: 'reasoning-delta'; text: string }
   | { type: 'reasoning-end'; duration: number }
   | { type: 'tool-call'; toolCallId: string; toolName: string; args: any }
+  | { type: 'tool-input-start'; toolCallId: string }
+  | { type: 'tool-input-delta'; toolCallId: string; argsTextDelta: string }
+  | { type: 'tool-input-end'; toolCallId: string }
   | { type: 'tool-result'; toolCallId: string; toolName: string; result: any; duration: number }
   | { type: 'tool-error'; toolCallId: string; toolName: string; error: string; duration: number }
+
+  // Message completion
   | { type: 'complete'; usage?: TokenUsage; finishReason?: string }
   | { type: 'error'; error: string }
   | { type: 'abort' };
