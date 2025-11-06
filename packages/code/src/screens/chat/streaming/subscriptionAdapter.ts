@@ -10,6 +10,14 @@
  * - TUI: Uses in-process subscription link (zero overhead)
  * - Web: Will use httpSubscriptionLink (SSE over network)
  * - Same interface for both!
+ *
+ * PASSIVE SUBSCRIBER MODEL:
+ * - Client NEVER proactively sets state or adds messages
+ * - Client ONLY reacts to server events via handleStreamEvent()
+ * - Server pushes all updates via observable (session-created, title-delta, text-delta, etc.)
+ * - Multi-client sync works automatically (TUI + GUI receive same events)
+ * - No optimistic updates, no predictions, no assumptions
+ * - All state changes are event-driven in switch/case handlers
  */
 
 import { getTRPCClient, useAppStore } from '@sylphx/code-client';
@@ -134,7 +142,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
       logSession('No provider or model configured!', { provider, model });
       addLog('[subscriptionAdapter] No AI provider configured. Use /provider to configure.');
 
-      // Add error message to UI (optimistically)
+      // Add error message to UI (pre-validation error, no streaming involved)
       if (currentSessionId) {
         await addMessage(
           currentSessionId,
