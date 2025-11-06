@@ -59,6 +59,46 @@ export type MessagePart =
 export type StreamingPart = MessagePart;
 
 /**
+ * Message Step - represents one reasoning/generation cycle
+ *
+ * Design: Multi-step reasoning support
+ * ====================================
+ *
+ * Why steps:
+ * 1. Track per-step costs (usage, provider, model)
+ * 2. Support multi-step tool execution (tool-calls → process results → continue)
+ * 3. Enable future routing (different models for different steps)
+ * 4. Better analytics (which step is slowest/most expensive)
+ *
+ * Step lifecycle:
+ * - status: 'active' → generating this step
+ * - status: 'completed' → step finished successfully
+ * - status: 'error' → step failed
+ * - status: 'abort' → user cancelled
+ *
+ * Step boundaries (when to start new step):
+ * - finishReason === 'tool-calls' → automatic new step for processing tool results
+ * - finishReason === 'stop' → end of message, no new step
+ * - finishReason === 'length' → token limit, may continue in new step
+ */
+export interface MessageStep {
+  id: string;              // Step ID (e.g., "step-0", "step-1")
+  stepIndex: number;       // 0, 1, 2, ... (order)
+  parts: MessagePart[];    // Content parts for this step
+
+  // Per-step metadata
+  usage?: TokenUsage;
+  provider?: string;       // Future: may route different steps to different providers
+  model?: string;          // Future: may use different models per step
+  duration?: number;       // Step execution time (ms)
+  finishReason?: 'stop' | 'tool-calls' | 'length' | 'error';
+  status: 'active' | 'completed' | 'error' | 'abort';
+
+  startTime?: number;      // Timestamp when step started
+  endTime?: number;        // Timestamp when step ended
+}
+
+/**
  * File attachment
  */
 export interface FileAttachment {
@@ -102,31 +142,36 @@ export interface MessageMetadata {
 /**
  * Session message - Unified message type for both UI display and LLM consumption
  *
- * Design: Separation of UI display vs LLM context
- * ================================================
+ * Design: Step-based multi-turn reasoning
+ * ========================================
+ *
+ * NEW: Messages contain steps[] instead of direct content[]
+ * Each step represents one reasoning/generation cycle with its own metadata
  *
  * UI Display (what user sees):
- * - content: MessagePart[] - Text, tool calls, reasoning, errors
+ * - steps[]: Array of MessageStep, each with parts[], usage, duration
+ * - User messages: Always single step
+ * - Assistant messages: May have multiple steps (tool calls → process → continue)
  * - timestamp: Display time
- * - usage: Token counts for monitoring
  * - attachments: Show file paths
  *
  * LLM Context (what AI sees):
- * - content: Converted to ModelMessage format
+ * - steps[].parts: Converted to ModelMessage format
  * - metadata: Injected as system status (cpu, memory) - NOT shown in UI
  * - timestamp: Used to construct system status time
  * - attachments: File contents read and injected
  * - todoSnapshot: Todo state at message creation, injected as context
  *
- * Why content doesn't include system status:
- * - System status is contextual info, not part of user's actual message
- * - Including it in content would display "<system_status>..." in chat UI
- * - metadata allows us to store it separately and inject only when building ModelMessage
+ * Why steps not content:
+ * - Track per-step costs (usage, provider, model, duration)
+ * - Support multi-step tool execution clearly
+ * - Enable future routing (different models per step)
+ * - Better analytics and debugging
  *
- * Why usage/finishReason are NOT in metadata:
- * - They're for monitoring/debugging, not for LLM consumption
- * - finishReason controls multi-step flow (stop vs tool-calls vs length)
- * - usage helps track API costs and quota
+ * Why usage/finishReason still at message level:
+ * - usage: Sum of all steps (for total cost tracking)
+ * - finishReason: Final reason (from last step)
+ * - Convenience for UI - don't need to traverse steps
  *
  * Why todoSnapshot at top-level (not in metadata):
  * - Structured data (Todo[]), not string context like cpu/memory
@@ -137,14 +182,14 @@ export interface MessageMetadata {
 export interface SessionMessage {
   id: string;              // Unique message ID from database
   role: 'user' | 'assistant';
-  content: MessagePart[];  // UI display (without system status)
+  steps: MessageStep[];    // NEW: Step-based content (replaces content[])
   timestamp: number;
   status?: 'active' | 'completed' | 'error' | 'abort';  // Message lifecycle state (default: 'completed')
   metadata?: MessageMetadata;  // System info for LLM context (not shown in UI)
   todoSnapshot?: Todo[];   // Full todo state at message creation time (for rewind + LLM context)
   attachments?: FileAttachment[];
-  usage?: TokenUsage;          // For UI/monitoring, not sent to LLM
-  finishReason?: string;       // For flow control (stop/tool-calls/length/error), not sent to LLM
+  usage?: TokenUsage;          // Total usage (sum of all steps) for UI/monitoring
+  finishReason?: string;       // Final finish reason (from last step)
 }
 
 /**
