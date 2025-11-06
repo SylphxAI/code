@@ -20,7 +20,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "bun build src/index.ts src/cli.ts --outdir dist --target node --format esm --sourcemap",
+    "build": "bunup",
     "dev": "bun src/cli.ts",
     "start": "bun dist/cli.js",
     "test": "vitest run",

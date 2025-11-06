@@ -71,7 +71,8 @@ export { initializeDatabase } from './database/auto-migrate.js'
 // Configuration
 // ============================================================================
 export { loadAIConfig, saveAIConfig, getAIConfigPaths, AI_PROVIDERS, getConfiguredProviders } from './config/ai-config.js'
-export type { AIConfig, ProviderConfig, ProviderId } from './config/ai-config.js'
+export type { AIConfig, ProviderId } from './config/ai-config.js'
+export type { ProviderConfig } from './ai/providers/base-provider.js'
 
 // ============================================================================
 // Types

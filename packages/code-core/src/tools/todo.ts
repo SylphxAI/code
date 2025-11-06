@@ -204,7 +204,3 @@ export function createTodoTool(context: TodoToolContext) {
   });
 }
 
-/**
- * Export types for consumers
- */
-export type { TodoToolContext };

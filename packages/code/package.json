@@ -8,7 +8,7 @@
     "sylphx-code": "./dist/index.js"
   },
   "scripts": {
-    "build": "bun build src/index.ts src/headless.ts --outdir dist --target node --format esm --sourcemap --external @sylphx/code-client --external @sylphx/code-core --external @sylphx/code-server",
+    "build": "bunup",
     "dev": "bun src/index.ts",
     "dev:headless": "bun src/index.ts headless",
     "start": "bun dist/index.js",

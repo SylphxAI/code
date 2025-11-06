@@ -8,7 +8,8 @@
 
 import chalk from 'chalk';
 import { loadAIConfig, getConfiguredProviders } from '../config/ai-config.js';
-import type { ProviderId, ProviderConfig } from '../config/ai-config.js';
+import type { ProviderId } from '../config/ai-config.js';
+import type { ProviderConfig } from './providers/base-provider.js';
 import type { Session } from '../types/session.types.js';
 import { getProvider } from './providers/index.js';
 import { fetchModels } from '../utils/ai-model-fetcher.js';
