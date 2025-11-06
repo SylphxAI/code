@@ -29,15 +29,13 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
             )}
           </Box>
 
-          {/* Message Content */}
-          {msg.content && Array.isArray(msg.content) ? (
-            msg.content.map((part, idx) => (
-              <MessagePart key={`${msg.timestamp}-part-${idx}`} part={part} />
-            ))
-          ) : msg.content ? (
-            <Box marginLeft={2}>
-              <Text>{String(msg.content)}</Text>
-            </Box>
+          {/* Message Content (Step-based) */}
+          {msg.steps && msg.steps.length > 0 ? (
+            msg.steps.flatMap((step) =>
+              step.parts.map((part, partIdx) => (
+                <MessagePart key={`${msg.id}-step-${step.stepIndex}-part-${partIdx}`} part={part} />
+              ))
+            )
           ) : msg.status === 'active' ? (
             <Box paddingX={1} marginLeft={2}>
               <Text dimColor>...</Text>
