@@ -25,6 +25,7 @@ export {
 
   // Internal API for Zustand stores (DO NOT USE in React components)
   getTRPCClient,
+  _initGlobalClient,
 } from './trpc-provider.js'
 
 // ============================================================================

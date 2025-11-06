@@ -155,6 +155,10 @@ async function main() {
           process.exit(1);
         }
 
+        // Initialize global client for headless mode (needed for getTRPCClient())
+        const { _initGlobalClient } = await import('@sylphx/code-client');
+        _initGlobalClient(client);
+
         const { runHeadless } = await import('./headless.js');
         await runHeadless(prompt, options);
         return;
