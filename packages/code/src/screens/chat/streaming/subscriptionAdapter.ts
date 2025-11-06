@@ -627,6 +627,18 @@ async function cleanupAfterStream(context: {
   setIsStreaming: (value: boolean) => void;
   notificationSettings: { notifyOnCompletion: boolean; notifyOnError: boolean };
 }) {
+  // IMPORTANT: Get current session ID from store (not from context)
+  // For lazy sessions, the sessionId is updated in store after session-created event
+  const currentSessionId = useAppStore.getState().currentSessionId;
+
+  console.log('[cleanupAfterStream] CALLED', {
+    contextSessionId: context.currentSessionId,
+    storeSessionId: currentSessionId,
+    messageId: context.streamingMessageIdRef.current,
+    usage: context.usageRef.current,
+    finishReason: context.finishReasonRef.current,
+  });
+
   const wasAborted = context.wasAbortedRef.current;
   const hasError = context.lastErrorRef.current;
 
@@ -635,7 +647,7 @@ async function cleanupAfterStream(context: {
 
   useAppStore.setState((state) => {
     const session = state.currentSession;
-    if (!session || session.id !== context.currentSessionId) return;
+    if (!session || session.id !== currentSessionId) return;
 
     const activeMessage = [...session.messages]
       .reverse()
@@ -654,16 +666,24 @@ async function cleanupAfterStream(context: {
   });
 
   // Reload message from database to get steps structure
-  if (context.currentSessionId && context.streamingMessageIdRef.current) {
+  if (currentSessionId && context.streamingMessageIdRef.current) {
+    console.log('[cleanupAfterStream] Reloading session from database...');
     try {
       const caller = await getTRPCClient();
-      const session = await caller.session.getById({ sessionId: context.currentSessionId });
+      const session = await caller.session.getById({ sessionId: currentSessionId });
+
+      console.log('[cleanupAfterStream] Session reloaded:', {
+        hasSession: !!session,
+        messagesCount: session?.messages.length,
+        lastMessage: session?.messages[session.messages.length - 1],
+      });
 
       if (session) {
         // Update Zustand store with fresh data from database
         useAppStore.setState((state) => {
-          if (state.currentSessionId === context.currentSessionId) {
+          if (state.currentSessionId === currentSessionId) {
             state.currentSession = session;
+            console.log('[cleanupAfterStream] Zustand store updated');
           }
         });
       }

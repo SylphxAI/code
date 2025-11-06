@@ -97,8 +97,9 @@ export function inProcessLink<TRouter extends AnyRouter>(
                     observer.error(err);
                   },
                   complete: () => {
-                    log('Observable complete');
+                    log('Observable complete - calling observer.complete()');
                     observer.complete();
+                    log('Observable complete - observer.complete() returned');
                   },
                 });
 

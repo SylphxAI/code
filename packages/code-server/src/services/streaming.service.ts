@@ -528,7 +528,15 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         const needsTitle = isNewSession || !updatedSession.title || updatedSession.title === 'New Chat';
         const isFirstMessage = updatedSession.messages.filter(m => m.role === 'user').length === 1;
 
+        console.log('[streamAIResponse] Title generation check:', {
+          needsTitle,
+          isFirstMessage,
+          aborted,
+          hasUsage: !!result.usage,
+        });
+
         if (needsTitle && isFirstMessage && !aborted && result.usage) {
+          console.log('[streamAIResponse] Starting title generation...');
           try {
             // Import title generation utility
             const { generateSessionTitleWithStreaming } = await import('@sylphx/code-core');
@@ -559,6 +567,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
                 await sessionRepository.updateSession(sessionId, { title: finalTitle });
 
                 observer.next({ type: 'session-title-complete', title: finalTitle });
+                console.log('[streamAIResponse] Title generation completed');
               }
             }
           } catch (error) {
@@ -567,7 +576,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           }
         }
 
+        console.log('[streamAIResponse] About to call observer.complete()');
         observer.complete();
+        console.log('[streamAIResponse] observer.complete() returned');
       } catch (error) {
         console.error('[streamAIResponse] Error in execution:', error);
         observer.next({
