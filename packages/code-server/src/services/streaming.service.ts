@@ -516,57 +516,63 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           await sessionRepository.updateMessageUsage(assistantMessageId, result.usage);
         }
 
-        // 12. Emit complete event
+        // 12. Emit complete event (message content is done)
         observer.next({
           type: 'complete',
           usage: result.usage,
           finishReason: result.finishReason,
         });
 
-        // 13. Complete observable immediately (don't block on title generation)
-        console.log('[streamAIResponse] About to call observer.complete()');
-        observer.complete();
-        console.log('[streamAIResponse] observer.complete() returned');
-
-        // 14. Generate title ASYNC in background (after observable completes)
-        // Server will update database, clients will reload session to get new title
+        // 13. Generate title BEFORE completing observable (don't block on streaming)
+        // Title generation is async but doesn't block message display
+        // Observable stays open to push title events, then completes
         const needsTitle = isNewSession || !updatedSession.title || updatedSession.title === 'New Chat';
         const isFirstMessage = updatedSession.messages.filter(m => m.role === 'user').length === 1;
 
+        console.log('[streamAIResponse] Title generation check:', {
+          needsTitle,
+          isFirstMessage,
+          aborted,
+          hasUsage: !!result.usage,
+        });
+
         if (needsTitle && isFirstMessage && !aborted && result.usage) {
-          // Fire and forget - don't block completion
-          (async () => {
-            try {
-              console.log('[streamAIResponse] Starting background title generation...');
-              const { generateSessionTitle } = await import('@sylphx/code-core');
+          try {
+            console.log('[streamAIResponse] Starting title generation (async, no blocking)...');
+            const { generateSessionTitle } = await import('@sylphx/code-core');
 
-              const provider = session.provider;
-              const modelName = session.model;
-              const providerConfig = aiConfig?.providers?.[provider];
+            const provider = session.provider;
+            const modelName = session.model;
+            const providerConfig = aiConfig?.providers?.[provider];
 
-              if (providerConfig) {
-                const providerInstance = getProvider(provider);
+            if (providerConfig) {
+              const providerInstance = getProvider(provider);
 
-                if (providerInstance.isConfigured(providerConfig)) {
-                  const finalTitle = await generateSessionTitle(
-                    userMessage,
-                    provider,
-                    modelName,
-                    providerConfig
-                  );
+              if (providerInstance.isConfigured(providerConfig)) {
+                const finalTitle = await generateSessionTitle(
+                  userMessage,
+                  provider,
+                  modelName,
+                  providerConfig
+                );
 
-                  // Update session title in database
-                  await sessionRepository.updateSession(sessionId, { title: finalTitle });
-                  console.log('[streamAIResponse] Background title generation completed:', finalTitle);
+                // Update session title in database
+                await sessionRepository.updateSession(sessionId, { title: finalTitle });
+                console.log('[streamAIResponse] Title generation completed:', finalTitle);
 
-                  // NOTE: No need to emit events - clients will reload session in cleanup
-                }
+                // Emit title update event (observable still open)
+                observer.next({ type: 'session-title-complete', title: finalTitle });
               }
-            } catch (error) {
-              console.error('[Title Generation] Error:', error);
             }
-          })();
+          } catch (error) {
+            console.error('[Title Generation] Error:', error);
+          }
         }
+
+        // 14. Now complete observable (after title generation)
+        console.log('[streamAIResponse] About to call observer.complete()');
+        observer.complete();
+        console.log('[streamAIResponse] observer.complete() returned');
       } catch (error) {
         console.error('[streamAIResponse] Error in execution:', error);
         observer.next({
