@@ -425,6 +425,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
         // 9.3. Create step-0 in database
         const stepId = `${assistantMessageId}-step-0`;
+        console.log('[streamAIResponse] Creating step-0:', stepId);
         await createMessageStep(
           sessionRepository.db,
           assistantMessageId,
@@ -432,6 +433,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           stepMetadata,
           currentTodos
         );
+        console.log('[streamAIResponse] Step-0 created successfully');
 
         // 9.4. Emit step-start event
         observer.next({
@@ -443,6 +445,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         });
 
         // 10. Process stream and emit events
+        console.log('[streamAIResponse] Setting up stream callbacks...');
         const callbacks: StreamCallbacks = {
           onTextStart: () => observer.next({ type: 'text-start' }),
           onTextDelta: (text) => observer.next({ type: 'text-delta', text }),
@@ -461,11 +464,19 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
             observer.next({ type: 'abort' });
           },
           onError: (error) => {
+            console.log('[streamAIResponse] Stream error:', error);
             observer.next({ type: 'error', error });
           },
         };
 
+        console.log('[streamAIResponse] Calling processStream...');
         const result = await processStream(stream, callbacks);
+        console.log('[streamAIResponse] processStream completed, result:', {
+          responseLength: result.fullResponse.length,
+          partsCount: result.messageParts.length,
+          hasUsage: !!result.usage,
+          finishReason: result.finishReason,
+        });
 
         // 11. Complete step-0 and save final message to database
         const stepEndTime = Date.now();

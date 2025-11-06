@@ -401,11 +401,15 @@ export async function* createAIStream(
       stepNumber,
     };
 
+    console.log('[createAIStream] Starting step', stepNumber);
 
     // Prepare messages for this step (caller can inject context)
     const preparedMessages = onPrepareMessages
       ? onPrepareMessages(messageHistory, stepNumber)
       : messageHistory;
+
+    console.log('[createAIStream] Prepared messages count:', preparedMessages.length);
+    console.log('[createAIStream] Calling streamText...');
 
     // Call AI SDK with single step
     const { fullStream, response, finishReason, usage, content } = streamText({
@@ -419,9 +423,11 @@ export async function* createAIStream(
       // onError callback is for non-fatal errors, fatal ones should throw
     });
 
+    console.log('[createAIStream] streamText returned, starting to iterate fullStream...');
+
     // Stream all chunks to user
     for await (const chunk of fullStream) {
-      // DEBUG: Log every chunk
+      console.log('[createAIStream] Received chunk:', chunk.type);
 
       switch (chunk.type) {
         case 'text-start':
@@ -562,6 +568,7 @@ export async function* createAIStream(
 
     const currentFinishReason = await finishReason;
 
+    console.log('[createAIStream] Step finished, finishReason:', currentFinishReason);
 
     // Emit step-end event
     yield {
@@ -573,12 +580,14 @@ export async function* createAIStream(
     // Check if we should continue the loop
     if (currentFinishReason !== 'tool-calls') {
       // No more tool calls, exit loop
+      console.log('[createAIStream] Exiting loop, no more tool calls');
       break;
     }
 
     stepNumber++;
   }
 
+  console.log('[createAIStream] Stream complete');
 }
 
 /**
