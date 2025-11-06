@@ -442,6 +442,43 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           todoSnapshot: currentTodos,
         });
 
+        // 9.5. Start title generation in parallel (doesn't need response content)
+        const needsTitle = isNewSession || !updatedSession.title || updatedSession.title === 'New Chat';
+        const isFirstMessage = updatedSession.messages.filter(m => m.role === 'user').length === 1;
+
+        let titlePromise: Promise<string | null> = Promise.resolve(null);
+        if (needsTitle && isFirstMessage) {
+          titlePromise = (async () => {
+            try {
+              console.log('[streamAIResponse] Starting parallel title generation...');
+              const { generateSessionTitle } = await import('@sylphx/code-core');
+
+              const provider = session.provider;
+              const modelName = session.model;
+              const providerConfig = aiConfig?.providers?.[provider];
+
+              if (providerConfig) {
+                const providerInstance = getProvider(provider);
+
+                if (providerInstance.isConfigured(providerConfig)) {
+                  const finalTitle = await generateSessionTitle(
+                    userMessage,
+                    provider,
+                    modelName,
+                    providerConfig
+                  );
+                  console.log('[streamAIResponse] Parallel title generation completed:', finalTitle);
+                  return finalTitle;
+                }
+              }
+              return null;
+            } catch (error) {
+              console.error('[Title Generation] Error:', error);
+              return null;
+            }
+          })();
+        }
+
         // 10. Process stream and emit events
         const callbacks: StreamCallbacks = {
           onTextStart: () => {
@@ -523,53 +560,18 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           finishReason: result.finishReason,
         });
 
-        // 13. Generate title BEFORE completing observable (don't block on streaming)
-        // Title generation is async but doesn't block message display
-        // Observable stays open to push title events, then completes
-        const needsTitle = isNewSession || !updatedSession.title || updatedSession.title === 'New Chat';
-        const isFirstMessage = updatedSession.messages.filter(m => m.role === 'user').length === 1;
+        // 13. Wait for title generation to complete (started in parallel earlier)
+        const finalTitle = await titlePromise;
+        if (finalTitle) {
+          // Update session title in database
+          await sessionRepository.updateSession(sessionId, { title: finalTitle });
+          console.log('[streamAIResponse] Title saved to database:', finalTitle);
 
-        console.log('[streamAIResponse] Title generation check:', {
-          needsTitle,
-          isFirstMessage,
-          aborted,
-          hasUsage: !!result.usage,
-        });
-
-        if (needsTitle && isFirstMessage && !aborted && result.usage) {
-          try {
-            console.log('[streamAIResponse] Starting title generation (async, no blocking)...');
-            const { generateSessionTitle } = await import('@sylphx/code-core');
-
-            const provider = session.provider;
-            const modelName = session.model;
-            const providerConfig = aiConfig?.providers?.[provider];
-
-            if (providerConfig) {
-              const providerInstance = getProvider(provider);
-
-              if (providerInstance.isConfigured(providerConfig)) {
-                const finalTitle = await generateSessionTitle(
-                  userMessage,
-                  provider,
-                  modelName,
-                  providerConfig
-                );
-
-                // Update session title in database
-                await sessionRepository.updateSession(sessionId, { title: finalTitle });
-                console.log('[streamAIResponse] Title generation completed:', finalTitle);
-
-                // Emit title update event (observable still open)
-                observer.next({ type: 'session-title-complete', title: finalTitle });
-              }
-            }
-          } catch (error) {
-            console.error('[Title Generation] Error:', error);
-          }
+          // Emit title update event (observable still open)
+          observer.next({ type: 'session-title-complete', title: finalTitle });
         }
 
-        // 14. Now complete observable (after title generation)
+        // 14. Now complete observable
         console.log('[streamAIResponse] About to call observer.complete()');
         observer.complete();
         console.log('[streamAIResponse] observer.complete() returned');
