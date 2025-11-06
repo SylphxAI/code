@@ -3,9 +3,9 @@
  * Re-exports pure functions from feature and adds streaming functionality
  */
 
-import { generateText } from 'ai';
 import { createAIStream } from '../ai/ai-sdk.js';
 import type { ProviderId } from '../types/config.types.js';
+import { cleanAITitle } from '../session/utils/title.js';
 
 // Re-export pure functions from session feature
 export {
@@ -14,10 +14,12 @@ export {
   formatRelativeTime,
   cleanTitle,
   truncateTitle,
+  cleanAITitle,
 } from '../session/utils/title.js';
 
 /**
- * Generate a session title using LLM (non-streaming)
+ * Generate a session title using LLM with streaming (collects full text)
+ * Uses our ai-sdk.ts for consistency
  */
 export async function generateSessionTitle(
   firstMessage: string,
@@ -35,7 +37,8 @@ export async function generateSessionTitle(
     const providerInstance = getProvider(provider);
     const model = providerInstance.createClient(providerConfig, modelName);
 
-    const { text } = await generateText({
+    // Use our createAIStream for consistency
+    const streamGenerator = createAIStream({
       model,
       messages: [
         {
@@ -60,15 +63,17 @@ Now generate the title:`,
       ],
     });
 
-    // Clean up title
-    let cleaned = text.trim();
-    cleaned = cleaned.replace(/^["'「『]+|["'」』]+$/g, ''); // Remove quotes
-    cleaned = cleaned.replace(/^(Title:|标题：)\s*/i, ''); // Remove "Title:" prefix
-    cleaned = cleaned.replace(/\n+/g, ' '); // Replace newlines with spaces
-    cleaned = cleaned.trim();
+    let fullTitle = '';
 
-    // Return truncated if needed
-    return cleaned.length > 50 ? cleaned.substring(0, 50) + '...' : cleaned;
+    // Collect all text chunks from stream
+    for await (const chunk of streamGenerator) {
+      if (chunk.type === 'text-delta' && chunk.textDelta) {
+        fullTitle += chunk.textDelta;
+      }
+    }
+
+    // Clean up title using our utility function
+    return cleanAITitle(fullTitle, 50);
   } catch (error) {
     console.error('[generateSessionTitle] Error:', error);
     // Fallback to simple title generation on any error
