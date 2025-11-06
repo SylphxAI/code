@@ -1,9 +1,11 @@
 /**
- * Embedded Context Helpers - Effect-based
- * Bridge to access embedded server's Effect services
+ * Embedded Context Helpers
+ * Temporary bridge to access embedded server's AppContext
+ *
+ * TEMPORARY: These functions are a compatibility layer for the TUI.
+ * They will be replaced with proper tRPC calls in the future.
  */
 
-import { Effect } from 'effect';
 import type { CodeServer } from '@sylphx/code-server';
 import type { Agent, Rule } from '@sylphx/code-core';
 
@@ -24,9 +26,7 @@ export function getAllAgents(): Agent[] {
   if (!embeddedServerInstance) {
     throw new Error('Embedded server not initialized');
   }
-
-  const appContext = embeddedServerInstance.getAppContext();
-  return Effect.runSync(appContext.services.agentManager.getAll);
+  return embeddedServerInstance.getAppContext().agentManager.getAll();
 }
 
 /**
@@ -36,9 +36,7 @@ export function getAgentById(id: string): Agent | null {
   if (!embeddedServerInstance) {
     throw new Error('Embedded server not initialized');
   }
-
-  const appContext = embeddedServerInstance.getAppContext();
-  return Effect.runSync(appContext.services.agentManager.getById(id));
+  return embeddedServerInstance.getAppContext().agentManager.getById(id);
 }
 
 /**
@@ -77,9 +75,7 @@ export function getAllRules(): Rule[] {
   if (!embeddedServerInstance) {
     throw new Error('Embedded server not initialized');
   }
-
-  const appContext = embeddedServerInstance.getAppContext();
-  return Effect.runSync(appContext.services.ruleManager.getAll);
+  return embeddedServerInstance.getAppContext().ruleManager.getAll();
 }
 
 /**
@@ -89,9 +85,7 @@ export function getRuleById(id: string): Rule | null {
   if (!embeddedServerInstance) {
     throw new Error('Embedded server not initialized');
   }
-
-  const appContext = embeddedServerInstance.getAppContext();
-  return Effect.runSync(appContext.services.ruleManager.getById(id));
+  return embeddedServerInstance.getAppContext().ruleManager.getById(id);
 }
 
 /**

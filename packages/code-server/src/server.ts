@@ -82,8 +82,8 @@ export class CodeServer {
       return;
     }
 
-    // Create AppContext using Effect (returns legacy-compatible object)
-    this.appContext = await createAppContext({
+    // Create and initialize AppContext (functional provider pattern)
+    this.appContext = createAppContext({
       cwd: this.config.cwd,
       database: this.config.dbPath ? { url: this.config.dbPath } : undefined,
     });

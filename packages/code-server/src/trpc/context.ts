@@ -1,10 +1,9 @@
 /**
- * tRPC Context - Effect-based
- * Provides services via Effect Runtime
+ * tRPC Context
+ * Provides services via AppContext (functional provider pattern)
  * SECURITY: Includes authentication info for OWASP API2 compliance
  */
 
-import { Effect } from 'effect';
 import { loadAIConfig } from '@sylphx/code-core';
 import type { SessionRepository, AIConfig } from '@sylphx/code-core';
 import type { AppContext } from '../context.js';
@@ -51,11 +50,7 @@ export interface ContextOptions {
  */
 export async function createContext(options: ContextOptions): Promise<Context> {
   const { appContext, req, res } = options;
-
-  // Get session repository from services
-  const sessionRepository = await Effect.runPromise(
-    appContext.services.database.getRepository
-  );
+  const sessionRepository = appContext.database.getRepository();
 
   // Load AI config
   let aiConfig: AIConfig = { providers: {} };

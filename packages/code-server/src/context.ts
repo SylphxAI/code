@@ -1,27 +1,21 @@
 /**
- * App Context - Pure Effect.ts Services
- * Full functional composition using Effect.ts
+ * App Context - Services Provider Pattern
+ * Functional composition for dependency injection
  *
  * Architecture:
- * - All services are Effect-based (Context + Layer)
- * - Type-safe dependency injection
- * - Explicit error handling
- * - Composable effects
+ * - code-server: Application layer (this file)
+ * - Services live in Context (database, managers)
+ * - UI state lives in Zustand (navigation, loading)
+ * - No global mutable state
+ * - Type-safe composition
  */
 
-import { Effect, Context, Layer } from 'effect';
 import type { Agent, Rule } from '@sylphx/code-core';
-import {
-  SessionRepository,
-  initializeDatabase,
-  loadAllAgents,
-  loadAllRules,
-  DEFAULT_AGENT_ID,
-} from '@sylphx/code-core';
+import { SessionRepository, initializeDatabase, loadAllAgents, loadAllRules, DEFAULT_AGENT_ID } from '@sylphx/code-core';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 
 // ============================================================================
-// Configuration
+// Types
 // ============================================================================
 
 export interface DatabaseConfig {
@@ -35,36 +29,50 @@ export interface AppConfig {
 }
 
 // ============================================================================
-// Database Service (Effect)
+// Database Service API
 // ============================================================================
 
-export interface DatabaseServiceShape {
-  readonly getRepository: Effect.Effect<SessionRepository>;
-  readonly getDB: Effect.Effect<DrizzleD1Database<any>>;
+export interface DatabaseService {
+  getRepository(): SessionRepository;
+  getDB(): DrizzleD1Database<any>;
 }
 
-export class DatabaseService extends Context.Tag('DatabaseService')<
-  DatabaseService,
-  DatabaseServiceShape
->() {}
+function createDatabaseService(config: DatabaseConfig): DatabaseService {
+  let db: any = null;
+  let repository: SessionRepository | null = null;
+  let initialized = false;
 
-export const makeDatabaseService = (config: DatabaseConfig) =>
-  Effect.gen(function* () {
-    // Initialize database
-    const db = yield* Effect.promise(() => initializeDatabase(() => {}));
-    const repository = new SessionRepository(db);
+  const initialize = async (): Promise<void> => {
+    if (initialized) return;
 
-    return {
-      getRepository: Effect.succeed(repository),
-      getDB: Effect.succeed(db),
-    };
-  });
+    db = await initializeDatabase(() => {});
+    repository = new SessionRepository(db);
+    initialized = true;
+  };
 
-export const DatabaseServiceLive = (config: DatabaseConfig) =>
-  Layer.effect(DatabaseService, makeDatabaseService(config));
+  const getRepository = (): SessionRepository => {
+    if (!repository) {
+      throw new Error('Database not initialized. Call context.initialize() first.');
+    }
+    return repository;
+  };
+
+  const getDB = (): DrizzleD1Database<any> => {
+    if (!db) {
+      throw new Error('Database not initialized. Call context.initialize() first.');
+    }
+    return db;
+  };
+
+  return {
+    initialize,
+    getRepository,
+    getDB,
+  } as any;
+}
 
 // ============================================================================
-// Agent Manager Service (Effect)
+// Agent Manager Service API
 // ============================================================================
 
 const FALLBACK_AGENT: Agent = {
@@ -77,154 +85,142 @@ const FALLBACK_AGENT: Agent = {
   isBuiltin: true,
 };
 
-export interface AgentManagerServiceShape {
-  readonly getAll: Effect.Effect<Agent[]>;
-  readonly getById: (id: string) => Effect.Effect<Agent | null>;
-  readonly reload: Effect.Effect<void>;
+export interface AgentManagerService {
+  getAll(): Agent[];
+  getById(id: string): Agent | null;
+  reload(): Promise<void>;
 }
 
-export class AgentManagerService extends Context.Tag('AgentManagerService')<
-  AgentManagerService,
-  AgentManagerServiceShape
->() {}
+function createAgentManagerService(cwd: string): AgentManagerService {
+  let agents: Map<string, Agent> = new Map();
+  let initialized = false;
 
-export const makeAgentManagerService = (cwd: string) =>
-  Effect.gen(function* () {
-    // Load agents
-    const allAgents = yield* Effect.promise(() => loadAllAgents(cwd));
-    const agentsMap = new Map(allAgents.map(a => [a.id, a]));
+  const initialize = async (): Promise<void> => {
+    if (initialized) return;
 
-    return {
-      getAll: Effect.succeed(Array.from(agentsMap.values())),
-      getById: (id: string) => Effect.succeed(agentsMap.get(id) || null),
-      reload: Effect.promise(() => loadAllAgents(cwd)).pipe(
-        Effect.map(agents => {
-          agentsMap.clear();
-          agents.forEach(a => agentsMap.set(a.id, a));
-        })
-      ),
-    };
-  });
+    const allAgents = await loadAllAgents(cwd);
+    agents = new Map(allAgents.map(a => [a.id, a]));
+    initialized = true;
+  };
 
-export const AgentManagerServiceLive = (cwd: string) =>
-  Layer.effect(AgentManagerService, makeAgentManagerService(cwd));
+  const getAll = (): Agent[] => {
+    if (!initialized) return [FALLBACK_AGENT];
+    return Array.from(agents.values());
+  };
 
-// ============================================================================
-// Rule Manager Service (Effect)
-// ============================================================================
+  const getById = (id: string): Agent | null => {
+    if (!initialized) {
+      return id === DEFAULT_AGENT_ID ? FALLBACK_AGENT : null;
+    }
+    return agents.get(id) || null;
+  };
 
-export interface RuleManagerServiceShape {
-  readonly getAll: Effect.Effect<Rule[]>;
-  readonly getById: (id: string) => Effect.Effect<Rule | null>;
-  readonly getEnabled: (enabledIds: string[]) => Effect.Effect<Rule[]>;
-  readonly reload: Effect.Effect<void>;
+  const reload = async (): Promise<void> => {
+    await initialize();
+  };
+
+  return {
+    initialize,
+    getAll,
+    getById,
+    reload,
+  } as any;
 }
 
-export class RuleManagerService extends Context.Tag('RuleManagerService')<
-  RuleManagerService,
-  RuleManagerServiceShape
->() {}
+// ============================================================================
+// Rule Manager Service API
+// ============================================================================
 
-export const makeRuleManagerService = (cwd: string) =>
-  Effect.gen(function* () {
-    // Load rules
-    const allRules = yield* Effect.promise(() => loadAllRules(cwd));
-    const rulesMap = new Map(allRules.map(r => [r.id, r]));
+export interface RuleManagerService {
+  getAll(): Rule[];
+  getById(id: string): Rule | null;
+  getEnabled(enabledIds: string[]): Rule[];
+  reload(): Promise<void>;
+}
 
-    return {
-      getAll: Effect.succeed(Array.from(rulesMap.values())),
-      getById: (id: string) => Effect.succeed(rulesMap.get(id) || null),
-      getEnabled: (enabledIds: string[]) =>
-        Effect.succeed(
-          enabledIds
-            .map(id => rulesMap.get(id))
-            .filter((r): r is Rule => r !== undefined)
-        ),
-      reload: Effect.promise(() => loadAllRules(cwd)).pipe(
-        Effect.map(rules => {
-          rulesMap.clear();
-          rules.forEach(r => rulesMap.set(r.id, r));
-        })
-      ),
-    };
-  });
+function createRuleManagerService(cwd: string): RuleManagerService {
+  let rules: Map<string, Rule> = new Map();
+  let initialized = false;
 
-export const RuleManagerServiceLive = (cwd: string) =>
-  Layer.effect(RuleManagerService, makeRuleManagerService(cwd));
+  const initialize = async (): Promise<void> => {
+    if (initialized) return;
+
+    const allRules = await loadAllRules(cwd);
+    rules = new Map(allRules.map(r => [r.id, r]));
+    initialized = true;
+  };
+
+  const getAll = (): Rule[] => {
+    if (!initialized) return [];
+    return Array.from(rules.values());
+  };
+
+  const getById = (id: string): Rule | null => {
+    if (!initialized) return null;
+    return rules.get(id) || null;
+  };
+
+  const getEnabled = (enabledIds: string[]): Rule[] => {
+    if (!initialized) return [];
+    return enabledIds
+      .map(id => rules.get(id))
+      .filter((r): r is Rule => r !== undefined);
+  };
+
+  const reload = async (): Promise<void> => {
+    await initialize();
+  };
+
+  return {
+    initialize,
+    getAll,
+    getById,
+    getEnabled,
+    reload,
+  } as any;
+}
 
 // ============================================================================
 // App Context - Composition Root
 // ============================================================================
 
-/**
- * Combined app layer with all services
- */
-export const makeAppLayer = (config: AppConfig) =>
-  Layer.mergeAll(
-    DatabaseServiceLive(config.database || {}),
-    AgentManagerServiceLive(config.cwd),
-    RuleManagerServiceLive(config.cwd)
-  );
-
-/**
- * Services container (plain objects for easy access)
- */
-export interface Services {
-  database: DatabaseServiceShape;
-  agentManager: AgentManagerServiceShape;
-  ruleManager: RuleManagerServiceShape;
-}
-
-/**
- * AppContext interface for external use
- */
 export interface AppContext {
-  services: Services;
+  database: DatabaseService;
+  agentManager: AgentManagerService;
+  ruleManager: RuleManagerService;
   config: AppConfig;
 }
 
 /**
- * Create app context
+ * Create app context with all services
+ * Services are lazy-initialized via closures
  */
-export async function createAppContext(config: AppConfig): Promise<AppContext> {
-  const layer = makeAppLayer(config);
-
-  // Build layer and extract services
-  const services = await Effect.runPromise(
-    Effect.scoped(
-      Effect.gen(function* () {
-        const scope = yield* Effect.scope;
-        const context = yield* Layer.buildWithScope(layer, scope);
-
-        const database = Context.get(context, DatabaseService);
-        const agentManager = Context.get(context, AgentManagerService);
-        const ruleManager = Context.get(context, RuleManagerService);
-
-        return {
-          database,
-          agentManager,
-          ruleManager,
-        };
-      })
-    )
-  );
+export function createAppContext(config: AppConfig): AppContext {
+  const database = createDatabaseService(config.database || {});
+  const agentManager = createAgentManagerService(config.cwd);
+  const ruleManager = createRuleManagerService(config.cwd);
 
   return {
-    services,
+    database,
+    agentManager,
+    ruleManager,
     config,
-  };
+  } as any;
 }
 
 /**
- * Initialize app context (no-op - initialization happens in createAppContext)
+ * Initialize all services in context
+ * Call this once at app startup
  */
 export async function initializeAppContext(ctx: AppContext): Promise<void> {
-  // No-op: initialization happens in createAppContext
+  await (ctx.database as any).initialize();
+  await (ctx.agentManager as any).initialize();
+  await (ctx.ruleManager as any).initialize();
 }
 
 /**
- * Close app context
+ * Close all services and cleanup
  */
 export async function closeAppContext(ctx: AppContext): Promise<void> {
-  // Future: Add cleanup logic
+  // Future: Add cleanup logic for database connections, etc.
 }
