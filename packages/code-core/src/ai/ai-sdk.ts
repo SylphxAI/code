@@ -300,6 +300,12 @@ Memory: ${metadata.memory}
 /**
  * Inject system status into tool result output
  * Convert all types to content type and prepend system status as text part
+ *
+ * Handles ALL content part types from AI SDK:
+ * - text, image (basic types)
+ * - file (PDF, documents)
+ * - source (code files)
+ * - raw (binary/custom data)
  */
 function injectSystemStatusToOutput(output: LanguageModelV2ToolResultOutput, systemStatus: SystemStatus): Extract<
   LanguageModelV2ToolResultOutput,
@@ -319,8 +325,9 @@ function injectSystemStatusToOutput(output: LanguageModelV2ToolResultOutput, sys
   }
 
   if (output.type === 'content') {
-    // Already content type
-    content.value = output.value;
+    // Already content type - MUST preserve ALL part types (text, image, file, source, raw)
+    // BUGFIX: Previously only copied array reference, now properly spread to preserve all parts
+    content.value = [...output.value];
   } else if (output.type === 'text' || output.type === 'error-text') {
     content.value.push({
         type: 'text',
