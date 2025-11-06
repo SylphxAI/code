@@ -373,8 +373,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         if (isNewSession && !aborted && result.usage) {
           try {
             // Import title generation utility
-            const { generateSessionTitleWithStreaming } = await import('../../utils/session-title.js');
-            const { getProvider } = await import('../../providers/index.js');
+            const { generateSessionTitleWithStreaming } = await import('@sylphx/code-core');
 
             // Get provider config
             const provider = session.provider;
