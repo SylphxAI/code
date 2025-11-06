@@ -133,8 +133,13 @@ export const sessions = sqliteTable(
 );
 
 /**
- * Messages table - Chat messages in sessions
+ * Messages table - Chat messages in sessions (containers for steps)
  * Stores message metadata and role
+ *
+ * Design: Message = Container, Step = Request
+ * - User message: 1 step (user input at one time)
+ * - Assistant message: 1+ steps (may need multiple AI calls for tool execution)
+ * - metadata/todoSnapshot moved to steps table (per-request context)
  */
 export const messages = sqliteTable(
   'messages',
@@ -146,11 +151,9 @@ export const messages = sqliteTable(
     role: text('role').notNull(), // 'user' | 'assistant'
     timestamp: integer('timestamp').notNull(), // Unix timestamp (ms)
     ordering: integer('ordering').notNull(), // For display order
-    finishReason: text('finish_reason'), // 'stop' | 'length' | 'tool-calls' | 'error'
-    // Message status - unified state for all messages
-    status: text('status').notNull().default('completed'), // 'active' | 'completed' | 'error' | 'abort'
-    // Metadata stored as JSON: { cpu?: string, memory?: string }
-    metadata: text('metadata'), // JSON string
+    // Aggregated from steps (for UI convenience)
+    finishReason: text('finish_reason'), // Final finish reason from last step
+    status: text('status').notNull().default('completed'), // Overall status (derived from steps)
   },
   (table) => ({
     sessionIdx: index('idx_messages_session').on(table.sessionId),
@@ -161,32 +164,107 @@ export const messages = sqliteTable(
 );
 
 /**
- * Message parts table - Content parts of messages
+ * Message steps table - Steps representing AI call(s) within a message
+ * Each step = ONE request at ONE point in time
+ *
+ * Design: Step = Request/Turn
+ * - User message: 1 step (user input)
+ * - Assistant message: 1+ steps (initial response, then tool execution steps)
+ * - Each step has its own metadata (system status at step start time)
+ * - Each step has its own todoSnapshot (todo state at step start time)
+ */
+export const messageSteps = sqliteTable(
+  'message_steps',
+  {
+    id: text('id').primaryKey(), // e.g., "step-0", "step-1"
+    messageId: text('message_id')
+      .notNull()
+      .references(() => messages.id, { onDelete: 'cascade' }),
+    stepIndex: integer('step_index').notNull(), // 0, 1, 2, ... (order)
+
+    // Per-step execution metadata
+    provider: text('provider'), // May route different steps to different providers
+    model: text('model'), // May use different models per step
+    duration: integer('duration'), // Step execution time (ms)
+    finishReason: text('finish_reason'), // 'stop' | 'tool-calls' | 'length' | 'error'
+    status: text('status').notNull().default('completed'), // 'active' | 'completed' | 'error' | 'abort'
+
+    // Per-step context (captured at step start time)
+    metadata: text('metadata'), // JSON: { cpu?: string, memory?: string }
+
+    // Timestamps
+    startTime: integer('start_time'), // Unix timestamp (ms)
+    endTime: integer('end_time'), // Unix timestamp (ms)
+  },
+  (table) => ({
+    messageIdx: index('idx_message_steps_message').on(table.messageId),
+    stepIndexIdx: index('idx_message_steps_step_index').on(table.messageId, table.stepIndex),
+    statusIdx: index('idx_message_steps_status').on(table.status),
+  })
+);
+
+/**
+ * Step usage table - Token usage for steps
+ * 1:1 relationship with steps (only assistant steps have usage)
+ */
+export const stepUsage = sqliteTable('step_usage', {
+  stepId: text('step_id')
+    .primaryKey()
+    .references(() => messageSteps.id, { onDelete: 'cascade' }),
+  promptTokens: integer('prompt_tokens').notNull(),
+  completionTokens: integer('completion_tokens').notNull(),
+  totalTokens: integer('total_tokens').notNull(),
+});
+
+/**
+ * Step todo snapshots table - Snapshot of todos at step start time
+ * Each step captures the todo state at its creation time
+ */
+export const stepTodoSnapshots = sqliteTable(
+  'step_todo_snapshots',
+  {
+    id: text('id').primaryKey(),
+    stepId: text('step_id')
+      .notNull()
+      .references(() => messageSteps.id, { onDelete: 'cascade' }),
+    todoId: integer('todo_id').notNull(), // ID from snapshot (not FK!)
+    content: text('content').notNull(),
+    activeForm: text('active_form').notNull(),
+    status: text('status').notNull(),
+    ordering: integer('ordering').notNull(),
+  },
+  (table) => ({
+    stepIdx: index('idx_step_todo_snapshots_step').on(table.stepId),
+  })
+);
+
+/**
+ * Step parts table - Content parts within a step
  * Stores text, reasoning, tool calls, errors
  * Content structure varies by type, stored as JSON
  *
  * ALL parts have unified status field: 'active' | 'completed' | 'error' | 'abort'
  */
-export const messageParts = sqliteTable(
-  'message_parts',
+export const stepParts = sqliteTable(
+  'step_parts',
   {
     id: text('id').primaryKey(),
-    messageId: text('message_id')
+    stepId: text('step_id')
       .notNull()
-      .references(() => messages.id, { onDelete: 'cascade' }),
-    ordering: integer('ordering').notNull(), // Order within message
+      .references(() => messageSteps.id, { onDelete: 'cascade' }),
+    ordering: integer('ordering').notNull(), // Order within step
     type: text('type').notNull(), // 'text' | 'reasoning' | 'tool' | 'error'
     // Content structure (JSON) - ALL parts include status field:
     // - text: { type: 'text', content: string, status: 'active' | 'completed' | ... }
     // - reasoning: { type: 'reasoning', content: string, status: ..., duration?: number }
-    // - tool: { type: 'tool', name: string, status: ..., duration?: number, args?: any, result?: any, error?: string }
+    // - tool: { type: 'tool', toolId: string, name: string, status: ..., duration?: number, args?: any, result?: any, error?: string }
     // - error: { type: 'error', error: string, status: 'completed' }
     content: text('content').notNull(), // JSON string
   },
   (table) => ({
-    messageIdx: index('idx_message_parts_message').on(table.messageId),
-    orderingIdx: index('idx_message_parts_ordering').on(table.messageId, table.ordering),
-    typeIdx: index('idx_message_parts_type').on(table.type),
+    stepIdx: index('idx_step_parts_step').on(table.stepId),
+    orderingIdx: index('idx_step_parts_ordering').on(table.stepId, table.ordering),
+    typeIdx: index('idx_step_parts_type').on(table.type),
   })
 );
 
@@ -211,8 +289,8 @@ export const messageAttachments = sqliteTable(
 );
 
 /**
- * Message usage table - Token usage for messages
- * 1:1 relationship with messages (only assistant messages have usage)
+ * Message usage table - Aggregated token usage for messages
+ * Sum of all step usage for this message (for UI convenience)
  */
 export const messageUsage = sqliteTable('message_usage', {
   messageId: text('message_id')
@@ -246,27 +324,6 @@ export const todos = sqliteTable(
   })
 );
 
-/**
- * Message todo snapshots table - Snapshot of todos at message creation time
- * Enables rewind feature - can restore todo state at any point in conversation
- */
-export const messageTodoSnapshots = sqliteTable(
-  'message_todo_snapshots',
-  {
-    id: text('id').primaryKey(),
-    messageId: text('message_id')
-      .notNull()
-      .references(() => messages.id, { onDelete: 'cascade' }),
-    todoId: integer('todo_id').notNull(), // ID from snapshot (not FK!)
-    content: text('content').notNull(),
-    activeForm: text('active_form').notNull(),
-    status: text('status').notNull(),
-    ordering: integer('ordering').notNull(),
-  },
-  (table) => ({
-    messageIdx: index('idx_message_todo_snapshots_message').on(table.messageId),
-  })
-);
 
 // Export types for TypeScript
 export type Session = typeof sessions.$inferSelect;
@@ -275,8 +332,17 @@ export type NewSession = typeof sessions.$inferInsert;
 export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
 
-export type MessagePart = typeof messageParts.$inferSelect;
-export type NewMessagePart = typeof messageParts.$inferInsert;
+export type MessageStep = typeof messageSteps.$inferSelect;
+export type NewMessageStep = typeof messageSteps.$inferInsert;
+
+export type StepUsage = typeof stepUsage.$inferSelect;
+export type NewStepUsage = typeof stepUsage.$inferInsert;
+
+export type StepTodoSnapshot = typeof stepTodoSnapshots.$inferSelect;
+export type NewStepTodoSnapshot = typeof stepTodoSnapshots.$inferInsert;
+
+export type StepPart = typeof stepParts.$inferSelect;
+export type NewStepPart = typeof stepParts.$inferInsert;
 
 export type MessageAttachment = typeof messageAttachments.$inferSelect;
 export type NewMessageAttachment = typeof messageAttachments.$inferInsert;
@@ -286,6 +352,3 @@ export type NewMessageUsage = typeof messageUsage.$inferInsert;
 
 export type Todo = typeof todos.$inferSelect;
 export type NewTodo = typeof todos.$inferInsert;
-
-export type MessageTodoSnapshot = typeof messageTodoSnapshots.$inferSelect;
-export type NewMessageTodoSnapshot = typeof messageTodoSnapshots.$inferInsert;

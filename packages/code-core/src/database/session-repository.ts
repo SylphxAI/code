@@ -17,24 +17,28 @@ import { randomUUID } from 'node:crypto';
 import {
   sessions,
   messages,
-  messageParts,
+  messageSteps,
+  stepParts,
+  stepUsage,
+  stepTodoSnapshots,
   messageAttachments,
   messageUsage,
   todos,
-  messageTodoSnapshots,
   type Session,
   type NewSession,
   type Message,
   type NewMessage,
+  type MessageStep as DBMessageStep,
+  type NewMessageStep,
 } from './schema.js';
 import type {
   Session as SessionType,
   SessionMessage,
+  MessageStep,
   MessagePart,
   FileAttachment,
   TokenUsage,
   MessageMetadata,
-  StreamingPart,
 } from '../types/session.types.js';
 import type { Todo as TodoType } from '../types/todo.types.js';
 import type { ProviderId } from '../config/ai-config.js';
@@ -424,8 +428,8 @@ export class SessionRepository {
   }
 
   /**
-   * Get messages for a session (all messages)
-   * Assembles message parts, attachments, usage into SessionMessage format
+   * Get messages for a session (all messages) with step-based structure
+   * Assembles steps, parts, attachments, usage into SessionMessage format
    * OPTIMIZED: Batch queries instead of N+1 queries
    */
   private async getSessionMessages(sessionId: string): Promise<SessionMessage[]> {
@@ -443,46 +447,83 @@ export class SessionRepository {
     // Batch fetch all related data (MASSIVE performance improvement!)
     const messageIds = messageRecords.map((m) => m.id);
 
-    // Fetch all parts, attachments, usage, snapshots in parallel (OPTIMIZED!)
-    const [allParts, allAttachments, allUsage, allSnapshots] = await Promise.all([
-      // Get all message parts for all messages
+    // Get all steps for all messages
+    const allSteps = await this.db
+      .select()
+      .from(messageSteps)
+      .where(inArray(messageSteps.messageId, messageIds))
+      .orderBy(messageSteps.stepIndex);
+
+    const stepIds = allSteps.map((s) => s.id);
+
+    // Fetch all step-related data and message-level data in parallel
+    const [allParts, allStepUsage, allStepSnapshots, allAttachments, allMsgUsage] = await Promise.all([
+      // Step parts
       this.db
         .select()
-        .from(messageParts)
-        .where(inArray(messageParts.messageId, messageIds))
-        .orderBy(messageParts.ordering),
+        .from(stepParts)
+        .where(inArray(stepParts.stepId, stepIds))
+        .orderBy(stepParts.ordering),
 
-      // Get all attachments for all messages
+      // Step usage
+      this.db
+        .select()
+        .from(stepUsage)
+        .where(inArray(stepUsage.stepId, stepIds)),
+
+      // Step todo snapshots
+      this.db
+        .select()
+        .from(stepTodoSnapshots)
+        .where(inArray(stepTodoSnapshots.stepId, stepIds))
+        .orderBy(stepTodoSnapshots.ordering),
+
+      // Message attachments
       this.db
         .select()
         .from(messageAttachments)
         .where(inArray(messageAttachments.messageId, messageIds)),
 
-      // Get all usage for all messages
+      // Message usage (aggregated)
       this.db
         .select()
         .from(messageUsage)
         .where(inArray(messageUsage.messageId, messageIds)),
-
-      // Get all todo snapshots for all messages
-      this.db
-        .select()
-        .from(messageTodoSnapshots)
-        .where(inArray(messageTodoSnapshots.messageId, messageIds))
-        .orderBy(messageTodoSnapshots.ordering),
     ]);
 
-    // Group by message ID for O(1) lookup
-    const partsByMessage = new Map<string, typeof allParts>();
-    const attachmentsByMessage = new Map<string, typeof allAttachments>();
-    const usageByMessage = new Map<string, (typeof allUsage)[0]>();
-    const snapshotsByMessage = new Map<string, typeof allSnapshots>();
+    // Group by step ID
+    const partsByStep = new Map<string, typeof allParts>();
+    const usageByStep = new Map<string, (typeof allStepUsage)[0]>();
+    const snapshotsByStep = new Map<string, typeof allStepSnapshots>();
 
     for (const part of allParts) {
-      if (!partsByMessage.has(part.messageId)) {
-        partsByMessage.set(part.messageId, []);
+      if (!partsByStep.has(part.stepId)) {
+        partsByStep.set(part.stepId, []);
       }
-      partsByMessage.get(part.messageId)!.push(part);
+      partsByStep.get(part.stepId)!.push(part);
+    }
+
+    for (const usage of allStepUsage) {
+      usageByStep.set(usage.stepId, usage);
+    }
+
+    for (const snapshot of allStepSnapshots) {
+      if (!snapshotsByStep.has(snapshot.stepId)) {
+        snapshotsByStep.set(snapshot.stepId, []);
+      }
+      snapshotsByStep.get(snapshot.stepId)!.push(snapshot);
+    }
+
+    // Group by message ID
+    const stepsByMessage = new Map<string, typeof allSteps>();
+    const attachmentsByMessage = new Map<string, typeof allAttachments>();
+    const usageByMessage = new Map<string, (typeof allMsgUsage)[0]>();
+
+    for (const step of allSteps) {
+      if (!stepsByMessage.has(step.messageId)) {
+        stepsByMessage.set(step.messageId, []);
+      }
+      stepsByMessage.get(step.messageId)!.push(step);
     }
 
     for (const attachment of allAttachments) {
@@ -492,38 +533,87 @@ export class SessionRepository {
       attachmentsByMessage.get(attachment.messageId)!.push(attachment);
     }
 
-    for (const usage of allUsage) {
+    for (const usage of allMsgUsage) {
       usageByMessage.set(usage.messageId, usage);
-    }
-
-    for (const snapshot of allSnapshots) {
-      if (!snapshotsByMessage.has(snapshot.messageId)) {
-        snapshotsByMessage.set(snapshot.messageId, []);
-      }
-      snapshotsByMessage.get(snapshot.messageId)!.push(snapshot);
     }
 
     // Assemble messages using grouped data
     const fullMessages = messageRecords.map((msg) => {
-      const parts = partsByMessage.get(msg.id) || [];
+      const steps = stepsByMessage.get(msg.id) || [];
       const attachments = attachmentsByMessage.get(msg.id) || [];
       const usage = usageByMessage.get(msg.id);
-      const todoSnap = snapshotsByMessage.get(msg.id) || [];
+
+      // Build steps
+      const messageSteps: MessageStep[] = steps.map((step) => {
+        const parts = partsByStep.get(step.id) || [];
+        const stepUsageData = usageByStep.get(step.id);
+        const todoSnap = snapshotsByStep.get(step.id) || [];
+
+        const messageStep: MessageStep = {
+          id: step.id,
+          stepIndex: step.stepIndex,
+          parts: parts.map((p) => JSON.parse(p.content) as MessagePart),
+          status: (step.status as 'active' | 'completed' | 'error' | 'abort') || 'completed',
+        };
+
+        if (step.metadata) {
+          messageStep.metadata = JSON.parse(step.metadata) as MessageMetadata;
+        }
+
+        if (todoSnap.length > 0) {
+          messageStep.todoSnapshot = todoSnap.map((t) => ({
+            id: t.todoId,
+            content: t.content,
+            activeForm: t.activeForm,
+            status: t.status as 'pending' | 'in_progress' | 'completed',
+            ordering: t.ordering,
+          }));
+        }
+
+        if (stepUsageData) {
+          messageStep.usage = {
+            promptTokens: stepUsageData.promptTokens,
+            completionTokens: stepUsageData.completionTokens,
+            totalTokens: stepUsageData.totalTokens,
+          };
+        }
+
+        if (step.provider) {
+          messageStep.provider = step.provider;
+        }
+
+        if (step.model) {
+          messageStep.model = step.model;
+        }
+
+        if (step.duration) {
+          messageStep.duration = step.duration;
+        }
+
+        if (step.finishReason) {
+          messageStep.finishReason = step.finishReason as 'stop' | 'tool-calls' | 'length' | 'error';
+        }
+
+        if (step.startTime) {
+          messageStep.startTime = step.startTime;
+        }
+
+        if (step.endTime) {
+          messageStep.endTime = step.endTime;
+        }
+
+        return messageStep;
+      });
 
       const sessionMessage: SessionMessage = {
         id: msg.id,
         role: msg.role as 'user' | 'assistant',
-        content: parts.map((p) => JSON.parse(p.content) as MessagePart),
+        steps: messageSteps,
         timestamp: msg.timestamp,
         status: (msg.status as 'active' | 'completed' | 'error' | 'abort') || 'completed',
       };
 
-      if (msg.metadata) {
-        sessionMessage.metadata = JSON.parse(msg.metadata) as MessageMetadata;
-      }
-
       // Self-healing: Normalize attachments on read
-      // Old/corrupted data might have invalid entries - filter them out
       if (attachments.length > 0) {
         const validAttachments = attachments.filter((a) =>
           a && typeof a === 'object' && a.path && a.relativePath
@@ -536,9 +626,9 @@ export class SessionRepository {
             size: a.size || undefined,
           }));
         }
-        // If all invalid, leave attachments undefined (no broken data in memory)
       }
 
+      // Aggregated usage (for UI convenience)
       if (usage) {
         sessionMessage.usage = {
           promptTokens: usage.promptTokens,
@@ -547,18 +637,9 @@ export class SessionRepository {
         };
       }
 
+      // Final finish reason (from last step or message-level)
       if (msg.finishReason) {
         sessionMessage.finishReason = msg.finishReason;
-      }
-
-      if (todoSnap.length > 0) {
-        sessionMessage.todoSnapshot = todoSnap.map((t) => ({
-          id: t.todoId,
-          content: t.content,
-          activeForm: t.activeForm,
-          status: t.status as 'pending' | 'in_progress' | 'completed',
-          ordering: t.ordering,
-        }));
       }
 
       return sessionMessage;
