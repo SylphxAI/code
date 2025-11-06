@@ -234,7 +234,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
             lastErrorRef.current = error.message || String(error);
 
             // Add error message part to UI
-            updateActiveMessageContent(sessionId, context.streamingMessageIdRef.current, (prev) => [
+            updateActiveMessageContent(sessionId, streamingMessageIdRef.current, (prev) => [
               ...prev,
               {
                 type: 'error',
@@ -283,7 +283,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
         subscription.unsubscribe();
 
         // Mark active parts as aborted
-        updateActiveMessageContent(sessionId, context.streamingMessageIdRef.current, (prev) =>
+        updateActiveMessageContent(sessionId, streamingMessageIdRef.current, (prev) =>
           prev.map((part) =>
             part.status === 'active' ? { ...part, status: 'abort' as const } : part
           )
