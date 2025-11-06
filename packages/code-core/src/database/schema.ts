@@ -325,6 +325,11 @@ export const todos = sqliteTable(
 );
 
 
+// TEMPORARY ALIASES for backward compatibility during transition
+// These reference old table names but point to new step-based tables
+export const messageParts = stepParts;
+export const messageTodoSnapshots = stepTodoSnapshots;
+
 // Export types for TypeScript
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
@@ -343,6 +348,12 @@ export type NewStepTodoSnapshot = typeof stepTodoSnapshots.$inferInsert;
 
 export type StepPart = typeof stepParts.$inferSelect;
 export type NewStepPart = typeof stepParts.$inferInsert;
+
+// Legacy aliases
+export type MessagePart = StepPart;
+export type NewMessagePart = NewStepPart;
+export type MessageTodoSnapshot = StepTodoSnapshot;
+export type NewMessageTodoSnapshot = NewStepTodoSnapshot;
 
 export type MessageAttachment = typeof messageAttachments.$inferSelect;
 export type NewMessageAttachment = typeof messageAttachments.$inferInsert;
