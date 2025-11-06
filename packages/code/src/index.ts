@@ -147,15 +147,7 @@ async function main() {
       }
 
       // Headless mode: if prompt provided OR --print flag
-      // BUT: ignore single-word arguments that look like npm script names
-      const isMeaningfulPrompt = prompt && (
-        prompt.includes(' ') ||           // Multi-word prompt
-        prompt.length > 10 ||             // Long single word
-        options.print ||                  // Explicit print flag
-        options.continue                  // Continue flag
-      );
-
-      if (isMeaningfulPrompt || options.print) {
+      if (prompt || options.print) {
         if (!prompt) {
           console.error(chalk.red('Error: No prompt provided'));
           console.error(chalk.dim('Usage: sylphx-code "your prompt here"'));
