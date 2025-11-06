@@ -69,7 +69,8 @@ export interface SubscriptionAdapterParams {
  */
 function updateActiveMessageContent(
   currentSessionId: string | null,
-  updater: (prev: MessagePart[]) => MessagePart[]
+  updater: (prev: MessagePart[]) => MessagePart[],
+  messageId?: string
 ) {
   useAppStore.setState((state) => {
     const session = state.currentSession;
@@ -78,9 +79,13 @@ function updateActiveMessageContent(
       return;
     }
 
-    const activeMessage = session.messages.find((m) => m.status === 'active');
+    // Find active message by ID if provided, otherwise find any active message
+    const activeMessage = messageId
+      ? session.messages.find((m) => m.id === messageId && m.status === 'active')
+      : session.messages.find((m) => m.status === 'active');
+
     if (!activeMessage) {
-      logContent('No active message found! messages:', session.messages.length);
+      logContent('No active message found! messages:', session.messages.length, 'messageId:', messageId);
       return;
     }
 
@@ -88,47 +93,6 @@ function updateActiveMessageContent(
   });
 }
 
-/**
- * Load session in background (non-blocking)
- * Called when server creates a new session
- *
- * IMPORTANT: Don't overwrite streaming messages!
- * Merge server data with existing client-side streaming state
- */
-function loadSessionInBackground(sessionId: string) {
-  // Fire and forget - don't block event handling
-  (async () => {
-    try {
-      const client = getTRPCClient();
-      const session = await client.session.getById.query({ sessionId });
-
-      useAppStore.setState((state) => {
-        // Don't replace entire session - merge carefully
-        // Keep existing messages if they're actively streaming
-        const currentSession = state.currentSession;
-
-        if (currentSession && currentSession.id === sessionId) {
-          // Preserve streaming messages (status: 'active')
-          const streamingMessages = currentSession.messages.filter(m => m.status === 'active');
-
-          // Merge: use loaded session but append streaming messages
-          state.currentSession = {
-            ...session,
-            messages: [
-              ...session.messages,
-              ...streamingMessages,
-            ],
-          };
-        } else {
-          // No current session or different session - safe to replace
-          state.currentSession = session;
-        }
-      });
-    } catch (error) {
-      console.error('[loadSessionInBackground] Failed to load session:', error);
-    }
-  })();
-}
 
 /**
  * Creates sendUserMessageToAI function using tRPC subscription
@@ -270,7 +234,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
             lastErrorRef.current = error.message || String(error);
 
             // Add error message part to UI
-            updateActiveMessageContent(sessionId, (prev) => [
+            updateActiveMessageContent(sessionId, context.streamingMessageIdRef.current, (prev) => [
               ...prev,
               {
                 type: 'error',
@@ -319,7 +283,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
         subscription.unsubscribe();
 
         // Mark active parts as aborted
-        updateActiveMessageContent(sessionId, (prev) =>
+        updateActiveMessageContent(sessionId, context.streamingMessageIdRef.current, (prev) =>
           prev.map((part) =>
             part.status === 'active' ? { ...part, status: 'abort' as const } : part
           )
@@ -399,9 +363,27 @@ function handleStreamEvent(
       });
 
       logSession('Created skeleton session:', event.sessionId);
+      break;
 
-      // Load full session from server in background (to get any server-side data)
-      loadSessionInBackground(event.sessionId);
+    case 'user-message-created':
+      // Server added user message, add to client state
+      logMessage('User message created:', event.messageId);
+
+      useAppStore.setState((state) => {
+        const session = state.currentSession;
+        if (session && session.id === currentSessionId) {
+          session.messages.push({
+            id: event.messageId,
+            role: 'user',
+            content: [{ type: 'text', content: event.content, status: 'completed' }],
+            timestamp: Date.now(),
+            status: 'completed',
+          });
+          logMessage('Added user message, total:', session.messages.length);
+        } else {
+          logMessage('Session mismatch! expected:', currentSessionId, 'got:', session?.id);
+        }
+      });
       break;
 
     case 'session-title-start':
@@ -431,6 +413,7 @@ function handleStreamEvent(
         const session = state.currentSession;
         if (session && session.id === currentSessionId) {
           session.messages.push({
+            id: event.messageId,
             role: 'assistant',
             content: [],
             timestamp: Date.now(),
@@ -445,7 +428,7 @@ function handleStreamEvent(
 
     case 'reasoning-start':
       logContent('Reasoning start, session:', currentSessionId);
-      updateActiveMessageContent(currentSessionId, (prev) => {
+      updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
         logContent('Adding reasoning part, existing parts:', prev.length);
         return [
           ...prev,
@@ -455,7 +438,7 @@ function handleStreamEvent(
       break;
 
     case 'reasoning-delta':
-      updateActiveMessageContent(currentSessionId, (prev) => {
+      updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
         const newParts = [...prev];
         const lastPart = newParts[newParts.length - 1];
         if (lastPart && lastPart.type === 'reasoning') {
@@ -469,7 +452,7 @@ function handleStreamEvent(
       break;
 
     case 'reasoning-end':
-      updateActiveMessageContent(currentSessionId, (prev) => {
+      updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
         const newParts = [...prev];
         const lastReasoningIndex = newParts
           .map((p, i) => ({ p, i }))
@@ -491,14 +474,14 @@ function handleStreamEvent(
       break;
 
     case 'text-start':
-      updateActiveMessageContent(currentSessionId, (prev) => [
+      updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => [
         ...prev,
         { type: 'text', content: '', status: 'active' } as MessagePart,
       ]);
       break;
 
     case 'text-delta':
-      updateActiveMessageContent(currentSessionId, (prev) => {
+      updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
         const newParts = [...prev];
         const lastPart = newParts[newParts.length - 1];
 
@@ -522,7 +505,7 @@ function handleStreamEvent(
       break;
 
     case 'text-end':
-      updateActiveMessageContent(currentSessionId, (prev) => {
+      updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
         const newParts = [...prev];
         const lastTextIndex = newParts
           .map((p, i) => ({ p, i }))
@@ -544,7 +527,7 @@ function handleStreamEvent(
       break;
 
     case 'tool-call':
-      updateActiveMessageContent(currentSessionId, (prev) => [
+      updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => [
         ...prev,
         {
           type: 'tool',
@@ -558,7 +541,7 @@ function handleStreamEvent(
       break;
 
     case 'tool-result':
-      updateActiveMessageContent(currentSessionId, (prev) =>
+      updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) =>
         prev.map((part) =>
           part.type === 'tool' && part.toolId === event.toolCallId
             ? {
@@ -573,7 +556,7 @@ function handleStreamEvent(
       break;
 
     case 'tool-error':
-      updateActiveMessageContent(currentSessionId, (prev) =>
+      updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) =>
         prev.map((part) =>
           part.type === 'tool' && part.toolId === event.toolCallId
             ? { ...part, status: 'error' as const, error: event.error, duration: event.duration }
@@ -598,7 +581,7 @@ function handleStreamEvent(
 
     case 'error':
       context.lastErrorRef.current = event.error;
-      updateActiveMessageContent(currentSessionId, (prev) => [
+      updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => [
         ...prev,
         { type: 'error', error: event.error, status: 'completed' } as MessagePart,
       ]);

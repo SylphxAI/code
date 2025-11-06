@@ -371,6 +371,7 @@ export class SessionRepository {
       const todoSnap = snapshotsByMessage.get(msg.id) || [];
 
       const sessionMessage: SessionMessage = {
+        id: msg.id,
         role: msg.role as 'user' | 'assistant',
         content: parts.map((p) => JSON.parse(p.content) as MessagePart),
         timestamp: msg.timestamp,
@@ -510,6 +511,7 @@ export class SessionRepository {
       const todoSnap = snapshotsByMessage.get(msg.id) || [];
 
       const sessionMessage: SessionMessage = {
+        id: msg.id,
         role: msg.role as 'user' | 'assistant',
         content: parts.map((p) => JSON.parse(p.content) as MessagePart),
         timestamp: msg.timestamp,

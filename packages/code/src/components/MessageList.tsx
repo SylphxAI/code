@@ -19,7 +19,7 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
   return (
     <>
       {messages.map((msg) => (
-        <Box key={`${msg.role}-${msg.timestamp}`} flexDirection="column">
+        <Box key={msg.id} flexDirection="column">
           {/* Message Header */}
           <Box paddingTop={1} paddingX={1}>
             {msg.role === 'user' ? (

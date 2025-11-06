@@ -41,6 +41,7 @@ export type StreamEvent =
   | { type: 'session-title-start' }
   | { type: 'session-title-delta'; text: string }
   | { type: 'session-title-complete'; title: string }
+  | { type: 'user-message-created'; messageId: string; content: string }
   | { type: 'assistant-message-created'; messageId: string }
   | { type: 'text-start' }
   | { type: 'text-delta'; text: string }
@@ -167,7 +168,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
         // 3. Add user message to session (with system status + attachments)
         const systemStatus = getSystemStatus();
-        const messageId = await sessionRepository.addMessage(
+        const userMessageId = await sessionRepository.addMessage(
           sessionId,
           'user',
           [{ type: 'text', content: userMessage, status: 'completed' }], // MessagePart schema
@@ -180,6 +181,13 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           },
           session.todos // Capture current todos for this message
         );
+
+        // 3.1. Emit user-message-created event
+        observer.next({
+          type: 'user-message-created',
+          messageId: userMessageId,
+          content: userMessage,
+        });
 
         // 4. Reload session to get updated messages
         const updatedSession = await sessionRepository.getSessionById(sessionId);

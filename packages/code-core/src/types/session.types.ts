@@ -135,6 +135,7 @@ export interface MessageMetadata {
  * - Clearer separation: metadata = simple context, todoSnapshot = structured state
  */
 export interface SessionMessage {
+  id: string;              // Unique message ID from database
   role: 'user' | 'assistant';
   content: MessagePart[];  // UI display (without system status)
   timestamp: number;
