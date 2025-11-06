@@ -62,6 +62,12 @@ export { ZaiProvider } from './ai/providers/zai-provider.js'
 // ============================================================================
 export { SessionRepository } from './database/session-repository.js'
 export { initializeDatabase } from './database/auto-migrate.js'
+export {
+  createMessageStep,
+  updateStepParts,
+  completeMessageStep,
+  loadMessageSteps,
+} from './database/step-repository-helpers.js'
 
 // NOTE: Global state functions removed (moved to code-server AppContext):
 // - getDatabase, getSessionRepository

@@ -235,12 +235,24 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
                 contentParts.push({ type: 'text', text: todoContext });
               }
 
-              // Add message content
-              msg.content.forEach((part) => {
-                if (part.type === 'text' && part.content) {
-                  contentParts.push({ type: 'text', text: part.content });
+              // Add message content (aggregate from all steps)
+              if (msg.steps && msg.steps.length > 0) {
+                // Step-based structure: aggregate content from all steps
+                for (const step of msg.steps) {
+                  step.parts.forEach((part) => {
+                    if (part.type === 'text' && part.content) {
+                      contentParts.push({ type: 'text', text: part.content });
+                    }
+                  });
                 }
-              });
+              } else if (msg.content) {
+                // LEGACY: Direct content array (for backward compatibility)
+                msg.content.forEach((part) => {
+                  if (part.type === 'text' && part.content) {
+                    contentParts.push({ type: 'text', text: part.content });
+                  }
+                });
+              }
 
               // Add file attachments
               if (msg.attachments && msg.attachments.length > 0) {
@@ -261,44 +273,90 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
               return { role: msg.role as 'user', content: contentParts };
             } else {
-              // Assistant message
-              const contentParts: AssistantContent = msg.content.flatMap((part) => {
-                switch (part.type) {
-                  case 'text':
-                    return [{ type: 'text' as const, text: part.content }];
+              // Assistant message - aggregate from all steps
+              let contentParts: AssistantContent = [];
 
-                  case 'reasoning':
-                    return [{ type: 'reasoning' as const, text: part.content }];
+              if (msg.steps && msg.steps.length > 0) {
+                // Step-based structure: aggregate content from all steps
+                contentParts = msg.steps.flatMap((step) =>
+                  step.parts.flatMap((part) => {
+                    switch (part.type) {
+                      case 'text':
+                        return [{ type: 'text' as const, text: part.content }];
 
-                  case 'tool': {
-                    const parts: AssistantContent = [
-                      {
-                        type: 'tool-call' as const,
-                        toolCallId: part.toolId,
-                        toolName: part.name,
-                        input: part.args,
-                      } as ToolCallPart,
-                    ];
+                      case 'reasoning':
+                        return [{ type: 'reasoning' as const, text: part.content }];
 
-                    if (part.result !== undefined) {
-                      parts.push({
-                        type: 'tool-result' as const,
-                        toolCallId: part.toolId,
-                        toolName: part.name,
-                        output: part.result,
-                      } as ToolResultPart);
+                      case 'tool': {
+                        const parts: AssistantContent = [
+                          {
+                            type: 'tool-call' as const,
+                            toolCallId: part.toolId,
+                            toolName: part.name,
+                            input: part.args,
+                          } as ToolCallPart,
+                        ];
+
+                        if (part.result !== undefined) {
+                          parts.push({
+                            type: 'tool-result' as const,
+                            toolCallId: part.toolId,
+                            toolName: part.name,
+                            output: part.result,
+                          } as ToolResultPart);
+                        }
+
+                        return parts;
+                      }
+
+                      case 'error':
+                        return [{ type: 'text' as const, text: `[Error: ${part.error}]` }];
+
+                      default:
+                        return [];
+                    }
+                  })
+                );
+              } else if (msg.content) {
+                // LEGACY: Direct content array (for backward compatibility)
+                contentParts = msg.content.flatMap((part) => {
+                  switch (part.type) {
+                    case 'text':
+                      return [{ type: 'text' as const, text: part.content }];
+
+                    case 'reasoning':
+                      return [{ type: 'reasoning' as const, text: part.content }];
+
+                    case 'tool': {
+                      const parts: AssistantContent = [
+                        {
+                          type: 'tool-call' as const,
+                          toolCallId: part.toolId,
+                          toolName: part.name,
+                          input: part.args,
+                        } as ToolCallPart,
+                      ];
+
+                      if (part.result !== undefined) {
+                        parts.push({
+                          type: 'tool-result' as const,
+                          toolCallId: part.toolId,
+                          toolName: part.name,
+                          output: part.result,
+                        } as ToolResultPart);
+                      }
+
+                      return parts;
                     }
 
-                    return parts;
+                    case 'error':
+                      return [{ type: 'text' as const, text: `[Error: ${part.error}]` }];
+
+                    default:
+                      return [];
                   }
-
-                  case 'error':
-                    return [{ type: 'text' as const, text: `[Error: ${part.error}]` }];
-
-                  default:
-                    return [];
-                }
-              });
+                });
+              }
 
               // Add status annotation
               if (msg.status === 'abort') {
