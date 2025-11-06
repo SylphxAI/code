@@ -1016,29 +1016,60 @@ export class SessionRepository {
         return { messages: [], nextCursor: null };
       }
 
-      // Get text parts for these messages
+      // Get text parts for these messages via step parts
       const messageIds = messagesToReturn.map(m => m.messageId);
+
+      // Get steps for these messages
+      const steps = await this.db
+        .select()
+        .from(messageSteps)
+        .where(inArray(messageSteps.messageId, messageIds));
+
+      if (steps.length === 0) {
+        // No steps found, return empty texts
+        const messageTexts = new Map<string, string[]>();
+        return {
+          messages: messagesToReturn.map(m => ({
+            id: m.messageId,
+            role: m.role,
+            text: messageTexts.get(m.messageId)?.join(' ') || '',
+            timestamp: m.timestamp,
+          })),
+          nextCursor: cursor,
+        };
+      }
+
+      const stepIds = steps.map(s => s.id);
       const parts = await this.db
         .select()
-        .from(messageParts)
+        .from(stepParts)
         .where(
           and(
-            inArray(messageParts.messageId, messageIds),
-            eq(messageParts.type, 'text')
+            inArray(stepParts.stepId, stepIds),
+            eq(stepParts.type, 'text')
           )
         )
-        .orderBy(messageParts.ordering);
+        .orderBy(stepParts.ordering);
+
+      // Map step IDs to message IDs
+      const stepToMessage = new Map<string, string>();
+      for (const step of steps) {
+        stepToMessage.set(step.id, step.messageId);
+      }
 
       // Group parts by message and extract text content
       const messageTexts = new Map<string, string[]>();
       for (const part of parts) {
+        const messageId = stepToMessage.get(part.stepId);
+        if (!messageId) continue;
+
         const content = JSON.parse(part.content);
         const text = content.content || '';
         if (text.trim()) {
-          if (!messageTexts.has(part.messageId)) {
-            messageTexts.set(part.messageId, []);
+          if (!messageTexts.has(messageId)) {
+            messageTexts.set(messageId, []);
           }
-          messageTexts.get(part.messageId)!.push(text);
+          messageTexts.get(messageId)!.push(text);
         }
       }
 
