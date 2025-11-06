@@ -617,7 +617,7 @@ function handleStreamEvent(
 /**
  * Cleanup after stream completes or errors
  */
-function cleanupAfterStream(context: {
+async function cleanupAfterStream(context: {
   currentSessionId: string | null;
   wasAbortedRef: React.MutableRefObject<boolean>;
   lastErrorRef: React.MutableRefObject<string | null>;
@@ -652,6 +652,25 @@ function cleanupAfterStream(context: {
       activeMessage.finishReason = context.finishReasonRef.current;
     }
   });
+
+  // Reload message from database to get steps structure
+  if (context.currentSessionId && context.streamingMessageIdRef.current) {
+    try {
+      const caller = await getTRPCClient();
+      const session = await caller.session.getById({ sessionId: context.currentSessionId });
+
+      if (session) {
+        // Update Zustand store with fresh data from database
+        useAppStore.setState((state) => {
+          if (state.currentSessionId === context.currentSessionId) {
+            state.currentSession = session;
+          }
+        });
+      }
+    } catch (error) {
+      console.error('[cleanupAfterStream] Failed to reload session:', error);
+    }
+  }
 
   // Send notifications
   if (context.notificationSettings.notifyOnCompletion && !wasAborted && !hasError) {
