@@ -200,30 +200,9 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
     // Client just passes null, server handles creation
     const sessionId = currentSessionId;
 
-    // Optimistic update: Add user message to store ONLY if session exists
-    // For lazy sessions (sessionId = null), server will create session + add message
-    if (sessionId) {
-      const { getSystemStatus } = await import('@sylphx/code-core');
-      const systemStatus = getSystemStatus();
-      const currentSession = useAppStore.getState().currentSession;
-      const todoSnapshot = currentSession?.todos ? [...currentSession.todos] : [];
-
-      await addMessage(
-        sessionId,
-        'user',
-        userMessage,
-        attachments,
-        undefined, // usage (only for assistant messages)
-        undefined, // finishReason (only for assistant messages)
-        {
-          cpu: systemStatus.cpu,
-          memory: systemStatus.memory,
-        },
-        todoSnapshot,
-        provider,
-        model
-      );
-    }
+    // DON'T optimistically add user message - server will add it
+    // Background load (loadSessionInBackground) will fetch it
+    // Optimistic updates cause duplicates due to race condition
 
     logSession('Starting streaming, isStreaming=true');
     setIsStreaming(true);
