@@ -102,7 +102,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
     let aborted = false;
 
     // Async execution wrapped in promise
-    (async () => {
+    const executionPromise = (async () => {
       try {
         const {
           sessionRepository,
@@ -587,8 +587,11 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           })();
         }
 
+        console.log('[streamAIResponse] Calling observer.complete()');
         observer.complete();
+        console.log('[streamAIResponse] observer.complete() called');
       } catch (error) {
+        console.error('[streamAIResponse] Error in execution:', error);
         observer.next({
           type: 'error',
           error: error instanceof Error ? error.message : String(error),
@@ -596,6 +599,12 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         observer.complete();
       }
     })();
+
+    // Catch unhandled promise rejections
+    executionPromise.catch((error) => {
+      console.error('[streamAIResponse] Unhandled promise rejection:', error);
+      observer.error(error);
+    });
 
     // Cleanup function
     return () => {
