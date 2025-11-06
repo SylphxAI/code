@@ -1,6 +1,6 @@
 /**
- * App Context - Effect-based Services Provider
- * Pure functional composition using Effect.ts
+ * App Context - Pure Effect.ts Services
+ * Full functional composition using Effect.ts
  *
  * Architecture:
  * - All services are Effect-based (Context + Layer)
@@ -38,12 +38,14 @@ export interface AppConfig {
 // Database Service (Effect)
 // ============================================================================
 
+export interface DatabaseServiceShape {
+  readonly getRepository: Effect.Effect<SessionRepository>;
+  readonly getDB: Effect.Effect<DrizzleD1Database<any>>;
+}
+
 export class DatabaseService extends Context.Tag('DatabaseService')<
   DatabaseService,
-  {
-    readonly getRepository: Effect.Effect<SessionRepository, never, never>;
-    readonly getDB: Effect.Effect<DrizzleD1Database<any>, never, never>;
-  }
+  DatabaseServiceShape
 >() {}
 
 export const makeDatabaseService = (config: DatabaseConfig) =>
@@ -52,10 +54,10 @@ export const makeDatabaseService = (config: DatabaseConfig) =>
     const db = yield* Effect.promise(() => initializeDatabase(() => {}));
     const repository = new SessionRepository(db);
 
-    return DatabaseService.of({
+    return {
       getRepository: Effect.succeed(repository),
       getDB: Effect.succeed(db),
-    });
+    };
   });
 
 export const DatabaseServiceLive = (config: DatabaseConfig) =>
@@ -75,13 +77,15 @@ const FALLBACK_AGENT: Agent = {
   isBuiltin: true,
 };
 
+export interface AgentManagerServiceShape {
+  readonly getAll: Effect.Effect<Agent[]>;
+  readonly getById: (id: string) => Effect.Effect<Agent | null>;
+  readonly reload: Effect.Effect<void>;
+}
+
 export class AgentManagerService extends Context.Tag('AgentManagerService')<
   AgentManagerService,
-  {
-    readonly getAll: Effect.Effect<Agent[], never, never>;
-    readonly getById: (id: string) => Effect.Effect<Agent | null, never, never>;
-    readonly reload: Effect.Effect<void, never, never>;
-  }
+  AgentManagerServiceShape
 >() {}
 
 export const makeAgentManagerService = (cwd: string) =>
@@ -90,7 +94,7 @@ export const makeAgentManagerService = (cwd: string) =>
     const allAgents = yield* Effect.promise(() => loadAllAgents(cwd));
     const agentsMap = new Map(allAgents.map(a => [a.id, a]));
 
-    return AgentManagerService.of({
+    return {
       getAll: Effect.succeed(Array.from(agentsMap.values())),
       getById: (id: string) => Effect.succeed(agentsMap.get(id) || null),
       reload: Effect.promise(() => loadAllAgents(cwd)).pipe(
@@ -99,7 +103,7 @@ export const makeAgentManagerService = (cwd: string) =>
           agents.forEach(a => agentsMap.set(a.id, a));
         })
       ),
-    });
+    };
   });
 
 export const AgentManagerServiceLive = (cwd: string) =>
@@ -109,14 +113,16 @@ export const AgentManagerServiceLive = (cwd: string) =>
 // Rule Manager Service (Effect)
 // ============================================================================
 
+export interface RuleManagerServiceShape {
+  readonly getAll: Effect.Effect<Rule[]>;
+  readonly getById: (id: string) => Effect.Effect<Rule | null>;
+  readonly getEnabled: (enabledIds: string[]) => Effect.Effect<Rule[]>;
+  readonly reload: Effect.Effect<void>;
+}
+
 export class RuleManagerService extends Context.Tag('RuleManagerService')<
   RuleManagerService,
-  {
-    readonly getAll: Effect.Effect<Rule[], never, never>;
-    readonly getById: (id: string) => Effect.Effect<Rule | null, never, never>;
-    readonly getEnabled: (enabledIds: string[]) => Effect.Effect<Rule[], never, never>;
-    readonly reload: Effect.Effect<void, never, never>;
-  }
+  RuleManagerServiceShape
 >() {}
 
 export const makeRuleManagerService = (cwd: string) =>
@@ -125,7 +131,7 @@ export const makeRuleManagerService = (cwd: string) =>
     const allRules = yield* Effect.promise(() => loadAllRules(cwd));
     const rulesMap = new Map(allRules.map(r => [r.id, r]));
 
-    return RuleManagerService.of({
+    return {
       getAll: Effect.succeed(Array.from(rulesMap.values())),
       getById: (id: string) => Effect.succeed(rulesMap.get(id) || null),
       getEnabled: (enabledIds: string[]) =>
@@ -140,7 +146,7 @@ export const makeRuleManagerService = (cwd: string) =>
           rules.forEach(r => rulesMap.set(r.id, r));
         })
       ),
-    });
+    };
   });
 
 export const RuleManagerServiceLive = (cwd: string) =>
@@ -150,15 +156,8 @@ export const RuleManagerServiceLive = (cwd: string) =>
 // App Context - Composition Root
 // ============================================================================
 
-export type AppContext = {
-  database: DatabaseService;
-  agentManager: AgentManagerService;
-  ruleManager: RuleManagerService;
-  config: AppConfig;
-};
-
 /**
- * Create app layer with all services
+ * Combined app layer with all services
  */
 export const makeAppLayer = (config: AppConfig) =>
   Layer.mergeAll(
@@ -168,97 +167,64 @@ export const makeAppLayer = (config: AppConfig) =>
   );
 
 /**
- * Runtime type that includes all services
+ * Services container (plain objects for easy access)
  */
-export type AppRuntime = Context.Context<
-  DatabaseService | AgentManagerService | RuleManagerService
->;
-
-// ============================================================================
-// Legacy Compatibility Bridge
-// ============================================================================
-// Temporary: Convert Effect services to plain objects for existing code
-
-export interface LegacyDatabaseService {
-  getRepository(): SessionRepository;
-  getDB(): DrizzleD1Database<any>;
+export interface Services {
+  database: DatabaseServiceShape;
+  agentManager: AgentManagerServiceShape;
+  ruleManager: RuleManagerServiceShape;
 }
 
-export interface LegacyAgentManagerService {
-  getAll(): Agent[];
-  getById(id: string): Agent | null;
-  reload(): Promise<void>;
-}
-
-export interface LegacyRuleManagerService {
-  getAll(): Rule[];
-  getById(id: string): Rule | null;
-  getEnabled(enabledIds: string[]): Rule[];
-  reload(): Promise<void>;
-}
-
-export interface LegacyAppContext {
-  database: LegacyDatabaseService;
-  agentManager: LegacyAgentManagerService;
-  ruleManager: LegacyRuleManagerService;
+/**
+ * AppContext interface for external use
+ */
+export interface AppContext {
+  services: Services;
   config: AppConfig;
 }
 
 /**
- * Create legacy-compatible context from Effect runtime
- * TEMPORARY: For gradual migration
+ * Create app context
  */
-export function createLegacyAppContext(
-  runtime: AppRuntime,
-  config: AppConfig
-): LegacyAppContext {
-  const database = Context.get(runtime, DatabaseService);
-  const agentManager = Context.get(runtime, AgentManagerService);
-  const ruleManager = Context.get(runtime, RuleManagerService);
+export async function createAppContext(config: AppConfig): Promise<AppContext> {
+  const layer = makeAppLayer(config);
+
+  // Build layer and extract services
+  const services = await Effect.runPromise(
+    Effect.scoped(
+      Effect.gen(function* () {
+        const scope = yield* Effect.scope;
+        const context = yield* Layer.buildWithScope(layer, scope);
+
+        const database = Context.get(context, DatabaseService);
+        const agentManager = Context.get(context, AgentManagerService);
+        const ruleManager = Context.get(context, RuleManagerService);
+
+        return {
+          database,
+          agentManager,
+          ruleManager,
+        };
+      })
+    )
+  );
 
   return {
-    database: {
-      getRepository: () => Effect.runSync(database.getRepository),
-      getDB: () => Effect.runSync(database.getDB),
-    },
-    agentManager: {
-      getAll: () => Effect.runSync(agentManager.getAll),
-      getById: (id: string) => Effect.runSync(agentManager.getById(id)),
-      reload: () => Effect.runPromise(agentManager.reload),
-    },
-    ruleManager: {
-      getAll: () => Effect.runSync(ruleManager.getAll),
-      getById: (id: string) => Effect.runSync(ruleManager.getById(id)),
-      getEnabled: (enabledIds: string[]) => Effect.runSync(ruleManager.getEnabled(enabledIds)),
-      reload: () => Effect.runPromise(ruleManager.reload),
-    },
+    services,
     config,
   };
 }
 
 /**
- * Initialize app context - returns legacy-compatible context
+ * Initialize app context (no-op - initialization happens in createAppContext)
  */
-export async function createAppContext(config: AppConfig): Promise<LegacyAppContext> {
-  const layer = makeAppLayer(config);
-
-  // Provide layer and run effect to build runtime
-  const runtime = await Effect.runPromise(
-    Effect.scoped(
-      Effect.gen(function* () {
-        const scope = yield* Effect.scope;
-        return yield* Layer.buildWithScope(layer, scope);
-      })
-    )
-  );
-
-  return createLegacyAppContext(runtime, config);
+export async function initializeAppContext(ctx: AppContext): Promise<void> {
+  // No-op: initialization happens in createAppContext
 }
 
-export async function initializeAppContext(ctx: LegacyAppContext): Promise<void> {
-  // No-op: initialization happens in createAppContext via Layer
-}
-
-export async function closeAppContext(ctx: LegacyAppContext): Promise<void> {
+/**
+ * Close app context
+ */
+export async function closeAppContext(ctx: AppContext): Promise<void> {
   // Future: Add cleanup logic
 }

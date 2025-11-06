@@ -12,6 +12,7 @@
  * This service is called by message.streamResponse subscription procedure
  */
 
+import { Effect } from 'effect';
 import { observable } from '@trpc/server/observable';
 import type { SessionRepository } from '@sylphx/code-core';
 import {
@@ -27,7 +28,7 @@ import { buildTodoContext } from '@sylphx/code-core';
 import { DEFAULT_AGENT_ID } from '@sylphx/code-core';
 import type { AIConfig, Agent, Rule } from '@sylphx/code-core';
 import type { ModelMessage, UserContent, AssistantContent } from 'ai';
-import type { AppContext } from '../context.js';
+import type { Services } from '../context.js';
 import type {
   MessagePart,
   FileAttachment,
@@ -56,7 +57,7 @@ export type StreamEvent =
   | { type: 'abort' };
 
 export interface StreamAIResponseOptions {
-  appContext: AppContext;
+  services: Services;
   sessionRepository: SessionRepository;
   aiConfig: AIConfig;
   sessionId: string | null;  // null = create new session
@@ -294,11 +295,11 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         );
 
         // 6. Determine agentId and build system prompt
-        // STATELESS: Use explicit parameters from AppContext
+        // Use Effect services
         const agentId = inputAgentId || session.agentId || DEFAULT_AGENT_ID;
-        const agents = opts.appContext.agentManager.getAll();
+        const agents = await Effect.runPromise(opts.services.agentManager.getAll);
         const enabledRuleIds = session.enabledRuleIds || [];
-        const enabledRules = opts.appContext.ruleManager.getEnabled(enabledRuleIds);
+        const enabledRules = await Effect.runPromise(opts.services.ruleManager.getEnabled(enabledRuleIds));
         const systemPrompt = buildSystemPrompt(agentId, agents, enabledRules);
 
         // 7. Create AI model

@@ -17,7 +17,11 @@ export {
   createAppContext,
   initializeAppContext,
   closeAppContext,
-  type LegacyAppContext as AppContext,
+  type AppContext,
+  type Services,
+  DatabaseService,
+  AgentManagerService,
+  RuleManagerService,
 } from './context.js';
 
 // ============================================================================

@@ -376,7 +376,7 @@ export const messageRouter = router({
 
       // Stream AI response using service
       return streamAIResponse({
-        appContext: ctx.appContext,
+        services: ctx.appContext.services,
         sessionRepository: ctx.sessionRepository,
         aiConfig: ctx.aiConfig,
         sessionId: input.sessionId || null,

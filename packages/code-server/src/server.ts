@@ -17,7 +17,7 @@ import {
   createAppContext,
   initializeAppContext,
   closeAppContext,
-  type LegacyAppContext as AppContext,
+  type AppContext,
 } from './context.js';
 import type { Server } from 'node:http';
 
