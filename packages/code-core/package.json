@@ -58,7 +58,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sylphxltd/flow.git",
+    "url": "https://github.com/sylphxltd/code.git",
     "directory": "packages/code-core"
   }
 }

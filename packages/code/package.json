@@ -8,7 +8,7 @@
     "sylphx-code": "./dist/index.js"
   },
   "scripts": {
-    "build": "bun build src/index.ts src/headless.ts --outdir dist --target node --format esm --sourcemap",
+    "build": "bun build src/index.ts src/headless.ts --outdir dist --target node --format esm --sourcemap --external @sylphx/code-client --external @sylphx/code-core --external @sylphx/code-server",
     "dev": "bun src/index.ts",
     "dev:headless": "bun src/index.ts headless",
     "start": "bun dist/index.js",
@@ -20,6 +20,8 @@
   "dependencies": {
     "@jescalan/ink-markdown": "^2.0.0",
     "@sylphx/code-client": "workspace:*",
+    "@sylphx/code-core": "workspace:*",
+    "@sylphx/code-server": "workspace:*",
     "@trpc/client": "^11.7.1",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
@@ -30,9 +32,6 @@
     "open": "^10.1.0",
     "ora": "^9.0.0",
     "react": "^19.2.0"
-  },
-  "peerDependencies": {
-    "@sylphx/code-server": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^24.9.2",
