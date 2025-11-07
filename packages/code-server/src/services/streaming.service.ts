@@ -576,6 +576,25 @@ Now generate the title:`,
 
         const result = await processStream(stream, callbacks);
 
+        // Emit error event if no valid response (ensures error message reaches UI)
+        if (!result.usage && !aborted) {
+          // Check if there's an error part in messageParts
+          const errorPart = result.messageParts.find(p => p.type === 'error');
+          if (errorPart && errorPart.type === 'error') {
+            // Re-emit error event to ensure it reaches subscription handlers
+            observer.next({
+              type: 'error',
+              error: errorPart.error,
+            });
+          } else {
+            // No error part found, emit generic error
+            observer.next({
+              type: 'error',
+              error: 'API request failed to generate a response. Please check your API credentials and configuration.',
+            });
+          }
+        }
+
         // 11. Complete step-0 and save final message to database
         const stepEndTime = Date.now();
 
@@ -665,12 +684,26 @@ Now generate the title:`,
     // But if it does, we need to handle it gracefully without crashing
     executionPromise.catch((error) => {
       console.error('[streamAIResponse] Unhandled promise rejection:', error);
+
+      // Extract detailed error message (unwrap if it's a wrapped error)
+      let errorMessage = error instanceof Error ? error.message : String(error);
+
+      // If it's NoOutputGeneratedError, try to get the underlying cause
+      if (error && typeof error === 'object' && 'cause' in error && error.cause) {
+        const causeMessage = error.cause instanceof Error ? error.cause.message : String(error.cause);
+        console.error('[streamAIResponse] Error cause:', causeMessage);
+        // Use the cause message if it's more informative
+        if (causeMessage && !causeMessage.includes('No output generated')) {
+          errorMessage = causeMessage;
+        }
+      }
+
       // DON'T use observer.error() - it causes the entire observable to error and can crash
       // Instead, send error event and complete normally
       try {
         observer.next({
           type: 'error',
-          error: error instanceof Error ? error.message : String(error),
+          error: errorMessage,
         });
         observer.complete();
       } catch (observerError) {

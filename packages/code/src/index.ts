@@ -21,7 +21,11 @@
 process.on('unhandledRejection', (reason, promise) => {
   console.error('[CRITICAL] Unhandled Promise Rejection:');
   console.error('Reason:', reason);
-  console.error('Promise:', promise);
+
+  // Log error cause if available (for wrapped errors)
+  if (reason && typeof reason === 'object' && 'cause' in reason && reason.cause) {
+    console.error('Underlying cause:', reason.cause);
+  }
 
   // Log but don't exit - let the app continue running
   // Most unhandled rejections are from stream cleanup and can be safely ignored
