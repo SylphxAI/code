@@ -18,12 +18,10 @@ import {
   stepParts,
   stepUsage,
   stepTodoSnapshots,
-  messageAttachments,
   messageUsage,
 } from './schema.js';
 import type {
   MessagePart,
-  FileAttachment,
   TokenUsage,
   MessageMetadata,
 } from '../types/session.types.js';
@@ -47,7 +45,6 @@ export class MessageRepository {
     sessionId: string;
     role: 'user' | 'assistant';
     content: MessagePart[];
-    attachments?: FileAttachment[];
     usage?: TokenUsage;
     finishReason?: string;
     metadata?: MessageMetadata;
@@ -58,7 +55,6 @@ export class MessageRepository {
       sessionId,
       role,
       content,
-      attachments,
       usage,
       finishReason,
       metadata,
@@ -149,18 +145,9 @@ export class MessageRepository {
           }
         }
 
-        // 6. Insert message attachments (message-level, not step-level)
-        if (attachments && attachments.length > 0) {
-          for (const att of attachments) {
-            await tx.insert(messageAttachments).values({
-              id: randomUUID(),
-              messageId,
-              path: att.path,
-              relativePath: att.relativePath,
-              size: att.size || null,
-            });
-          }
-        }
+        // REMOVED: Message attachments - files now stored as frozen content in step parts
+        // File content is captured at creation time and stored as base64 in MessagePart
+        // This ensures immutable history and preserves order with text content
 
         // 7. Insert aggregated message usage (for UI convenience)
         // Skip for streaming messages (usage will be added later)

@@ -269,7 +269,15 @@ export const stepParts = sqliteTable(
 );
 
 /**
- * Message attachments table - File attachments to messages
+ * @deprecated Message attachments table - DEPRECATED
+ *
+ * File content is now stored as frozen base64 in step_parts.content (MessagePart type='file')
+ * This ensures immutable history and preserves order with text content
+ *
+ * Migration path:
+ * - Old messages: Keep table for backward compatibility (read-only)
+ * - New messages: Files stored in step_parts as frozen content
+ * - Future: Drop table after migration tool created
  */
 export const messageAttachments = sqliteTable(
   'message_attachments',

@@ -32,7 +32,6 @@ import {
   stepParts,
   stepUsage,
   stepTodoSnapshots,
-  messageAttachments,
   messageUsage,
   todos,
   type Session,
@@ -290,7 +289,7 @@ export class SessionRepository {
     const stepIds = allSteps.map((s) => s.id);
 
     // Fetch all step-related data and message-level data in parallel
-    const [allParts, allStepUsage, allStepSnapshots, allAttachments, allMsgUsage] = await Promise.all([
+    const [allParts, allStepUsage, allStepSnapshots, allMsgUsage] = await Promise.all([
       // Step parts
       this.db
         .select()
@@ -310,12 +309,6 @@ export class SessionRepository {
         .from(stepTodoSnapshots)
         .where(inArray(stepTodoSnapshots.stepId, stepIds))
         .orderBy(stepTodoSnapshots.ordering),
-
-      // Message attachments
-      this.db
-        .select()
-        .from(messageAttachments)
-        .where(inArray(messageAttachments.messageId, messageIds)),
 
       // Message usage (aggregated)
       this.db
@@ -349,7 +342,6 @@ export class SessionRepository {
 
     // Group by message ID
     const stepsByMessage = new Map<string, typeof allSteps>();
-    const attachmentsByMessage = new Map<string, typeof allAttachments>();
     const usageByMessage = new Map<string, (typeof allMsgUsage)[0]>();
 
     for (const step of allSteps) {
@@ -359,13 +351,6 @@ export class SessionRepository {
       stepsByMessage.get(step.messageId)!.push(step);
     }
 
-    for (const attachment of allAttachments) {
-      if (!attachmentsByMessage.has(attachment.messageId)) {
-        attachmentsByMessage.set(attachment.messageId, []);
-      }
-      attachmentsByMessage.get(attachment.messageId)!.push(attachment);
-    }
-
     for (const usage of allMsgUsage) {
       usageByMessage.set(usage.messageId, usage);
     }
@@ -373,7 +358,6 @@ export class SessionRepository {
     // Assemble messages using grouped data
     const fullMessages = messageRecords.map((msg) => {
       const steps = stepsByMessage.get(msg.id) || [];
-      const attachments = attachmentsByMessage.get(msg.id) || [];
       const usage = usageByMessage.get(msg.id);
 
       // Build steps
@@ -446,20 +430,8 @@ export class SessionRepository {
         status: (msg.status as 'active' | 'completed' | 'error' | 'abort') || 'completed',
       };
 
-      // Self-healing: Normalize attachments on read
-      if (attachments.length > 0) {
-        const validAttachments = attachments.filter((a) =>
-          a && typeof a === 'object' && a.path && a.relativePath
-        );
-
-        if (validAttachments.length > 0) {
-          sessionMessage.attachments = validAttachments.map((a) => ({
-            path: a.path,
-            relativePath: a.relativePath,
-            size: a.size || undefined,
-          }));
-        }
-      }
+      // REMOVED: Attachments - files now stored as frozen content in step parts
+      // File content is captured at creation time and stored as base64 in MessagePart
 
       // Aggregated usage (for UI convenience)
       if (usage) {
