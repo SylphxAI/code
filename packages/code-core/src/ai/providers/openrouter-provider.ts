@@ -211,6 +211,10 @@ export class OpenRouterProvider implements AIProvider {
     const capabilities = this.getModelCapabilities(modelId);
     const supportsImageGeneration = capabilities.has('image-output');
 
+    console.log('[OpenRouter] Creating client for:', modelId);
+    console.log('[OpenRouter] Capabilities:', Array.from(capabilities));
+    console.log('[OpenRouter] Supports image generation:', supportsImageGeneration);
+
     // Create OpenAI-compatible client with custom fetch for image generation
     const openrouter = createOpenAICompatible({
       baseURL: 'https://openrouter.ai/api/v1',
@@ -227,6 +231,7 @@ export class OpenRouterProvider implements AIProvider {
                 aspect_ratio: '16:9',
               },
             };
+            console.log('[OpenRouter] Custom fetch - injecting image modalities:', modifiedBody.modalities);
             return fetch(url, {
               ...options,
               body: JSON.stringify(modifiedBody),
