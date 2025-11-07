@@ -215,11 +215,27 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         const enabledRules = opts.appContext.ruleManager.getEnabled(enabledRuleIds);
         const systemPrompt = buildSystemPrompt(agentId, agents, enabledRules);
 
-        // 7. Create AI model
+        // 7. Lazy load model capabilities (server-side autonomous)
+        // Check if capabilities are cached, if not, fetch from API to populate cache
+        // This ensures image generation and other capabilities are detected correctly
+        let modelCapabilities = providerInstance.getModelCapabilities(modelName);
+        if (modelCapabilities.size === 0) {
+          // Cache miss - fetch models from API to populate capabilities cache
+          // This is lazy loading: only fetch when needed, fully server-side
+          try {
+            await providerInstance.fetchModels(providerConfig);
+            // Re-fetch capabilities after cache populated
+            modelCapabilities = providerInstance.getModelCapabilities(modelName);
+          } catch (err) {
+            console.error('[Streaming] Failed to fetch model capabilities:', err);
+            // Continue with empty capabilities (degraded mode)
+          }
+        }
+
+        // 7.1. Create AI model
         const model = providerInstance.createClient(providerConfig, modelName);
 
-        // 7.1. Get model capabilities to determine tool support
-        const modelCapabilities = providerInstance.getModelCapabilities(modelName);
+        // 7.2. Determine tool support from capabilities
         const enableTools = modelCapabilities.has('tools');
 
         // 8. Create AI stream with system prompt
