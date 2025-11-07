@@ -68,6 +68,8 @@ export interface SubscriptionAdapterParams {
 
   // State setters
   setIsStreaming: (value: boolean) => void;
+  setIsTitleStreaming: (value: boolean) => void;
+  setStreamingTitle: React.Dispatch<React.SetStateAction<string>>;
 }
 
 /**
@@ -223,6 +225,8 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
               currentSessionId: sessionId,
               updateSessionTitle,
               setIsStreaming,
+              setIsTitleStreaming,
+              setStreamingTitle,
               streamingMessageIdRef,
               usageRef,
               finishReasonRef,
@@ -330,6 +334,8 @@ function handleStreamEvent(
     currentSessionId: string | null;
     updateSessionTitle: (sessionId: string, title: string) => void;
     setIsStreaming: (value: boolean) => void;
+    setIsTitleStreaming: (value: boolean) => void;
+    setStreamingTitle: React.Dispatch<React.SetStateAction<string>>;
     streamingMessageIdRef: React.MutableRefObject<string | null>;
     usageRef: React.MutableRefObject<TokenUsage | null>;
     finishReasonRef: React.MutableRefObject<string | null>;
@@ -390,8 +396,31 @@ function handleStreamEvent(
       });
       break;
 
-    // Title events removed - title generated in background on server
-    // Client will see updated title when reloading or switching sessions
+    case 'session-title-updated-start':
+      // Server-driven: Title generation started
+      // Only update UI if this event is for the current session
+      if (event.sessionId === currentSessionId) {
+        context.setIsTitleStreaming(true);
+        context.setStreamingTitle('');
+      }
+      break;
+
+    case 'session-title-updated-delta':
+      // Server-driven: Title chunk received
+      // Only update UI if this event is for the current session
+      if (event.sessionId === currentSessionId) {
+        context.setStreamingTitle((prev) => prev + event.text);
+      }
+      break;
+
+    case 'session-title-updated-end':
+      // Server-driven: Title generation complete
+      // Only update UI if this event is for the current session
+      if (event.sessionId === currentSessionId) {
+        context.setIsTitleStreaming(false);
+        context.updateSessionTitle(event.sessionId, event.title);
+      }
+      break;
 
     case 'assistant-message-created':
       // Backend created assistant message, store the ID

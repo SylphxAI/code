@@ -42,6 +42,9 @@ import type { ToolCallPart, ToolResultPart } from '@ai-sdk/provider';
 export type StreamEvent =
   // Session-level events
   | { type: 'session-created'; sessionId: string; provider: string; model: string }
+  | { type: 'session-title-updated-start'; sessionId: string }
+  | { type: 'session-title-updated-delta'; sessionId: string; text: string }
+  | { type: 'session-title-updated-end'; sessionId: string; title: string }
 
   // Message-level events
   | { type: 'user-message-created'; messageId: string; content: string }
@@ -494,16 +497,28 @@ Now generate the title:`,
 
               let fullTitle = '';
 
-              // Collect title chunks (no streaming to client - generate in background)
+              // Emit title update start event
+              observer.next({ type: 'session-title-updated-start', sessionId });
+
+              // Stream title chunks to client in real-time
               for await (const chunk of titleStream) {
                 if (chunk.type === 'text-delta' && chunk.textDelta) {
                   fullTitle += chunk.textDelta;
+                  // Emit each chunk to client
+                  observer.next({
+                    type: 'session-title-updated-delta',
+                    sessionId,
+                    text: chunk.textDelta
+                  });
                 }
               }
 
-              // Clean up and update database immediately
+              // Clean up and update database
               const cleaned = cleanAITitle(fullTitle, 50);
               await sessionRepository.updateSession(sessionId, { title: cleaned });
+
+              // Emit title update end event
+              observer.next({ type: 'session-title-updated-end', sessionId, title: cleaned });
 
               return cleaned;
             } catch (error) {

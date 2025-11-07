@@ -107,6 +107,8 @@ export default function Chat(_props: ChatProps) {
   const streamingState = useStreamingState();
   const {
     isStreaming,
+    isTitleStreaming,
+    streamingTitle,
     abortControllerRef,
     lastErrorRef,
     wasAbortedRef,
@@ -116,6 +118,8 @@ export default function Chat(_props: ChatProps) {
     dbWriteTimerRef,
     pendingDbContentRef,
     setIsStreaming,
+    setIsTitleStreaming,
+    setStreamingTitle,
   } = streamingState;
 
   const selectionState = useSelectionState();
@@ -209,6 +213,8 @@ export default function Chat(_props: ChatProps) {
       usageRef,
       finishReasonRef,
       setIsStreaming,
+      setIsTitleStreaming,
+      setStreamingTitle,
     }),
     [
       aiConfig,
@@ -220,6 +226,8 @@ export default function Chat(_props: ChatProps) {
       updateSessionTitle,
       notificationSettings,
       setIsStreaming,
+      setIsTitleStreaming,
+      setStreamingTitle,
     ]
   );
 
@@ -505,6 +513,8 @@ export default function Chat(_props: ChatProps) {
         <Box flexShrink={0}>
           <ChatHeader
             currentSessionTitle={currentSession?.title}
+            isTitleStreaming={isTitleStreaming}
+            streamingTitle={streamingTitle}
           />
         </Box>
 
