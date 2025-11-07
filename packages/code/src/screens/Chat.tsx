@@ -269,10 +269,12 @@ export default function Chat(_props: ChatProps) {
     [addLog, addMessage, currentSessionId, isStreaming, streamingMessageIdRef]
   );
 
-  useEventStream({
-    replayLast: 0, // Don't replay - we already loaded history
-    callbacks: eventStreamCallbacks,
-  });
+  // TEMPORARILY DISABLED - causing infinite loop
+  // TODO: Fix filtering logic before re-enabling
+  // useEventStream({
+  //   replayLast: 0, // Don't replay - we already loaded history
+  //   callbacks: eventStreamCallbacks,
+  // });
 
   // Create sendUserMessageToAI function using new subscription adapter
   const sendUserMessageToAI = useCallback(
