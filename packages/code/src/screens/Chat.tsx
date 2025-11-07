@@ -639,6 +639,7 @@ export default function Chat(_props: ChatProps) {
           <StatusBar
             provider={currentSession?.provider || selectedProvider || null}
             model={currentSession?.model || selectedModel || null}
+            modelStatus={currentSession?.modelStatus}
             usedTokens={currentSession ? usedTokens : 0}
           />
         </Box>

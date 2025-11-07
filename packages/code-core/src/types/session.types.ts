@@ -210,6 +210,12 @@ export interface SessionMessage {
 }
 
 /**
+ * Model availability status
+ * Used to indicate if a session's configured model is still available
+ */
+export type ModelStatus = 'available' | 'unavailable' | 'unknown';
+
+/**
  * Session metadata (lightweight)
  * Used for lists and selection UI - no messages or todos included
  *
@@ -228,6 +234,7 @@ export interface SessionMetadata {
   title?: string;
   provider: ProviderId;
   model: string;
+  modelStatus?: ModelStatus; // Optional: validated against provider's available models
   agentId: string;
   created: number;
   updated: number;
@@ -290,6 +297,7 @@ export interface Session {
   title?: string; // Auto-generated from first user message
   provider: ProviderId;
   model: string;
+  modelStatus?: ModelStatus; // Optional: validated against provider's available models (server-side)
   agentId: string;         // Agent configuration for this session
   enabledRuleIds: string[]; // Enabled rules for this session (persisted to DB)
   messages: SessionMessage[];

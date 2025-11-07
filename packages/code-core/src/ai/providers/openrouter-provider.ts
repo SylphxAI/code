@@ -5,15 +5,25 @@
 
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { LanguageModelV1 } from 'ai';
-import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo, ModelCapability } from './base-provider.js';
+import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo, ModelCapability, ModelCapabilities } from './base-provider.js';
 import { hasRequiredFields } from './base-provider.js';
 import { retryNetwork } from '../../utils/retry.js';
 import { getModelMetadata } from '../../utils/models-dev.js';
+import { TTLCacheManager } from '../../utils/ttl-cache.js';
 
 export class OpenRouterProvider implements AIProvider {
   readonly id = 'openrouter' as const;
   readonly name = 'OpenRouter';
   readonly description = 'Access multiple AI providers';
+
+  /**
+   * Shared TTL cache for models list (1 hour)
+   * Shared across all instances to avoid duplicate API calls
+   */
+  private static modelsCache = new TTLCacheManager<ModelInfo[]>(
+    60 * 60 * 1000, // 1 hour TTL
+    'OpenRouter.models'
+  );
 
   /**
    * Cache for model capabilities from OpenRouter API
@@ -108,6 +118,17 @@ export class OpenRouterProvider implements AIProvider {
   async fetchModels(config: ProviderConfig): Promise<ModelInfo[]> {
     const apiKey = config.apiKey as string | undefined;
 
+    // Generate cache key based on API key (or 'public' for keyless access)
+    const cacheKey = apiKey ? `models:${apiKey.toString().slice(0, 10)}` : 'models:public';
+
+    // Check TTL cache first
+    const cached = OpenRouterProvider.modelsCache.get(cacheKey);
+    if (cached) {
+      // Fresh data from cache - no API call needed
+      return cached;
+    }
+
+    // Cache miss or expired - fetch from API
     return retryNetwork(async () => {
       const response = await fetch('https://openrouter.ai/api/v1/models', {
         headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
@@ -136,7 +157,7 @@ export class OpenRouterProvider implements AIProvider {
         }>;
       };
 
-      return data.data.map((model) => {
+      const models = data.data.map((model) => {
         // Parse capabilities from API response (use actual data, not guessing)
         const capabilities = this.parseCapabilitiesFromAPI(model);
 
@@ -149,6 +170,11 @@ export class OpenRouterProvider implements AIProvider {
           capabilities,
         };
       });
+
+      // Store in TTL cache (1 hour)
+      OpenRouterProvider.modelsCache.set(cacheKey, models);
+
+      return models;
     }, 2);
   }
 

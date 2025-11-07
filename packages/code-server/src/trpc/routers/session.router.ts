@@ -35,11 +35,43 @@ export const sessionRouter = router({
   /**
    * Get session by ID with full data
    * LAZY LOADING: Only called when user opens a specific session
+   * SERVER-SIDE VALIDATION: Checks if session's model is still available
    */
   getById: publicProcedure
     .input(z.object({ sessionId: z.string() }))
     .query(async ({ ctx, input }) => {
-      return await ctx.sessionRepository.getSessionById(input.sessionId);
+      const session = await ctx.sessionRepository.getSessionById(input.sessionId);
+      if (!session) {
+        return null;
+      }
+
+      // Validate model availability (server-side autonomous)
+      // Uses TTL cache (1 hour) - no API call if cache fresh
+      let modelStatus: 'available' | 'unavailable' | 'unknown' = 'unknown';
+
+      try {
+        const { getProvider } = await import('@sylphx/code-core');
+        const provider = getProvider(session.provider);
+        const providerConfig = ctx.aiConfig.providers[session.provider];
+
+        if (provider && providerConfig) {
+          // fetchModels uses TTL cache - only hits API on cache miss/expiry
+          const models = await provider.fetchModels(providerConfig);
+          modelStatus = models.some(m => m.id === session.model)
+            ? 'available'
+            : 'unavailable';
+        }
+      } catch (err) {
+        // Network error or provider not available - can't determine
+        // Default to 'unknown' (assume available, don't block user)
+        console.error('[session.getById] Failed to validate model:', err);
+        modelStatus = 'unknown';
+      }
+
+      return {
+        ...session,
+        modelStatus,
+      };
     }),
 
   /**

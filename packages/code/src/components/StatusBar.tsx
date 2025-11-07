@@ -11,6 +11,7 @@ import React from 'react';
 interface StatusBarProps {
   provider: string | null;
   model: string | null;
+  modelStatus?: 'available' | 'unavailable' | 'unknown';
   usedTokens?: number;
 }
 
@@ -27,7 +28,7 @@ interface StatusBarProps {
  * - All business logic on server
  * - Safe for Web GUI and remote mode
  */
-export default function StatusBar({ provider, model, usedTokens = 0 }: StatusBarProps) {
+export default function StatusBar({ provider, model, modelStatus, usedTokens = 0 }: StatusBarProps) {
   // Subscribe to current agent from store (event-driven, no polling!)
   const selectedAgentId = useAppStore((state) => state.selectedAgentId);
   const currentAgent = getAgentById(selectedAgentId);
@@ -78,7 +79,11 @@ export default function StatusBar({ provider, model, usedTokens = 0 }: StatusBar
       <Box>
         <Text dimColor>
           {agentName && `${agentName} · `}
-          {enabledRulesCount} {enabledRulesCount === 1 ? 'rule' : 'rules'} · {provider} · {model}
+          {enabledRulesCount} {enabledRulesCount === 1 ? 'rule' : 'rules'} · {provider} ·{' '}
+        </Text>
+        <Text color={modelStatus === 'unavailable' ? 'red' : undefined} dimColor={modelStatus !== 'unavailable'}>
+          {model}
+          {modelStatus === 'unavailable' && ' (unavailable)'}
         </Text>
       </Box>
 
