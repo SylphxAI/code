@@ -7,12 +7,29 @@ import type { LanguageModelV2 } from '@ai-sdk/provider';
 import type { ProviderId } from '../types/provider.types.js';
 
 /**
+ * Model capabilities
+ */
+export interface ModelCapabilities {
+  /** Supports native tool/function calling */
+  supportsTools: boolean;
+  /** Supports image input (vision) */
+  supportsImageInput: boolean;
+  /** Supports image generation (output) */
+  supportsImageOutput: boolean;
+  /** Supports extended thinking/reasoning */
+  supportsReasoning: boolean;
+  /** Supports structured output (JSON schema) */
+  supportsStructuredOutput: boolean;
+}
+
+/**
  * Model information from provider
  */
 export interface ModelInfo {
   id: string;
   name: string;
   description?: string;
+  capabilities?: ModelCapabilities;
 }
 
 export interface ProviderModelDetails {
@@ -68,6 +85,13 @@ export interface AIProvider {
    * Should try provider API first, then fall back to models.dev
    */
   getModelDetails(modelId: string, config?: ProviderConfig): Promise<ProviderModelDetails | null>;
+
+  /**
+   * Get model capabilities
+   * Returns capabilities for a specific model (tools, image support, etc)
+   * Used to conditionally enable features based on model capabilities
+   */
+  getModelCapabilities(modelId: string): ModelCapabilities;
 
   /**
    * Create AI SDK client for this provider

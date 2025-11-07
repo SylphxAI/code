@@ -4,7 +4,7 @@
 
 import { anthropic } from '@ai-sdk/anthropic';
 import type { LanguageModelV1 } from 'ai';
-import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo } from './base-provider.js';
+import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo, ModelCapabilities } from './base-provider.js';
 import { hasRequiredFields } from './base-provider.js';
 
 import { getModelMetadata } from '../../utils/models-dev.js';
@@ -85,6 +85,33 @@ export class AnthropicProvider implements AIProvider {
     }
 
     return null;
+  }
+
+  getModelCapabilities(modelId: string): ModelCapabilities {
+    const modelIdLower = modelId.toLowerCase();
+
+    return {
+      // All Claude models support tools
+      supportsTools: true,
+      // Claude 3+ models support vision
+      supportsImageInput:
+        modelIdLower.includes('claude-3') ||
+        modelIdLower.includes('claude-sonnet') ||
+        modelIdLower.includes('claude-opus') ||
+        modelIdLower.includes('claude-haiku'),
+      // Anthropic doesn't support image output
+      supportsImageOutput: false,
+      // Extended thinking models (Claude with extended thinking)
+      supportsReasoning:
+        modelIdLower.includes('extended') ||
+        modelIdLower.includes('thinking'),
+      // Claude 3+ supports structured output
+      supportsStructuredOutput:
+        modelIdLower.includes('claude-3') ||
+        modelIdLower.includes('claude-sonnet') ||
+        modelIdLower.includes('claude-opus') ||
+        modelIdLower.includes('claude-haiku'),
+    };
   }
 
   createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {

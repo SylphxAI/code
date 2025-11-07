@@ -15,6 +15,42 @@ export class OpenRouterProvider implements AIProvider {
   readonly name = 'OpenRouter';
   readonly description = 'Access multiple AI providers';
 
+  /**
+   * Helper: Infer model capabilities from model ID
+   * ASSUMPTION: Capabilities inferred from model naming patterns
+   * This is called during model creation to determine features like image generation
+   */
+  private inferCapabilities(modelId: string): ModelCapabilities {
+    const modelIdLower = modelId.toLowerCase();
+
+    return {
+      // Most modern models support tools (except some legacy models)
+      supportsTools: !modelIdLower.includes('gpt-3.5-turbo-instruct'),
+      // Vision models: gpt-4o, gpt-4-turbo, gemini-*-vision, claude-3
+      supportsImageInput:
+        modelIdLower.includes('vision') ||
+        modelIdLower.includes('gpt-4o') ||
+        modelIdLower.includes('gpt-4-turbo') ||
+        (modelIdLower.includes('gemini') && modelIdLower.includes('pro')) ||
+        modelIdLower.includes('claude-3') ||
+        modelIdLower.includes('claude-3.5'),
+      // Image generation models
+      supportsImageOutput: modelIdLower.includes('image'),
+      // Reasoning models: o1, o3, deepseek-r1, qwq
+      supportsReasoning:
+        modelIdLower.includes('o1') ||
+        modelIdLower.includes('o3') ||
+        modelIdLower.includes('deepseek-r1') ||
+        modelIdLower.includes('qwq'),
+      // Structured output: GPT-4+, Claude 3+, Gemini 1.5+
+      supportsStructuredOutput:
+        modelIdLower.includes('gpt-4') ||
+        modelIdLower.includes('claude-3') ||
+        modelIdLower.includes('gemini-1.5') ||
+        modelIdLower.includes('gemini-2'),
+    };
+  }
+
   getConfigSchema(): ConfigField[] {
     return [
       {
@@ -31,6 +67,10 @@ export class OpenRouterProvider implements AIProvider {
 
   isConfigured(config: ProviderConfig): boolean {
     return hasRequiredFields(this.getConfigSchema(), config);
+  }
+
+  getModelCapabilities(modelId: string): ModelCapabilities {
+    return this.inferCapabilities(modelId);
   }
 
   async fetchModels(config: ProviderConfig): Promise<ModelInfo[]> {
@@ -61,6 +101,7 @@ export class OpenRouterProvider implements AIProvider {
       return data.data.map((model) => ({
         id: model.id,
         name: model.name || model.id,
+        capabilities: this.inferCapabilities(model.id),
       }));
     }, 2);
   }
@@ -120,10 +161,9 @@ export class OpenRouterProvider implements AIProvider {
   createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {
     const apiKey = config.apiKey as string;
 
-    // Check if model supports image generation
-    // ASSUMPTION: Models with 'image' in name support image generation via modalities
-    // Examples: google/gemini-2.5-flash-image-preview, google/gemini-2.0-flash-image-preview
-    const supportsImageGeneration = modelId.includes('image');
+    // Infer capabilities to determine features like image generation
+    const capabilities = this.inferCapabilities(modelId);
+    const supportsImageGeneration = capabilities.supportsImageOutput;
 
     // Create OpenAI-compatible client with custom fetch for image generation
     const openrouter = createOpenAICompatible({

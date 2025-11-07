@@ -35,7 +35,7 @@ export async function generateSessionTitle(
 
     const model = providerInstance.createClient(providerConfig, modelName);
 
-    // Create AI stream for title generation
+    // Create AI stream for title generation (no tools needed - faster and cheaper)
     const titleStream = createAIStream({
       model,
       messages: [
@@ -59,6 +59,7 @@ Examples:
 Now generate the title:`,
         },
       ],
+      enableTools: false, // Title generation doesn't need tools
     });
 
     let fullTitle = '';

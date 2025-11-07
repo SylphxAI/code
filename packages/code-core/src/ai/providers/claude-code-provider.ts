@@ -33,11 +33,53 @@ export class ClaudeCodeProvider implements AIProvider {
 
   async fetchModels(_config: ProviderConfig): Promise<ModelInfo[]> {
     // Claude Code has fixed set of models
+    // All models support tools (via AI SDK - not native), vision, and reasoning
     return [
-      { id: 'opus', name: 'Claude 4.1 Opus (Most Capable)' },
-      { id: 'sonnet', name: 'Claude 4.5 Sonnet (Balanced)' },
-      { id: 'haiku', name: 'Claude 4.5 Haiku (Fastest)' },
+      {
+        id: 'opus',
+        name: 'Claude 4.1 Opus (Most Capable)',
+        capabilities: {
+          supportsTools: false, // Uses text-based tool calls (not native)
+          supportsImageInput: true,
+          supportsImageOutput: false,
+          supportsReasoning: true,
+          supportsStructuredOutput: true,
+        }
+      },
+      {
+        id: 'sonnet',
+        name: 'Claude 4.5 Sonnet (Balanced)',
+        capabilities: {
+          supportsTools: false, // Uses text-based tool calls (not native)
+          supportsImageInput: true,
+          supportsImageOutput: false,
+          supportsReasoning: true,
+          supportsStructuredOutput: true,
+        }
+      },
+      {
+        id: 'haiku',
+        name: 'Claude 4.5 Haiku (Fastest)',
+        capabilities: {
+          supportsTools: false, // Uses text-based tool calls (not native)
+          supportsImageInput: true,
+          supportsImageOutput: false,
+          supportsReasoning: true,
+          supportsStructuredOutput: true,
+        }
+      },
     ];
+  }
+
+  getModelCapabilities(_modelId: string): import('./base-provider.js').ModelCapabilities {
+    // All Claude models have the same capabilities
+    return {
+      supportsTools: false, // Uses text-based tool calls (not native)
+      supportsImageInput: true,
+      supportsImageOutput: false,
+      supportsReasoning: true,
+      supportsStructuredOutput: true,
+    };
   }
 
   async getModelDetails(modelId: string, _config?: ProviderConfig): Promise<ProviderModelDetails | null> {

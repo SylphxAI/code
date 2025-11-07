@@ -5,7 +5,7 @@
 
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { LanguageModelV1 } from 'ai';
-import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo } from './base-provider.js';
+import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo, ModelCapabilities } from './base-provider.js';
 import { hasRequiredFields } from './base-provider.js';
 
 
@@ -107,6 +107,34 @@ export class ZaiProvider implements AIProvider {
     };
 
     return specs[modelId] || null;
+  }
+
+  getModelCapabilities(modelId: string): ModelCapabilities {
+    const modelIdLower = modelId.toLowerCase();
+
+    return {
+      // GLM models support tools
+      supportsTools:
+        modelIdLower.includes('glm') ||
+        modelIdLower.includes('chatglm'),
+      // GLM-4V and vision models support image input
+      supportsImageInput:
+        modelIdLower.includes('glm-4v') ||
+        modelIdLower.includes('vision'),
+      // Check for image generation models
+      supportsImageOutput:
+        modelIdLower.includes('cogview') ||
+        modelIdLower.includes('image'),
+      // DeepSeek and reasoning models
+      supportsReasoning:
+        modelIdLower.includes('deepseek') ||
+        modelIdLower.includes('thinking') ||
+        modelIdLower.includes('reasoning'),
+      // GLM-4+ models support structured output
+      supportsStructuredOutput:
+        modelIdLower.includes('glm-4') ||
+        modelIdLower.includes('glm-5'),
+    };
   }
 
   createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {

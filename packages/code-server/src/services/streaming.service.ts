@@ -217,11 +217,18 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         // 7. Create AI model
         const model = providerInstance.createClient(providerConfig, modelName);
 
+        // 7.1. Get model capabilities to determine tool support
+        const modelCapabilities = providerInstance.getModelCapabilities(modelName);
+        const enableTools = modelCapabilities.supportsTools;
+
         // 8. Create AI stream with system prompt
+        // Only enable native tools if model supports them
+        // Models without native support (like claude-code) will fall back to text-based tools
         const stream = createAIStream({
           model,
           messages,
           system: systemPrompt,
+          enableTools, // Conditional tool usage based on model capabilities
           ...(abortSignal ? { abortSignal } : {}),
           onTransformToolResult: (output, toolName) => {
             const systemStatus = getSystemStatus();

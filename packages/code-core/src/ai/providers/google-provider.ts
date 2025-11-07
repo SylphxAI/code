@@ -5,7 +5,7 @@
 
 import { google } from '@ai-sdk/google';
 import type { LanguageModelV1 } from 'ai';
-import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo } from './base-provider.js';
+import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo, ModelCapabilities } from './base-provider.js';
 import { hasRequiredFields } from './base-provider.js';
 
 import { getModelMetadata } from '../../utils/models-dev.js';
@@ -95,6 +95,31 @@ export class GoogleProvider implements AIProvider {
     }
 
     return null;
+  }
+
+  getModelCapabilities(modelId: string): ModelCapabilities {
+    const modelIdLower = modelId.toLowerCase();
+
+    return {
+      // Most Gemini models support tools
+      supportsTools: modelIdLower.includes('gemini'),
+      // Gemini Pro and Flash models support vision
+      supportsImageInput:
+        modelIdLower.includes('gemini') &&
+        (modelIdLower.includes('pro') ||
+          modelIdLower.includes('flash') ||
+          modelIdLower.includes('vision')),
+      // Gemini doesn't support image output (generation)
+      supportsImageOutput: false,
+      // Gemini thinking/reasoning models
+      supportsReasoning:
+        modelIdLower.includes('thinking') ||
+        modelIdLower.includes('reasoning'),
+      // Gemini 1.5+ and 2.0+ support structured output
+      supportsStructuredOutput:
+        modelIdLower.includes('gemini-1.5') ||
+        modelIdLower.includes('gemini-2'),
+    };
   }
 
   createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {

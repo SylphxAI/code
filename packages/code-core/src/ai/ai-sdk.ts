@@ -169,6 +169,12 @@ export interface CreateAIStreamOptions {
   messages: ModelMessage[];
   systemPrompt?: string;
   /**
+   * Enable tool usage (default: true)
+   * Set to false for scenarios like title generation where tools are unnecessary
+   * Improves performance and reduces token usage
+   */
+  enableTools?: boolean;
+  /**
    * Optional abort signal to cancel the stream
    */
   abortSignal?: AbortSignal;
@@ -382,6 +388,7 @@ export async function* createAIStream(
     systemPrompt = getSystemPrompt(),
     model,
     messages: initialMessages,
+    enableTools = true,
     abortSignal,
     onStepFinish,
     onPrepareMessages,
@@ -411,7 +418,8 @@ export async function* createAIStream(
       model,
       messages: preparedMessages,
       system: systemPrompt,
-      tools: getAISDKTools({ interactive: hasUserInputHandler() }),
+      // Only provide tools if enabled (saves tokens and improves performance for simple tasks)
+      ...(enableTools ? { tools: getAISDKTools({ interactive: hasUserInputHandler() }) } : {}),
       // Only pass abortSignal if provided (exactOptionalPropertyTypes compliance)
       ...(abortSignal ? { abortSignal } : {}),
       // Don't handle errors here - let them propagate to the caller

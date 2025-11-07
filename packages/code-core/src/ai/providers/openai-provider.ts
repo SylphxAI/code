@@ -4,7 +4,7 @@
 
 import { openai } from '@ai-sdk/openai';
 import type { LanguageModelV1 } from 'ai';
-import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo } from './base-provider.js';
+import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo, ModelCapabilities } from './base-provider.js';
 import { hasRequiredFields } from './base-provider.js';
 
 import { getModelMetadata } from '../../utils/models-dev.js';
@@ -121,6 +121,31 @@ export class OpenAIProvider implements AIProvider {
     }
 
     return null;
+  }
+
+  getModelCapabilities(modelId: string): ModelCapabilities {
+    const modelIdLower = modelId.toLowerCase();
+
+    return {
+      // GPT-4+ and GPT-3.5-turbo support tools (except instruct models)
+      supportsTools:
+        !modelIdLower.includes('instruct') &&
+        (modelIdLower.includes('gpt-4') ||
+          modelIdLower.includes('gpt-3.5-turbo')),
+      // GPT-4o, GPT-4-turbo, and GPT-4-vision support vision
+      supportsImageInput:
+        modelIdLower.includes('gpt-4o') ||
+        modelIdLower.includes('gpt-4-turbo') ||
+        modelIdLower.includes('vision'),
+      // DALL-E models support image output
+      supportsImageOutput: modelIdLower.includes('dall-e'),
+      // o1 and o3 models support reasoning
+      supportsReasoning:
+        modelIdLower.includes('o1') ||
+        modelIdLower.includes('o3'),
+      // GPT-4+ supports structured output
+      supportsStructuredOutput: modelIdLower.includes('gpt-4'),
+    };
   }
 
   createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {
