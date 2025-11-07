@@ -686,16 +686,23 @@ function handleStreamEvent(
       break;
 
     case 'error':
+      console.error('[handleStreamEvent] ERROR CASE - event.error:', event.error);
+      console.error('[handleStreamEvent] ERROR CASE - currentSessionId:', currentSessionId);
+      console.error('[handleStreamEvent] ERROR CASE - streamingMessageIdRef:', context.streamingMessageIdRef.current);
+
       logContent('Error event received:', event.error);
       context.lastErrorRef.current = event.error;
       updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
+        console.error('[handleStreamEvent] ERROR CASE - updateActiveMessageContent callback called, prev.length:', prev.length);
         const newContent = [
           ...prev,
           { type: 'error', error: event.error, status: 'completed' } as MessagePart,
         ];
+        console.error('[handleStreamEvent] ERROR CASE - newContent.length:', newContent.length);
         logContent('Updated content with error, total parts:', newContent.length);
         return newContent;
       });
+      console.error('[handleStreamEvent] ERROR CASE - updateActiveMessageContent called');
       break;
 
     case 'abort':
