@@ -25,6 +25,7 @@ interface TextInputWithHintProps {
   onEnter?: () => void; // Callback when Enter is pressed (for autocomplete)
   onUpArrow?: () => void; // Callback when Up Arrow is pressed (for autocomplete)
   onDownArrow?: () => void; // Callback when Down Arrow is pressed (for autocomplete)
+  maxLines?: number; // Maximum lines to display (default: 10, use 1 for single-line)
 }
 
 function TextInputWithHint({
@@ -43,6 +44,7 @@ function TextInputWithHint({
   onEnter,
   onUpArrow,
   onDownArrow,
+  maxLines = 10,
 }: TextInputWithHintProps) {
   // Internal cursor state (used when not controlled from parent)
   const [internalCursor, setInternalCursor] = useState(0);
@@ -95,6 +97,7 @@ function TextInputWithHint({
         onEnter={onEnter}
         onUpArrow={onUpArrow}
         onDownArrow={onDownArrow}
+        maxLines={maxLines}
       />
       {hint && value.length > 0 ? <Text color="#444444">{hint}</Text> : null}
     </Box>

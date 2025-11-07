@@ -322,6 +322,7 @@ export function ProviderManagement({
                       }}
                       placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
                       showCursor
+                      maxLines={1}
                     />
                   ) : (
                     <Text color={isEmpty ? 'gray' : isSelected ? 'cyan' : 'white'}>
