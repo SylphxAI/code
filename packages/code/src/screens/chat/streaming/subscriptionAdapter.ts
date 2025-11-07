@@ -234,47 +234,59 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
             });
           },
           onError: (error: any) => {
-            logSession('Subscription error:', error.message || String(error));
-            addLog(`[Subscription] Error: ${error.message || String(error)}`);
-            lastErrorRef.current = error.message || String(error);
+            try {
+              logSession('Subscription error:', error.message || String(error));
+              addLog(`[Subscription] Error: ${error.message || String(error)}`);
+              lastErrorRef.current = error.message || String(error);
 
-            // Add error message part to UI
-            updateActiveMessageContent(sessionId, streamingMessageIdRef.current, (prev) => [
-              ...prev,
-              {
-                type: 'error',
-                error: error.message || String(error),
-                status: 'completed',
-              } as MessagePart,
-            ]);
+              // Add error message part to UI
+              updateActiveMessageContent(sessionId, streamingMessageIdRef.current, (prev) => [
+                ...prev,
+                {
+                  type: 'error',
+                  error: error.message || String(error),
+                  status: 'completed',
+                } as MessagePart,
+              ]);
 
-            // Cleanup
-            cleanupAfterStream({
-              currentSessionId: sessionId,
-              wasAbortedRef,
-              lastErrorRef,
-              usageRef,
-              finishReasonRef,
-              streamingMessageIdRef,
-              setIsStreaming,
-              notificationSettings,
-            });
+              // Cleanup
+              cleanupAfterStream({
+                currentSessionId: sessionId,
+                wasAbortedRef,
+                lastErrorRef,
+                usageRef,
+                finishReasonRef,
+                streamingMessageIdRef,
+                setIsStreaming,
+                notificationSettings,
+              });
+            } catch (handlerError) {
+              console.error('[subscriptionAdapter] Error in onError handler:', handlerError);
+              // Ensure streaming state is reset even if error handling fails
+              setIsStreaming(false);
+            }
           },
           onComplete: () => {
-            logSession('Subscription completed successfully');
-            addLog('[Subscription] Complete');
+            try {
+              logSession('Subscription completed successfully');
+              addLog('[Subscription] Complete');
 
-            // Cleanup
-            cleanupAfterStream({
-              currentSessionId: sessionId,
-              wasAbortedRef,
-              lastErrorRef,
-              usageRef,
-              finishReasonRef,
-              streamingMessageIdRef,
-              setIsStreaming,
-              notificationSettings,
-            });
+              // Cleanup
+              cleanupAfterStream({
+                currentSessionId: sessionId,
+                wasAbortedRef,
+                lastErrorRef,
+                usageRef,
+                finishReasonRef,
+                streamingMessageIdRef,
+                setIsStreaming,
+                notificationSettings,
+              });
+            } catch (handlerError) {
+              console.error('[subscriptionAdapter] Error in onComplete handler:', handlerError);
+              // Ensure streaming state is reset even if cleanup fails
+              setIsStreaming(false);
+            }
           },
         }
       );
@@ -283,28 +295,34 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
       // Handle abort
       abortControllerRef.current.signal.addEventListener('abort', () => {
-        addLog('[Subscription] Aborted by user');
-        wasAbortedRef.current = true;
-        subscription.unsubscribe();
+        try {
+          addLog('[Subscription] Aborted by user');
+          wasAbortedRef.current = true;
+          subscription.unsubscribe();
 
-        // Mark active parts as aborted
-        updateActiveMessageContent(sessionId, streamingMessageIdRef.current, (prev) =>
-          prev.map((part) =>
-            part.status === 'active' ? { ...part, status: 'abort' as const } : part
-          )
-        );
+          // Mark active parts as aborted
+          updateActiveMessageContent(sessionId, streamingMessageIdRef.current, (prev) =>
+            prev.map((part) =>
+              part.status === 'active' ? { ...part, status: 'abort' as const } : part
+            )
+          );
 
-        // Cleanup
-        cleanupAfterStream({
-          currentSessionId: sessionId,
-          wasAbortedRef,
-          lastErrorRef,
-          usageRef,
-          finishReasonRef,
-          streamingMessageIdRef,
-          setIsStreaming,
-          notificationSettings,
-        });
+          // Cleanup
+          cleanupAfterStream({
+            currentSessionId: sessionId,
+            wasAbortedRef,
+            lastErrorRef,
+            usageRef,
+            finishReasonRef,
+            streamingMessageIdRef,
+            setIsStreaming,
+            notificationSettings,
+          });
+        } catch (handlerError) {
+          console.error('[subscriptionAdapter] Error in abort handler:', handlerError);
+          // Ensure streaming state is reset even if abort handling fails
+          setIsStreaming(false);
+        }
       });
     } catch (error) {
       logSession('Subscription setup error:', {
@@ -312,11 +330,17 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
         stack: error instanceof Error ? error.stack : undefined,
       });
 
-      addLog(
-        `[subscriptionAdapter] Error: ${error instanceof Error ? error.message : String(error)}`
-      );
-      lastErrorRef.current = error instanceof Error ? error.message : String(error);
-      setIsStreaming(false);
+      try {
+        addLog(
+          `[subscriptionAdapter] Error: ${error instanceof Error ? error.message : String(error)}`
+        );
+        lastErrorRef.current = error instanceof Error ? error.message : String(error);
+      } catch (logError) {
+        console.error('[subscriptionAdapter] Error logging failed:', logError);
+      } finally {
+        // Always reset streaming state
+        setIsStreaming(false);
+      }
     }
   };
 }
@@ -678,6 +702,7 @@ function handleStreamEvent(
 
 /**
  * Cleanup after stream completes or errors
+ * NOTE: All operations wrapped in try-catch to prevent cleanup errors from crashing
  */
 async function cleanupAfterStream(context: {
   currentSessionId: string | null;
@@ -689,70 +714,86 @@ async function cleanupAfterStream(context: {
   setIsStreaming: (value: boolean) => void;
   notificationSettings: { notifyOnCompletion: boolean; notifyOnError: boolean };
 }) {
-  // IMPORTANT: Get current session ID from store (not from context)
-  // For lazy sessions, the sessionId is updated in store after session-created event
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  try {
+    // IMPORTANT: Get current session ID from store (not from context)
+    // For lazy sessions, the sessionId is updated in store after session-created event
+    const currentSessionId = useAppStore.getState().currentSessionId;
 
-  const wasAborted = context.wasAbortedRef.current;
-  const hasError = context.lastErrorRef.current;
+    const wasAborted = context.wasAbortedRef.current;
+    const hasError = context.lastErrorRef.current;
 
-  // Update message status in Zustand store
-  const finalStatus = wasAborted ? 'abort' : hasError ? 'error' : 'completed';
+    // Update message status in Zustand store
+    const finalStatus = wasAborted ? 'abort' : hasError ? 'error' : 'completed';
 
-  useAppStore.setState((state) => {
-    const session = state.currentSession;
-    if (!session || session.id !== currentSessionId) return;
-
-    const activeMessage = [...session.messages]
-      .reverse()
-      .find((m) => m.role === 'assistant' && m.status === 'active');
-
-    if (!activeMessage) return;
-
-    // Update message status and metadata
-    activeMessage.status = finalStatus;
-    if (context.usageRef.current) {
-      activeMessage.usage = context.usageRef.current;
-    }
-    if (context.finishReasonRef.current) {
-      activeMessage.finishReason = context.finishReasonRef.current;
-    }
-  });
-
-  // Reload message from database to get steps structure
-  if (currentSessionId && context.streamingMessageIdRef.current) {
     try {
-      const client = getTRPCClient();
-      const session = await client.session.getById.query({ sessionId: currentSessionId });
+      useAppStore.setState((state) => {
+        const session = state.currentSession;
+        if (!session || session.id !== currentSessionId) return;
 
-      if (session) {
-        // Update Zustand store with fresh data from database
-        useAppStore.setState((state) => {
-          if (state.currentSessionId === currentSessionId) {
-            state.currentSession = session;
-          }
-        });
+        const activeMessage = [...session.messages]
+          .reverse()
+          .find((m) => m.role === 'assistant' && m.status === 'active');
+
+        if (!activeMessage) return;
+
+        // Update message status and metadata
+        activeMessage.status = finalStatus;
+        if (context.usageRef.current) {
+          activeMessage.usage = context.usageRef.current;
+        }
+        if (context.finishReasonRef.current) {
+          activeMessage.finishReason = context.finishReasonRef.current;
+        }
+      });
+    } catch (stateError) {
+      console.error('[cleanupAfterStream] Failed to update message status:', stateError);
+    }
+
+    // Reload message from database to get steps structure
+    if (currentSessionId && context.streamingMessageIdRef.current) {
+      try {
+        const client = getTRPCClient();
+        const session = await client.session.getById.query({ sessionId: currentSessionId });
+
+        if (session) {
+          // Update Zustand store with fresh data from database
+          useAppStore.setState((state) => {
+            if (state.currentSessionId === currentSessionId) {
+              state.currentSession = session;
+            }
+          });
+        }
+      } catch (error) {
+        console.error('[cleanupAfterStream] Failed to reload session:', error);
       }
-    } catch (error) {
-      console.error('[cleanupAfterStream] Failed to reload session:', error);
+    }
+
+    // Send notifications
+    try {
+      if (context.notificationSettings.notifyOnCompletion && !wasAborted && !hasError) {
+        // TODO: Send notification (platform-specific)
+      }
+      if (context.notificationSettings.notifyOnError && hasError) {
+        // TODO: Send error notification (platform-specific)
+      }
+    } catch (notificationError) {
+      console.error('[cleanupAfterStream] Failed to send notification:', notificationError);
+    }
+
+    // Reset flags
+    context.wasAbortedRef.current = false;
+    context.lastErrorRef.current = null;
+    context.streamingMessageIdRef.current = null;
+    context.usageRef.current = null;
+    context.finishReasonRef.current = null;
+  } catch (cleanupError) {
+    console.error('[cleanupAfterStream] Critical error during cleanup:', cleanupError);
+  } finally {
+    // ALWAYS reset streaming state, even if cleanup fails
+    try {
+      context.setIsStreaming(false);
+    } catch (setStateError) {
+      console.error('[cleanupAfterStream] Failed to set isStreaming to false:', setStateError);
     }
   }
-
-  // Send notifications
-  if (context.notificationSettings.notifyOnCompletion && !wasAborted && !hasError) {
-    // TODO: Send notification (platform-specific)
-  }
-  if (context.notificationSettings.notifyOnError && hasError) {
-    // TODO: Send error notification (platform-specific)
-  }
-
-  // Reset flags
-  context.wasAbortedRef.current = false;
-  context.lastErrorRef.current = null;
-  context.streamingMessageIdRef.current = null;
-  context.usageRef.current = null;
-  context.finishReasonRef.current = null;
-
-  // Message streaming ended
-  context.setIsStreaming(false);
 }

@@ -563,17 +563,27 @@ Now generate the title:`,
         // 11. Complete step-0 and save final message to database
         const stepEndTime = Date.now();
 
-        // 11.1. Update step parts
-        await updateStepParts(sessionRepository.db, stepId, result.messageParts);
+        // 11.1. Update step parts (with error handling - don't let DB errors crash the stream)
+        try {
+          await updateStepParts(sessionRepository.db, stepId, result.messageParts);
+        } catch (dbError) {
+          console.error('[streamAIResponse] Failed to update step parts:', dbError);
+          // Continue - error is already in messageParts, will be shown to user
+        }
 
         // 11.2. Complete the step
-        await completeMessageStep(sessionRepository.db, stepId, {
-          status: aborted ? 'abort' : result.usage ? 'completed' : 'error',
-          finishReason: result.finishReason,
-          usage: result.usage,
-          provider: session.provider,
-          model: session.model,
-        });
+        try {
+          await completeMessageStep(sessionRepository.db, stepId, {
+            status: aborted ? 'abort' : result.usage ? 'completed' : 'error',
+            finishReason: result.finishReason,
+            usage: result.usage,
+            provider: session.provider,
+            model: session.model,
+          });
+        } catch (dbError) {
+          console.error('[streamAIResponse] Failed to complete step:', dbError);
+          // Continue - not critical for user experience
+        }
 
         // 11.3. Emit step-complete event
         const stepDuration = stepEndTime - Date.now(); // FIXME: Calculate from step startTime
@@ -586,15 +596,25 @@ Now generate the title:`,
         });
 
         // 11.4. Update message status (aggregated from steps)
-        await sessionRepository.updateMessageStatus(
-          assistantMessageId,
-          aborted ? 'abort' : result.usage ? 'completed' : 'error',
-          result.finishReason
-        );
+        try {
+          await sessionRepository.updateMessageStatus(
+            assistantMessageId,
+            aborted ? 'abort' : result.usage ? 'completed' : 'error',
+            result.finishReason
+          );
+        } catch (dbError) {
+          console.error('[streamAIResponse] Failed to update message status:', dbError);
+          // Continue - not critical for user experience
+        }
 
         // 11.5. Update message usage (aggregated from steps)
         if (result.usage) {
-          await sessionRepository.updateMessageUsage(assistantMessageId, result.usage);
+          try {
+            await sessionRepository.updateMessageUsage(assistantMessageId, result.usage);
+          } catch (dbError) {
+            console.error('[streamAIResponse] Failed to update message usage:', dbError);
+            // Continue - not critical for user experience
+          }
         }
 
         // 12. Emit complete event (message content done, title continues in background)
