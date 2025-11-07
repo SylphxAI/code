@@ -138,23 +138,31 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
       // Use 90% of terminal width (leave margin for UI)
       const imageWidth = Math.min(Math.floor(terminalWidth * 0.9), 160);
 
-      // Detect graphics protocol capability
+      // Detect graphics protocol capability (check actual field names from API)
       const hasGraphicsProtocol =
-        capabilities?.graphics?.kitty ||
-        capabilities?.graphics?.iterm2 ||
-        capabilities?.graphics?.sixel;
+        capabilities?.supportsKittyGraphics ||
+        capabilities?.supportsITerm2Graphics ||
+        capabilities?.supportsSixelGraphics;
 
-      // Calculate height based on protocol capability
-      // High-res protocols: preserve natural aspect ratio
-      // ASCII fallback: need explicit height for proper display
-      const imageHeight = hasGraphicsProtocol
-        ? undefined // Let protocol preserve aspect ratio
-        : Math.floor(imageWidth / 2); // ASCII: use ~2:1 ratio for better visibility
+      // Determine best protocol and dimensions
+      let protocol: 'auto' | 'halfBlock' | 'kitty' | 'iterm2' | 'sixel' = 'auto';
+      let imageHeight: number | undefined;
+
+      if (hasGraphicsProtocol) {
+        // High-res protocols: let them preserve aspect ratio
+        imageHeight = undefined;
+      } else {
+        // ASCII fallback: use halfBlock protocol with explicit height
+        protocol = 'halfBlock';
+        // halfBlock uses 2x1 blocks, so calculate height for ~16:9 aspect ratio
+        imageHeight = Math.floor((imageWidth * 9) / 16 / 2);
+      }
 
       console.log('[MessagePart] Image capabilities:', {
         terminalWidth,
         imageWidth,
         imageHeight,
+        protocol,
         capabilities,
         hasGraphicsProtocol,
       });
@@ -163,20 +171,20 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
         <Box flexDirection="column" marginLeft={2} marginBottom={1}>
           <Text dimColor>
             Image ({part.mediaType}) - Protocol:{' '}
-            {capabilities?.graphics?.kitty
+            {capabilities?.supportsKittyGraphics
               ? 'Kitty'
-              : capabilities?.graphics?.iterm2
+              : capabilities?.supportsITerm2Graphics
                 ? 'iTerm2'
-                : capabilities?.graphics?.sixel
+                : capabilities?.supportsSixelGraphics
                   ? 'Sixel'
-                  : 'ASCII fallback'}
+                  : 'halfBlock (ASCII)'}
           </Text>
           <Picture
             src={tempPath}
             alt="Generated image"
             width={imageWidth}
             height={imageHeight}
-            protocol="auto"
+            protocol={protocol}
           />
         </Box>
       );
