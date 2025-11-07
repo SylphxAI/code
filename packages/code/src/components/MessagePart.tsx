@@ -7,13 +7,13 @@
 
 import { useElapsedTime } from '@sylphx/code-client';
 import type { MessagePart as MessagePartType } from '@sylphx/code-core';
-import { Box, Text, useStdout } from 'ink';
-import Picture, { useTerminalCapabilities } from 'ink-picture';
-import React, { useMemo } from 'react';
+import { Box, Text } from 'ink';
+import React, { useMemo, useEffect } from 'react';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
+import { exec } from 'node:child_process';
 import MarkdownText from './MarkdownText.js';
 import Spinner from './Spinner.js';
 import { ToolDisplay } from './ToolDisplay.js';
@@ -47,13 +47,6 @@ type StreamingPart =
   | { type: 'error'; error: string; status: 'completed' };
 
 export const MessagePart = React.memo(function MessagePart({ part }: MessagePartProps) {
-  // Get terminal dimensions for responsive image sizing
-  const { stdout } = useStdout();
-  const terminalWidth = stdout?.columns || 80;
-
-  // Get terminal capabilities for image rendering
-  const capabilities = useTerminalCapabilities();
-
   if (part.type === 'text') {
     return (
       <Box flexDirection="column" marginLeft={2} marginBottom={1}>
@@ -110,7 +103,7 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
     const isImage = part.mediaType.startsWith('image/');
 
     if (isImage) {
-      // Save base64 to temp file (ink-picture doesn't support data URLs)
+      // Save base64 to temp file and open in system viewer
       const tempPath = useMemo(() => {
         try {
           const ext = part.mediaType.split('/')[1] || 'png';
@@ -125,41 +118,37 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
         }
       }, [part.base64, part.mediaType]);
 
+      // Auto-open image in system viewer once
+      useEffect(() => {
+        if (tempPath) {
+          // Use macOS 'open' command (or 'xdg-open' on Linux)
+          const openCommand = process.platform === 'darwin' ? 'open' : 'xdg-open';
+          exec(`${openCommand} "${tempPath}"`, (error) => {
+            if (error) {
+              console.error('[MessagePart] Failed to open image:', error);
+            }
+          });
+        }
+      }, [tempPath]);
+
       if (!tempPath) {
         return (
           <Box flexDirection="column" marginLeft={2} marginBottom={1}>
             <Text dimColor>Image ({part.mediaType}):</Text>
-            <Text color="red">Failed to load image</Text>
+            <Text color="red">Failed to save image</Text>
           </Box>
         );
       }
 
-      // Calculate responsive image width
-      // Use 90% of terminal width (leave margin for UI)
-      const imageWidth = Math.min(Math.floor(terminalWidth * 0.9), 160);
-
-      // Detect graphics protocol capability (check actual field names from API)
-      const hasGraphicsProtocol =
-        capabilities?.supportsKittyGraphics ||
-        capabilities?.supportsITerm2Graphics ||
-        capabilities?.supportsSixelGraphics;
-
-      // Determine best protocol
-      // Don't set height - let Picture component auto-calculate based on image aspect ratio
-      const protocol: 'auto' | 'halfBlock' | 'braille' | 'kitty' | 'iterm2' | 'sixel' = hasGraphicsProtocol
-        ? 'auto'
-        : 'braille';
+      const fileSize = Math.round((part.base64.length * 3) / 4 / 1024); // Convert base64 to KB
 
       return (
         <Box flexDirection="column" marginLeft={2} marginBottom={1}>
-          <Text dimColor>Image ({part.mediaType}):</Text>
-          {!hasGraphicsProtocol && (
-            <Text color="yellow" dimColor>
-              ⚠️ For better image quality, use iTerm2, WezTerm, or Kitty terminal
-            </Text>
-          )}
-          {/* Let Picture auto-calculate height based on image aspect ratio */}
-          <Picture src={tempPath} alt="Generated image" width={imageWidth} protocol={protocol} />
+          <Text dimColor>
+            Image ({part.mediaType}) - {fileSize}KB
+          </Text>
+          <Text color="green">✓ Opened in system viewer</Text>
+          <Text dimColor>Saved to: {tempPath}</Text>
         </Box>
       );
     } else {
