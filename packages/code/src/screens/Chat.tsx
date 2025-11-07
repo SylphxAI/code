@@ -521,10 +521,25 @@ export default function Chat(_props: ChatProps) {
   }, [filteredCommands, selectedCommandIndex, pendingInput, addLog, setInput, setCursor, setSelectedCommandIndex]);
 
   const handleCommandAutocompleteEnter = useCallback(async () => {
-    if (filteredCommands.length === 0 || pendingInput) return;
+    console.log('[handleCommandAutocompleteEnter] START', {
+      filteredCommandsLength: filteredCommands.length,
+      selectedCommandIndex,
+      pendingInput: !!pendingInput,
+    });
+
+    if (filteredCommands.length === 0 || pendingInput) {
+      console.log('[handleCommandAutocompleteEnter] Early return - no commands or pending input');
+      return;
+    }
 
     const selected = filteredCommands[selectedCommandIndex];
-    if (selected) {
+    if (!selected) {
+      console.log('[handleCommandAutocompleteEnter] No selected command');
+      return;
+    }
+
+    try {
+      console.log('[handleCommandAutocompleteEnter] Executing:', selected.label);
       skipNextSubmit.current = true;
 
       // Clear input immediately before execution
@@ -540,6 +555,11 @@ export default function Chat(_props: ChatProps) {
       const model = aiConfig?.defaultModel || 'anthropic/claude-3.5-sonnet';
 
       const sessionIdToUse = commandSessionRef.current || currentSessionId;
+      console.log('[handleCommandAutocompleteEnter] Adding user message:', {
+        sessionIdToUse,
+        label: selected.label,
+      });
+
       const resultSessionId = await addMessage({
         sessionId: sessionIdToUse,
         role: 'user',
@@ -548,15 +568,20 @@ export default function Chat(_props: ChatProps) {
         model,
       });
 
+      console.log('[handleCommandAutocompleteEnter] User message added, sessionId:', resultSessionId);
+
       if (!commandSessionRef.current) {
         commandSessionRef.current = resultSessionId;
       }
 
       // Execute command - it will use waitForInput if needed
+      console.log('[handleCommandAutocompleteEnter] Executing command...');
       const response = await selected.execute(createCommandContextForArgs([]));
+      console.log('[handleCommandAutocompleteEnter] Command executed, response:', response?.substring(0, 100));
 
       // Add final response if any
       if (response) {
+        console.log('[handleCommandAutocompleteEnter] Adding assistant response...');
         await addMessage({
           sessionId: commandSessionRef.current,
           role: 'assistant',
@@ -564,7 +589,14 @@ export default function Chat(_props: ChatProps) {
           provider,
           model,
         });
+        console.log('[handleCommandAutocompleteEnter] Assistant response added');
       }
+
+      console.log('[handleCommandAutocompleteEnter] COMPLETE');
+    } catch (error) {
+      console.error('[handleCommandAutocompleteEnter] ERROR:', error);
+      addLog(`[ERROR] Command execution failed: ${error instanceof Error ? error.message : String(error)}`);
+      // Don't rethrow - let the UI continue
     }
   }, [filteredCommands, selectedCommandIndex, pendingInput, skipNextSubmit, setInput, setSelectedCommandIndex, addLog, getAIConfig, currentSessionId, commandSessionRef, addMessage, createCommandContextForArgs]);
 
