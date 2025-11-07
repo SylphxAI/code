@@ -1,0 +1,102 @@
+/**
+ * Message Store
+ * Manages message operations (add, update)
+ *
+ * Single Responsibility: Message lifecycle management
+ */
+
+import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
+import type { MessagePart, FileAttachment, TokenUsage, MessageMetadata, Todo, ProviderId } from '@sylphx/code-core';
+import { getTRPCClient } from '../trpc-provider.js';
+
+export interface MessageState {
+  addMessage: (params: {
+    sessionId: string | null; // null = create new session
+    role: 'user' | 'assistant';
+    content: string | MessagePart[];
+    attachments?: FileAttachment[];
+    usage?: TokenUsage;
+    finishReason?: string;
+    metadata?: MessageMetadata;
+    todoSnapshot?: Todo[];
+    status?: 'active' | 'completed' | 'error' | 'abort';
+    provider?: ProviderId; // Required if sessionId is null
+    model?: string; // Required if sessionId is null
+  }) => Promise<string>; // Returns sessionId (either existing or newly created)
+}
+
+export const useMessageStore = create<MessageState>()(
+  immer(() => ({
+    /**
+     * Add message to session (creates session if needed)
+     */
+    addMessage: async (params) => {
+      const {
+        sessionId,
+        role,
+        content,
+        attachments,
+        usage,
+        finishReason,
+        metadata,
+        todoSnapshot,
+        status,
+        provider,
+        model,
+      } = params;
+
+      // Normalize content for tRPC wire format (no status on parts)
+      const wireContent =
+        typeof content === 'string' ? [{ type: 'text', content } as const] : content;
+
+      // Normalize content for internal format (with status on parts)
+      const internalContent: MessagePart[] =
+        typeof content === 'string'
+          ? [{ type: 'text', content, status: status || 'completed' }]
+          : content;
+
+      // Get session store
+      const { useSessionStore } = await import('./session-store.js');
+      const sessionStore = useSessionStore.getState();
+
+      // Optimistic update ONLY if sessionId exists and it's the current session
+      if (sessionId && sessionStore.currentSessionId === sessionId && sessionStore.currentSession) {
+        useSessionStore.setState((state) => {
+          if (state.currentSession) {
+            state.currentSession.messages.push({
+              role,
+              content: internalContent,
+              timestamp: Date.now(),
+              status: status || 'completed',
+              ...(attachments !== undefined && attachments.length > 0 && { attachments }),
+              ...(usage !== undefined && { usage }),
+              ...(finishReason !== undefined && { finishReason }),
+              ...(metadata !== undefined && { metadata }),
+              ...(todoSnapshot !== undefined && todoSnapshot.length > 0 && { todoSnapshot }),
+            });
+          }
+        });
+      }
+
+      // Persist via tRPC
+      const client = getTRPCClient();
+      const result = await client.message.add.mutate({
+        sessionId: sessionId || undefined,
+        provider,
+        model,
+        role,
+        content: wireContent,
+        attachments,
+        usage,
+        finishReason,
+        metadata,
+        todoSnapshot,
+        status,
+      });
+
+      // Return the sessionId (either existing or newly created)
+      return result.sessionId;
+    },
+  }))
+);
