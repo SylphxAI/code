@@ -13,11 +13,16 @@
  */
 
 import { observable } from '@trpc/server/observable';
-import type { SessionRepository, MessageRepository, AIConfig, MessagePart, FileAttachment, TokenUsage } from '@sylphx/code-core';
+import type {
+  SessionRepository,
+  MessageRepository,
+  AIConfig,
+  TokenUsage,
+  FileAttachment,
+} from '@sylphx/code-core';
 import {
   createAIStream,
   getSystemStatus,
-  buildSystemStatusFromMetadata,
   injectSystemStatusToOutput,
   buildSystemPrompt,
   createMessageStep,
@@ -25,13 +30,13 @@ import {
   completeMessageStep,
   processStream,
   getProvider,
-  buildTodoContext,
-  DEFAULT_AGENT_ID,
 } from '@sylphx/code-core';
 import type { StreamCallbacks } from '@sylphx/code-core';
-import type { ModelMessage, UserContent, AssistantContent } from 'ai';
 import type { AppContext } from '../context.js';
-import type { ToolCallPart, ToolResultPart } from '@ai-sdk/provider';
+import { ensureSession } from './streaming/session-manager.js';
+import { buildModelMessages } from './streaming/message-builder.js';
+import { generateSessionTitle, needsTitleGeneration } from './streaming/title-generator.js';
+import { validateProvider } from './streaming/provider-validator.js';
 
 // Re-export StreamEvent type from message router
 export type StreamEvent =
@@ -113,40 +118,38 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           abortSignal,
         } = opts;
 
-        // 1. Handle session creation if sessionId is null
-        let sessionId = inputSessionId;
-        let isNewSession = false;
+        // 1. Ensure session exists (create if needed)
+        let sessionId: string;
+        let isNewSession: boolean;
 
-        if (!sessionId) {
-          // Create new session
-          if (!inputProvider || !inputModel) {
-            observer.error(new Error('Provider and model required when creating new session'));
-            return;
-          }
+        try {
+          const result = await ensureSession(
+            sessionRepository,
+            aiConfig,
+            inputSessionId,
+            inputProvider,
+            inputModel,
+            inputAgentId
+          );
+          sessionId = result.sessionId;
+          isNewSession = result.isNewSession;
 
-          const providerConfig = aiConfig?.providers?.[inputProvider];
-          if (!providerConfig) {
+          // Emit session-created event if new
+          if (isNewSession && inputProvider && inputModel) {
             observer.next({
-              type: 'error',
-              error: '[ERROR] Provider not configured\\n\\nPlease configure your provider using settings.',
+              type: 'session-created',
+              sessionId: sessionId,
+              provider: inputProvider,
+              model: inputModel,
             });
-            observer.complete();
-            return;
           }
-
-          // Create session in database
-          const agentId = inputAgentId || DEFAULT_AGENT_ID;
-          const newSession = await sessionRepository.createSession(inputProvider as any, inputModel, agentId);
-          sessionId = newSession.id;
-          isNewSession = true;
-
-          // Emit session-created event
+        } catch (error) {
           observer.next({
-            type: 'session-created',
-            sessionId: sessionId,
-            provider: inputProvider,
-            model: inputModel,
+            type: 'error',
+            error: error instanceof Error ? error.message : String(error),
           });
+          observer.complete();
+          return;
         }
 
         // 2. Load session from database
@@ -156,29 +159,21 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           return;
         }
 
-        // 2. Check AI configuration
+        // 2. Validate provider configuration
+        const validationError = validateProvider(aiConfig, session);
+        if (validationError) {
+          observer.next({
+            type: 'error',
+            error: validationError.message,
+          });
+          observer.complete();
+          return;
+        }
+
         const provider = session.provider;
         const modelName = session.model;
-        const providerConfig = aiConfig?.providers?.[provider];
-
-        if (!providerConfig) {
-          observer.next({
-            type: 'error',
-            error: '[ERROR] Provider not configured\\n\\nPlease configure your provider using the /provider command.',
-          });
-          observer.complete();
-          return;
-        }
-
+        const providerConfig = aiConfig?.providers?.[provider]!;
         const providerInstance = getProvider(provider);
-        if (!providerInstance.isConfigured(providerConfig)) {
-          observer.next({
-            type: 'error',
-            error: `[ERROR] ${providerInstance.name} is not properly configured\\n\\nPlease check your settings with the /provider command.`,
-          });
-          observer.complete();
-          return;
-        }
 
         // 3. Add user message to session (with system status + attachments)
         const systemStatus = getSystemStatus();
@@ -208,168 +203,8 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           return;
         }
 
-        // 5. Build ModelMessage[] for AI (same logic as useChat.ts)
-        const messages: ModelMessage[] = await Promise.all(
-          updatedSession.messages.map(async (msg) => {
-            if (msg.role === 'user') {
-              const contentParts: UserContent = [];
-
-              // Inject system status from metadata
-              if (msg.metadata) {
-                const systemStatusString = buildSystemStatusFromMetadata({
-                  timestamp: new Date(msg.timestamp).toISOString(),
-                  cpu: msg.metadata.cpu || 'N/A',
-                  memory: msg.metadata.memory || 'N/A',
-                });
-                contentParts.push({ type: 'text', text: systemStatusString });
-              }
-
-              // Inject todo context from snapshot
-              if (msg.todoSnapshot && msg.todoSnapshot.length > 0) {
-                const todoContext = buildTodoContext(msg.todoSnapshot);
-                contentParts.push({ type: 'text', text: todoContext });
-              }
-
-              // Add message content (aggregate from all steps)
-              if (msg.steps && msg.steps.length > 0) {
-                // Step-based structure: aggregate content from all steps
-                for (const step of msg.steps) {
-                  step.parts.forEach((part) => {
-                    if (part.type === 'text' && part.content) {
-                      contentParts.push({ type: 'text', text: part.content });
-                    }
-                  });
-                }
-              } else if (msg.content) {
-                // LEGACY: Direct content array (for backward compatibility)
-                msg.content.forEach((part) => {
-                  if (part.type === 'text' && part.content) {
-                    contentParts.push({ type: 'text', text: part.content });
-                  }
-                });
-              }
-
-              // Add file attachments
-              if (msg.attachments && msg.attachments.length > 0) {
-                for (const attachment of msg.attachments) {
-                  const fs = await import('node:fs/promises');
-                  try {
-                    const content = await fs.readFile(attachment.path, 'utf-8');
-                    contentParts.push({
-                      type: 'file',
-                      data: content,
-                      mimeType: 'text/plain',
-                    });
-                  } catch (error) {
-                    console.error(`Failed to read attachment: ${attachment.path}`, error);
-                  }
-                }
-              }
-
-              return { role: msg.role as 'user', content: contentParts };
-            } else {
-              // Assistant message - aggregate from all steps
-              let contentParts: AssistantContent = [];
-
-              if (msg.steps && msg.steps.length > 0) {
-                // Step-based structure: aggregate content from all steps
-                contentParts = msg.steps.flatMap((step) =>
-                  step.parts.flatMap((part) => {
-                    switch (part.type) {
-                      case 'text':
-                        return [{ type: 'text' as const, text: part.content }];
-
-                      case 'reasoning':
-                        return [{ type: 'reasoning' as const, text: part.content }];
-
-                      case 'tool': {
-                        const parts: AssistantContent = [
-                          {
-                            type: 'tool-call' as const,
-                            toolCallId: part.toolId,
-                            toolName: part.name,
-                            input: part.args,
-                          } as ToolCallPart,
-                        ];
-
-                        if (part.result !== undefined) {
-                          parts.push({
-                            type: 'tool-result' as const,
-                            toolCallId: part.toolId,
-                            toolName: part.name,
-                            output: part.result,
-                          } as ToolResultPart);
-                        }
-
-                        return parts;
-                      }
-
-                      case 'error':
-                        return [{ type: 'text' as const, text: `[Error: ${part.error}]` }];
-
-                      default:
-                        return [];
-                    }
-                  })
-                );
-              } else if (msg.content) {
-                // LEGACY: Direct content array (for backward compatibility)
-                contentParts = msg.content.flatMap((part) => {
-                  switch (part.type) {
-                    case 'text':
-                      return [{ type: 'text' as const, text: part.content }];
-
-                    case 'reasoning':
-                      return [{ type: 'reasoning' as const, text: part.content }];
-
-                    case 'tool': {
-                      const parts: AssistantContent = [
-                        {
-                          type: 'tool-call' as const,
-                          toolCallId: part.toolId,
-                          toolName: part.name,
-                          input: part.args,
-                        } as ToolCallPart,
-                      ];
-
-                      if (part.result !== undefined) {
-                        parts.push({
-                          type: 'tool-result' as const,
-                          toolCallId: part.toolId,
-                          toolName: part.name,
-                          output: part.result,
-                        } as ToolResultPart);
-                      }
-
-                      return parts;
-                    }
-
-                    case 'error':
-                      return [{ type: 'text' as const, text: `[Error: ${part.error}]` }];
-
-                    default:
-                      return [];
-                  }
-                });
-              }
-
-              // Add status annotation
-              if (msg.status === 'abort') {
-                contentParts.push({
-                  type: 'text',
-                  text: '[This response was aborted by the user]',
-                });
-              } else if (msg.status === 'error') {
-                contentParts.push({
-                  type: 'text',
-                  text: '[This response ended with an error]',
-                });
-              }
-
-              return { role: msg.role as 'assistant', content: contentParts };
-            }
-          })
-        );
+        // 5. Build ModelMessage[] for AI
+        const messages = await buildModelMessages(updatedSession.messages);
 
         // 6. Determine agentId and build system prompt
         // STATELESS: Use explicit parameters from AppContext
@@ -433,107 +268,18 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         });
 
         // 9.5. Start title generation in parallel with streaming (real-time updates)
-        const needsTitle = isNewSession || !updatedSession.title || updatedSession.title === 'New Chat';
-        const isFirstMessage = updatedSession.messages.filter(m => m.role === 'user').length === 1;
+        const isFirstMessage =
+          updatedSession.messages.filter((m) => m.role === 'user').length === 1;
 
         let titlePromise: Promise<string | null> = Promise.resolve(null);
-        if (needsTitle && isFirstMessage) {
-          // Start title generation with real-time streaming to UI
-          titlePromise = (async () => {
-            try {
-              const { createAIStream, cleanAITitle } = await import('@sylphx/code-core');
-              const { getProvider } = await import('@sylphx/code-core');
-
-              const provider = session.provider;
-              const modelName = session.model;
-              const providerConfig = aiConfig?.providers?.[provider];
-
-              if (!providerConfig) {
-                return null;
-              }
-
-              const providerInstance = getProvider(provider);
-              if (!providerInstance.isConfigured(providerConfig)) {
-                return null;
-              }
-
-              const model = providerInstance.createClient(providerConfig, modelName);
-
-              // Create AI stream for title generation
-              const titleStream = createAIStream({
-                model,
-                messages: [
-                  {
-                    role: 'user',
-                    content: `You need to generate a SHORT, DESCRIPTIVE title (maximum 50 characters) for a chat conversation.
-
-User's first message: "${userMessage}"
-
-Requirements:
-- Summarize the TOPIC or INTENT, don't just copy the message
-- Be concise and descriptive
-- Maximum 50 characters
-- Output ONLY the title, nothing else
-
-Examples:
-- Message: "How do I implement authentication?" → Title: "Authentication Implementation"
-- Message: "你好，请帮我修复这个 bug" → Title: "Bug 修复请求"
-- Message: "Can you help me with React hooks?" → Title: "React Hooks Help"
-
-Now generate the title:`,
-                  },
-                ],
-              });
-
-              let fullTitle = '';
-
-              // Publish title events to event stream (all clients subscribe via useEventStream)
-              const startEvent = { type: 'session-title-updated-start' as const, sessionId };
-              await opts.appContext.eventStream.publish(`session:${sessionId}`, startEvent);
-
-              // Stream title chunks (wrap in try-catch to catch flush/finalize errors)
-              try {
-                for await (const chunk of titleStream) {
-                  if (chunk.type === 'text-delta' && chunk.textDelta) {
-                    fullTitle += chunk.textDelta;
-                    const deltaEvent = {
-                      type: 'session-title-updated-delta' as const,
-                      sessionId,
-                      text: chunk.textDelta
-                    };
-                    await opts.appContext.eventStream.publish(`session:${sessionId}`, deltaEvent);
-                  }
-                }
-              } catch (streamError) {
-                // Catch NoOutputGeneratedError and other stream errors
-                console.error('[Title Generation] Stream error:', streamError);
-                // If stream failed, use a default title based on first message
-                if (fullTitle.length === 0) {
-                  fullTitle = userMessage.slice(0, 50);
-                }
-              }
-
-              // Clean up and update database (only if we got some title)
-              if (fullTitle.length > 0) {
-                const cleaned = cleanAITitle(fullTitle, 50);
-                try {
-                  await sessionRepository.updateSession(sessionId, { title: cleaned });
-                  // Publish title end event
-                  const endEvent = { type: 'session-title-updated-end' as const, sessionId, title: cleaned };
-                  await opts.appContext.eventStream.publish(`session:${sessionId}`, endEvent);
-                  return cleaned;
-                } catch (dbError) {
-                  console.error('[Title Generation] Failed to save title:', dbError);
-                  return cleaned; // Return title even if DB save failed
-                }
-              }
-
-              return null;
-            } catch (error) {
-              console.error('[Title Generation] Error:', error);
-              return null;
-            }
-          })();
+        if (needsTitleGeneration(updatedSession, isNewSession, isFirstMessage)) {
+          titlePromise = generateSessionTitle(
+            opts.appContext,
+            sessionRepository,
+            aiConfig,
+            updatedSession,
+            userMessage
+          );
         }
 
         // 10. Process stream and emit events
