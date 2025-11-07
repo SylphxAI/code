@@ -150,23 +150,14 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
         ? 'auto'
         : 'braille';
 
-      console.log('[MessagePart] Image rendering:', {
-        terminalWidth,
-        imageWidth,
-        protocol,
-        capabilities,
-        hasGraphicsProtocol,
-        tempPath,
-      });
-
       return (
         <Box flexDirection="column" marginLeft={2} marginBottom={1}>
-          <Text dimColor>
-            Image ({part.mediaType}) - width:{imageWidth} - Protocol: {protocol}
-          </Text>
-          <Text color="yellow" dimColor>
-            ⚠️ For better image quality, use iTerm2, WezTerm, or Kitty terminal
-          </Text>
+          <Text dimColor>Image ({part.mediaType}):</Text>
+          {!hasGraphicsProtocol && (
+            <Text color="yellow" dimColor>
+              ⚠️ For better image quality, use iTerm2, WezTerm, or Kitty terminal
+            </Text>
+          )}
           {/* Let Picture auto-calculate height based on image aspect ratio */}
           <Picture src={tempPath} alt="Generated image" width={imageWidth} protocol={protocol} />
         </Box>
