@@ -120,28 +120,34 @@ export class OpenRouterProvider implements AIProvider {
   createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {
     const apiKey = config.apiKey as string;
 
-    // Create OpenAI-compatible client for OpenRouter
-    const openrouter = createOpenAICompatible({
-      baseURL: 'https://openrouter.ai/api/v1',
-      apiKey,
-      name: 'openrouter',
-    });
-
     // Check if model supports image generation
     // ASSUMPTION: Models with 'image' in name support image generation via modalities
     // Examples: google/gemini-2.5-flash-image-preview, google/gemini-2.0-flash-image-preview
     const supportsImageGeneration = modelId.includes('image');
 
-    if (supportsImageGeneration) {
-      return openrouter(modelId, {
-        extraBody: {
-          modalities: ['image', 'text'],
-          image_config: {
-            aspect_ratio: '16:9',
-          },
-        },
-      });
-    }
+    // Create OpenAI-compatible client with custom fetch for image generation
+    const openrouter = createOpenAICompatible({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey,
+      name: 'openrouter',
+      // Use custom fetch to inject modalities for image generation models
+      fetch: supportsImageGeneration
+        ? async (url, options) => {
+            const body = options?.body ? JSON.parse(options.body as string) : {};
+            const modifiedBody = {
+              ...body,
+              modalities: ['image', 'text'],
+              image_config: {
+                aspect_ratio: '16:9',
+              },
+            };
+            return fetch(url, {
+              ...options,
+              body: JSON.stringify(modifiedBody),
+            });
+          }
+        : undefined,
+    });
 
     return openrouter(modelId);
   }
