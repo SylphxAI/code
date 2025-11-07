@@ -135,6 +135,23 @@ export class OpenRouterProvider implements AIProvider {
   createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {
     const apiKey = config.apiKey as string;
     const openrouter = createOpenRouter({ apiKey });
+
+    // Check if model supports image generation
+    // ASSUMPTION: Models with 'image' in name support image generation via modalities
+    // Examples: google/gemini-2.5-flash-image-preview, google/gemini-2.0-flash-image-preview
+    const supportsImageGeneration = modelId.includes('image');
+
+    if (supportsImageGeneration) {
+      return openrouter(modelId, {
+        extraBody: {
+          modalities: ['image', 'text'],
+          image_config: {
+            aspect_ratio: '16:9',
+          },
+        },
+      });
+    }
+
     return openrouter(modelId);
   }
 }
