@@ -253,18 +253,11 @@ export class OpenRouterProvider implements AIProvider {
                 aspect_ratio: '16:9',
               },
             };
-            console.log('[OpenRouter] Request body:', JSON.stringify(modifiedBody, null, 2));
-            const response = await fetch(url, {
+            console.log('[OpenRouter] Image generation request with modalities:', modifiedBody.modalities);
+            // Return response directly - streaming responses cannot be parsed as JSON
+            return fetch(url, {
               ...options,
               body: JSON.stringify(modifiedBody),
-            });
-            const responseData = await response.json();
-            console.log('[OpenRouter] Response:', JSON.stringify(responseData, null, 2));
-            // Return a new Response with the same data
-            return new Response(JSON.stringify(responseData), {
-              status: response.status,
-              statusText: response.statusText,
-              headers: response.headers,
             });
           }
         : undefined,
