@@ -74,19 +74,14 @@ export function ProviderManagement({
     loadProviderMetadata();
   }, [trpc]);
 
-  // Get provider options from aiConfig
-  const providers = aiConfig?.providers || {};
-  const providerOptions: SelectionOption[] = Object.entries(providers).map(([id, config]: [string, any]) => {
-    const metadata = providerMetadata[id];
-    const name = metadata?.name || config.name || id.charAt(0).toUpperCase() + id.slice(1);
-    const description = metadata?.description || 'AI provider';
-    const isConfigured = metadata?.isConfigured || false;
-
+  // Get provider options from all available providers (not just configured ones)
+  // Use providerMetadata which contains ALL providers from the registry
+  const providerOptions: SelectionOption[] = Object.entries(providerMetadata).map(([id, metadata]) => {
     return {
-      label: name,
+      label: metadata.name,
       value: id,
-      description,
-      ...(isConfigured && {
+      description: metadata.description,
+      ...(metadata.isConfigured && {
         badge: {
           text: '✓',
           color: 'green',

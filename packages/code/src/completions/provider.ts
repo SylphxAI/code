@@ -44,25 +44,27 @@ async function getAIConfig(): Promise<AIConfig | null> {
 
 /**
  * Get provider completion options
- * Lazy loads config on first access, then uses Zustand cache
+ * Returns ALL available providers from the registry (not just configured ones)
  */
 export async function getProviderCompletions(partial = ''): Promise<CompletionOption[]> {
-  const config = await getAIConfig();
+  try {
+    const trpc = getTRPCClient();
+    const result = await trpc.config.getProviders.query({ cwd: process.cwd() });
 
-  if (!config?.providers) {
+    const providers = Object.keys(result);
+    const filtered = partial
+      ? providers.filter(id => id.toLowerCase().includes(partial.toLowerCase()))
+      : providers;
+
+    return filtered.map(id => ({
+      id,
+      label: id,
+      value: id,
+    }));
+  } catch (error) {
+    console.error('[completions] Failed to load providers:', error);
     return [];
   }
-
-  const providers = Object.keys(config.providers);
-  const filtered = partial
-    ? providers.filter(id => id.toLowerCase().includes(partial.toLowerCase()))
-    : providers;
-
-  return filtered.map(id => ({
-    id,
-    label: id,
-    value: id,
-  }));
 }
 
 /**
