@@ -99,9 +99,17 @@ export const sessionRouter = router({
         input.enabledRuleIds || [] // Initialize with provided rules or empty
       );
 
-      // Emit event for reactive clients
+      // Emit event for reactive clients (local event bus - backwards compatibility)
       eventBus.emitEvent({
         type: 'session-created',
+        sessionId: session.id,
+        provider: input.provider,
+        model: input.model,
+      });
+
+      // Publish to persistent event stream for multi-client sync
+      await ctx.appContext.eventStream.publish('session:*', {
+        type: 'session-created' as const,
         sessionId: session.id,
         provider: input.provider,
         model: input.model,
@@ -125,11 +133,19 @@ export const sessionRouter = router({
     .mutation(async ({ ctx, input }) => {
       await ctx.sessionRepository.updateSessionTitle(input.sessionId, input.title);
 
+      // Local event bus (backwards compatibility)
       eventBus.emitEvent({
         type: 'session-updated',
         sessionId: input.sessionId,
         field: 'title',
         value: input.title,
+      });
+
+      // Publish to persistent event stream for multi-client sync
+      await ctx.appContext.eventStream.publish('session:*', {
+        type: 'session-title-updated' as const,
+        sessionId: input.sessionId,
+        title: input.title,
       });
     }),
 
@@ -148,11 +164,19 @@ export const sessionRouter = router({
     .mutation(async ({ ctx, input }) => {
       await ctx.sessionRepository.updateSessionModel(input.sessionId, input.model);
 
+      // Local event bus (backwards compatibility)
       eventBus.emitEvent({
         type: 'session-updated',
         sessionId: input.sessionId,
         field: 'model',
         value: input.model,
+      });
+
+      // Publish to persistent event stream for multi-client sync
+      await ctx.appContext.eventStream.publish('session:*', {
+        type: 'session-model-updated' as const,
+        sessionId: input.sessionId,
+        model: input.model,
       });
     }),
 
@@ -176,11 +200,20 @@ export const sessionRouter = router({
         input.model
       );
 
+      // Local event bus (backwards compatibility)
       eventBus.emitEvent({
         type: 'session-updated',
         sessionId: input.sessionId,
         field: 'provider',
         value: `${input.provider}:${input.model}`,
+      });
+
+      // Publish to persistent event stream for multi-client sync
+      await ctx.appContext.eventStream.publish('session:*', {
+        type: 'session-provider-updated' as const,
+        sessionId: input.sessionId,
+        provider: input.provider,
+        model: input.model,
       });
     }),
 
@@ -220,8 +253,15 @@ export const sessionRouter = router({
     .mutation(async ({ ctx, input }) => {
       await ctx.sessionRepository.deleteSession(input.sessionId);
 
+      // Local event bus (backwards compatibility)
       eventBus.emitEvent({
         type: 'session-deleted',
+        sessionId: input.sessionId,
+      });
+
+      // Publish to persistent event stream for multi-client sync
+      await ctx.appContext.eventStream.publish('session:*', {
+        type: 'session-deleted' as const,
         sessionId: input.sessionId,
       });
     }),

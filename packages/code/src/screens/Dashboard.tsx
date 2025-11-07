@@ -4,7 +4,7 @@
  */
 
 import type { Session } from '@sylphx/code-client';
-import { getTRPCClient, useAppStore } from '@sylphx/code-client';
+import { getTRPCClient, useAppStore, useSessionListSync } from '@sylphx/code-client';
 import { getAllAgents, getAllRules, toggleRule } from '../embedded-context.js';
 import { Box, Text, useInput } from 'ink';
 import React, { useEffect, useState } from 'react';
@@ -53,6 +53,48 @@ export default function Dashboard() {
       loadSessions();
     }
   }, [selectedSection]);
+
+  // Real-time session list sync (multi-client support)
+  useSessionListSync({
+    enabled: selectedSection === 'sessions',
+    replayLast: 20,
+    callbacks: {
+      onSessionCreated: async (sessionId, provider, model) => {
+        // Fetch full session data and add to list
+        try {
+          const client = await getTRPCClient();
+          const session = await client.session.getById({ sessionId });
+          if (session) {
+            setSessions((prev) => [session, ...prev]);
+          }
+        } catch (error) {
+          console.error('Failed to load new session:', error);
+        }
+      },
+      onSessionDeleted: (sessionId) => {
+        // Remove from list
+        setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      },
+      onSessionTitleUpdated: (sessionId, title) => {
+        // Update title in list
+        setSessions((prev) =>
+          prev.map((s) => (s.id === sessionId ? { ...s, title } : s))
+        );
+      },
+      onSessionModelUpdated: (sessionId, model) => {
+        // Update model in list
+        setSessions((prev) =>
+          prev.map((s) => (s.id === sessionId ? { ...s, model } : s))
+        );
+      },
+      onSessionProviderUpdated: (sessionId, provider, model) => {
+        // Update provider and model in list
+        setSessions((prev) =>
+          prev.map((s) => (s.id === sessionId ? { ...s, provider, model } : s))
+        );
+      },
+    },
+  });
 
   useInput((input, key) => {
     // Global shortcuts

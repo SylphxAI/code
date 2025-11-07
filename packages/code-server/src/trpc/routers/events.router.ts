@@ -119,6 +119,50 @@ export const eventsRouter = router({
     }),
 
   /**
+   * Subscribe to all session events (session list sync)
+   *
+   * Subscribes to session:* channel for multi-client session list sync.
+   * Receives events: session-created, session-deleted, session-title-updated, etc.
+   *
+   * Usage:
+   * ```ts
+   * trpc.events.subscribeToAllSessions.subscribe(
+   *   { replayLast: 20 },
+   *   {
+   *     onData: (event) => {
+   *       if (event.payload.type === 'session-created') {
+   *         // Add session to list
+   *       } else if (event.payload.type === 'session-deleted') {
+   *         // Remove session from list
+   *       }
+   *     }
+   *   }
+   * )
+   * ```
+   */
+  subscribeToAllSessions: publicProcedure
+    .input(
+      z.object({
+        replayLast: z.number().min(0).max(100).default(20), // Replay last N events
+      })
+    )
+    .subscription(({ ctx, input }) => {
+      const pattern = 'session:*'
+
+      return observable<StoredEvent>((emit) => {
+        const subscription = ctx.appContext.eventStream
+          .subscribeWithHistory(pattern, input.replayLast)
+          .subscribe({
+            next: (event) => emit.next(event),
+            error: (err) => emit.error(err),
+            complete: () => emit.complete(),
+          })
+
+        return () => subscription.unsubscribe()
+      })
+    }),
+
+  /**
    * Get channel info (for debugging)
    *
    * Returns:

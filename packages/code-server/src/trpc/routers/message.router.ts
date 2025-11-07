@@ -67,9 +67,13 @@ const TodoSnapshotSchema = z.object({
 const StreamEventSchema = z.discriminatedUnion('type', [
   // Session events
   z.object({ type: z.literal('session-created'), sessionId: z.string(), provider: z.string(), model: z.string() }),
+  z.object({ type: z.literal('session-deleted'), sessionId: z.string() }),
+  z.object({ type: z.literal('session-title-updated'), sessionId: z.string(), title: z.string() }),
   z.object({ type: z.literal('session-title-updated-start'), sessionId: z.string() }),
   z.object({ type: z.literal('session-title-updated-delta'), sessionId: z.string(), text: z.string() }),
   z.object({ type: z.literal('session-title-updated-end'), sessionId: z.string(), title: z.string() }),
+  z.object({ type: z.literal('session-model-updated'), sessionId: z.string(), model: z.string() }),
+  z.object({ type: z.literal('session-provider-updated'), sessionId: z.string(), provider: z.string(), model: z.string() }),
 
   // Message creation
   z.object({ type: z.literal('assistant-message-created'), messageId: z.string() }),

@@ -422,6 +422,49 @@ function handleStreamEvent(
       }
       break;
 
+    case 'session-deleted':
+      // Session deleted - clear if it's the current session
+      if (event.sessionId === currentSessionId) {
+        useAppStore.setState((state) => {
+          state.currentSessionId = null;
+          state.currentSession = null;
+        });
+        context.addLog(`[Session] Deleted: ${event.sessionId}`);
+      }
+      break;
+
+    case 'session-title-updated':
+      // Direct title update (non-streaming version)
+      if (event.sessionId === currentSessionId) {
+        context.updateSessionTitle(event.sessionId, event.title);
+      }
+      break;
+
+    case 'session-model-updated':
+      // Model updated - update current session if it matches
+      if (event.sessionId === currentSessionId) {
+        useAppStore.setState((state) => {
+          if (state.currentSession && state.currentSession.id === event.sessionId) {
+            state.currentSession.model = event.model;
+          }
+        });
+        context.addLog(`[Session] Model updated: ${event.model}`);
+      }
+      break;
+
+    case 'session-provider-updated':
+      // Provider and model updated - update current session if it matches
+      if (event.sessionId === currentSessionId) {
+        useAppStore.setState((state) => {
+          if (state.currentSession && state.currentSession.id === event.sessionId) {
+            state.currentSession.provider = event.provider;
+            state.currentSession.model = event.model;
+          }
+        });
+        context.addLog(`[Session] Provider updated: ${event.provider}`);
+      }
+      break;
+
     case 'assistant-message-created':
       // Backend created assistant message, store the ID
       context.streamingMessageIdRef.current = event.messageId;
