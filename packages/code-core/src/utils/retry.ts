@@ -8,14 +8,16 @@
  * - Other database/network operations
  */
 
+import { RETRY } from '../constants/index.js';
+
 export interface RetryOptions {
-  /** Maximum number of retry attempts (default: 3) */
+  /** Maximum number of retry attempts (default: from RETRY.DEFAULT_MAX_RETRIES) */
   maxRetries?: number;
-  /** Initial delay in milliseconds (default: 100) */
+  /** Initial delay in milliseconds (default: from RETRY.INITIAL_DELAY_MS) */
   initialDelayMs?: number;
-  /** Multiplier for exponential backoff (default: 2) */
+  /** Multiplier for exponential backoff (default: from RETRY.BACKOFF_MULTIPLIER) */
   backoffMultiplier?: number;
-  /** Maximum delay cap in milliseconds (default: 10000 = 10s) */
+  /** Maximum delay cap in milliseconds (default: from RETRY.MAX_DELAY_MS) */
   maxDelayMs?: number;
   /** Predicate to determine if error should be retried */
   shouldRetry?: (error: unknown, attempt: number) => boolean;
@@ -24,10 +26,10 @@ export interface RetryOptions {
 }
 
 const DEFAULT_OPTIONS: Required<RetryOptions> = {
-  maxRetries: 3,
-  initialDelayMs: 100,
-  backoffMultiplier: 2,
-  maxDelayMs: 10000,
+  maxRetries: RETRY.DEFAULT_MAX_RETRIES,
+  initialDelayMs: RETRY.INITIAL_DELAY_MS,
+  backoffMultiplier: RETRY.BACKOFF_MULTIPLIER,
+  maxDelayMs: RETRY.MAX_DELAY_MS,
   shouldRetry: () => true,
   onRetry: () => {},
 };
@@ -134,11 +136,11 @@ export function retryAllErrors(): boolean {
  */
 export async function retryDatabase<T>(
   operation: () => Promise<T>,
-  maxRetries = 5
+  maxRetries = RETRY.DATABASE_MAX_RETRIES
 ): Promise<T> {
   return retry(operation, {
     maxRetries,
-    initialDelayMs: 50,
+    initialDelayMs: RETRY.DATABASE_INITIAL_DELAY_MS,
     shouldRetry: isSQLiteBusyError,
   });
 }
@@ -148,11 +150,11 @@ export async function retryDatabase<T>(
  */
 export async function retryNetwork<T>(
   operation: () => Promise<T>,
-  maxRetries = 2
+  maxRetries = RETRY.NETWORK_MAX_RETRIES
 ): Promise<T> {
   return retry(operation, {
     maxRetries,
-    initialDelayMs: 100,
+    initialDelayMs: RETRY.INITIAL_DELAY_MS,
     shouldRetry: isNetworkError,
   });
 }
