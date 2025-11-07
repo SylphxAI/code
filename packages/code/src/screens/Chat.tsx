@@ -79,10 +79,10 @@ export default function Chat(_props: ChatProps) {
   const selectedProvider = useAppStore((state) => state.selectedProvider);
   const selectedModel = useAppStore((state) => state.selectedModel);
 
-  // Helper function
-  const addLog = (message: string) => {
+  // Helper function (memoized to prevent infinite re-renders)
+  const addLog = useCallback((message: string) => {
     addDebugLog(message);
-  };
+  }, [addDebugLog]);
 
   // Custom hooks
   const { sendMessage } = useChat();
