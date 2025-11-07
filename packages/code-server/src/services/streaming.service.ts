@@ -219,7 +219,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
         // 7.1. Get model capabilities to determine tool support
         const modelCapabilities = providerInstance.getModelCapabilities(modelName);
-        const enableTools = modelCapabilities.supportsTools;
+        const enableTools = modelCapabilities.has('tools');
 
         // 8. Create AI stream with system prompt
         // Only enable native tools if model supports them

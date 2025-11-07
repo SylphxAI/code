@@ -7,20 +7,24 @@ import type { LanguageModelV2 } from '@ai-sdk/provider';
 import type { ProviderId } from '../types/provider.types.js';
 
 /**
- * Model capabilities
+ * Model capability types
+ * Set-based to ensure uniqueness and semantic correctness
  */
-export interface ModelCapabilities {
-  /** Supports native tool/function calling */
-  supportsTools: boolean;
-  /** Supports image input (vision) */
-  supportsImageInput: boolean;
-  /** Supports image generation (output) */
-  supportsImageOutput: boolean;
-  /** Supports extended thinking/reasoning */
-  supportsReasoning: boolean;
-  /** Supports structured output (JSON schema) */
-  supportsStructuredOutput: boolean;
-}
+export type ModelCapability =
+  | 'tools'              // Native tool/function calling
+  | 'image-input'        // Image understanding (vision)
+  | 'image-output'       // Image generation
+  | 'reasoning'          // Extended thinking/reasoning
+  | 'structured-output'; // JSON schema support
+
+/**
+ * Model capabilities as ReadonlySet for type safety and uniqueness
+ * Examples:
+ * - new Set(['tools', 'image-input', 'structured-output'])
+ * - new Set(['image-output'])
+ * - new Set(['tools', 'reasoning'])
+ */
+export type ModelCapabilities = ReadonlySet<ModelCapability>;
 
 /**
  * Model information from provider

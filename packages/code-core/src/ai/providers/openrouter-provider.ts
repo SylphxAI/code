@@ -5,7 +5,7 @@
 
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import type { LanguageModelV1 } from 'ai';
-import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo } from './base-provider.js';
+import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo, ModelCapability } from './base-provider.js';
 import { hasRequiredFields } from './base-provider.js';
 import { retryNetwork } from '../../utils/retry.js';
 import { getModelMetadata } from '../../utils/models-dev.js';
@@ -24,6 +24,7 @@ export class OpenRouterProvider implements AIProvider {
   /**
    * Parse capabilities from OpenRouter API response
    * Uses ONLY actual API data - no hardcoded model name patterns
+   * Returns Set of capability strings
    */
   private parseCapabilitiesFromAPI(model: {
     id: string;
@@ -38,34 +39,40 @@ export class OpenRouterProvider implements AIProvider {
     const inputModalities = model.architecture?.input_modalities || [];
     const outputModalities = model.architecture?.output_modalities || [];
 
-    return {
-      // API explicitly tells us if model supports tools
-      supportsTools: supportedParams.includes('tools'),
-      // API tells us if model accepts image input
-      supportsImageInput: inputModalities.includes('image'),
-      // API tells us if model can generate images
-      supportsImageOutput: outputModalities.includes('image'),
-      // API doesn't provide reasoning info - default to false
-      // Models with extended thinking should set this via supported_parameters if OpenRouter adds it
-      supportsReasoning: false,
-      // API tells us if model supports structured outputs
-      supportsStructuredOutput: supportedParams.includes('structured_outputs') ||
-        supportedParams.includes('response_format'),
-    };
+    const capabilities = new Set<ModelCapability>();
+
+    // API explicitly tells us if model supports tools
+    if (supportedParams.includes('tools')) {
+      capabilities.add('tools');
+    }
+
+    // API tells us if model accepts image input
+    if (inputModalities.includes('image')) {
+      capabilities.add('image-input');
+    }
+
+    // API tells us if model can generate images
+    if (outputModalities.includes('image')) {
+      capabilities.add('image-output');
+    }
+
+    // API tells us if model supports structured outputs
+    if (supportedParams.includes('structured_outputs') || supportedParams.includes('response_format')) {
+      capabilities.add('structured-output');
+    }
+
+    // API doesn't provide reasoning info yet
+    // Models with extended thinking should set this via supported_parameters if OpenRouter adds it
+
+    return capabilities;
   }
 
   /**
    * Default capabilities when API data is not available
-   * Returns conservative defaults (all false) - user must call fetchModels first
+   * Returns empty Set - user must call fetchModels first
    */
   private getDefaultCapabilities(): ModelCapabilities {
-    return {
-      supportsTools: false,
-      supportsImageInput: false,
-      supportsImageOutput: false,
-      supportsReasoning: false,
-      supportsStructuredOutput: false,
-    };
+    return new Set();
   }
 
   getConfigSchema(): ConfigField[] {

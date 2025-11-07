@@ -4,7 +4,7 @@
 
 import { openai } from '@ai-sdk/openai';
 import type { LanguageModelV1 } from 'ai';
-import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo, ModelCapabilities } from './base-provider.js';
+import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo, ModelCapabilities, ModelCapability } from './base-provider.js';
 import { hasRequiredFields } from './base-provider.js';
 
 import { getModelMetadata } from '../../utils/models-dev.js';
@@ -125,27 +125,45 @@ export class OpenAIProvider implements AIProvider {
 
   getModelCapabilities(modelId: string): ModelCapabilities {
     const modelIdLower = modelId.toLowerCase();
+    const capabilities = new Set<ModelCapability>();
 
-    return {
-      // GPT-4+ and GPT-3.5-turbo support tools (except instruct models)
-      supportsTools:
-        !modelIdLower.includes('instruct') &&
-        (modelIdLower.includes('gpt-4') ||
-          modelIdLower.includes('gpt-3.5-turbo')),
-      // GPT-4o, GPT-4-turbo, and GPT-4-vision support vision
-      supportsImageInput:
-        modelIdLower.includes('gpt-4o') ||
-        modelIdLower.includes('gpt-4-turbo') ||
-        modelIdLower.includes('vision'),
-      // DALL-E models support image output
-      supportsImageOutput: modelIdLower.includes('dall-e'),
-      // o1 and o3 models support reasoning
-      supportsReasoning:
-        modelIdLower.includes('o1') ||
-        modelIdLower.includes('o3'),
-      // GPT-4+ supports structured output
-      supportsStructuredOutput: modelIdLower.includes('gpt-4'),
-    };
+    // GPT-4+ and GPT-3.5-turbo support tools (except instruct models)
+    if (
+      !modelIdLower.includes('instruct') &&
+      (modelIdLower.includes('gpt-4') ||
+        modelIdLower.includes('gpt-3.5-turbo'))
+    ) {
+      capabilities.add('tools');
+    }
+
+    // GPT-4o, GPT-4-turbo, and GPT-4-vision support vision
+    if (
+      modelIdLower.includes('gpt-4o') ||
+      modelIdLower.includes('gpt-4-turbo') ||
+      modelIdLower.includes('vision')
+    ) {
+      capabilities.add('image-input');
+    }
+
+    // DALL-E models support image output
+    if (modelIdLower.includes('dall-e')) {
+      capabilities.add('image-output');
+    }
+
+    // o1 and o3 models support reasoning
+    if (
+      modelIdLower.includes('o1') ||
+      modelIdLower.includes('o3')
+    ) {
+      capabilities.add('reasoning');
+    }
+
+    // GPT-4+ supports structured output
+    if (modelIdLower.includes('gpt-4')) {
+      capabilities.add('structured-output');
+    }
+
+    return capabilities;
   }
 
   createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {

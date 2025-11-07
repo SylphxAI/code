@@ -4,7 +4,7 @@
 
 import { anthropic } from '@ai-sdk/anthropic';
 import type { LanguageModelV1 } from 'ai';
-import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo, ModelCapabilities } from './base-provider.js';
+import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo, ModelCapabilities, ModelCapability } from './base-provider.js';
 import { hasRequiredFields } from './base-provider.js';
 
 import { getModelMetadata } from '../../utils/models-dev.js';
@@ -89,29 +89,40 @@ export class AnthropicProvider implements AIProvider {
 
   getModelCapabilities(modelId: string): ModelCapabilities {
     const modelIdLower = modelId.toLowerCase();
+    const capabilities = new Set<ModelCapability>();
 
-    return {
-      // All Claude models support tools
-      supportsTools: true,
-      // Claude 3+ models support vision
-      supportsImageInput:
-        modelIdLower.includes('claude-3') ||
-        modelIdLower.includes('claude-sonnet') ||
-        modelIdLower.includes('claude-opus') ||
-        modelIdLower.includes('claude-haiku'),
-      // Anthropic doesn't support image output
-      supportsImageOutput: false,
-      // Extended thinking models (Claude with extended thinking)
-      supportsReasoning:
-        modelIdLower.includes('extended') ||
-        modelIdLower.includes('thinking'),
-      // Claude 3+ supports structured output
-      supportsStructuredOutput:
-        modelIdLower.includes('claude-3') ||
-        modelIdLower.includes('claude-sonnet') ||
-        modelIdLower.includes('claude-opus') ||
-        modelIdLower.includes('claude-haiku'),
-    };
+    // All Claude models support tools
+    capabilities.add('tools');
+
+    // Claude 3+ models support vision
+    if (
+      modelIdLower.includes('claude-3') ||
+      modelIdLower.includes('claude-sonnet') ||
+      modelIdLower.includes('claude-opus') ||
+      modelIdLower.includes('claude-haiku')
+    ) {
+      capabilities.add('image-input');
+    }
+
+    // Extended thinking models (Claude with extended thinking)
+    if (
+      modelIdLower.includes('extended') ||
+      modelIdLower.includes('thinking')
+    ) {
+      capabilities.add('reasoning');
+    }
+
+    // Claude 3+ supports structured output
+    if (
+      modelIdLower.includes('claude-3') ||
+      modelIdLower.includes('claude-sonnet') ||
+      modelIdLower.includes('claude-opus') ||
+      modelIdLower.includes('claude-haiku')
+    ) {
+      capabilities.add('structured-output');
+    }
+
+    return capabilities;
   }
 
   createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {

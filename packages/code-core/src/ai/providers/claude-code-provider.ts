@@ -5,7 +5,7 @@
  */
 
 import type { LanguageModelV2 } from '@ai-sdk/provider';
-import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo } from './base-provider.js';
+import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo, ModelCapability } from './base-provider.js';
 import which from 'which';
 
 import { ClaudeCodeLanguageModel } from './claude-code-language-model.js';
@@ -33,53 +33,29 @@ export class ClaudeCodeProvider implements AIProvider {
 
   async fetchModels(_config: ProviderConfig): Promise<ModelInfo[]> {
     // Claude Code has fixed set of models
-    // All models support tools (via AI SDK - not native), vision, and reasoning
+    // All models support vision, reasoning, and structured output (but not native tools)
     return [
       {
         id: 'opus',
         name: 'Claude 4.1 Opus (Most Capable)',
-        capabilities: {
-          supportsTools: false, // Uses text-based tool calls (not native)
-          supportsImageInput: true,
-          supportsImageOutput: false,
-          supportsReasoning: true,
-          supportsStructuredOutput: true,
-        }
+        capabilities: new Set<ModelCapability>(['image-input', 'reasoning', 'structured-output'])
       },
       {
         id: 'sonnet',
         name: 'Claude 4.5 Sonnet (Balanced)',
-        capabilities: {
-          supportsTools: false, // Uses text-based tool calls (not native)
-          supportsImageInput: true,
-          supportsImageOutput: false,
-          supportsReasoning: true,
-          supportsStructuredOutput: true,
-        }
+        capabilities: new Set<ModelCapability>(['image-input', 'reasoning', 'structured-output'])
       },
       {
         id: 'haiku',
         name: 'Claude 4.5 Haiku (Fastest)',
-        capabilities: {
-          supportsTools: false, // Uses text-based tool calls (not native)
-          supportsImageInput: true,
-          supportsImageOutput: false,
-          supportsReasoning: true,
-          supportsStructuredOutput: true,
-        }
+        capabilities: new Set<ModelCapability>(['image-input', 'reasoning', 'structured-output'])
       },
     ];
   }
 
   getModelCapabilities(_modelId: string): import('./base-provider.js').ModelCapabilities {
-    // All Claude models have the same capabilities
-    return {
-      supportsTools: false, // Uses text-based tool calls (not native)
-      supportsImageInput: true,
-      supportsImageOutput: false,
-      supportsReasoning: true,
-      supportsStructuredOutput: true,
-    };
+    // All Claude models have the same capabilities (no native tools)
+    return new Set<ModelCapability>(['image-input', 'reasoning', 'structured-output']);
   }
 
   async getModelDetails(modelId: string, _config?: ProviderConfig): Promise<ProviderModelDetails | null> {
