@@ -217,6 +217,9 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
           },
           onData: (event: StreamEvent) => {
             logMessage('Received event:', event.type);
+            if (event.type === 'error') {
+              console.error('[subscriptionAdapter] onData received error event:', event.error);
+            }
             handleStreamEvent(event, {
               currentSessionId: sessionId,
               updateSessionTitle,
