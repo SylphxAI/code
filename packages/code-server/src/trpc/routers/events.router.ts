@@ -3,12 +3,12 @@
  * Generic event stream subscriptions with cursor-based replay
  *
  * Architecture:
- * - Channel-based routing (session:*, config:*, app:*)
- * - Pattern matching subscriptions
+ * - Channel-based routing (session-events, session:{id}, config:*, app:*)
+ * - Exact channel matching subscriptions
  * - Cursor-based replay from database
  * - Real-time push via observables
  *
- * Similar to: Redis Streams XREAD with PSUBSCRIBE
+ * Similar to: Redis Streams XREAD
  */
 
 import { z } from 'zod'
@@ -38,13 +38,12 @@ const StoredEventSchema = z.object({
 
 export const eventsRouter = router({
   /**
-   * Subscribe to events by pattern
+   * Subscribe to events by channel
    *
-   * Pattern examples:
+   * Channel examples:
    * - 'session:abc123' - Specific session
-   * - 'session:*' - All sessions
-   * - 'config:*' - All config changes
-   * - '*' - All events
+   * - 'session-events' - All session CRUD events
+   * - 'config:ai' - AI config changes
    *
    * Cursor-based replay:
    * - If fromCursor provided, replays events AFTER that cursor from database
@@ -53,7 +52,7 @@ export const eventsRouter = router({
    * Usage:
    * ```ts
    * trpc.events.subscribe.subscribe(
-   *   { pattern: 'session:abc123', fromCursor: { timestamp: 123, sequence: 0 } },
+   *   { channel: 'session:abc123', fromCursor: { timestamp: 123, sequence: 0 } },
    *   { onData: (event) => handleEvent(event) }
    * )
    * ```
@@ -61,15 +60,15 @@ export const eventsRouter = router({
   subscribe: publicProcedure
     .input(
       z.object({
-        pattern: z.string(), // Channel pattern (e.g., 'session:*', 'config:*')
+        channel: z.string(), // Exact channel (e.g., 'session:abc123', 'session-events')
         fromCursor: EventCursorSchema.optional(), // Resume from cursor (undefined = only new events)
       })
     )
     .subscription(({ ctx, input }) => {
       return observable<StoredEvent>((emit) => {
-        // Subscribe to event stream with pattern matching
+        // Subscribe to event stream with exact channel
         const subscription = ctx.appContext.eventStream
-          .subscribe(input.pattern, input.fromCursor)
+          .subscribe(input.channel, input.fromCursor)
           .subscribe({
             next: (event) => emit.next(event),
             error: (err) => emit.error(err),
@@ -121,7 +120,7 @@ export const eventsRouter = router({
   /**
    * Subscribe to all session events (session list sync)
    *
-   * Subscribes to session:* channel for multi-client session list sync.
+   * Subscribes to session-events channel for multi-client session list sync.
    * Receives events: session-created, session-deleted, session-title-updated, etc.
    *
    * Usage:
@@ -147,11 +146,11 @@ export const eventsRouter = router({
       })
     )
     .subscription(({ ctx, input }) => {
-      const pattern = 'session:*'
+      const channel = 'session-events'
 
       return observable<StoredEvent>((emit) => {
         const subscription = ctx.appContext.eventStream
-          .subscribeWithHistory(pattern, input.replayLast)
+          .subscribeWithHistory(channel, input.replayLast)
           .subscribe({
             next: (event) => emit.next(event),
             error: (err) => emit.error(err),

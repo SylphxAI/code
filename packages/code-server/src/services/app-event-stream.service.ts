@@ -1,17 +1,17 @@
 /**
  * App Event Stream Service
  * In-memory event stream with optional persistence
- * Similar to Redis Streams with pub/sub pattern matching
+ * Similar to Redis Streams with pub/sub
  *
  * Features:
- * - Channel-based routing (session:*, config:*, app:*)
- * - Pattern matching subscriptions
+ * - Channel-based routing (session-events, session:{id}, config:*, app:*)
+ * - Exact channel subscriptions
  * - Cursor-based replay from database
  * - Auto-cleanup of old events
  * - In-memory + optional persistence
  */
 
-import { ReplaySubject, merge, Observable } from 'rxjs'
+import { ReplaySubject, Observable } from 'rxjs'
 import type { EventPersistence, EventCursor, StoredEvent } from './event-persistence.service.js'
 
 /**
@@ -94,36 +94,31 @@ export class AppEventStream {
   }
 
   /**
-   * Subscribe to channel with pattern matching and optional cursor replay
+   * Subscribe to channel with optional cursor replay
    *
-   * @param pattern - Channel pattern ('session:*', 'config:*', '*', etc.)
+   * @param channel - Exact channel (e.g., 'session:abc123', 'session-events')
    * @param fromCursor - Start reading AFTER this cursor (undefined = only new events)
    * @returns Observable of events
    */
   subscribe(
-    pattern: string,
+    channel: string,
     fromCursor?: EventCursor
   ): Observable<StoredEvent> {
     return new Observable((observer) => {
       // 1. Replay from persistence if cursor provided
       if (this.persistence && fromCursor) {
-        this.replayFromPersistence(pattern, fromCursor, observer)
+        this.persistence.readFrom(channel, fromCursor, 100)
+          .then(events => {
+            events.forEach(event => observer.next(event))
+          })
           .catch(err => {
             console.error('[AppEventStream] Replay error:', err)
           })
       }
 
-      // 2. Subscribe to in-memory streams
-      const matchingSubjects = this.getMatchingSubjects(pattern)
-
-      if (matchingSubjects.length === 0) {
-        // Create empty subject for future events on this pattern
-        // This ensures late subscribers can still receive new events
-        const placeholder = this.getOrCreateSubject(pattern)
-        matchingSubjects.push(placeholder)
-      }
-
-      const subscription = merge(...matchingSubjects).subscribe(observer)
+      // 2. Subscribe to in-memory stream
+      const subject = this.getOrCreateSubject(channel)
+      const subscription = subject.subscribe(observer)
 
       // Cleanup
       return () => subscription.unsubscribe()
@@ -265,58 +260,6 @@ export class AppEventStream {
     return this.subjects.get(channel)!
   }
 
-  /**
-   * Get all subjects matching pattern
-   */
-  private getMatchingSubjects(pattern: string): ReplaySubject<StoredEvent>[] {
-    return Array.from(this.subjects.entries())
-      .filter(([channel]) => this.matchPattern(channel, pattern))
-      .map(([_, subject]) => subject)
-  }
-
-  /**
-   * Pattern matching (supports wildcards)
-   * Examples:
-   *   'session:*' matches 'session:abc', 'session:xyz'
-   *   '*' matches everything
-   *   'session:abc' matches only 'session:abc'
-   */
-  private matchPattern(channel: string, pattern: string): boolean {
-    if (pattern === '*') return true
-    if (!pattern.includes('*')) return channel === pattern
-
-    const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$')
-    return regex.test(channel)
-  }
-
-  /**
-   * Replay events from persistence
-   */
-  private async replayFromPersistence(
-    pattern: string,
-    fromCursor: EventCursor,
-    observer: any
-  ): Promise<void> {
-    if (!this.persistence) return
-
-    // Get all channels matching pattern
-    // Note: This is a limitation - we can't efficiently query by pattern in SQL
-    // So we get all channels and filter
-    // For production, consider storing pattern subscriptions or using better indexing
-    const channels = Array.from(this.subjects.keys()).filter(ch =>
-      this.matchPattern(ch, pattern)
-    )
-
-    // If no existing channels, we can't replay
-    // Events will be delivered as they arrive
-    if (channels.length === 0) return
-
-    // Read events from each matching channel
-    for (const channel of channels) {
-      const events = await this.persistence.readFrom(channel, fromCursor, 100)
-      events.forEach(event => observer.next(event))
-    }
-  }
 }
 
 /**

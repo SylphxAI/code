@@ -2,7 +2,7 @@
  * Session List Sync Hook
  * Real-time multi-client synchronization for session lists
  *
- * Subscribes to session:* channel and updates session list reactively.
+ * Subscribes to session-events channel and updates session list reactively.
  * Enables TUI + GUI session lists to stay perfectly in sync.
  *
  * Usage:

@@ -108,7 +108,7 @@ export const sessionRouter = router({
       });
 
       // Publish to persistent event stream for multi-client sync
-      await ctx.appContext.eventStream.publish('session:*', {
+      await ctx.appContext.eventStream.publish('session-events', {
         type: 'session-created' as const,
         sessionId: session.id,
         provider: input.provider,
@@ -142,7 +142,7 @@ export const sessionRouter = router({
       });
 
       // Publish to persistent event stream for multi-client sync
-      await ctx.appContext.eventStream.publish('session:*', {
+      await ctx.appContext.eventStream.publish('session-events', {
         type: 'session-title-updated' as const,
         sessionId: input.sessionId,
         title: input.title,
@@ -173,7 +173,7 @@ export const sessionRouter = router({
       });
 
       // Publish to persistent event stream for multi-client sync
-      await ctx.appContext.eventStream.publish('session:*', {
+      await ctx.appContext.eventStream.publish('session-events', {
         type: 'session-model-updated' as const,
         sessionId: input.sessionId,
         model: input.model,
@@ -209,7 +209,7 @@ export const sessionRouter = router({
       });
 
       // Publish to persistent event stream for multi-client sync
-      await ctx.appContext.eventStream.publish('session:*', {
+      await ctx.appContext.eventStream.publish('session-events', {
         type: 'session-provider-updated' as const,
         sessionId: input.sessionId,
         provider: input.provider,
@@ -260,7 +260,7 @@ export const sessionRouter = router({
       });
 
       // Publish to persistent event stream for multi-client sync
-      await ctx.appContext.eventStream.publish('session:*', {
+      await ctx.appContext.eventStream.publish('session-events', {
         type: 'session-deleted' as const,
         sessionId: input.sessionId,
       });
