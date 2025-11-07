@@ -54,18 +54,19 @@ export interface KeyboardNavigationProps {
 
   // Functions
   addLog: (message: string) => void;
-  addMessage: (
-    sessionId: string | null,
-    role: 'user' | 'assistant',
-    content: string,
-    attachments?: any[],
-    usage?: any,
-    finishReason?: string,
-    metadata?: any,
-    todoSnapshot?: any[],
-    provider?: string,
-    model?: string
-  ) => Promise<string>;
+  addMessage: (params: {
+    sessionId: string | null;
+    role: 'user' | 'assistant';
+    content: string;
+    attachments?: any[];
+    usage?: any;
+    finishReason?: string;
+    metadata?: any;
+    todoSnapshot?: any[];
+    status?: 'active' | 'completed' | 'error' | 'abort';
+    provider?: string;
+    model?: string;
+  }) => Promise<string>;
   addAttachment: (attachment: { path: string; relativePath: string; size?: number }) => void;
   setAttachmentTokenCount: (path: string, count: number) => void;
   createCommandContext: (args: string[]) => CommandContext;
@@ -233,14 +234,13 @@ export function useKeyboardNavigation(props: KeyboardNavigationProps) {
               const model = aiConfig?.defaultModel || 'anthropic/claude-3.5-sonnet';
 
               const sessionIdToUse = commandSessionRef.current || currentSessionId;
-              const resultSessionId = await addMessage(
-                sessionIdToUse,
-                'user',
-                customValue,
-                undefined, undefined, undefined, undefined, undefined,
+              const resultSessionId = await addMessage({
+                sessionId: sessionIdToUse,
+                role: 'user',
+                content: customValue,
                 provider,
-                model
-              );
+                model,
+              });
 
               if (!commandSessionRef.current) {
                 commandSessionRef.current = resultSessionId;
@@ -485,14 +485,13 @@ export function useKeyboardNavigation(props: KeyboardNavigationProps) {
               const model = aiConfig?.defaultModel || 'anthropic/claude-3.5-sonnet';
 
               const sessionIdToUse = commandSessionRef.current || currentSessionId;
-              const resultSessionId = await addMessage(
-                sessionIdToUse,
-                'user',
-                choicesArray.join(', '),
-                undefined, undefined, undefined, undefined, undefined,
+              const resultSessionId = await addMessage({
+                sessionId: sessionIdToUse,
+                role: 'user',
+                content: choicesArray.join(', '),
                 provider,
-                model
-              );
+                model,
+              });
 
               if (!commandSessionRef.current) {
                 commandSessionRef.current = resultSessionId;
@@ -556,14 +555,13 @@ export function useKeyboardNavigation(props: KeyboardNavigationProps) {
                 const model = aiConfig?.defaultModel || 'anthropic/claude-3.5-sonnet';
 
                 const sessionIdToUse = commandSessionRef.current || currentSessionId;
-                const resultSessionId = await addMessage(
-                  sessionIdToUse,
-                  'user',
-                  selectedOption.label,
-                  undefined, undefined, undefined, undefined, undefined,
+                const resultSessionId = await addMessage({
+                  sessionId: sessionIdToUse,
+                  role: 'user',
+                  content: selectedOption.label,
                   provider,
-                  model
-                );
+                  model,
+                });
 
                 if (!commandSessionRef.current) {
                   commandSessionRef.current = resultSessionId;
@@ -661,7 +659,11 @@ export function useKeyboardNavigation(props: KeyboardNavigationProps) {
           if (selectedOption) {
             const response = await pendingCommand.command.execute(createCommandContext([selectedOption.id]));
             if (currentSessionId && response) {
-              addMessage(currentSessionId, 'assistant', response);
+              addMessage({
+                sessionId: currentSessionId,
+                role: 'assistant',
+                content: response,
+              });
             }
             setPendingCommand(null);
             setSelectedCommandIndex(0);
@@ -671,7 +673,11 @@ export function useKeyboardNavigation(props: KeyboardNavigationProps) {
         // Escape - cancel
         if (key.escape) {
           if (currentSessionId) {
-            addMessage(currentSessionId, 'assistant', 'Command cancelled');
+            addMessage({
+              sessionId: currentSessionId,
+              role: 'assistant',
+              content: 'Command cancelled',
+            });
           }
           setPendingCommand(null);
           setSelectedCommandIndex(0);
@@ -782,14 +788,13 @@ export function useKeyboardNavigation(props: KeyboardNavigationProps) {
             const model = aiConfig?.defaultModel || 'anthropic/claude-3.5-sonnet';
 
             const sessionIdToUse = commandSessionRef.current || currentSessionId;
-            const resultSessionId = await addMessage(
-              sessionIdToUse,
-              'user',
-              selected.label,
-              undefined, undefined, undefined, undefined, undefined,
+            const resultSessionId = await addMessage({
+              sessionId: sessionIdToUse,
+              role: 'user',
+              content: selected.label,
               provider,
-              model
-            );
+              model,
+            });
 
             if (!commandSessionRef.current) {
               commandSessionRef.current = resultSessionId;
@@ -800,14 +805,13 @@ export function useKeyboardNavigation(props: KeyboardNavigationProps) {
 
             // Add final response if any
             if (response) {
-              await addMessage(
-                commandSessionRef.current,
-                'assistant',
-                response,
-                undefined, undefined, undefined, undefined, undefined,
+              await addMessage({
+                sessionId: commandSessionRef.current,
+                role: 'assistant',
+                content: response,
                 provider,
-                model
-              );
+                model,
+              });
             }
           }
           return;

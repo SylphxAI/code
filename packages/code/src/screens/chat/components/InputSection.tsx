@@ -45,18 +45,19 @@ interface InputSectionProps {
   loadError: string | null;
   cachedOptions: Map<string, Array<{ id: string; name: string; label: string; value?: string }>>;
   currentSessionId: string | null;
-  addMessage: (
-    sessionId: string | null,
-    role: 'user' | 'assistant',
-    content: string,
-    attachments?: any[],
-    usage?: any,
-    finishReason?: string,
-    metadata?: any,
-    todoSnapshot?: any[],
-    provider?: any,
-    model?: string
-  ) => Promise<string>;
+  addMessage: (params: {
+    sessionId: string | null;
+    role: 'user' | 'assistant';
+    content: string;
+    attachments?: any[];
+    usage?: any;
+    finishReason?: string;
+    metadata?: any;
+    todoSnapshot?: any[];
+    status?: 'active' | 'completed' | 'error' | 'abort';
+    provider?: any;
+    model?: string;
+  }) => Promise<string>;
   createCommandContext: (args: string[]) => any;
   getAIConfig: () => { defaultProvider?: string; defaultModel?: string } | null;
 
