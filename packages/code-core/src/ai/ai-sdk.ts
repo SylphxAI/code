@@ -435,10 +435,8 @@ export async function* createAIStream(
 
     // Stream all chunks to user
     for await (const chunk of fullStream) {
-      // Log all chunk types except text-delta (too noisy)
-      if (chunk.type !== 'text-delta') {
-        console.log('[AI SDK] Chunk type:', chunk.type);
-      }
+      // Log ALL chunks including content
+      console.log('[AI SDK] Chunk:', JSON.stringify(chunk, null, 2));
 
       switch (chunk.type) {
         case 'text-start':
