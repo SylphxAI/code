@@ -14,26 +14,28 @@ import { randomBytes } from 'node:crypto';
 
 /**
  * Convert session messages to AI SDK ModelMessage format
+ * Transforms frozen database content to AI SDK format (no file reading)
  */
-export async function buildModelMessages(
+export function buildModelMessages(
   messages: Message[],
   modelCapabilities?: ModelCapabilities
-): Promise<ModelMessage[]> {
-  return Promise.all(
-    messages.map(async (msg) => {
-      if (msg.role === 'user') {
-        return buildUserMessage(msg, modelCapabilities);
-      } else {
-        return buildAssistantMessage(msg, modelCapabilities);
-      }
-    })
-  );
+): ModelMessage[] {
+  return messages.map((msg) => {
+    if (msg.role === 'user') {
+      return buildUserMessage(msg, modelCapabilities);
+    } else {
+      return buildAssistantMessage(msg, modelCapabilities);
+    }
+  });
 }
 
 /**
- * Build user message with system status, todo context, and attachments
+ * Build user message with system status, todo context, and frozen content
+ *
+ * IMPORTANT: No file reading - all file content is frozen as base64 in database
+ * This ensures immutable history and preserves order with text content
  */
-async function buildUserMessage(msg: Message, modelCapabilities?: ModelCapabilities): Promise<ModelMessage> {
+function buildUserMessage(msg: Message, modelCapabilities?: ModelCapabilities): ModelMessage {
   const contentParts: UserContent = [];
 
   // Check if model supports file input
@@ -55,55 +57,47 @@ async function buildUserMessage(msg: Message, modelCapabilities?: ModelCapabilit
     contentParts.push({ type: 'text', text: todoContext });
   }
 
-  // Add message content (aggregate from all steps)
+  // Transform frozen content (NO file reading!)
+  // Content order is preserved: [text, file, text] stays as [text, file, text]
   if (msg.steps && msg.steps.length > 0) {
     // Step-based structure: aggregate content from all steps
     for (const step of msg.steps) {
-      step.parts.forEach((part) => {
-        if (part.type === 'text' && part.content) {
+      for (const part of step.parts) {
+        if (part.type === 'text') {
           contentParts.push({ type: 'text', text: part.content });
-        }
-      });
-    }
-  } else if (msg.content) {
-    // LEGACY: Direct content array (for backward compatibility)
-    msg.content.forEach((part) => {
-      if (part.type === 'text' && part.content) {
-        contentParts.push({ type: 'text', text: part.content });
-      }
-    });
-  }
+        } else if (part.type === 'file') {
+          // File content is frozen in database as base64
+          const buffer = Buffer.from(part.base64, 'base64');
 
-  // Add file attachments
-  if (msg.attachments && msg.attachments.length > 0) {
-    for (const attachment of msg.attachments) {
-      const fs = await import('node:fs/promises');
-      try {
-        if (supportsFileInput) {
-          // Model supports file input: send as file part
-          const content = await fs.readFile(attachment.path);
-          const mimeType = attachment.mimeType || 'application/octet-stream';
-          contentParts.push({
-            type: 'file',
-            data: content,
-            mimeType,
-            filename: attachment.relativePath,
-          });
-        } else {
-          // Model doesn't support file input: send as text with XML structure
-          const content = await fs.readFile(attachment.path, 'utf-8');
-          contentParts.push({
-            type: 'text',
-            text: `<file path="${attachment.path}">\n${content}\n</file>`,
-          });
+          if (supportsFileInput) {
+            // Model supports file input - send as FilePart
+            contentParts.push({
+              type: 'file',
+              data: buffer,
+              mimeType: part.mediaType,
+              filename: part.relativePath,
+            });
+          } else {
+            // Model doesn't support file input - convert to XML text
+            if (part.mediaType.startsWith('text/') || part.mediaType === 'application/json') {
+              // Text file - include content
+              const text = buffer.toString('utf-8');
+              contentParts.push({
+                type: 'text',
+                text: `<file path="${part.relativePath}">\n${text}\n</file>`,
+              });
+            } else {
+              // Binary file - just mention it
+              contentParts.push({
+                type: 'text',
+                text: `<file path="${part.relativePath}" type="${part.mediaType}" size="${part.size}" encoding="base64">\n[Binary file content not shown]\n</file>`,
+              });
+            }
+          }
+        } else if (part.type === 'error') {
+          // Error reading file - show error message
+          contentParts.push({ type: 'text', text: `[Error: ${part.error}]` });
         }
-      } catch (error) {
-        console.error(`Failed to read attachment: ${attachment.path}`, error);
-        // Still include reference even if read failed
-        contentParts.push({
-          type: 'text',
-          text: `<file path="${attachment.path}" error="Failed to read file"></file>`,
-        });
       }
     }
   }

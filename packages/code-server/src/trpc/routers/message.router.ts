@@ -40,7 +40,20 @@ const FileAttachmentSchema = z.object({
   path: z.string(),
   relativePath: z.string(),
   size: z.number().optional(),
+  mimeType: z.string().optional(),
 });
+
+// Parsed content part schema (from frontend parseUserInput)
+const ParsedContentPartSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('text'), content: z.string() }),
+  z.object({
+    type: z.literal('file'),
+    path: z.string(),
+    relativePath: z.string(),
+    size: z.number().optional(),
+    mimeType: z.string().optional(),
+  }),
+]);
 
 const TokenUsageSchema = z.object({
   promptTokens: z.number(),
@@ -328,8 +341,7 @@ export const messageRouter = router({
         agentId: z.string().optional(),   // Optional - override session agent
         provider: z.string().optional(),  // Required if sessionId is null
         model: z.string().optional(),     // Required if sessionId is null
-        userMessage: z.string(),
-        attachments: z.array(FileAttachmentSchema).optional(),
+        content: z.array(ParsedContentPartSchema), // Ordered content parts (text + files)
       })
     )
     .subscription(async ({ ctx, input }) => {
@@ -350,8 +362,7 @@ export const messageRouter = router({
           agentId: input.agentId,
           provider: input.provider,
           model: input.model,
-          userMessage: input.userMessage,
-          attachments: input.attachments,
+          content: input.content,
         });
 
         const subscription = streamObservable.subscribe({

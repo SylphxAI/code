@@ -48,9 +48,11 @@ export type MessagePart =
     }
   | {
       type: 'file';
-      mediaType: string;
-      base64: string;
-      status: 'completed';  // Files are immediately completed when received
+      relativePath: string;  // Display path (e.g., "src/app.ts")
+      size: number;          // File size in bytes
+      mediaType: string;     // MIME type (e.g., "text/plain", "image/png")
+      base64: string;        // Frozen content - never re-read from disk
+      status: 'completed';   // Files are immediately completed when received
     }
   | {
       type: 'error';
@@ -120,13 +122,21 @@ export interface MessageStep {
 }
 
 /**
- * File attachment
+ * File attachment input (from frontend before persistence)
+ * Used during message creation to tag files that will be read and frozen
  */
-export interface FileAttachment {
-  path: string;
-  relativePath: string;
-  size?: number;
+export interface FileAttachmentInput {
+  path: string;          // Absolute path (for reading file content)
+  relativePath: string;  // Display path (e.g., "src/app.ts")
+  size?: number;         // File size in bytes (optional)
+  mimeType?: string;     // MIME type (optional, will be detected if not provided)
 }
+
+/**
+ * @deprecated Use FileAttachmentInput for new code
+ * Legacy type kept for backwards compatibility
+ */
+export type FileAttachment = FileAttachmentInput;
 
 /**
  * Token usage statistics
@@ -202,12 +212,21 @@ export interface SessionMessage {
   // Message-level metadata
   timestamp: number;       // When message was created
   status?: 'active' | 'completed' | 'error' | 'abort';  // Overall status (derived from steps)
-  attachments?: FileAttachment[];  // Files uploaded with message (user messages only)
+
+  // REMOVED: attachments field - files are now stored as frozen content in message steps
+  // File content is captured at creation time and stored as base64 in step.parts
+  // This ensures immutable history and preserves order with text content
 
   // Aggregated from steps (for UI convenience)
   usage?: TokenUsage;      // Total usage (sum of all steps)
   finishReason?: string;   // Final finish reason (from last step)
 }
+
+/**
+ * Convenience type alias for SessionMessage
+ * Used throughout codebase for brevity
+ */
+export type Message = SessionMessage;
 
 /**
  * Model availability status

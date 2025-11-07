@@ -18,7 +18,7 @@ import type {
   MessageRepository,
   AIConfig,
   TokenUsage,
-  FileAttachment,
+  MessagePart,
 } from '@sylphx/code-core';
 import {
   createAIStream,
@@ -74,6 +74,19 @@ export type StreamEvent =
   | { type: 'error'; error: string }
   | { type: 'abort' };
 
+/**
+ * Parsed content part from frontend
+ */
+type ParsedContentPart =
+  | { type: 'text'; content: string }
+  | {
+      type: 'file';
+      path: string;
+      relativePath: string;
+      size?: number;
+      mimeType?: string;
+    };
+
 export interface StreamAIResponseOptions {
   appContext: AppContext;
   sessionRepository: SessionRepository;
@@ -83,8 +96,7 @@ export interface StreamAIResponseOptions {
   agentId?: string;   // Optional - override session agent
   provider?: string;  // Required if sessionId is null
   model?: string;     // Required if sessionId is null
-  userMessage: string;
-  attachments?: FileAttachment[];
+  content: ParsedContentPart[]; // Ordered content parts (text + files)
   abortSignal?: AbortSignal;
 }
 
@@ -114,8 +126,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           agentId: inputAgentId,
           provider: inputProvider,
           model: inputModel,
-          userMessage,
-          attachments = [],
+          content,
           abortSignal,
         } = opts;
 
@@ -176,13 +187,50 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         const providerConfig = aiConfig?.providers?.[provider]!;
         const providerInstance = getProvider(provider);
 
-        // 3. Add user message to session (with system status + attachments)
+        // 3. Read and freeze file content (immutable history)
         const systemStatus = getSystemStatus();
+        const fs = await import('node:fs/promises');
+        const { lookup } = await import('mime-types');
+
+        const frozenContent: MessagePart[] = [];
+        for (const part of content) {
+          if (part.type === 'text') {
+            frozenContent.push({
+              type: 'text',
+              content: part.content,
+              status: 'completed',
+            });
+          } else if (part.type === 'file') {
+            try {
+              // READ NOW and freeze as base64 - never re-read from disk
+              const buffer = await fs.readFile(part.path);
+              const base64 = buffer.toString('base64');
+              const mimeType = part.mimeType || lookup(part.path) || 'application/octet-stream';
+
+              frozenContent.push({
+                type: 'file',
+                relativePath: part.relativePath,
+                size: buffer.length,
+                mediaType: mimeType,
+                base64,
+                status: 'completed',
+              });
+            } catch (error) {
+              // File read failed - save error
+              frozenContent.push({
+                type: 'error',
+                error: `Failed to read file: ${part.relativePath}`,
+                status: 'completed',
+              });
+            }
+          }
+        }
+
+        // 4. Add user message to session (with frozen content)
         const userMessageId = await messageRepository.addMessage({
           sessionId,
           role: 'user',
-          content: [{ type: 'text', content: userMessage, status: 'completed' }],
-          attachments,
+          content: frozenContent,
           metadata: {
             cpu: systemStatus.cpu,
             memory: systemStatus.memory,
@@ -190,11 +238,18 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           todoSnapshot: session.todos,
         });
 
-        // 3.1. Emit user-message-created event
+        // 4.1. Emit user-message-created event
+        // Extract text content for display (omit file details)
+        const userMessageText = content
+          .map((part) =>
+            part.type === 'text' ? part.content : `@${part.relativePath}`
+          )
+          .join('');
+
         observer.next({
           type: 'user-message-created',
           messageId: userMessageId,
-          content: userMessage,
+          content: userMessageText,
         });
 
         // 4. Reload session to get updated messages
@@ -221,8 +276,8 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           }
         }
 
-        // 6. Build ModelMessage[] for AI (pass capabilities to handle file parts correctly)
-        const messages = await buildModelMessages(updatedSession.messages, modelCapabilities);
+        // 6. Build ModelMessage[] for AI (transforms frozen content, no file reading)
+        const messages = buildModelMessages(updatedSession.messages, modelCapabilities);
 
         // 7. Determine agentId and build system prompt
         // STATELESS: Use explicit parameters from AppContext
@@ -302,7 +357,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
             sessionRepository,
             aiConfig,
             updatedSession,
-            userMessage
+            userMessageText
           );
         }
 
