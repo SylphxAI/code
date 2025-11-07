@@ -78,6 +78,7 @@ export interface AppState {
     finishReason?: string,
     metadata?: MessageMetadata,
     todoSnapshot?: Todo[],
+    status?: 'active' | 'completed' | 'error' | 'abort',
     provider?: ProviderId, // Required if sessionId is null
     model?: string         // Required if sessionId is null
   ) => Promise<string>; // Returns sessionId (either existing or newly created)
@@ -360,7 +361,7 @@ export const useAppStore = create<AppState>()(
       /**
        * Add message to session
        */
-      addMessage: async (sessionId, role, content, attachments, usage, finishReason, metadata, todoSnapshot, provider, model) => {
+      addMessage: async (sessionId, role, content, attachments, usage, finishReason, metadata, todoSnapshot, status, provider, model) => {
         // Normalize content for tRPC wire format (no status on parts)
         const wireContent =
           typeof content === 'string' ? [{ type: 'text', content } as const] : content;
@@ -368,7 +369,7 @@ export const useAppStore = create<AppState>()(
         // Normalize content for internal format (with status on parts)
         const internalContent: MessagePart[] =
           typeof content === 'string'
-            ? [{ type: 'text', content, status: 'completed' }]
+            ? [{ type: 'text', content, status: status || 'completed' }]
             : content;
 
         // Optimistic update ONLY if sessionId exists and it's the current session
@@ -380,7 +381,7 @@ export const useAppStore = create<AppState>()(
                 role,
                 content: internalContent,
                 timestamp: Date.now(),
-                status: 'completed',
+                status: status || 'completed',
                 ...(attachments !== undefined && attachments.length > 0 && { attachments }),
                 ...(usage !== undefined && { usage }),
                 ...(finishReason !== undefined && { finishReason }),
@@ -404,6 +405,7 @@ export const useAppStore = create<AppState>()(
           finishReason,
           metadata,
           todoSnapshot,
+          status,
         });
 
         // Return the sessionId (either existing or newly created)

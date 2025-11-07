@@ -207,7 +207,17 @@ export default function Chat(_props: ChatProps) {
         }
         // Other client created assistant message - create placeholder
         addLog(`[MultiClient] Assistant message created: ${messageId}`);
-        addMessage(currentSessionId, 'assistant', '', [], undefined, undefined, undefined, 'active');
+        addMessage(
+          currentSessionId,
+          'assistant',
+          '',
+          [], // attachments
+          undefined, // usage
+          undefined, // finishReason
+          undefined, // metadata
+          undefined, // todoSnapshot
+          'active' // status
+        );
       },
       onTextDelta: (text: string) => {
         // Skip if currently streaming (own message)
