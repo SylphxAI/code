@@ -642,9 +642,27 @@ Now generate the title:`,
     })();
 
     // Catch unhandled promise rejections
+    // NOTE: This should theoretically never fire because try-catch above handles all errors
+    // But if it does, we need to handle it gracefully without crashing
     executionPromise.catch((error) => {
       console.error('[streamAIResponse] Unhandled promise rejection:', error);
-      observer.error(error);
+      // DON'T use observer.error() - it causes the entire observable to error and can crash
+      // Instead, send error event and complete normally
+      try {
+        observer.next({
+          type: 'error',
+          error: error instanceof Error ? error.message : String(error),
+        });
+        observer.complete();
+      } catch (observerError) {
+        console.error('[streamAIResponse] Failed to emit error event:', observerError);
+        // Last resort - try to complete the observer to prevent hanging
+        try {
+          observer.complete();
+        } catch (completeError) {
+          console.error('[streamAIResponse] Failed to complete observer:', completeError);
+        }
+      }
     });
 
     // Cleanup function

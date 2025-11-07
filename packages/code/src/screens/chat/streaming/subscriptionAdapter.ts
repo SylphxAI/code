@@ -679,11 +679,16 @@ function handleStreamEvent(
       break;
 
     case 'error':
+      logContent('Error event received:', event.error);
       context.lastErrorRef.current = event.error;
-      updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => [
-        ...prev,
-        { type: 'error', error: event.error, status: 'completed' } as MessagePart,
-      ]);
+      updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
+        const newContent = [
+          ...prev,
+          { type: 'error', error: event.error, status: 'completed' } as MessagePart,
+        ];
+        logContent('Updated content with error, total parts:', newContent.length);
+        return newContent;
+      });
       break;
 
     case 'abort':
