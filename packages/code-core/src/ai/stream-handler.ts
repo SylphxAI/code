@@ -56,7 +56,8 @@ export async function processStream(
   let usage: TokenUsage | undefined;
   let finishReason: string | undefined;
 
-  for await (const chunk of stream) {
+  try {
+    for await (const chunk of stream) {
     switch (chunk.type) {
       case 'text-start': {
         // Text generation started - notify immediately
@@ -272,11 +273,26 @@ export async function processStream(
         break;
       }
     }
-  }
+    }
 
-  // Save final text part if any
-  if (currentTextContent) {
-    messageParts.push({ type: 'text', content: currentTextContent, status: 'completed' });
+    // Save final text part if any
+    if (currentTextContent) {
+      messageParts.push({ type: 'text', content: currentTextContent, status: 'completed' });
+    }
+  } catch (error) {
+    // Handle stream exceptions (e.g., API errors that throw instead of yielding error chunks)
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Save any partial text content
+    if (currentTextContent) {
+      messageParts.push({ type: 'text', content: currentTextContent, status: 'completed' });
+    }
+
+    // Add error part
+    messageParts.push({ type: 'error', error: errorMessage, status: 'completed' });
+
+    // Notify error callback
+    onError?.(errorMessage);
   }
 
   return {
