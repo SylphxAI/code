@@ -202,17 +202,17 @@ export const messageRouter = router({
         });
       }
 
-      const messageId = await ctx.sessionRepository.addMessage(
+      const messageId = await ctx.sessionRepository.addMessage({
         sessionId,
-        input.role,
-        input.content,
-        input.attachments,
-        input.usage,
-        input.finishReason,
-        input.metadata,
-        input.todoSnapshot,
-        input.status
-      );
+        role: input.role,
+        content: input.content,
+        attachments: input.attachments,
+        usage: input.usage,
+        finishReason: input.finishReason,
+        metadata: input.metadata,
+        todoSnapshot: input.todoSnapshot,
+        status: input.status,
+      });
 
       // Note: Message events are published by streaming.service.ts
       return { messageId, sessionId };

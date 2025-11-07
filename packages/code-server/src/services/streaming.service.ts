@@ -185,19 +185,17 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
         // 3. Add user message to session (with system status + attachments)
         const systemStatus = getSystemStatus();
-        const userMessageId = await sessionRepository.addMessage(
+        const userMessageId = await sessionRepository.addMessage({
           sessionId,
-          'user',
-          [{ type: 'text', content: userMessage, status: 'completed' }], // MessagePart schema
+          role: 'user',
+          content: [{ type: 'text', content: userMessage, status: 'completed' }],
           attachments,
-          undefined,
-          undefined,
-          {
+          metadata: {
             cpu: systemStatus.cpu,
             memory: systemStatus.memory,
           },
-          session.todos // Capture current todos for this message
-        );
+          todoSnapshot: session.todos,
+        });
 
         // 3.1. Emit user-message-created event
         observer.next({
@@ -400,17 +398,12 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         });
 
         // 9. Create assistant message in database (status: active)
-        const assistantMessageId = await sessionRepository.addMessage(
+        const assistantMessageId = await sessionRepository.addMessage({
           sessionId,
-          'assistant',
-          [], // Empty content initially
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          undefined,
-          'active'
-        );
+          role: 'assistant',
+          content: [], // Empty content initially
+          status: 'active',
+        });
 
         // 9.1. Emit assistant message created event
         observer.next({ type: 'assistant-message-created', messageId: assistantMessageId });

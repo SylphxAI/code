@@ -530,17 +530,29 @@ export class SessionRepository {
    * - Attachments at message level (apply to all steps)
    * - Usage aggregated at message level (sum of step usage)
    */
-  async addMessage(
-    sessionId: string,
-    role: 'user' | 'assistant',
-    content: MessagePart[],
-    attachments?: FileAttachment[],
-    usage?: TokenUsage,
-    finishReason?: string,
-    metadata?: MessageMetadata,
-    todoSnapshot?: TodoType[],
-    status?: 'active' | 'completed' | 'error' | 'abort'
-  ): Promise<string> {
+  async addMessage(options: {
+    sessionId: string;
+    role: 'user' | 'assistant';
+    content: MessagePart[];
+    attachments?: FileAttachment[];
+    usage?: TokenUsage;
+    finishReason?: string;
+    metadata?: MessageMetadata;
+    todoSnapshot?: TodoType[];
+    status?: 'active' | 'completed' | 'error' | 'abort';
+  }): Promise<string> {
+    const {
+      sessionId,
+      role,
+      content,
+      attachments,
+      usage,
+      finishReason,
+      metadata,
+      todoSnapshot,
+      status,
+    } = options;
+
     return await retryOnBusy(async () => {
       const messageId = randomUUID();
       const stepId = `${messageId}-step-0`;
