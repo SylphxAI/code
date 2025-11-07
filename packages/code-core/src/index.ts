@@ -68,6 +68,8 @@ export {
   completeMessageStep,
   loadMessageSteps,
 } from './database/step-repository-helpers.js'
+export { events } from './database/schema.js'
+export type { Event, NewEvent } from './database/schema.js'
 
 // NOTE: Global state functions removed (moved to code-server AppContext):
 // - getDatabase, getSessionRepository
