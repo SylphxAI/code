@@ -144,52 +144,31 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
         capabilities?.supportsITerm2Graphics ||
         capabilities?.supportsSixelGraphics;
 
-      // Determine best protocol and dimensions
-      let protocol: 'auto' | 'halfBlock' | 'braille' | 'kitty' | 'iterm2' | 'sixel' = 'auto';
-      let imageHeight: number | undefined;
+      // Determine best protocol
+      // Don't set height - let Picture component auto-calculate based on image aspect ratio
+      const protocol: 'auto' | 'halfBlock' | 'braille' | 'kitty' | 'iterm2' | 'sixel' = hasGraphicsProtocol
+        ? 'auto'
+        : 'braille';
 
-      if (hasGraphicsProtocol) {
-        // High-res protocols: let them preserve aspect ratio
-        imageHeight = undefined;
-      } else {
-        // ASCII fallback: try braille protocol (higher resolution than halfBlock)
-        protocol = 'braille';
-        // Braille uses 2x4 dot blocks, so can achieve higher resolution
-        // Calculate height for visible image
-        imageHeight = Math.floor((imageWidth * 9) / 16);
-      }
-
-      console.log('[MessagePart] Image capabilities:', {
+      console.log('[MessagePart] Image rendering:', {
         terminalWidth,
         imageWidth,
-        imageHeight,
         protocol,
         capabilities,
         hasGraphicsProtocol,
+        tempPath,
       });
 
       return (
         <Box flexDirection="column" marginLeft={2} marginBottom={1}>
           <Text dimColor>
-            Image ({part.mediaType}) - Protocol:{' '}
-            {capabilities?.supportsKittyGraphics
-              ? 'Kitty'
-              : capabilities?.supportsITerm2Graphics
-                ? 'iTerm2'
-                : capabilities?.supportsSixelGraphics
-                  ? 'Sixel'
-                  : `${protocol} (ASCII)`}
+            Image ({part.mediaType}) - width:{imageWidth} - Protocol: {protocol}
           </Text>
           <Text color="yellow" dimColor>
             ⚠️ For better image quality, use iTerm2, WezTerm, or Kitty terminal
           </Text>
-          <Picture
-            src={tempPath}
-            alt="Generated image"
-            width={imageWidth}
-            height={imageHeight}
-            protocol={protocol}
-          />
+          {/* Let Picture auto-calculate height based on image aspect ratio */}
+          <Picture src={tempPath} alt="Generated image" width={imageWidth} protocol={protocol} />
         </Box>
       );
     } else {
