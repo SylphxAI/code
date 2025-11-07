@@ -301,6 +301,7 @@ export const providerCommand: Command = {
 
           const updatedConfig = {
             ...currentConfig!,
+            defaultProvider: providerId,  // Auto-switch to configured provider
             providers: {
               ...currentConfig!.providers,
               [providerId]: nonSecrets,
@@ -310,7 +311,10 @@ export const providerCommand: Command = {
 
           // Server will merge secrets from disk
           await context.saveConfig(updatedConfig);
-          context.addLog(`[provider] Configured provider: ${providerId}`);
+
+          const providerConfig = updatedConfig.providers[providerId] || {};
+          const providerDefaultModel = providerConfig.defaultModel as string;
+          context.addLog(`[provider] Configured and switched to provider: ${providerId} (model: ${providerDefaultModel || 'default'})`);
         }}
       />,
       'Provider Management'
