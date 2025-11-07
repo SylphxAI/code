@@ -324,6 +324,41 @@ export const todos = sqliteTable(
   })
 );
 
+/**
+ * Events table - Event stream storage
+ * Stores application events with cursor-based replay support
+ *
+ * Design: Similar to Redis Streams (XADD/XREAD)
+ * - Events are append-only
+ * - Each event has a cursor (timestamp + sequence)
+ * - Supports reading from any cursor position
+ * - Channels for routing (session:*, config:*, app:*, etc.)
+ */
+export const events = sqliteTable(
+  'events',
+  {
+    id: text('id').primaryKey(),                                        // evt_1234567890_0
+    channel: text('channel').notNull(),                                 // 'session:abc', 'config:ai'
+    type: text('type').notNull(),                                       // 'title-updated', 'text-delta'
+    timestamp: integer('timestamp').notNull(),                          // Unix ms (part of cursor)
+    sequence: integer('sequence').notNull(),                            // Sequence within timestamp (part of cursor)
+    payload: text('payload', { mode: 'json' }).$type<any>().notNull(), // Event data as JSON
+    createdAt: integer('created_at').notNull(),                         // When saved to DB
+  },
+  (table) => ({
+    // Composite index for cursor-based queries (channel + cursor)
+    channelCursorIdx: index('idx_events_channel_cursor').on(
+      table.channel,
+      table.timestamp,
+      table.sequence
+    ),
+    // Index for cleanup queries
+    timestampIdx: index('idx_events_timestamp').on(table.timestamp),
+    // Index for channel queries
+    channelIdx: index('idx_events_channel').on(table.channel),
+  })
+);
+
 
 // TEMPORARY ALIASES for backward compatibility during transition
 // These reference old table names but point to new step-based tables
@@ -348,6 +383,9 @@ export type NewStepTodoSnapshot = typeof stepTodoSnapshots.$inferInsert;
 
 export type StepPart = typeof stepParts.$inferSelect;
 export type NewStepPart = typeof stepParts.$inferInsert;
+
+export type Event = typeof events.$inferSelect;
+export type NewEvent = typeof events.$inferInsert;
 
 // Legacy aliases
 export type MessagePart = StepPart;

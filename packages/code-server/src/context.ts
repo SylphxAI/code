@@ -13,6 +13,8 @@
 import type { Agent, Rule } from '@sylphx/code-core';
 import { SessionRepository, initializeDatabase, loadAllAgents, loadAllRules, DEFAULT_AGENT_ID } from '@sylphx/code-core';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
+import { AppEventStream, initializeEventStream } from './services/app-event-stream.service.js';
+import { EventPersistence } from './services/event-persistence.service.js';
 
 // ============================================================================
 // Types
@@ -188,6 +190,7 @@ export interface AppContext {
   database: DatabaseService;
   agentManager: AgentManagerService;
   ruleManager: RuleManagerService;
+  eventStream: AppEventStream;
   config: AppConfig;
 }
 
@@ -200,10 +203,16 @@ export function createAppContext(config: AppConfig): AppContext {
   const agentManager = createAgentManagerService(config.cwd);
   const ruleManager = createRuleManagerService(config.cwd);
 
+  // Event stream will be initialized in initializeAppContext
+  // after database is ready (needs DB for persistence)
+  let eventStream: AppEventStream = null as any;
+
   return {
     database,
     agentManager,
     ruleManager,
+    get eventStream() { return eventStream; },
+    set eventStream(value) { eventStream = value; },
     config,
   } as any;
 }
@@ -213,7 +222,15 @@ export function createAppContext(config: AppConfig): AppContext {
  * Call this once at app startup
  */
 export async function initializeAppContext(ctx: AppContext): Promise<void> {
+  // 1. Initialize database first
   await (ctx.database as any).initialize();
+
+  // 2. Initialize event stream with database persistence
+  const db = ctx.database.getDB();
+  const persistence = new EventPersistence(db);
+  (ctx as any).eventStream = initializeEventStream(persistence);
+
+  // 3. Initialize other services
   await (ctx.agentManager as any).initialize();
   await (ctx.ruleManager as any).initialize();
 }
@@ -222,5 +239,10 @@ export async function initializeAppContext(ctx: AppContext): Promise<void> {
  * Close all services and cleanup
  */
 export async function closeAppContext(ctx: AppContext): Promise<void> {
+  // Cleanup event stream
+  if (ctx.eventStream) {
+    ctx.eventStream.destroy();
+  }
+
   // Future: Add cleanup logic for database connections, etc.
 }
