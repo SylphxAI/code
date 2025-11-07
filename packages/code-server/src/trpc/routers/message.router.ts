@@ -6,6 +6,7 @@
  */
 
 import { z } from 'zod';
+import { observable } from '@trpc/server/observable';
 import {
   router,
   publicProcedure,

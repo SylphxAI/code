@@ -131,6 +131,27 @@ export const useAppStore = create<AppState>()(
         set(
           (draft) => {
             draft.aiConfig = config;
+            console.log('[AppStore] setAIConfig called:', {
+              hasConfig: !!config,
+              defaultProvider: config.defaultProvider,
+              currentSessionId: draft.currentSessionId,
+            });
+
+            // ALWAYS set selectedProvider/Model from config defaults (used for new sessions and fallback)
+            // This ensures StatusBar shows provider even when no session is loaded
+            if (config.defaultProvider) {
+              draft.selectedProvider = config.defaultProvider;
+              // Auto-select the provider's default model
+              const providerConfig = config.providers?.[config.defaultProvider];
+              if (providerConfig?.defaultModel) {
+                draft.selectedModel = providerConfig.defaultModel;
+              }
+              console.log('[AppStore] Set selectedProvider/Model from config:', {
+                provider: draft.selectedProvider,
+                model: draft.selectedModel,
+              });
+            }
+
             // Load global defaults into client state (only if no session loaded)
             if (!draft.currentSessionId) {
               if (config.defaultEnabledRuleIds) {
@@ -138,15 +159,6 @@ export const useAppStore = create<AppState>()(
               }
               if (config.defaultAgentId) {
                 draft.selectedAgentId = config.defaultAgentId;
-              }
-              // Load default provider and model
-              if (config.defaultProvider) {
-                draft.selectedProvider = config.defaultProvider;
-                // Auto-select the provider's default model
-                const providerConfig = config.providers?.[config.defaultProvider];
-                if (providerConfig?.defaultModel) {
-                  draft.selectedModel = providerConfig.defaultModel;
-                }
               }
             }
           },
