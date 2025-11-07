@@ -16,6 +16,38 @@
  * - Remote TUI: code --server-url http://host:port
  */
 
+// Install global unhandled rejection handler to prevent crashes
+// This is a safety net for errors that escape all other error handling
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[CRITICAL] Unhandled Promise Rejection:');
+  console.error('Reason:', reason);
+  console.error('Promise:', promise);
+
+  // Log but don't exit - let the app continue running
+  // Most unhandled rejections are from stream cleanup and can be safely ignored
+  if (reason && typeof reason === 'object' && 'name' in reason) {
+    const errorName = (reason as any).name;
+    if (errorName === 'NoOutputGeneratedError' || errorName === 'AI_NoOutputGeneratedError') {
+      console.error('[CRITICAL] NoOutputGeneratedError caught at process level - this indicates a stream error that was not properly caught');
+      // Don't exit - this is recoverable
+      return;
+    }
+  }
+
+  // For other errors, log but still don't exit
+  console.error('[CRITICAL] Non-stream error - logging but continuing');
+});
+
+// Install uncaught exception handler
+process.on('uncaughtException', (error) => {
+  console.error('[CRITICAL] Uncaught Exception:');
+  console.error(error);
+
+  // For uncaught exceptions, we should exit as the process state may be corrupted
+  console.error('[CRITICAL] Process will exit due to uncaught exception');
+  process.exit(1);
+});
+
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
