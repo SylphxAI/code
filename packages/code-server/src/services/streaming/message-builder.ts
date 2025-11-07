@@ -3,21 +3,28 @@
  * Converts database messages to AI SDK format
  */
 
-import type { Message } from '@sylphx/code-core';
+import type { Message, ModelCapabilities } from '@sylphx/code-core';
 import type { ModelMessage, UserContent, AssistantContent } from 'ai';
 import type { ToolCallPart, ToolResultPart } from '@ai-sdk/provider';
 import { buildSystemStatusFromMetadata, buildTodoContext } from '@sylphx/code-core';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { writeFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
 
 /**
  * Convert session messages to AI SDK ModelMessage format
  */
-export async function buildModelMessages(messages: Message[]): Promise<ModelMessage[]> {
+export async function buildModelMessages(
+  messages: Message[],
+  modelCapabilities?: ModelCapabilities
+): Promise<ModelMessage[]> {
   return Promise.all(
     messages.map(async (msg) => {
       if (msg.role === 'user') {
         return buildUserMessage(msg);
       } else {
-        return buildAssistantMessage(msg);
+        return buildAssistantMessage(msg, modelCapabilities);
       }
     })
   );
@@ -87,8 +94,11 @@ async function buildUserMessage(msg: Message): Promise<ModelMessage> {
 /**
  * Build assistant message from steps or legacy content
  */
-function buildAssistantMessage(msg: Message): ModelMessage {
+function buildAssistantMessage(msg: Message, modelCapabilities?: ModelCapabilities): ModelMessage {
   let contentParts: AssistantContent = [];
+
+  // Check if model supports image input
+  const supportsImageInput = modelCapabilities?.has('image-input') ?? false;
 
   if (msg.steps && msg.steps.length > 0) {
     // Step-based structure: aggregate content from all steps
@@ -124,18 +134,54 @@ function buildAssistantMessage(msg: Message): ModelMessage {
           }
 
           case 'file':
-            // Convert file part to image part for LLM context
-            // LLM should know it generated this image
+            // Handle file parts based on model capabilities
             if (part.mediaType.startsWith('image/')) {
-              return [
-                {
-                  type: 'image' as const,
-                  image: `data:${part.mediaType};base64,${part.base64}`,
-                },
-              ];
+              // Image file
+              if (supportsImageInput) {
+                // Model supports image-input: send full base64 data
+                return [
+                  {
+                    type: 'image' as const,
+                    image: `data:${part.mediaType};base64,${part.base64}`,
+                  },
+                ];
+              } else {
+                // Model doesn't support image-input: save to temp file and provide path
+                try {
+                  const ext = part.mediaType.split('/')[1] || 'png';
+                  const filename = `sylphx-${randomBytes(8).toString('hex')}.${ext}`;
+                  const filepath = join(tmpdir(), filename);
+                  const buffer = Buffer.from(part.base64, 'base64');
+                  writeFileSync(filepath, buffer);
+                  return [
+                    {
+                      type: 'text' as const,
+                      text: `[Generated image saved to: ${filepath}]`,
+                    },
+                  ];
+                } catch (err) {
+                  return [
+                    { type: 'text' as const, text: `[Generated image: ${part.mediaType}, failed to save]` },
+                  ];
+                }
+              }
+            } else {
+              // Non-image file: save to temp and provide path
+              try {
+                const ext = part.mediaType.split('/')[1] || 'bin';
+                const filename = `sylphx-${randomBytes(8).toString('hex')}.${ext}`;
+                const filepath = join(tmpdir(), filename);
+                const buffer = Buffer.from(part.base64, 'base64');
+                writeFileSync(filepath, buffer);
+                return [
+                  { type: 'text' as const, text: `[Generated file (${part.mediaType}) saved to: ${filepath}]` },
+                ];
+              } catch (err) {
+                return [
+                  { type: 'text' as const, text: `[Generated file: ${part.mediaType}, failed to save]` },
+                ];
+              }
             }
-            // Non-image files: just note it was generated
-            return [{ type: 'text' as const, text: `[Generated file: ${part.mediaType}]` }];
 
           case 'error':
             return [{ type: 'text' as const, text: `[Error: ${part.error}]` }];
@@ -178,16 +224,54 @@ function buildAssistantMessage(msg: Message): ModelMessage {
         }
 
         case 'file':
-          // Convert file part to image part for LLM context
+          // Handle file parts based on model capabilities
           if (part.mediaType.startsWith('image/')) {
-            return [
-              {
-                type: 'image' as const,
-                image: `data:${part.mediaType};base64,${part.base64}`,
-              },
-            ];
+            // Image file
+            if (supportsImageInput) {
+              // Model supports image-input: send full base64 data
+              return [
+                {
+                  type: 'image' as const,
+                  image: `data:${part.mediaType};base64,${part.base64}`,
+                },
+              ];
+            } else {
+              // Model doesn't support image-input: save to temp file and provide path
+              try {
+                const ext = part.mediaType.split('/')[1] || 'png';
+                const filename = `sylphx-${randomBytes(8).toString('hex')}.${ext}`;
+                const filepath = join(tmpdir(), filename);
+                const buffer = Buffer.from(part.base64, 'base64');
+                writeFileSync(filepath, buffer);
+                return [
+                  {
+                    type: 'text' as const,
+                    text: `[Generated image saved to: ${filepath}]`,
+                  },
+                ];
+              } catch (err) {
+                return [
+                  { type: 'text' as const, text: `[Generated image: ${part.mediaType}, failed to save]` },
+                ];
+              }
+            }
+          } else {
+            // Non-image file: save to temp and provide path
+            try {
+              const ext = part.mediaType.split('/')[1] || 'bin';
+              const filename = `sylphx-${randomBytes(8).toString('hex')}.${ext}`;
+              const filepath = join(tmpdir(), filename);
+              const buffer = Buffer.from(part.base64, 'base64');
+              writeFileSync(filepath, buffer);
+              return [
+                { type: 'text' as const, text: `[Generated file (${part.mediaType}) saved to: ${filepath}]` },
+              ];
+            } catch (err) {
+              return [
+                { type: 'text' as const, text: `[Generated file: ${part.mediaType}, failed to save]` },
+              ];
+            }
           }
-          return [{ type: 'text' as const, text: `[Generated file: ${part.mediaType}]` }];
 
         case 'error':
           return [{ type: 'text' as const, text: `[Error: ${part.error}]` }];

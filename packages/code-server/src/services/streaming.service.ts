@@ -204,18 +204,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           return;
         }
 
-        // 5. Build ModelMessage[] for AI
-        const messages = await buildModelMessages(updatedSession.messages);
-
-        // 6. Determine agentId and build system prompt
-        // STATELESS: Use explicit parameters from AppContext
-        const agentId = inputAgentId || session.agentId || DEFAULT_AGENT_ID;
-        const agents = opts.appContext.agentManager.getAll();
-        const enabledRuleIds = session.enabledRuleIds || [];
-        const enabledRules = opts.appContext.ruleManager.getEnabled(enabledRuleIds);
-        const systemPrompt = buildSystemPrompt(agentId, agents, enabledRules);
-
-        // 7. Lazy load model capabilities (server-side autonomous)
+        // 5. Lazy load model capabilities (server-side autonomous)
         // Check if capabilities are cached, if not, fetch from API to populate cache
         // This ensures image generation and other capabilities are detected correctly
         let modelCapabilities = providerInstance.getModelCapabilities(modelName);
@@ -232,13 +221,24 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           }
         }
 
-        // 7.1. Create AI model
+        // 6. Build ModelMessage[] for AI (pass capabilities to handle file parts correctly)
+        const messages = await buildModelMessages(updatedSession.messages, modelCapabilities);
+
+        // 7. Determine agentId and build system prompt
+        // STATELESS: Use explicit parameters from AppContext
+        const agentId = inputAgentId || session.agentId || DEFAULT_AGENT_ID;
+        const agents = opts.appContext.agentManager.getAll();
+        const enabledRuleIds = session.enabledRuleIds || [];
+        const enabledRules = opts.appContext.ruleManager.getEnabled(enabledRuleIds);
+        const systemPrompt = buildSystemPrompt(agentId, agents, enabledRules);
+
+        // 8. Create AI model
         const model = providerInstance.createClient(providerConfig, modelName);
 
-        // 7.2. Determine tool support from capabilities
+        // 9. Determine tool support from capabilities
         const enableTools = modelCapabilities.has('tools');
 
-        // 8. Create AI stream with system prompt
+        // 10. Create AI stream with system prompt
         // Only enable native tools if model supports them
         // Models without native support (like claude-code) will fall back to text-based tools
         const stream = createAIStream({
