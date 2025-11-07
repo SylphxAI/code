@@ -24,6 +24,10 @@ interface InputSectionProps {
   setCursor: (pos: number) => void;
   onSubmit: (value: string) => void | Promise<void>;
 
+  // Autocomplete callbacks
+  onCommandAutocompleteTab?: () => void;
+  onCommandAutocompleteEnter?: () => void;
+
   // Selection mode
   pendingInput: WaitForInputOptions | null;
   multiSelectionPage: number;
@@ -87,6 +91,8 @@ export function InputSection({
   cursor,
   setCursor,
   onSubmit,
+  onCommandAutocompleteTab,
+  onCommandAutocompleteEnter,
   pendingInput,
   multiSelectionPage,
   multiSelectionAnswers,
@@ -247,9 +253,17 @@ export function InputSection({
                 // Disable up/down arrows when autocomplete is active
                 filteredFileInfo.hasAt || (input.startsWith('/') && filteredCommands.length > 0)
               }
-              disableTabEnter={
-                // Disable Tab/Enter when command autocomplete is active (let useKeyboardNavigation handle)
+              onTab={
+                // When command autocomplete is active, handle Tab via callback
                 input.startsWith('/') && filteredCommands.length > 0
+                  ? onCommandAutocompleteTab
+                  : undefined
+              }
+              onEnter={
+                // When command autocomplete is active, handle Enter via callback
+                input.startsWith('/') && filteredCommands.length > 0
+                  ? onCommandAutocompleteEnter
+                  : undefined
               }
             />
           </Box>

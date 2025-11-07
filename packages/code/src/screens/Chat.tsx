@@ -503,6 +503,71 @@ export default function Chat(_props: ChatProps) {
     currentSession,
   });
 
+  // Command autocomplete handlers (for ControlledTextInput callbacks)
+  // These replicate the Tab/Enter logic from useKeyboardNavigation for command autocomplete
+  const handleCommandAutocompleteTab = useCallback(() => {
+    if (filteredCommands.length === 0 || pendingInput) return;
+
+    const selected = filteredCommands[selectedCommandIndex];
+    if (selected) {
+      const hasArgs = selected.args && selected.args.length > 0;
+      const completedText = hasArgs ? `${selected.label} ` : selected.label;
+
+      addLog(`[useInput] Tab autocomplete fill: ${completedText}`);
+      setInput(completedText);
+      setCursor(completedText.length);
+      setSelectedCommandIndex(0);
+    }
+  }, [filteredCommands, selectedCommandIndex, pendingInput, addLog, setInput, setCursor, setSelectedCommandIndex]);
+
+  const handleCommandAutocompleteEnter = useCallback(async () => {
+    if (filteredCommands.length === 0 || pendingInput) return;
+
+    const selected = filteredCommands[selectedCommandIndex];
+    if (selected) {
+      skipNextSubmit.current = true;
+
+      // Clear input immediately before execution
+      setInput('');
+      setSelectedCommandIndex(0);
+
+      // Execute command directly
+      addLog(`[useInput] Enter autocomplete execute: ${selected.label}`);
+
+      // Add user message to conversation (lazy create session if needed)
+      const aiConfig = getAIConfig();
+      const provider = aiConfig?.defaultProvider || 'openrouter';
+      const model = aiConfig?.defaultModel || 'anthropic/claude-3.5-sonnet';
+
+      const sessionIdToUse = commandSessionRef.current || currentSessionId;
+      const resultSessionId = await addMessage({
+        sessionId: sessionIdToUse,
+        role: 'user',
+        content: selected.label,
+        provider,
+        model,
+      });
+
+      if (!commandSessionRef.current) {
+        commandSessionRef.current = resultSessionId;
+      }
+
+      // Execute command - it will use waitForInput if needed
+      const response = await selected.execute(createCommandContextForArgs([]));
+
+      // Add final response if any
+      if (response) {
+        await addMessage({
+          sessionId: commandSessionRef.current,
+          role: 'assistant',
+          content: response,
+          provider,
+          model,
+        });
+      }
+    }
+  }, [filteredCommands, selectedCommandIndex, pendingInput, skipNextSubmit, setInput, setSelectedCommandIndex, addLog, getAIConfig, currentSessionId, commandSessionRef, addMessage, createCommandContextForArgs]);
+
   // Message history navigation (like bash)
   // IMPORTANT: Only handle up/down arrows here, let ControlledTextInput handle Enter
   useInput(
@@ -668,6 +733,8 @@ export default function Chat(_props: ChatProps) {
             setSelectionFilter={setSelectionFilter}
             setSelectedCommandIndex={setSelectedCommandIndex}
             onSubmit={handleSubmit}
+            onCommandAutocompleteTab={handleCommandAutocompleteTab}
+            onCommandAutocompleteEnter={handleCommandAutocompleteEnter}
             addMessage={addMessage}
             createCommandContext={createCommandContextForArgs}
             getAIConfig={getAIConfig}

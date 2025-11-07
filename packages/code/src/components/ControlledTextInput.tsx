@@ -27,7 +27,8 @@ export interface ControlledTextInputProps {
   validTags?: Set<string>; // Set of valid @file references for highlighting
   maxLines?: number; // Maximum lines to display (default: 10)
   disableUpDownArrows?: boolean; // Disable up/down arrow navigation (for autocomplete)
-  disableTabEnter?: boolean; // Disable Tab/Enter when autocomplete is active (let parent handle)
+  onTab?: () => void; // Callback when Tab is pressed (for autocomplete)
+  onEnter?: () => void; // Callback when Enter is pressed (for autocomplete)
 }
 
 function ControlledTextInput({
@@ -42,7 +43,8 @@ function ControlledTextInput({
   validTags,
   maxLines = 10,
   disableUpDownArrows = false,
-  disableTabEnter = false,
+  onTab,
+  onEnter,
 }: ControlledTextInputProps) {
   // Kill buffer for Ctrl+K, Ctrl+U, Ctrl+W → Ctrl+Y
   const killBufferRef = useRef('');
@@ -278,30 +280,40 @@ function ControlledTextInput({
         onCursorChange(result.cursor);
       }
     },
-    [value, cursor, onChange, onCursorChange, onSubmit, availableWidth, disableUpDownArrows, disableTabEnter]
+    [value, cursor, onChange, onCursorChange, onSubmit, availableWidth, disableUpDownArrows]
   );
 
   useInput(handleInput, { isActive: focus });
 
-  // Separate useInput for Tab/Enter when autocomplete is NOT active
-  // When disableTabEnter is true, this hook is disabled to let parent handle Tab/Enter
+  // Separate useInput for Tab/Enter
+  // If onTab/onEnter callbacks are provided, call them (autocomplete mode)
+  // Otherwise, perform default behavior (insert tab, submit)
   useInput(
     (input, key) => {
-      // Only handle Tab and Enter when NOT disabled
       if (key.tab) {
-        // Insert tab character
-        const result = TextOps.insertText(value, cursor, '\t');
-        onChange(result.text);
-        onCursorChange(result.cursor);
+        if (onTab) {
+          // Autocomplete mode - call parent callback
+          onTab();
+        } else {
+          // Normal mode - insert tab character
+          const result = TextOps.insertText(value, cursor, '\t');
+          onChange(result.text);
+          onCursorChange(result.cursor);
+        }
       }
       if (key.return && !key.shift && !key.meta) {
-        // Regular Return - submit
-        if (onSubmit) {
-          onSubmit(value);
+        if (onEnter) {
+          // Autocomplete mode - call parent callback
+          onEnter();
+        } else {
+          // Normal mode - submit
+          if (onSubmit) {
+            onSubmit(value);
+          }
         }
       }
     },
-    { isActive: focus && !disableTabEnter }
+    { isActive: focus }
   );
 
   // Empty with placeholder
@@ -443,6 +455,7 @@ export default React.memo(ControlledTextInput, (prevProps, nextProps) => {
     prevProps.focus === nextProps.focus &&
     prevProps.maxLines === nextProps.maxLines &&
     prevProps.disableUpDownArrows === nextProps.disableUpDownArrows &&
-    prevProps.disableTabEnter === nextProps.disableTabEnter
+    prevProps.onTab === nextProps.onTab &&
+    prevProps.onEnter === nextProps.onEnter
   );
 });

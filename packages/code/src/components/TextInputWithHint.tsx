@@ -21,7 +21,8 @@ interface TextInputWithHintProps {
   focus?: boolean; // Whether to handle input (for autocomplete)
   validTags?: Set<string>; // Set of valid @file references
   disableUpDownArrows?: boolean; // Disable up/down arrow navigation (for autocomplete)
-  disableTabEnter?: boolean; // Disable Tab/Enter when autocomplete is active (let parent handle)
+  onTab?: () => void; // Callback when Tab is pressed (for autocomplete)
+  onEnter?: () => void; // Callback when Enter is pressed (for autocomplete)
 }
 
 function TextInputWithHint({
@@ -36,7 +37,8 @@ function TextInputWithHint({
   focus = true,
   validTags,
   disableUpDownArrows = false,
-  disableTabEnter = false,
+  onTab,
+  onEnter,
 }: TextInputWithHintProps) {
   // Internal cursor state (used when not controlled from parent)
   const [internalCursor, setInternalCursor] = useState(0);
@@ -85,7 +87,8 @@ function TextInputWithHint({
         focus={focus}
         validTags={validTags}
         disableUpDownArrows={disableUpDownArrows}
-        disableTabEnter={disableTabEnter}
+        onTab={onTab}
+        onEnter={onEnter}
       />
       {hint && value.length > 0 ? <Text color="#444444">{hint}</Text> : null}
     </Box>
