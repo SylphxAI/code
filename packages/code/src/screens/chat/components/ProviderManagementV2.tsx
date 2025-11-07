@@ -74,6 +74,9 @@ export function ProviderManagement({
     loadProviderMetadata();
   }, [trpc]);
 
+  // Get configured providers from aiConfig (for reading existing config)
+  const providers = aiConfig?.providers || {};
+
   // Get provider options from all available providers (not just configured ones)
   // Use providerMetadata which contains ALL providers from the registry
   const providerOptions: SelectionOption[] = Object.entries(providerMetadata).map(([id, metadata]) => {
