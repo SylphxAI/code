@@ -42,9 +42,6 @@ import type { ToolCallPart, ToolResultPart } from '@ai-sdk/provider';
 export type StreamEvent =
   // Session-level events
   | { type: 'session-created'; sessionId: string; provider: string; model: string }
-  | { type: 'session-title-start' }
-  | { type: 'session-title-delta'; text: string }
-  | { type: 'session-title-complete'; title: string }
 
   // Message-level events
   | { type: 'user-message-created'; messageId: string; content: string }
