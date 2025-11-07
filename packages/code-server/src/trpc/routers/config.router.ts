@@ -179,6 +179,8 @@ export const configRouter = router({
    * Update provider configuration
    * REACTIVE: Emits config:provider-updated or config:provider-added event
    * SECURITY: Protected + moderate rate limiting (30 req/min)
+   *
+   * IMPORTANT: Merges masked secret fields with real values from disk
    */
   updateProviderConfig: moderateProcedure
     .input(
@@ -195,11 +197,39 @@ export const configRouter = router({
       }
 
       const isNewProvider = !result.value.providers?.[input.providerId];
+      const currentProviderConfig = result.value.providers?.[input.providerId] || {};
+      const mergedProviderConfig: Record<string, any> = { ...input.config };
+
+      // Merge masked secret fields with real values from disk
+      try {
+        const provider = getProvider(input.providerId as ProviderId);
+        const configSchema = provider.getConfigSchema();
+        const secretFields = new Set(
+          configSchema
+            .filter(field => field.secret === true)
+            .map(field => field.key)
+        );
+
+        for (const fieldName of secretFields) {
+          const incomingValue = input.config[fieldName];
+          const currentValue = currentProviderConfig[fieldName];
+
+          if (typeof incomingValue === 'string' && incomingValue.endsWith('***')) {
+            // Value is masked - preserve real value from disk
+            if (currentValue !== undefined) {
+              mergedProviderConfig[fieldName] = currentValue;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(`Provider ${input.providerId} not found during config merge`);
+      }
+
       const updated = {
         ...result.value,
         providers: {
           ...result.value.providers,
-          [input.providerId]: input.config,
+          [input.providerId]: mergedProviderConfig,
         },
       };
 
@@ -247,6 +277,11 @@ export const configRouter = router({
    * Backend writes files, UI stays clean
    * REACTIVE: Emits config-updated event
    * SECURITY: Protected + moderate rate limiting (30 req/min)
+   *
+   * IMPORTANT: Merges masked secret fields with real values from disk
+   * - If a secret field value ends with ***, it was masked by load query
+   * - In this case, preserve the real value from disk (don't overwrite with mask)
+   * - If a secret field has a new value (not masked), save the new value
    */
   save: moderateProcedure
     .input(
@@ -256,7 +291,56 @@ export const configRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const result = await saveAIConfig(input.config, input.cwd);
+      // Load current config from disk to get unmasked values
+      const currentResult = await loadAIConfig(input.cwd);
+      const currentConfig = currentResult._tag === 'Success' ? currentResult.value : { providers: {} };
+
+      // Merge incoming config with current config
+      // For secret fields that are masked, preserve real values from disk
+      const mergedConfig = { ...input.config };
+
+      if (input.config.providers && currentConfig.providers) {
+        const mergedProviders: Record<string, any> = {};
+
+        for (const [providerId, incomingProviderConfig] of Object.entries(input.config.providers)) {
+          const currentProviderConfig = currentConfig.providers[providerId] || {};
+          const mergedProviderConfig: Record<string, any> = { ...incomingProviderConfig };
+
+          // Get provider schema to identify secret fields
+          try {
+            const provider = getProvider(providerId as ProviderId);
+            const configSchema = provider.getConfigSchema();
+            const secretFields = new Set(
+              configSchema
+                .filter(field => field.secret === true)
+                .map(field => field.key)
+            );
+
+            // For each secret field, check if value is masked
+            for (const fieldName of secretFields) {
+              const incomingValue = incomingProviderConfig[fieldName];
+              const currentValue = currentProviderConfig[fieldName];
+
+              if (typeof incomingValue === 'string' && incomingValue.endsWith('***')) {
+                // Value is masked - preserve real value from disk
+                if (currentValue !== undefined) {
+                  mergedProviderConfig[fieldName] = currentValue;
+                }
+              }
+              // else: new value provided, use it as-is
+            }
+          } catch (error) {
+            // Provider not found - just use incoming config as-is
+            console.warn(`Provider ${providerId} not found during config merge`);
+          }
+
+          mergedProviders[providerId] = mergedProviderConfig;
+        }
+
+        mergedConfig.providers = mergedProviders;
+      }
+
+      const result = await saveAIConfig(mergedConfig, input.cwd);
       if (result._tag === 'Success') {
         // Note: Config changes are persisted in database
         return { success: true as const };
