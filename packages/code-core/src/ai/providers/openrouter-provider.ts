@@ -3,7 +3,7 @@
  * Uses OpenAI-compatible API
  */
 
-import { openrouter } from '@openrouter/ai-sdk-provider';
+import { createOpenRouter } from '@openrouter/ai-sdk-provider';
 import type { LanguageModelV1 } from 'ai';
 import type { AIProvider, ProviderModelDetails, ConfigField, ProviderConfig, ModelInfo, ModelCapability, ModelCapabilities } from './base-provider.js';
 import { hasRequiredFields } from './base-provider.js';
@@ -233,15 +233,22 @@ export class OpenRouterProvider implements AIProvider {
   createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {
     const apiKey = config.apiKey as string;
 
+    if (!apiKey) {
+      throw new Error('OpenRouter API key is required. Please configure it using /provider command.');
+    }
+
     // Get capabilities to determine features like image generation
     const capabilities = this.getModelCapabilities(modelId);
     const supportsImageGeneration = capabilities.has('image-output');
 
-    // Use official OpenRouter provider
-    // For image generation models, pass modalities via extraBody
-    const model = openrouter(modelId, {
-      apiKey,
-      ...(supportsImageGeneration
+    // Use official OpenRouter provider (factory pattern)
+    // 1. Create provider instance with API key
+    const openrouter = createOpenRouter({ apiKey });
+
+    // 2. Create model with optional extraBody for image generation
+    const model = openrouter(
+      modelId,
+      supportsImageGeneration
         ? {
             extraBody: {
               modalities: ['image', 'text'],
@@ -250,10 +257,8 @@ export class OpenRouterProvider implements AIProvider {
               },
             },
           }
-        : {}),
-    });
-
-    console.log('[OpenRouter] Created client for:', modelId, 'with capabilities:', Array.from(capabilities));
+        : undefined
+    );
 
     return model;
   }

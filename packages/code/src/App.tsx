@@ -5,6 +5,7 @@
 
 import { useAIConfig, useAppStore, useKeyboard, useSessionPersistence } from '@sylphx/code-client';
 import { Box, Text } from 'ink';
+import { TerminalInfoProvider } from 'ink-picture';
 import React, { useEffect, useState } from 'react';
 import Chat from './screens/Chat.js';
 import CommandPalette from './screens/CommandPalette.js';
@@ -109,5 +110,9 @@ function AppContent() {
 }
 
 export default function App() {
-  return <AppContent />;
+  return (
+    <TerminalInfoProvider>
+      <AppContent />
+    </TerminalInfoProvider>
+  );
 }

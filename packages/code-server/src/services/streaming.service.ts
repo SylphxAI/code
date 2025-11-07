@@ -333,7 +333,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           onToolError: (toolCallId, toolName, error, duration) =>
             observer.next({ type: 'tool-error', toolCallId, toolName, error, duration }),
           onFile: (mediaType, base64) => {
-            console.log('[Streaming Service] FILE EVENT:', { mediaType, size: base64.length });
             observer.next({ type: 'file', mediaType, base64 });
           },
           onAbort: () => {
