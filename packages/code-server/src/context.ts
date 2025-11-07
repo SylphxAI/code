@@ -11,7 +11,7 @@
  */
 
 import type { Agent, Rule } from '@sylphx/code-core';
-import { SessionRepository, initializeDatabase, loadAllAgents, loadAllRules, DEFAULT_AGENT_ID } from '@sylphx/code-core';
+import { SessionRepository, MessageRepository, TodoRepository, initializeDatabase, loadAllAgents, loadAllRules, DEFAULT_AGENT_ID } from '@sylphx/code-core';
 import type { DrizzleD1Database } from 'drizzle-orm/d1';
 import { AppEventStream, initializeEventStream } from './services/app-event-stream.service.js';
 import { EventPersistence } from './services/event-persistence.service.js';
@@ -36,12 +36,16 @@ export interface AppConfig {
 
 export interface DatabaseService {
   getRepository(): SessionRepository;
+  getMessageRepository(): MessageRepository;
+  getTodoRepository(): TodoRepository;
   getDB(): DrizzleD1Database<any>;
 }
 
 function createDatabaseService(config: DatabaseConfig): DatabaseService {
   let db: any = null;
   let repository: SessionRepository | null = null;
+  let messageRepository: MessageRepository | null = null;
+  let todoRepository: TodoRepository | null = null;
   let initialized = false;
 
   const initialize = async (): Promise<void> => {
@@ -49,6 +53,8 @@ function createDatabaseService(config: DatabaseConfig): DatabaseService {
 
     db = await initializeDatabase(() => {});
     repository = new SessionRepository(db);
+    messageRepository = new MessageRepository(db);
+    todoRepository = new TodoRepository(db);
     initialized = true;
   };
 
@@ -57,6 +63,20 @@ function createDatabaseService(config: DatabaseConfig): DatabaseService {
       throw new Error('Database not initialized. Call context.initialize() first.');
     }
     return repository;
+  };
+
+  const getMessageRepository = (): MessageRepository => {
+    if (!messageRepository) {
+      throw new Error('Database not initialized. Call context.initialize() first.');
+    }
+    return messageRepository;
+  };
+
+  const getTodoRepository = (): TodoRepository => {
+    if (!todoRepository) {
+      throw new Error('Database not initialized. Call context.initialize() first.');
+    }
+    return todoRepository;
   };
 
   const getDB = (): DrizzleD1Database<any> => {
@@ -69,6 +89,8 @@ function createDatabaseService(config: DatabaseConfig): DatabaseService {
   return {
     initialize,
     getRepository,
+    getMessageRepository,
+    getTodoRepository,
     getDB,
   } as any;
 }

@@ -13,7 +13,7 @@
  */
 
 import { observable } from '@trpc/server/observable';
-import type { SessionRepository } from '@sylphx/code-core';
+import type { SessionRepository, MessageRepository, AIConfig, MessagePart, FileAttachment, TokenUsage } from '@sylphx/code-core';
 import {
   createAIStream,
   getSystemStatus,
@@ -23,19 +23,14 @@ import {
   createMessageStep,
   updateStepParts,
   completeMessageStep,
+  processStream,
+  getProvider,
+  buildTodoContext,
+  DEFAULT_AGENT_ID,
 } from '@sylphx/code-core';
-import { processStream, type StreamCallbacks } from '@sylphx/code-core';
-import { getProvider } from '@sylphx/code-core';
-import { buildTodoContext } from '@sylphx/code-core';
-import { DEFAULT_AGENT_ID } from '@sylphx/code-core';
-import type { AIConfig, Agent, Rule } from '@sylphx/code-core';
+import type { StreamCallbacks } from '@sylphx/code-core';
 import type { ModelMessage, UserContent, AssistantContent } from 'ai';
 import type { AppContext } from '../context.js';
-import type {
-  MessagePart,
-  FileAttachment,
-  TokenUsage,
-} from '@sylphx/code-core';
 import type { ToolCallPart, ToolResultPart } from '@ai-sdk/provider';
 
 // Re-export StreamEvent type from message router
@@ -76,6 +71,7 @@ export type StreamEvent =
 export interface StreamAIResponseOptions {
   appContext: AppContext;
   sessionRepository: SessionRepository;
+  messageRepository: MessageRepository;
   aiConfig: AIConfig;
   sessionId: string | null;  // null = create new session
   agentId?: string;   // Optional - override session agent
@@ -106,6 +102,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
       try {
         const {
           sessionRepository,
+          messageRepository,
           aiConfig,
           sessionId: inputSessionId,
           agentId: inputAgentId,
@@ -185,7 +182,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
         // 3. Add user message to session (with system status + attachments)
         const systemStatus = getSystemStatus();
-        const userMessageId = await sessionRepository.addMessage({
+        const userMessageId = await messageRepository.addMessage({
           sessionId,
           role: 'user',
           content: [{ type: 'text', content: userMessage, status: 'completed' }],
@@ -398,7 +395,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         });
 
         // 9. Create assistant message in database (status: active)
-        const assistantMessageId = await sessionRepository.addMessage({
+        const assistantMessageId = await messageRepository.addMessage({
           sessionId,
           role: 'assistant',
           content: [], // Empty content initially
@@ -632,7 +629,7 @@ Now generate the title:`,
 
         // 11.4. Update message status (aggregated from steps)
         try {
-          await sessionRepository.updateMessageStatus(
+          await messageRepository.updateMessageStatus(
             assistantMessageId,
             aborted ? 'abort' : result.usage ? 'completed' : 'error',
             result.finishReason
@@ -645,7 +642,7 @@ Now generate the title:`,
         // 11.5. Update message usage (aggregated from steps)
         if (result.usage) {
           try {
-            await sessionRepository.updateMessageUsage(assistantMessageId, result.usage);
+            await messageRepository.updateMessageUsage(assistantMessageId, result.usage);
           } catch (dbError) {
             console.error('[streamAIResponse] Failed to update message usage:', dbError);
             // Continue - not critical for user experience

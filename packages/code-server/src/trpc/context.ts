@@ -5,7 +5,7 @@
  */
 
 import { loadAIConfig } from '@sylphx/code-core';
-import type { SessionRepository, AIConfig } from '@sylphx/code-core';
+import type { SessionRepository, MessageRepository, TodoRepository, AIConfig } from '@sylphx/code-core';
 import type { AppContext } from '../context.js';
 import type { Request, Response } from 'express';
 
@@ -19,6 +19,8 @@ export type UserRole = 'admin' | 'user' | 'guest';
 
 export interface Context {
   sessionRepository: SessionRepository;
+  messageRepository: MessageRepository;
+  todoRepository: TodoRepository;
   aiConfig: AIConfig;
   appContext: AppContext;
   // SECURITY: Authentication context (API2: Broken Authentication)
@@ -51,6 +53,8 @@ export interface ContextOptions {
 export async function createContext(options: ContextOptions): Promise<Context> {
   const { appContext, req, res } = options;
   const sessionRepository = appContext.database.getRepository();
+  const messageRepository = appContext.database.getMessageRepository();
+  const todoRepository = appContext.database.getTodoRepository();
 
   // Load AI config
   let aiConfig: AIConfig = { providers: {} };
@@ -102,6 +106,8 @@ export async function createContext(options: ContextOptions): Promise<Context> {
 
   return {
     sessionRepository,
+    messageRepository,
+    todoRepository,
     aiConfig,
     appContext,
     auth,

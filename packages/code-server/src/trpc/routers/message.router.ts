@@ -150,7 +150,7 @@ export const messageRouter = router({
   getCount: publicProcedure
     .input(z.object({ sessionId: z.string() }))
     .query(async ({ ctx, input }) => {
-      return await ctx.sessionRepository.getMessageCount(input.sessionId);
+      return await ctx.messageRepository.getMessageCount(input.sessionId);
     }),
 
   /**
@@ -202,7 +202,7 @@ export const messageRouter = router({
         });
       }
 
-      const messageId = await ctx.sessionRepository.addMessage({
+      const messageId = await ctx.messageRepository.addMessage({
         sessionId,
         role: input.role,
         content: input.content,
@@ -232,7 +232,7 @@ export const messageRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await ctx.sessionRepository.updateMessageParts(input.messageId, input.parts);
+      await ctx.messageRepository.updateMessageParts(input.messageId, input.parts);
       // Note: Message updates are published by streaming.service.ts
     }),
 
@@ -251,7 +251,7 @@ export const messageRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await ctx.sessionRepository.updateMessageStatus(
+      await ctx.messageRepository.updateMessageStatus(
         input.messageId,
         input.status,
         input.finishReason
@@ -273,7 +273,7 @@ export const messageRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await ctx.sessionRepository.updateMessageUsage(input.messageId, input.usage);
+      await ctx.messageRepository.updateMessageUsage(input.messageId, input.usage);
       // Note: Message updates are published by streaming.service.ts
     }),
 
@@ -291,7 +291,7 @@ export const messageRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      return await ctx.sessionRepository.getRecentUserMessages(input.limit, input.cursor);
+      return await ctx.messageRepository.getRecentUserMessages(input.limit, input.cursor);
     }),
 
   /**
@@ -344,6 +344,7 @@ export const messageRouter = router({
         const streamObservable = streamAIResponse({
           appContext: ctx.appContext,
           sessionRepository: ctx.sessionRepository,
+          messageRepository: ctx.messageRepository,
           aiConfig: ctx.aiConfig,
           sessionId: eventSessionId,
           agentId: input.agentId,

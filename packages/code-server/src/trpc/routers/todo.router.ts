@@ -30,7 +30,7 @@ export const todoRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await ctx.sessionRepository.updateTodos(input.sessionId, input.todos, input.nextTodoId);
+      await ctx.todoRepository.updateTodos(input.sessionId, input.todos, input.nextTodoId);
       // Note: Todos are stored per-session, no real-time sync needed
     }),
 

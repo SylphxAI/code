@@ -61,6 +61,8 @@ export { ZaiProvider } from './ai/providers/zai-provider.js'
 // Database & Repositories (Pure Functions)
 // ============================================================================
 export { SessionRepository } from './database/session-repository.js'
+export { MessageRepository } from './database/message-repository.js'
+export { TodoRepository } from './database/todo-repository.js'
 export { initializeDatabase } from './database/auto-migrate.js'
 export {
   createMessageStep,
