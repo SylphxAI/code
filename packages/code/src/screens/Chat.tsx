@@ -37,7 +37,9 @@ import { createCommandContext } from './chat/commands/commandContext.js';
 import { createHandleSubmit } from './chat/handlers/messageHandler.js';
 import { useCommandState } from './chat/hooks/useCommandState.js';
 // Custom hooks
+import { useCommandAutocompleteHandlers } from './chat/hooks/useCommandAutocompleteHandlers.js';
 import { useInputState } from './chat/hooks/useInputState.js';
+import { useMessageHistoryNavigation } from './chat/hooks/useMessageHistoryNavigation.js';
 import { useSelectionState } from './chat/hooks/useSelectionState.js';
 import { useStreamingState } from './chat/hooks/useStreamingState.js';
 // Streaming utilities
@@ -503,192 +505,45 @@ export default function Chat(_props: ChatProps) {
     currentSession,
   });
 
-  // Command autocomplete handlers (for ControlledTextInput callbacks)
-  // These replicate the Tab/Enter logic from useKeyboardNavigation for command autocomplete
-  const handleCommandAutocompleteTab = useCallback(() => {
-    if (filteredCommands.length === 0 || pendingInput) return;
+  // Command autocomplete handlers hook
+  const {
+    handleTab: handleCommandAutocompleteTab,
+    handleEnter: handleCommandAutocompleteEnter,
+    handleUpArrow: handleCommandAutocompleteUpArrow,
+    handleDownArrow: handleCommandAutocompleteDownArrow,
+  } = useCommandAutocompleteHandlers({
+    filteredCommands,
+    selectedCommandIndex,
+    pendingInput,
+    skipNextSubmit,
+    currentSessionId,
+    commandSessionRef,
+    setInput,
+    setCursor,
+    setSelectedCommandIndex,
+    addLog,
+    addMessage,
+    getAIConfig,
+    createCommandContext: createCommandContextForArgs,
+  });
 
-    const selected = filteredCommands[selectedCommandIndex];
-    if (selected) {
-      const hasArgs = selected.args && selected.args.length > 0;
-      const completedText = hasArgs ? `${selected.label} ` : selected.label;
-
-      addLog(`[useInput] Tab autocomplete fill: ${completedText}`);
-      setInput(completedText);
-      setCursor(completedText.length);
-      setSelectedCommandIndex(0);
-    }
-  }, [filteredCommands, selectedCommandIndex, pendingInput, addLog, setInput, setCursor, setSelectedCommandIndex]);
-
-  const handleCommandAutocompleteEnter = useCallback(async () => {
-    if (filteredCommands.length === 0 || pendingInput) {
-      return;
-    }
-
-    const selected = filteredCommands[selectedCommandIndex];
-    if (!selected) {
-      return;
-    }
-
-    try {
-      skipNextSubmit.current = true;
-
-      // Clear input immediately before execution
-      setInput('');
-      setSelectedCommandIndex(0);
-
-      // Execute command directly
-      addLog(`[useInput] Enter autocomplete execute: ${selected.label}`);
-
-      // Add user message to conversation (lazy create session if needed)
-      const aiConfig = getAIConfig();
-      const provider = aiConfig?.defaultProvider || 'openrouter';
-      const model = aiConfig?.defaultModel || 'anthropic/claude-3.5-sonnet';
-
-      const sessionIdToUse = commandSessionRef.current || currentSessionId;
-
-      const resultSessionId = await addMessage({
-        sessionId: sessionIdToUse,
-        role: 'user',
-        content: selected.label,
-        provider,
-        model,
-      });
-
-      if (!commandSessionRef.current) {
-        commandSessionRef.current = resultSessionId;
-      }
-
-      // Execute command - it will use waitForInput if needed
-      const response = await selected.execute(createCommandContextForArgs([]));
-
-      // Add final response if any
-      if (response) {
-        await addMessage({
-          sessionId: commandSessionRef.current,
-          role: 'assistant',
-          content: response,
-          provider,
-          model,
-        });
-      }
-    } catch (error) {
-      console.error('[handleCommandAutocompleteEnter] ERROR:', error);
-      addLog(`[ERROR] Command execution failed: ${error instanceof Error ? error.message : String(error)}`);
-      // Don't rethrow - let the UI continue
-    }
-  }, [filteredCommands, selectedCommandIndex, pendingInput, skipNextSubmit, setInput, setSelectedCommandIndex, addLog, getAIConfig, currentSessionId, commandSessionRef, addMessage, createCommandContextForArgs]);
-
-  const handleCommandAutocompleteUpArrow = useCallback(() => {
-    if (filteredCommands.length === 0 || pendingInput) return;
-
-    // Move selection up (wrap to bottom if at top)
-    setSelectedCommandIndex((prev) => {
-      const newIndex = prev > 0 ? prev - 1 : filteredCommands.length - 1;
-      addLog(`[commandAutocomplete] Up arrow: ${prev} -> ${newIndex}`);
-      return newIndex;
-    });
-  }, [filteredCommands.length, pendingInput, setSelectedCommandIndex, addLog]);
-
-  const handleCommandAutocompleteDownArrow = useCallback(() => {
-    if (filteredCommands.length === 0 || pendingInput) return;
-
-    // Move selection down (wrap to top if at bottom)
-    setSelectedCommandIndex((prev) => {
-      const newIndex = prev < filteredCommands.length - 1 ? prev + 1 : 0;
-      addLog(`[commandAutocomplete] Down arrow: ${prev} -> ${newIndex}`);
-      return newIndex;
-    });
-  }, [filteredCommands.length, pendingInput, setSelectedCommandIndex, addLog]);
-
-  // Message history navigation (like bash)
-  // IMPORTANT: Only handle up/down arrows here, let ControlledTextInput handle Enter
-  useInput(
-    (char, key) => {
-      console.log('[Chat.useInput] Key pressed:', {
-        char: JSON.stringify(char),
-        keys: Object.keys(key).filter(k => key[k as keyof typeof key]),
-        inputComponent: !!inputComponent,
-        pendingInput: !!pendingInput,
-        pendingCommand: !!pendingCommand,
-        filteredCommandsLength: filteredCommands.length,
-      });
-
-      // inputComponent has its own keyboard handling (e.g. ProviderManagement)
-      // Don't interfere with it
-      if (inputComponent) {
-        console.log('[Chat.useInput] Early return: inputComponent');
-        return;
-      }
-
-      const isNormalMode = !pendingInput && !pendingCommand;
-      if (!isNormalMode) {
-        console.log('[Chat.useInput] Early return: not normal mode');
-        return;
-      }
-
-      // Don't handle arrow keys when autocomplete is active
-      // Let CommandAutocomplete or PendingCommandSelection handle navigation
-      const hasAutocomplete = filteredCommands.length > 0 || (filteredFileInfo && filteredFileInfo.files.length > 0);
-
-      // If autocomplete is active, don't handle ANY keys (let useKeyboardNavigation handle)
-      if (hasAutocomplete && (key.upArrow || key.downArrow || key.tab || key.return)) {
-        console.log('[Chat.useInput] Early return: autocomplete active, key:', Object.keys(key).filter(k => key[k as keyof typeof key]));
-        return; // Let useKeyboardNavigation handle all navigation when autocomplete is active
-      }
-
-      // Up arrow - navigate to previous message in history
-      if (key.upArrow) {
-        // Skip if autocomplete is showing - let autocomplete handle navigation
-        if (hasAutocomplete) return;
-
-        if (messageHistory.length === 0) return;
-
-        if (historyIndex === -1) {
-          setTempInput(input);
-          const newIndex = messageHistory.length - 1;
-          setHistoryIndex(newIndex);
-          setInput(messageHistory[newIndex]);
-          setCursor(0);
-        } else if (historyIndex > 0) {
-          const newIndex = historyIndex - 1;
-          setHistoryIndex(newIndex);
-          setInput(messageHistory[newIndex]);
-          setCursor(0);
-        }
-        return;
-      }
-
-      // Down arrow - navigate to next message in history
-      if (key.downArrow) {
-        // Skip if autocomplete is showing - let autocomplete handle navigation
-        if (hasAutocomplete) return;
-
-        if (historyIndex === -1) return;
-
-        if (historyIndex === messageHistory.length - 1) {
-          setHistoryIndex(-1);
-          setInput(tempInput);
-          setCursor(0);
-        } else {
-          const newIndex = historyIndex + 1;
-          setHistoryIndex(newIndex);
-          setInput(messageHistory[newIndex]);
-          setCursor(0);
-        }
-        return;
-      }
-
-      // Exit history browsing mode on ANY other key (including Enter, typing, etc.)
-      // Don't consume the event - let ControlledTextInput handle it
-      if (historyIndex !== -1) {
-        setHistoryIndex(-1);
-        setTempInput('');
-        // Don't return - let the event propagate to ControlledTextInput
-      }
-    },
-    { isActive: !isStreaming }
-  );
+  // Message history navigation hook (like bash)
+  useMessageHistoryNavigation({
+    isStreaming,
+    input,
+    messageHistory,
+    historyIndex,
+    tempInput,
+    inputComponent,
+    pendingInput,
+    pendingCommand,
+    filteredCommands,
+    filteredFileInfo,
+    setInput,
+    setCursor,
+    setHistoryIndex,
+    setTempInput,
+  });
 
   // Reset selected indices when filtered lists change
   useEffect(() => {
