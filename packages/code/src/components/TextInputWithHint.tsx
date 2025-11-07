@@ -23,6 +23,8 @@ interface TextInputWithHintProps {
   disableUpDownArrows?: boolean; // Disable up/down arrow navigation (for autocomplete)
   onTab?: () => void; // Callback when Tab is pressed (for autocomplete)
   onEnter?: () => void; // Callback when Enter is pressed (for autocomplete)
+  onUpArrow?: () => void; // Callback when Up Arrow is pressed (for autocomplete)
+  onDownArrow?: () => void; // Callback when Down Arrow is pressed (for autocomplete)
 }
 
 function TextInputWithHint({
@@ -39,6 +41,8 @@ function TextInputWithHint({
   disableUpDownArrows = false,
   onTab,
   onEnter,
+  onUpArrow,
+  onDownArrow,
 }: TextInputWithHintProps) {
   // Internal cursor state (used when not controlled from parent)
   const [internalCursor, setInternalCursor] = useState(0);
@@ -89,6 +93,8 @@ function TextInputWithHint({
         disableUpDownArrows={disableUpDownArrows}
         onTab={onTab}
         onEnter={onEnter}
+        onUpArrow={onUpArrow}
+        onDownArrow={onDownArrow}
       />
       {hint && value.length > 0 ? <Text color="#444444">{hint}</Text> : null}
     </Box>

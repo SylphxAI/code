@@ -27,6 +27,8 @@ interface InputSectionProps {
   // Autocomplete callbacks
   onCommandAutocompleteTab?: () => void;
   onCommandAutocompleteEnter?: () => void;
+  onCommandAutocompleteUpArrow?: () => void;
+  onCommandAutocompleteDownArrow?: () => void;
 
   // Selection mode
   pendingInput: WaitForInputOptions | null;
@@ -93,6 +95,8 @@ export function InputSection({
   onSubmit,
   onCommandAutocompleteTab,
   onCommandAutocompleteEnter,
+  onCommandAutocompleteUpArrow,
+  onCommandAutocompleteDownArrow,
   pendingInput,
   multiSelectionPage,
   multiSelectionAnswers,
@@ -263,6 +267,18 @@ export function InputSection({
                 // When command autocomplete is active, handle Enter via callback
                 input.startsWith('/') && filteredCommands.length > 0
                   ? onCommandAutocompleteEnter
+                  : undefined
+              }
+              onUpArrow={
+                // When command autocomplete is active, handle Up Arrow via callback
+                input.startsWith('/') && filteredCommands.length > 0
+                  ? onCommandAutocompleteUpArrow
+                  : undefined
+              }
+              onDownArrow={
+                // When command autocomplete is active, handle Down Arrow via callback
+                input.startsWith('/') && filteredCommands.length > 0
+                  ? onCommandAutocompleteDownArrow
                   : undefined
               }
             />

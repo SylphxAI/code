@@ -579,6 +579,28 @@ export default function Chat(_props: ChatProps) {
     }
   }, [filteredCommands, selectedCommandIndex, pendingInput, skipNextSubmit, setInput, setSelectedCommandIndex, addLog, getAIConfig, currentSessionId, commandSessionRef, addMessage, createCommandContextForArgs]);
 
+  const handleCommandAutocompleteUpArrow = useCallback(() => {
+    if (filteredCommands.length === 0 || pendingInput) return;
+
+    // Move selection up (wrap to bottom if at top)
+    setSelectedCommandIndex((prev) => {
+      const newIndex = prev > 0 ? prev - 1 : filteredCommands.length - 1;
+      addLog(`[commandAutocomplete] Up arrow: ${prev} -> ${newIndex}`);
+      return newIndex;
+    });
+  }, [filteredCommands.length, pendingInput, setSelectedCommandIndex, addLog]);
+
+  const handleCommandAutocompleteDownArrow = useCallback(() => {
+    if (filteredCommands.length === 0 || pendingInput) return;
+
+    // Move selection down (wrap to top if at bottom)
+    setSelectedCommandIndex((prev) => {
+      const newIndex = prev < filteredCommands.length - 1 ? prev + 1 : 0;
+      addLog(`[commandAutocomplete] Down arrow: ${prev} -> ${newIndex}`);
+      return newIndex;
+    });
+  }, [filteredCommands.length, pendingInput, setSelectedCommandIndex, addLog]);
+
   // Message history navigation (like bash)
   // IMPORTANT: Only handle up/down arrows here, let ControlledTextInput handle Enter
   useInput(
@@ -746,6 +768,8 @@ export default function Chat(_props: ChatProps) {
             onSubmit={handleSubmit}
             onCommandAutocompleteTab={handleCommandAutocompleteTab}
             onCommandAutocompleteEnter={handleCommandAutocompleteEnter}
+            onCommandAutocompleteUpArrow={handleCommandAutocompleteUpArrow}
+            onCommandAutocompleteDownArrow={handleCommandAutocompleteDownArrow}
             addMessage={addMessage}
             createCommandContext={createCommandContextForArgs}
             getAIConfig={getAIConfig}

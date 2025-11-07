@@ -29,6 +29,8 @@ export interface ControlledTextInputProps {
   disableUpDownArrows?: boolean; // Disable up/down arrow navigation (for autocomplete)
   onTab?: () => void; // Callback when Tab is pressed (for autocomplete)
   onEnter?: () => void; // Callback when Enter is pressed (for autocomplete)
+  onUpArrow?: () => void; // Callback when Up Arrow is pressed (for autocomplete)
+  onDownArrow?: () => void; // Callback when Down Arrow is pressed (for autocomplete)
 }
 
 function ControlledTextInput({
@@ -45,6 +47,8 @@ function ControlledTextInput({
   disableUpDownArrows = false,
   onTab,
   onEnter,
+  onUpArrow,
+  onDownArrow,
 }: ControlledTextInputProps) {
   // Kill buffer for Ctrl+K, Ctrl+U, Ctrl+W → Ctrl+Y
   const killBufferRef = useRef('');
@@ -95,22 +99,16 @@ function ControlledTextInput({
         return;
       }
 
-      // Up Arrow - move to previous physical line (accounting for wrapping)
-      // Skip if autocomplete is active (let parent handle navigation)
+      // Up Arrow - handled by separate useInput hook below
+      // Don't handle here to allow proper event propagation
       if (key.upArrow) {
-        if (disableUpDownArrows) return; // Let parent handle (autocomplete navigation)
-        const newCursor = Wrapping.moveCursorUpPhysical(value, cursor, availableWidth);
-        onCursorChange(newCursor);
-        return;
+        return; // Let separate hook handle Up Arrow
       }
 
-      // Down Arrow - move to next physical line (accounting for wrapping)
-      // Skip if autocomplete is active (let parent handle navigation)
+      // Down Arrow - handled by separate useInput hook below
+      // Don't handle here to allow proper event propagation
       if (key.downArrow) {
-        if (disableUpDownArrows) return; // Let parent handle (autocomplete navigation)
-        const newCursor = Wrapping.moveCursorDownPhysical(value, cursor, availableWidth);
-        onCursorChange(newCursor);
-        return;
+        return; // Let separate hook handle Down Arrow
       }
 
       // ===========================================
@@ -316,6 +314,35 @@ function ControlledTextInput({
     { isActive: focus }
   );
 
+  // Separate useInput for Up/Down arrows
+  // If onUpArrow/onDownArrow callbacks are provided, call them (autocomplete mode)
+  // Otherwise, perform default behavior (cursor movement accounting for wrapping)
+  useInput(
+    (input, key) => {
+      if (key.upArrow) {
+        if (onUpArrow) {
+          onUpArrow();
+          return;
+        } else if (!disableUpDownArrows) {
+          const newCursor = Wrapping.moveCursorUpPhysical(value, cursor, availableWidth);
+          onCursorChange(newCursor);
+          return;
+        }
+      }
+      if (key.downArrow) {
+        if (onDownArrow) {
+          onDownArrow();
+          return;
+        } else if (!disableUpDownArrows) {
+          const newCursor = Wrapping.moveCursorDownPhysical(value, cursor, availableWidth);
+          onCursorChange(newCursor);
+          return;
+        }
+      }
+    },
+    { isActive: focus }
+  );
+
   // Empty with placeholder
   if (value.length === 0 && placeholder) {
     return (
@@ -456,6 +483,8 @@ export default React.memo(ControlledTextInput, (prevProps, nextProps) => {
     prevProps.maxLines === nextProps.maxLines &&
     prevProps.disableUpDownArrows === nextProps.disableUpDownArrows &&
     prevProps.onTab === nextProps.onTab &&
-    prevProps.onEnter === nextProps.onEnter
+    prevProps.onEnter === nextProps.onEnter &&
+    prevProps.onUpArrow === nextProps.onUpArrow &&
+    prevProps.onDownArrow === nextProps.onDownArrow
   );
 });
