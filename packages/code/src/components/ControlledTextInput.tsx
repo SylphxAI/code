@@ -233,25 +233,18 @@ function ControlledTextInput({
       // ===========================================
 
       // Return key pressed (input will be '\r' or '\n')
+      // NOTE: Regular Enter and Tab handling moved to separate useInput hook
+      // to allow proper event propagation when autocomplete is active
       if (key.return) {
-        // If autocomplete is active, don't handle Enter (let parent handle)
-        if (disableTabEnter) {
-          return; // Event propagates to parent useInput hooks
-        }
-
-        // Shift+Return or Option+Return (Meta+Return) - insert newline
-        // Matches Claude Code official behavior
+        // Only handle Shift+Return and Meta+Return for newlines
+        // Regular Return is handled by separate useInput hook below
         if (key.shift || key.meta) {
           const result = TextOps.insertText(value, cursor, '\n');
           onChange(result.text);
           onCursorChange(result.cursor);
           return;
         }
-
-        // Regular Return - submit (Claude Code default)
-        if (onSubmit) {
-          onSubmit(value);
-        }
+        // Don't handle regular Return here - let separate hook handle it
         return;
       }
 
@@ -268,9 +261,10 @@ function ControlledTextInput({
       // Regular Input
       // ===========================================
 
-      // Tab key - if autocomplete is active, don't insert tab (let parent handle)
-      if (key.tab && disableTabEnter) {
-        return; // Event propagates to parent useInput hooks
+      // Tab key - handled by separate useInput hook below
+      // Don't handle here to allow proper event propagation
+      if (key.tab) {
+        return; // Let separate hook handle Tab
       }
 
       // Ignore other control/meta combinations
@@ -288,6 +282,27 @@ function ControlledTextInput({
   );
 
   useInput(handleInput, { isActive: focus });
+
+  // Separate useInput for Tab/Enter when autocomplete is NOT active
+  // When disableTabEnter is true, this hook is disabled to let parent handle Tab/Enter
+  useInput(
+    (input, key) => {
+      // Only handle Tab and Enter when NOT disabled
+      if (key.tab) {
+        // Insert tab character
+        const result = TextOps.insertText(value, cursor, '\t');
+        onChange(result.text);
+        onCursorChange(result.cursor);
+      }
+      if (key.return && !key.shift && !key.meta) {
+        // Regular Return - submit
+        if (onSubmit) {
+          onSubmit(value);
+        }
+      }
+    },
+    { isActive: focus && !disableTabEnter }
+  );
 
   // Empty with placeholder
   if (value.length === 0 && placeholder) {
