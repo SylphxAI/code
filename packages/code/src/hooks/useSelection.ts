@@ -108,12 +108,23 @@ export function useSelection({
   };
 
   const confirmSelection = () => {
+    console.log('[useSelection] confirmSelection called', {
+      multiSelect,
+      selectedIndex,
+      filteredOptionsLength: filteredOptions.length,
+      hasOnSelect: !!onSelect,
+    });
+
     if (multiSelect) {
+      console.log('[useSelection] Multi-select: calling onSelect with', Array.from(selectedValues));
       onSelect?.(Array.from(selectedValues));
     } else {
       const option = filteredOptions[selectedIndex];
+      console.log('[useSelection] Single-select: option at index', selectedIndex, ':', option);
       if (option) {
-        onSelect?.(option.value || option.label);
+        const value = option.value || option.label;
+        console.log('[useSelection] Calling onSelect with value:', value);
+        onSelect?.(value);
       }
     }
   };
@@ -191,6 +202,7 @@ export function useSelection({
 
       // Selection
       if (key.return) {
+        console.log('[useSelection] Enter key pressed in selection mode');
         confirmSelection();
         return;
       }

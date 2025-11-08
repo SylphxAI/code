@@ -54,22 +54,28 @@ export const sessionsCommand: Command = {
       <SessionSelection
         sessions={sessionData}
         onSelect={async (sessionId) => {
+          console.log('[sessions] onSelect called with sessionId:', sessionId);
           // Get fresh store reference
           const { useAppStore } = await import('@sylphx/code-client');
           const freshStore = useAppStore.getState();
 
+          console.log('[sessions] About to call setCurrentSession');
           // Switch to selected session
           await freshStore.setCurrentSession(sessionId);
+          console.log('[sessions] setCurrentSession completed');
 
           const selectedSession = sortedSessions.find((s) => s.id === sessionId);
           const displayName = selectedSession
             ? formatSessionDisplay(selectedSession.title, selectedSession.created)
             : 'Unknown session';
 
+          console.log('[sessions] About to clear inputComponent');
           context.setInputComponent(null);
+          console.log('[sessions] inputComponent cleared');
           context.addLog(`[sessions] Switched to session: ${displayName}`);
         }}
         onCancel={() => {
+          console.log('[sessions] onCancel called');
           context.setInputComponent(null);
           context.addLog('[sessions] Session selection cancelled');
         }}
