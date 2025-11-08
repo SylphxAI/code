@@ -222,5 +222,5 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
       const client = getTRPCClient();
       await client.session.delete.mutate({ sessionId });
     },
-  }))
+  })
 );
