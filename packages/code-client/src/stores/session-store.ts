@@ -120,11 +120,22 @@ export const useSessionStore = create<SessionState>((set, get) => ({
 
   /**
    * Update session title (server action)
-   * React Query will refetch and update UI automatically
+   * Updates local state immediately for instant UI feedback
    */
   updateSessionTitle: async (sessionId, title) => {
     const client = getTRPCClient();
     await client.session.updateTitle.mutate({ sessionId, title });
+
+    // Update local state if this is the current session
+    const state = get();
+    if (state.currentSession && state.currentSession.id === sessionId) {
+      set({
+        currentSession: {
+          ...state.currentSession,
+          title,
+        },
+      });
+    }
   },
 
   /**
