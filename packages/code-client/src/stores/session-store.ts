@@ -1,26 +1,25 @@
 /**
- * Session Store
- * Manages current session and session CRUD operations
+ * Session Store - Pure UI Client
+ * Manages ONLY currentSessionId (which session is being viewed)
  *
- * Single Responsibility: Session lifecycle management
- * Architecture: On-demand loading with tRPC backend
+ * Architecture: Server-driven, Pure UI Client
+ * - Store ONLY stores currentSessionId (a simple string)
+ * - All data fetching handled by tRPC React Query (server is source of truth)
+ * - No business logic in client - just UI state
  */
 
 import { create } from 'zustand';
-import type { Session, ProviderId } from '@sylphx/code-core';
+import type { ProviderId } from '@sylphx/code-core';
 import { getTRPCClient } from '../trpc-provider.js';
 
 export interface SessionState {
-  // Current session state
+  // UI State: Which session is currently being viewed
   currentSessionId: string | null;
-  currentSession: Session | null;
 
-  // Session operations
-  setCurrentSession: (sessionId: string | null) => Promise<void>;
-  loadSession: (sessionId: string) => Promise<Session>;
-  refreshCurrentSession: () => Promise<void>;
+  // UI Actions: Simple state setters (synchronous)
+  setCurrentSessionId: (sessionId: string | null) => void;
 
-  // Session CRUD
+  // Server Actions: Delegate to tRPC (return sessionId for convenience)
   createSession: (provider: ProviderId, model: string) => Promise<string>;
   updateSessionModel: (sessionId: string, model: string) => Promise<void>;
   updateSessionProvider: (sessionId: string, provider: ProviderId, model: string) => Promise<void>;
@@ -31,60 +30,25 @@ export interface SessionState {
 
 export const useSessionStore = create<SessionState>()((set, get) => ({
     currentSessionId: null,
-    currentSession: null,
 
     /**
-     * Set current session ID (synchronous)
-     * Session data will be loaded by React layer
+     * Set current session ID (pure UI state)
+     * Data will be fetched by React Query in components
      */
-    setCurrentSession: async (sessionId) => {
-      set({
-        currentSessionId: sessionId,
-        currentSession: null, // Will be loaded by useEffect
-      });
+    setCurrentSessionId: (sessionId) => {
+      set({ currentSessionId: sessionId });
 
+      // Clear enabled rules when no session
       if (!sessionId) {
-        // Clear enabled rules when no session
-        const { useSettingsStore } = await import('./settings-store.js');
-        useSettingsStore.getState().setEnabledRuleIds([]);
+        import('./settings-store.js').then(({ useSettingsStore }) => {
+          useSettingsStore.getState().setEnabledRuleIds([]);
+        });
       }
     },
 
     /**
-     * Load session data (called from React layer)
-     */
-    loadSession: async (sessionId: string) => {
-      const client = getTRPCClient();
-      const session = await client.session.getById.query({ sessionId });
-
-      set({
-        currentSession: session,
-      });
-
-      // Load session's enabled rules into settings store
-      const { useSettingsStore } = await import('./settings-store.js');
-      useSettingsStore.getState().setEnabledRuleIds(session.enabledRuleIds || []);
-
-      return session;
-    },
-
-    /**
-     * Refresh current session from database
-     */
-    refreshCurrentSession: async () => {
-      const { currentSessionId } = get();
-      if (!currentSessionId) {
-        return;
-      }
-
-      const client = getTRPCClient();
-      const session = await client.session.getById.query({ sessionId: currentSessionId });
-
-      set({ currentSession: session });
-    },
-
-    /**
-     * Create new session
+     * Create new session (server action)
+     * Returns sessionId, sets it as current
      */
     createSession: async (provider, model) => {
       const client = getTRPCClient();
@@ -100,11 +64,8 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
         enabledRuleIds,
       });
 
-      // Set as current session
-      set({
-        currentSessionId: session.id,
-        currentSession: session,
-      });
+      // Set as current session (UI state only)
+      set({ currentSessionId: session.id });
 
       // Update settings store with session's rules
       useSettingsStore.getState().setEnabledRuleIds(session.enabledRuleIds || []);
@@ -113,100 +74,54 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
     },
 
     /**
-     * Update session model
+     * Update session model (server action)
+     * React Query will refetch and update UI automatically
      */
     updateSessionModel: async (sessionId, model) => {
-      // Optimistic update if it's the current session
-      const currentSession = get().currentSession;
-      if (get().currentSessionId === sessionId && currentSession) {
-        set({
-          currentSession: {
-            ...currentSession,
-            model,
-          },
-        });
-      }
-
-      // Sync to database via tRPC
       const client = getTRPCClient();
       await client.session.updateModel.mutate({ sessionId, model });
     },
 
     /**
-     * Update session provider
+     * Update session provider (server action)
+     * React Query will refetch and update UI automatically
      */
     updateSessionProvider: async (sessionId, provider, model) => {
-      // Optimistic update if it's the current session
-      const currentSession = get().currentSession;
-      if (get().currentSessionId === sessionId && currentSession) {
-        set({
-          currentSession: {
-            ...currentSession,
-            provider,
-            model,
-          },
-        });
-      }
-
-      // Sync to database via tRPC
       const client = getTRPCClient();
       await client.session.updateProvider.mutate({ sessionId, provider, model });
     },
 
     /**
-     * Update session title
+     * Update session title (server action)
+     * React Query will refetch and update UI automatically
      */
     updateSessionTitle: async (sessionId, title) => {
-      // Optimistic update if it's the current session
-      const currentSession = get().currentSession;
-      if (get().currentSessionId === sessionId && currentSession) {
-        set({
-          currentSession: {
-            ...currentSession,
-            title,
-          },
-        });
-      }
-
-      // Sync to database via tRPC
       const client = getTRPCClient();
       await client.session.updateTitle.mutate({ sessionId, title });
     },
 
     /**
-     * Update session enabled rules
+     * Update session enabled rules (server action)
+     * React Query will refetch and update UI automatically
      */
     updateSessionRules: async (sessionId, enabledRuleIds) => {
-      // Optimistic update if it's the current session
-      const currentSession = get().currentSession;
-      if (get().currentSessionId === sessionId && currentSession) {
-        set({
-          currentSession: {
-            ...currentSession,
-            enabledRuleIds,
-          },
-        });
+      const client = getTRPCClient();
+      await client.session.updateRules.mutate({ sessionId, enabledRuleIds });
 
-        // Also update settings store for UI
+      // Also update settings store for UI (if current session)
+      if (get().currentSessionId === sessionId) {
         const { useSettingsStore } = await import('./settings-store.js');
         useSettingsStore.getState().setEnabledRuleIds(enabledRuleIds);
       }
-
-      // Sync to database via tRPC
-      const client = getTRPCClient();
-      await client.session.updateRules.mutate({ sessionId, enabledRuleIds });
     },
 
     /**
-     * Delete session
+     * Delete session (server action)
      */
     deleteSession: async (sessionId) => {
       // Clear if it's the current session
       if (get().currentSessionId === sessionId) {
-        set({
-          currentSessionId: null,
-          currentSession: null,
-        });
+        set({ currentSessionId: null });
       }
 
       // Delete from database via tRPC

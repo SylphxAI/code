@@ -58,10 +58,10 @@ export const sessionsCommand: Command = {
             // Clear inputComponent before switching sessions
             context.setInputComponent(null);
 
-            // Switch to selected session
+            // Switch to selected session (Pure UI: just set the ID)
             const { useSessionStore } = await import('@sylphx/code-client');
             const sessionStore = useSessionStore.getState();
-            await sessionStore.setCurrentSession(sessionId);
+            sessionStore.setCurrentSessionId(sessionId);
 
             const selectedSession = sortedSessions.find((s) => s.id === sessionId);
             const displayName = selectedSession

@@ -29,7 +29,7 @@ export interface MessageHandlerParams {
     model?: string;
   }) => Promise<string>;
   getAIConfig: () => { defaultProvider?: string; defaultModel?: string } | null;
-  setCurrentSession: (sessionId: string | null) => Promise<void>;
+  setCurrentSessionId: (sessionId: string | null) => void;
 
   // UI state
   pendingInput: WaitForInputOptions | null;
@@ -124,7 +124,7 @@ export function createHandleSubmit(params: MessageHandlerParams) {
     isStreaming,
     addMessage,
     getAIConfig,
-    setCurrentSession,
+    setCurrentSessionId,
     pendingInput,
     filteredCommands,
     pendingAttachments,
@@ -182,7 +182,7 @@ export function createHandleSubmit(params: MessageHandlerParams) {
       if (!commandSessionRef.current) {
         commandSessionRef.current = resultSessionId;
         // Update current session to show messages in UI
-        await setCurrentSession(resultSessionId);
+        setCurrentSessionId(resultSessionId);
       }
 
       inputResolver.current(value.trim());
@@ -272,7 +272,7 @@ export function createHandleSubmit(params: MessageHandlerParams) {
       if (!commandSessionRef.current) {
         commandSessionRef.current = resultSessionId;
         // Update current session to show messages in UI
-        await setCurrentSession(resultSessionId);
+        setCurrentSessionId(resultSessionId);
       }
 
       // Execute command - command has full control via CommandContext

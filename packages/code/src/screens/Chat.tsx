@@ -15,6 +15,7 @@ import {
   useAppStore,
   useAskToolHandler,
   useChat,
+  useCurrentSession,
   useEventStream,
   useFileAttachments,
   useKeyboardNavigation,
@@ -64,21 +65,16 @@ export default function Chat(_props: ChatProps) {
   const addDebugLog = useAppStore((state) => state.addDebugLog);
   const navigateTo = useAppStore((state) => state.navigateTo);
   const aiConfig = useAppStore((state) => state.aiConfig);
-  // IMPORTANT: Use specific stores directly for better reactivity and to avoid infinite loops
-  // DO NOT use useAppStore for functions - it creates new references on every render
-  const currentSessionId = useSessionStore((state) => state.currentSessionId);
-  const currentSession = useSessionStore((state) => state.currentSession);
 
-  console.log('[Chat] Render - currentSession:', currentSession ? {
-    id: currentSession.id,
-    title: currentSession.title,
-    messageCount: currentSession.messages?.length || 0,
-  } : null);
+  // Pure UI Client: Use hook to fetch session data from server
+  const { currentSession, currentSessionId, isLoading: sessionLoading } = useCurrentSession();
+
+  // Server actions
   const createSession = useSessionStore((state) => state.createSession);
   const updateSessionModel = useSessionStore((state) => state.updateSessionModel);
   const updateSessionProvider = useSessionStore((state) => state.updateSessionProvider);
   const updateSessionTitle = useSessionStore((state) => state.updateSessionTitle);
-  const setCurrentSession = useSessionStore((state) => state.setCurrentSession);
+  const setCurrentSessionId = useSessionStore((state) => state.setCurrentSessionId);
   const addMessage = useMessageStore((state) => state.addMessage);
   const updateProvider = useAppStore((state) => state.updateProvider);
   const setAIConfig = useAppStore((state) => state.setAIConfig);
@@ -235,36 +231,6 @@ export default function Chat(_props: ChatProps) {
       onTextDelta: (text: string) => {
         // DISABLED: TUI is single-client, no multi-client sync needed
         return;
-
-        // Skip if currently streaming (own message)
-        if (isStreaming) {
-          return;
-        }
-        // Other client streaming text - append to last assistant message
-        const currentSession = useSessionStore.getState().currentSession;
-        if (currentSession && currentSession.messages.length > 0) {
-          const lastMessage = currentSession.messages[currentSession.messages.length - 1];
-          if (lastMessage.role === 'assistant') {
-            useSessionStore.setState((state) => {
-              if (state.currentSession && state.currentSession.messages.length > 0) {
-                const messages = [...state.currentSession.messages];
-                const lastMsg = { ...messages[messages.length - 1] };
-                const parts = [...(lastMsg.content || [])];
-                const lastPart = parts[parts.length - 1];
-
-                if (lastPart && lastPart.type === 'text') {
-                  parts[parts.length - 1] = { ...lastPart, content: lastPart.content + text };
-                } else {
-                  parts.push({ type: 'text', content: text });
-                }
-
-                lastMsg.content = parts;
-                messages[messages.length - 1] = lastMsg;
-                state.currentSession.messages = messages;
-              }
-            });
-          }
-        }
       },
       onToolCall: (toolCallId: string, toolName: string, args: unknown) => {
         // DISABLED: TUI is single-client
@@ -394,42 +360,19 @@ export default function Chat(_props: ChatProps) {
     addLog
   );
 
-  // Load session data when currentSessionId changes (React-layer data loading)
-  useEffect(() => {
-    const loadCurrentSession = async () => {
-      if (!currentSessionId) {
-        return;
-      }
-
-      console.log('[Chat] useEffect - Loading session data for:', currentSessionId);
-      const sessionStore = useSessionStore.getState();
-      await sessionStore.loadSession(currentSessionId);
-      console.log('[Chat] useEffect - Session data loaded');
-    };
-
-    loadCurrentSession();
-  }, [currentSessionId]);
-
   // Sync UI streaming state with server state on session switch
   // When user switches to different session, check if that session has active streaming
   // This syncs UI state (isStreaming) with server state (message.status === 'active')
   useEffect(() => {
-    if (!currentSessionId) {
-      setIsStreaming(false);
-      return;
-    }
-
-    // Get current session from store (server state already loaded)
-    const session = useSessionStore.getState().currentSession;
-    if (!session || session.id !== currentSessionId) {
+    if (!currentSession) {
       setIsStreaming(false);
       return;
     }
 
     // Check if session has active streaming (server state)
-    const activeMessage = session.messages.find((m) => m.status === 'active');
+    const activeMessage = currentSession.messages.find((m) => m.status === 'active');
     setIsStreaming(!!activeMessage);
-  }, [currentSessionId, setIsStreaming]);
+  }, [currentSession, setIsStreaming]);
 
   // Create handleSubmit function with filteredCommands
   const handleSubmit = useMemo(
@@ -438,7 +381,7 @@ export default function Chat(_props: ChatProps) {
         isStreaming,
         addMessage,
         getAIConfig,
-        setCurrentSession,
+        setCurrentSessionId,
         pendingInput,
         filteredCommands,
         pendingAttachments,
@@ -463,7 +406,7 @@ export default function Chat(_props: ChatProps) {
       isStreaming,
       addMessage,
       getAIConfig,
-      setCurrentSession,
+      setCurrentSessionId,
       pendingInput,
       filteredCommands,
       pendingAttachments,

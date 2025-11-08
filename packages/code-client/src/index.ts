@@ -64,6 +64,7 @@ export type {
 export { useAIConfig } from './hooks/useAIConfig.js'
 export { useAskToolHandler } from './hooks/useAskToolHandler.js'
 export { useChat } from './hooks/useChat.js'
+export { useCurrentSession } from './hooks/useCurrentSession.js'
 export { useElapsedTime } from './hooks/useElapsedTime.js'
 export { useEventStream, type EventStreamCallbacks, type UseEventStreamOptions } from './hooks/useEventStream.js'
 export { useFileAttachments } from './hooks/useFileAttachments.js'
