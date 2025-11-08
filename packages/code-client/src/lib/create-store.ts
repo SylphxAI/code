@@ -24,7 +24,8 @@ export type StateCreator<T> = (
  * Store instance with zustand-like API
  */
 export interface Store<T> {
-  (): T; // Hook for React components
+  (): T; // Hook for React components (no selector)
+  <U>(selector: (state: T) => U): U; // Hook with selector
   getState: () => T;
   setState: (action: SetStateAction<T>) => void;
   subscribe: (listener: (state: T) => void) => () => void;
@@ -41,6 +42,10 @@ export interface Store<T> {
  *   increment: () => set(state => { state.count++ }),
  *   decrement: () => set(state => { state.count-- }),
  * }));
+ *
+ * // In components:
+ * const count = useCountStore(state => state.count); // With selector
+ * const { count, increment } = useCountStore(); // Without selector
  * ```
  */
 export function createStore<T extends object>(
@@ -69,10 +74,16 @@ export function createStore<T extends object>(
   const initialState = creator(setState, getState);
   zenSet(store, initialState);
 
-  // Create React hook
-  const useStore = (): T => {
-    return useZenStore(store);
-  };
+  // Create React hook with optional selector support
+  function useStore(): T;
+  function useStore<U>(selector: (state: T) => U): U;
+  function useStore<U>(selector?: (state: T) => U): T | U {
+    const state = useZenStore(store);
+    if (selector) {
+      return selector(state);
+    }
+    return state;
+  }
 
   // Add zustand-compatible methods
   useStore.getState = getState;
