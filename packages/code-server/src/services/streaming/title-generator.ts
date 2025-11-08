@@ -48,10 +48,11 @@ export async function generateSessionTitle(
     // Create AI stream for title generation (no tools needed - faster and cheaper)
     const titleStream = createAIStream({
       model,
+      system: 'Generate short chat titles (max 50 chars).',
       messages: [
         {
           role: 'user',
-          content: `Create a short title (max 50 chars) for: "${userMessage}"`,
+          content: userMessage,
         },
       ],
       enableTools: false, // Title generation doesn't need tools
