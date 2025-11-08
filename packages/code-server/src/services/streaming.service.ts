@@ -358,10 +358,22 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           todoSnapshot: currentTodos,
         });
 
-        // 9.5. Check if title generation needed (defer to after main response)
+        // 9.5. Start title generation in parallel with streaming
         const isFirstMessage =
           updatedSession.messages.filter((m) => m.role === 'user').length === 1;
-        const shouldGenerateTitle = needsTitleGeneration(updatedSession, isNewSession, isFirstMessage);
+
+        // Title generation (runs independently in background, publishes to eventStream)
+        if (needsTitleGeneration(updatedSession, isNewSession, isFirstMessage)) {
+          generateSessionTitle(
+            opts.appContext,
+            sessionRepository,
+            aiConfig,
+            updatedSession,
+            userMessageText
+          ).catch((error) => {
+            console.error('[Title Generation] Background error:', error);
+          });
+        }
 
         // 10. Process stream and emit events
         const callbacks: StreamCallbacks = {
@@ -485,21 +497,8 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           finishReason: result.finishReason,
         });
 
-        // 13. Complete observable (main response done)
+        // 13. Complete observable (title continues independently via eventStream)
         observer.complete();
-
-        // 14. Generate title after main response completes
-        if (shouldGenerateTitle) {
-          generateSessionTitle(
-            opts.appContext,
-            sessionRepository,
-            aiConfig,
-            updatedSession,
-            userMessageText
-          ).catch((error) => {
-            console.error('[Title Generation] Error:', error);
-          });
-        }
       } catch (error) {
         console.error('[streamAIResponse] Error in execution:', error);
         console.error('[streamAIResponse] Error type:', error?.constructor?.name);
