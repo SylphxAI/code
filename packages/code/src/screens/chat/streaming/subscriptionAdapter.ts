@@ -219,28 +219,40 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
       console.log('[OPTIMISTIC] Should create temp session:', shouldCreateTempSession);
 
-      useSessionStore.setState((state) => {
+      // IMMUTABLE UPDATE: Zustand needs immutable updates to trigger re-renders
+      if (sessionId && currentState.currentSession?.id === sessionId) {
         // For existing sessions, add to current session
-        if (sessionId && state.currentSession?.id === sessionId) {
-          console.log('[OPTIMISTIC] Adding to existing session');
-          const beforeCount = state.currentSession.messages.length;
-          state.currentSession.messages.push({
-            id: optimisticMessageId,
-            role: 'user',
-            content: messageParts,
-            timestamp: Date.now(),
-            status: 'completed',
-          });
-          logSession('Added optimistic message to existing session:', {
-            id: optimisticMessageId,
-            beforeCount,
-            afterCount: state.currentSession.messages.length,
-          });
-        } else {
-          // For new sessions or no current session, create temporary session for display
-          console.log('[OPTIMISTIC] Creating temporary session');
-          logSession('Creating temporary session for optimistic display');
-          state.currentSession = {
+        console.log('[OPTIMISTIC] Adding to existing session');
+        const beforeCount = currentState.currentSession.messages.length;
+
+        useSessionStore.setState({
+          currentSession: {
+            ...currentState.currentSession,
+            messages: [
+              ...currentState.currentSession.messages,
+              {
+                id: optimisticMessageId,
+                role: 'user',
+                content: messageParts,
+                timestamp: Date.now(),
+                status: 'completed',
+              }
+            ]
+          }
+        });
+
+        logSession('Added optimistic message to existing session:', {
+          id: optimisticMessageId,
+          beforeCount,
+          afterCount: beforeCount + 1,
+        });
+      } else {
+        // For new sessions or no current session, create temporary session for display
+        console.log('[OPTIMISTIC] Creating temporary session');
+        logSession('Creating temporary session for optimistic display');
+
+        useSessionStore.setState({
+          currentSession: {
             id: 'temp-session',
             title: 'New Chat',
             agentId: 'coder',
@@ -256,10 +268,11 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
               status: 'completed',
             }],
             todos: [],
-          };
-          logSession('Created temporary session with optimistic message');
-        }
-      });
+          }
+        });
+
+        logSession('Created temporary session with optimistic message');
+      }
 
       logSession('Calling streamResponse subscription', {
         sessionId,
