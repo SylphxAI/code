@@ -507,7 +507,7 @@ function handleComplete(event: Extract<StreamEvent, { type: 'complete' }>, conte
 }
 
 function handleError(event: Extract<StreamEvent, { type: 'error' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   logContent('Error event received:', event.error);
   context.lastErrorRef.current = event.error;
