@@ -7,14 +7,14 @@ import { useInput } from 'ink';
 import { useAppStore } from '../stores/app-store.js';
 
 export function useKeyboard() {
-  const navigateTo = useAppStore((state) => state.navigateTo);
-  const currentScreen = useAppStore((state) => state.currentScreen);
+  const navigateTo = useAppStore((state) => state?.navigateTo);
+  const currentScreen = useAppStore((state) => state?.currentScreen);
 
   useInput((input, key) => {
     // Handle Escape key - go back to chat
     if (key.escape) {
       if (currentScreen !== 'chat') {
-        navigateTo('chat');
+        navigateTo?.('chat');
       }
     }
 

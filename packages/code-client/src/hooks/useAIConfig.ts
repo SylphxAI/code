@@ -10,12 +10,12 @@ import { useTRPCClient } from '../trpc-provider.js';
 
 export function useAIConfig() {
   const client = useTRPCClient();
-  const setAIConfig = useAppStore((state) => state.setAIConfig);
-  const setError = useAppStore((state) => state.setError);
-  const setLoading = useAppStore((state) => state.setLoading);
+  const setAIConfig = useAppStore((state) => state?.setAIConfig);
+  const setError = useAppStore((state) => state?.setError);
+  const setLoading = useAppStore((state) => state?.setLoading);
 
   const loadConfig = useCallback(async (cwd: string = process.cwd()) => {
-    setLoading(true);
+    setLoading?.(true);
     try {
       console.log('[useAIConfig] Loading config from cwd:', cwd);
       const result = await client.config.load.query({ cwd });
@@ -27,36 +27,36 @@ export function useAIConfig() {
 
       if (result.success) {
         // Use setAIConfig to trigger logic for loading defaultEnabledRuleIds and defaultAgentId
-        setAIConfig(result.config);
+        setAIConfig?.(result.config);
       } else {
         // No config yet, start with empty
         console.log('[useAIConfig] No config, using empty');
-        setAIConfig({ providers: {} });
+        setAIConfig?.({ providers: {} });
       }
     } catch (err) {
       console.error('[useAIConfig] Load error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load AI config');
+      setError?.(err instanceof Error ? err.message : 'Failed to load AI config');
     } finally {
-      setLoading(false);
+      setLoading?.(false);
     }
   }, [client, setAIConfig, setError, setLoading]);
 
   const saveConfig = useCallback(async (config: AIConfig, cwd: string = process.cwd()) => {
-    setLoading(true);
+    setLoading?.(true);
     try {
       const result = await client.config.save.mutate({ config, cwd });
 
       if (result.success) {
-        setAIConfig(config);
+        setAIConfig?.(config);
         return true;
       }
-      setError(result.error || 'Failed to save AI config');
+      setError?.(result.error || 'Failed to save AI config');
       return false;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save AI config');
+      setError?.(err instanceof Error ? err.message : 'Failed to save AI config');
       return false;
     } finally {
-      setLoading(false);
+      setLoading?.(false);
     }
   }, [client, setAIConfig, setError, setLoading]);
 

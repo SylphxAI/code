@@ -62,9 +62,9 @@ export interface SendMessageOptions {
 }
 
 export function useChat() {
-  const currentSessionId = useAppStore((state) => state.currentSessionId);
-  const currentSession = useAppStore((state) => state.currentSession);
-  const setError = useAppStore((state) => state.setError);
+  const currentSessionId = useAppStore((state) => state?.currentSessionId);
+  const currentSession = useAppStore((state) => state?.currentSession);
+  const setError = useAppStore((state) => state?.setError);
 
   const sendMessage = useCallback(async (
     message: string,
