@@ -60,9 +60,18 @@ export function updateActiveMessageContent(
   const session = state.currentSession;
 
   if (!session || session.id !== currentSessionId) {
-    logContent('Session mismatch! expected:', currentSessionId, 'got:', session?.id);
+    console.error('[updateActiveMessageContent] Session mismatch!', {
+      expected: currentSessionId,
+      got: session?.id
+    });
     return;
   }
+
+  console.log('[updateActiveMessageContent] Looking for active message:', {
+    messageId,
+    totalMessages: session.messages.length,
+    messages: session.messages.map(m => ({ id: m.id, role: m.role, status: m.status }))
+  });
 
   // Find active message by ID if provided, otherwise find any active message
   const activeMessage = messageId
@@ -70,9 +79,15 @@ export function updateActiveMessageContent(
     : session.messages.find((m) => m.status === 'active');
 
   if (!activeMessage) {
-    logContent('No active message found! messages:', session.messages.length, 'messageId:', messageId);
+    console.error('[updateActiveMessageContent] NO ACTIVE MESSAGE FOUND!', {
+      totalMessages: session.messages.length,
+      searchingForId: messageId,
+      allStatuses: session.messages.map(m => m.status)
+    });
     return;
   }
+
+  console.log('[updateActiveMessageContent] Found active message:', activeMessage.id);
 
   // IMMUTABLE UPDATE: Create new messages array with updated content
   const updatedMessages = session.messages.map(msg =>
@@ -282,23 +297,37 @@ function handleAssistantMessageCreated(event: Extract<StreamEvent, { type: 'assi
   }
 
   // Add new assistant message to session
+  const newMessage = {
+    id: event.messageId,
+    role: 'assistant',
+    content: [],
+    timestamp: Date.now(),
+    status: 'active',
+  };
+
   useSessionStore.setState({
     currentSession: {
       ...state.currentSession,
       messages: [
         ...state.currentSession.messages,
-        {
-          id: event.messageId,
-          role: 'assistant',
-          content: [],
-          timestamp: Date.now(),
-          status: 'active',
-        }
+        newMessage
       ]
     }
   });
 
-  logMessage('Added assistant message, total:', state.currentSession.messages.length + 1);
+  console.log('[handleAssistantMessageCreated] Added assistant message to store:', {
+    messageId: event.messageId,
+    previousCount: state.currentSession.messages.length,
+    newCount: state.currentSession.messages.length + 1,
+    newMessage
+  });
+
+  // Verify it was added
+  const verifyState = useSessionStore.getState();
+  console.log('[handleAssistantMessageCreated] Verification - messages in store:', {
+    count: verifyState.currentSession?.messages.length,
+    lastMessage: verifyState.currentSession?.messages[verifyState.currentSession.messages.length - 1]
+  });
 }
 
 // ============================================================================
