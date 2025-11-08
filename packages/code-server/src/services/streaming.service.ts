@@ -114,6 +114,7 @@ export interface StreamAIResponseOptions {
 export function streamAIResponse(opts: StreamAIResponseOptions) {
   return observable<StreamEvent>((observer) => {
     let aborted = false;
+    let titleUnsubscribe: (() => void) | null = null;
 
     // Async execution wrapped in promise
     const executionPromise = (async () => {
@@ -363,7 +364,20 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           updatedSession.messages.filter((m) => m.role === 'user').length === 1;
 
         let titlePromise: Promise<string | null> = Promise.resolve(null);
+
         if (needsTitleGeneration(updatedSession, isNewSession, isFirstMessage)) {
+          // Subscribe to title events from eventStream and forward to subscription observer
+          titleUnsubscribe = opts.appContext.eventStream.subscribe(`session:${sessionId}`, (event) => {
+            // Forward title streaming events to subscription
+            if (event.type === 'session-title-updated-start') {
+              observer.next({ type: 'session-title-updated-start', sessionId: event.sessionId });
+            } else if (event.type === 'session-title-updated-delta') {
+              observer.next({ type: 'session-title-updated-delta', sessionId: event.sessionId, text: event.text });
+            } else if (event.type === 'session-title-updated-end') {
+              observer.next({ type: 'session-title-updated-end', sessionId: event.sessionId, title: event.title });
+            }
+          });
+
           titlePromise = generateSessionTitle(
             opts.appContext,
             sessionRepository,
@@ -496,7 +510,10 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           finishReason: result.finishReason,
         });
 
-        // 13. Complete observable (clients receive title events via useEventStream)
+        // 13. Unsubscribe from title events and complete observable
+        if (titleUnsubscribe) {
+          titleUnsubscribe();
+        }
         observer.complete();
 
         // 14. Let title generation finish in background
@@ -514,6 +531,10 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         if (error && typeof error === 'object') {
           console.error('[streamAIResponse] Error keys:', Object.keys(error));
           console.error('[streamAIResponse] Error JSON:', JSON.stringify(error, null, 2));
+        }
+        // Cleanup title subscription
+        if (titleUnsubscribe) {
+          titleUnsubscribe();
         }
         observer.next({
           type: 'error',
@@ -564,6 +585,10 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
     // Cleanup function
     return () => {
       aborted = true;
+      // Unsubscribe from title events
+      if (titleUnsubscribe) {
+        titleUnsubscribe();
+      }
     };
   });
 }
