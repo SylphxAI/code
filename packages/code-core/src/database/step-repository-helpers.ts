@@ -24,6 +24,40 @@ import type {
 import type { Todo as TodoType } from '../types/todo.types.js';
 
 /**
+ * Retry helper for database operations that may encounter SQLITE_BUSY
+ * Uses exponential backoff with jitter
+ */
+async function retryOnBusy<T>(
+  operation: () => Promise<T>,
+  maxRetries = 5,
+  baseDelay = 50
+): Promise<T> {
+  let lastError: any;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+
+      // Check if error is SQLITE_BUSY
+      const isBusy = error?.message?.includes('SQLITE_BUSY') ||
+                     error?.code === 'SQLITE_BUSY';
+
+      if (!isBusy || attempt === maxRetries) {
+        throw error;
+      }
+
+      // Exponential backoff with jitter: delay = baseDelay * 2^attempt + random(0, baseDelay)
+      const delay = baseDelay * Math.pow(2, attempt) + Math.random() * baseDelay;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+
+/**
  * Create a new step in a message
  *
  * @param todoSnapshot DEPRECATED - No longer stored per-step
@@ -40,27 +74,29 @@ export async function createMessageStep(
   const stepId = `${messageId}-step-${stepIndex}`;
   const now = Date.now();
 
-  await db.transaction(async (tx) => {
-    // Insert step
-    const newStep: NewMessageStep = {
-      id: stepId,
-      messageId,
-      stepIndex,
-      status: 'active',
-      metadata: metadata ? JSON.stringify(metadata) : null,
-      startTime: now,
-      endTime: null,
-      provider: null,
-      model: null,
-      duration: null,
-      finishReason: null,
-    };
+  await retryOnBusy(() =>
+    db.transaction(async (tx) => {
+      // Insert step
+      const newStep: NewMessageStep = {
+        id: stepId,
+        messageId,
+        stepIndex,
+        status: 'active',
+        metadata: metadata ? JSON.stringify(metadata) : null,
+        startTime: now,
+        endTime: null,
+        provider: null,
+        model: null,
+        duration: null,
+        finishReason: null,
+      };
 
-    await tx.insert(messageSteps).values(newStep);
+      await tx.insert(messageSteps).values(newStep);
 
-    // REMOVED: stepTodoSnapshots - no longer stored per-step
-    // Todos are only sent on first user message after /compact
-  });
+      // REMOVED: stepTodoSnapshots - no longer stored per-step
+      // Todos are only sent on first user message after /compact
+    })
+  );
 
   return stepId;
 }
@@ -73,21 +109,23 @@ export async function updateStepParts(
   stepId: string,
   parts: MessagePart[]
 ): Promise<void> {
-  await db.transaction(async (tx) => {
-    // Delete existing parts
-    await tx.delete(stepParts).where(eq(stepParts.stepId, stepId));
+  await retryOnBusy(() =>
+    db.transaction(async (tx) => {
+      // Delete existing parts
+      await tx.delete(stepParts).where(eq(stepParts.stepId, stepId));
 
-    // Insert new parts
-    for (let i = 0; i < parts.length; i++) {
-      await tx.insert(stepParts).values({
-        id: randomUUID(),
-        stepId,
-        ordering: i,
-        type: parts[i].type,
-        content: JSON.stringify(parts[i]),
-      });
-    }
-  });
+      // Insert new parts
+      for (let i = 0; i < parts.length; i++) {
+        await tx.insert(stepParts).values({
+          id: randomUUID(),
+          stepId,
+          ordering: i,
+          type: parts[i].type,
+          content: JSON.stringify(parts[i]),
+        });
+      }
+    })
+  );
 }
 
 /**
@@ -106,39 +144,41 @@ export async function completeMessageStep(
 ): Promise<void> {
   const endTime = Date.now();
 
-  await db.transaction(async (tx) => {
-    // Get start time to calculate duration
-    const [step] = await tx
-      .select()
-      .from(messageSteps)
-      .where(eq(messageSteps.id, stepId))
-      .limit(1);
+  await retryOnBusy(() =>
+    db.transaction(async (tx) => {
+      // Get start time to calculate duration
+      const [step] = await tx
+        .select()
+        .from(messageSteps)
+        .where(eq(messageSteps.id, stepId))
+        .limit(1);
 
-    const duration = step?.startTime ? endTime - step.startTime : null;
+      const duration = step?.startTime ? endTime - step.startTime : null;
 
-    // Update step
-    await tx
-      .update(messageSteps)
-      .set({
-        status: options.status,
-        finishReason: options.finishReason || null,
-        provider: options.provider || null,
-        model: options.model || null,
-        duration,
-        endTime,
-      })
-      .where(eq(messageSteps.id, stepId));
+      // Update step
+      await tx
+        .update(messageSteps)
+        .set({
+          status: options.status,
+          finishReason: options.finishReason || null,
+          provider: options.provider || null,
+          model: options.model || null,
+          duration,
+          endTime,
+        })
+        .where(eq(messageSteps.id, stepId));
 
-    // Insert usage if provided
-    if (options.usage) {
-      await tx.insert(stepUsage).values({
-        stepId,
-        promptTokens: options.usage.promptTokens,
-        completionTokens: options.usage.completionTokens,
-        totalTokens: options.usage.totalTokens,
-      });
-    }
-  });
+      // Insert usage if provided
+      if (options.usage) {
+        await tx.insert(stepUsage).values({
+          stepId,
+          promptTokens: options.usage.promptTokens,
+          completionTokens: options.usage.completionTokens,
+          totalTokens: options.usage.totalTokens,
+        });
+      }
+    })
+  );
 }
 
 /**
