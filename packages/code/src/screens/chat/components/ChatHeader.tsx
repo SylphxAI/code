@@ -36,7 +36,7 @@ export function ChatHeader({
           <Text color="#00D9FF">▌ CHAT</Text>
           <Text color="#00D9FF"> · </Text>
           <Text color="white">
-            {isTitleStreaming ? streamingTitle : (currentSessionTitle || 'New Chat')}
+            {isTitleStreaming ? (streamingTitle || currentSessionTitle || 'New Chat') : (currentSessionTitle || 'New Chat')}
           </Text>
         </Box>
       )}
