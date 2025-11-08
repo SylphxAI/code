@@ -20,6 +20,7 @@ import {
   useKeyboardNavigation,
   useProjectFiles,
   useSessionInitialization,
+  useSessionStore,
   useTokenCalculation,
 } from '@sylphx/code-client';
 import { Box, useInput } from 'ink';
@@ -62,15 +63,21 @@ export default function Chat(_props: ChatProps) {
   const addDebugLog = useAppStore((state) => state.addDebugLog);
   const navigateTo = useAppStore((state) => state.navigateTo);
   const aiConfig = useAppStore((state) => state.aiConfig);
-  const currentSessionId = useAppStore((state) => state.currentSessionId);
-  const currentSession = useAppStore((state) => state.currentSession); // IMPORTANT: Get directly from store for reactivity
-  const createSession = useAppStore((state) => state.createSession);
-  const updateSessionModel = useAppStore((state) => state.updateSessionModel);
-  const updateSessionProvider = useAppStore((state) => state.updateSessionProvider);
-  const updateSessionTitle = useAppStore((state) => state.updateSessionTitle);
+  // IMPORTANT: Use useSessionStore directly for better reactivity
+  const currentSessionId = useSessionStore((state) => state.currentSessionId);
+  const currentSession = useSessionStore((state) => state.currentSession);
+  console.log('[Chat] currentSession from useSessionStore:', currentSession ? {
+    id: currentSession.id,
+    title: currentSession.title,
+    messageCount: currentSession.messages?.length || 0
+  } : null);
+  const createSession = useSessionStore((state) => state.createSession);
+  const updateSessionModel = useSessionStore((state) => state.updateSessionModel);
+  const updateSessionProvider = useSessionStore((state) => state.updateSessionProvider);
+  const updateSessionTitle = useSessionStore((state) => state.updateSessionTitle);
+  const setCurrentSession = useSessionStore((state) => state.setCurrentSession);
   const updateProvider = useAppStore((state) => state.updateProvider);
   const setAIConfig = useAppStore((state) => state.setAIConfig);
-  const setCurrentSession = useAppStore((state) => state.setCurrentSession);
   const addMessage = useAppStore((state) => state.addMessage);
   const setSelectedProvider = useAppStore((state) => state.setSelectedProvider);
   const setSelectedModel = useAppStore((state) => state.setSelectedModel);
@@ -231,11 +238,11 @@ export default function Chat(_props: ChatProps) {
           return;
         }
         // Other client streaming text - append to last assistant message
-        const currentSession = useAppStore.getState().currentSession;
+        const currentSession = useSessionStore.getState().currentSession;
         if (currentSession && currentSession.messages.length > 0) {
           const lastMessage = currentSession.messages[currentSession.messages.length - 1];
           if (lastMessage.role === 'assistant') {
-            useAppStore.setState((state) => {
+            useSessionStore.setState((state) => {
               if (state.currentSession && state.currentSession.messages.length > 0) {
                 const messages = [...state.currentSession.messages];
                 const lastMsg = { ...messages[messages.length - 1] };
@@ -395,7 +402,7 @@ export default function Chat(_props: ChatProps) {
     }
 
     // Get current session from store (server state already loaded)
-    const session = useAppStore.getState().currentSession;
+    const session = useSessionStore.getState().currentSession;
     if (!session || session.id !== currentSessionId) {
       setIsStreaming(false);
       return;
