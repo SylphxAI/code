@@ -7,7 +7,6 @@
  */
 
 import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
 import type { Session, ProviderId } from '@sylphx/code-core';
 import { getTRPCClient } from '../trpc-provider.js';
 
@@ -29,8 +28,7 @@ export interface SessionState {
   deleteSession: (sessionId: string) => Promise<void>;
 }
 
-export const useSessionStore = create<SessionState>()(
-  immer((set, get) => ({
+export const useSessionStore = create<SessionState>()((set, get) => ({
     currentSessionId: null,
     currentSession: null,
 
@@ -91,9 +89,7 @@ export const useSessionStore = create<SessionState>()(
       const client = getTRPCClient();
       const session = await client.session.getById.query({ sessionId: currentSessionId });
 
-      set((state) => {
-        state.currentSession = session;
-      });
+      set({ currentSession: session });
     },
 
     /**
@@ -114,9 +110,9 @@ export const useSessionStore = create<SessionState>()(
       });
 
       // Set as current session
-      set((state) => {
-        state.currentSessionId = session.id;
-        state.currentSession = session;
+      set({
+        currentSessionId: session.id,
+        currentSession: session,
       });
 
       // Update settings store with session's rules
@@ -130,11 +126,13 @@ export const useSessionStore = create<SessionState>()(
      */
     updateSessionModel: async (sessionId, model) => {
       // Optimistic update if it's the current session
-      if (get().currentSessionId === sessionId && get().currentSession) {
-        set((state) => {
-          if (state.currentSession) {
-            state.currentSession.model = model;
-          }
+      const currentSession = get().currentSession;
+      if (get().currentSessionId === sessionId && currentSession) {
+        set({
+          currentSession: {
+            ...currentSession,
+            model,
+          },
         });
       }
 
@@ -148,12 +146,14 @@ export const useSessionStore = create<SessionState>()(
      */
     updateSessionProvider: async (sessionId, provider, model) => {
       // Optimistic update if it's the current session
-      if (get().currentSessionId === sessionId && get().currentSession) {
-        set((state) => {
-          if (state.currentSession) {
-            state.currentSession.provider = provider;
-            state.currentSession.model = model;
-          }
+      const currentSession = get().currentSession;
+      if (get().currentSessionId === sessionId && currentSession) {
+        set({
+          currentSession: {
+            ...currentSession,
+            provider,
+            model,
+          },
         });
       }
 
@@ -167,11 +167,13 @@ export const useSessionStore = create<SessionState>()(
      */
     updateSessionTitle: async (sessionId, title) => {
       // Optimistic update if it's the current session
-      if (get().currentSessionId === sessionId && get().currentSession) {
-        set((state) => {
-          if (state.currentSession) {
-            state.currentSession.title = title;
-          }
+      const currentSession = get().currentSession;
+      if (get().currentSessionId === sessionId && currentSession) {
+        set({
+          currentSession: {
+            ...currentSession,
+            title,
+          },
         });
       }
 
@@ -185,11 +187,13 @@ export const useSessionStore = create<SessionState>()(
      */
     updateSessionRules: async (sessionId, enabledRuleIds) => {
       // Optimistic update if it's the current session
-      if (get().currentSessionId === sessionId && get().currentSession) {
-        set((state) => {
-          if (state.currentSession) {
-            state.currentSession.enabledRuleIds = enabledRuleIds;
-          }
+      const currentSession = get().currentSession;
+      if (get().currentSessionId === sessionId && currentSession) {
+        set({
+          currentSession: {
+            ...currentSession,
+            enabledRuleIds,
+          },
         });
 
         // Also update settings store for UI
@@ -208,9 +212,9 @@ export const useSessionStore = create<SessionState>()(
     deleteSession: async (sessionId) => {
       // Clear if it's the current session
       if (get().currentSessionId === sessionId) {
-        set((state) => {
-          state.currentSessionId = null;
-          state.currentSession = null;
+        set({
+          currentSessionId: null,
+          currentSession: null,
         });
       }
 
