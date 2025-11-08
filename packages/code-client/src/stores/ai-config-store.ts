@@ -53,9 +53,12 @@ export const useAIConfigStore = create<AIConfigState>()(
       });
 
       // Initialize settings store with defaults (only if no session)
-      import('./settings-store.js').then(({ useSettingsStore }) => {
+      Promise.all([
+        import('./settings-store.js'),
+        import('./session-store.js')
+      ]).then(([{ useSettingsStore }, { useSessionStore }]) => {
         const settingsStore = useSettingsStore.getState();
-        const sessionStore = require('./session-store.js').useSessionStore.getState();
+        const sessionStore = useSessionStore.getState();
 
         if (!sessionStore.currentSessionId) {
           if (config.defaultEnabledRuleIds) {
