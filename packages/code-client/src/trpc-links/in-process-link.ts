@@ -29,16 +29,25 @@ import { createLogger } from '@sylphx/code-core';
 
 const log = createLogger('trpc:link');
 
-export interface InProcessLinkOptions<TRouter extends AnyRouter> {
-  /**
-   * tRPC router instance from CodeServer
-   */
-  router: TRouter;
-  /**
-   * Context factory from CodeServer
-   */
-  createContext: () => Promise<any> | any;
-}
+// Support both explicit router+createContext and convenience appContext
+export type InProcessLinkOptions<TRouter extends AnyRouter> =
+  | {
+      /**
+       * tRPC router instance from CodeServer
+       */
+      router: TRouter;
+      /**
+       * Context factory from CodeServer
+       */
+      createContext: () => Promise<any> | any;
+    }
+  | {
+      /**
+       * AppContext from code-server (convenience wrapper)
+       * Will use appRouter and create context factory automatically
+       */
+      appContext: any;
+    };
 
 /**
  * Create in-process tRPC link for zero-overhead communication
@@ -47,6 +56,23 @@ export interface InProcessLinkOptions<TRouter extends AnyRouter> {
 export function inProcessLink<TRouter extends AnyRouter>(
   options: InProcessLinkOptions<TRouter>
 ): TRPCLink<TRouter> {
+  // Extract router and createContext based on options shape
+  const { router, createContext } = 'appContext' in options
+    ? {
+        router: (async () => {
+          const { appRouter } = await import('@sylphx/code-server');
+          return appRouter as TRouter;
+        })() as any,
+        createContext: async () => {
+          const { createContext: createTRPCContext } = await import('@sylphx/code-server');
+          return createTRPCContext({ appContext: options.appContext });
+        },
+      }
+    : {
+        router: options.router,
+        createContext: options.createContext,
+      };
+
   return () => {
     return ({ op, next }) => {
       return observable((observer) => {
@@ -56,10 +82,13 @@ export function inProcessLink<TRouter extends AnyRouter>(
         (async () => {
           try {
             // Create context for this request
-            const ctx = await options.createContext();
+            const ctx = await createContext();
+
+            // Resolve router if it's a promise
+            const resolvedRouter = await Promise.resolve(router);
 
             // Create server-side caller with context
-            const caller = options.router.createCaller(ctx);
+            const caller = resolvedRouter.createCaller(ctx);
 
             // Navigate to the procedure using path (e.g., 'session.getLast')
             const procedureFn = getProcedureFunction(caller, path);
