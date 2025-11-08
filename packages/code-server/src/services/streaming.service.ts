@@ -300,6 +300,11 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         // 9. Determine tool support from capabilities
         const enableTools = modelCapabilities.has('tools');
 
+        // 9.5. Check if title generation is needed (before creating streams)
+        const isFirstMessage =
+          updatedSession.messages.filter((m) => m.role === 'user').length === 1;
+        const needsTitle = needsTitleGeneration(updatedSession, isNewSession, isFirstMessage);
+
         // 10. Create AI stream with system prompt
         // Only enable native tools if model supports them
         // Models without native support (like claude-code) will fall back to text-based tools
@@ -314,6 +319,20 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
             return injectSystemStatusToOutput(output, systemStatus);
           },
         });
+
+        // 10.1. Start title generation immediately (parallel API requests)
+        // Fire-and-forget to allow true parallelism with main stream
+        if (needsTitle) {
+          generateSessionTitle(
+            opts.appContext,
+            sessionRepository,
+            aiConfig,
+            updatedSession,
+            userMessageText
+          ).catch((error) => {
+            console.error('[Title Generation] Background error:', error);
+          });
+        }
 
         // 9. Create assistant message in database (status: active)
         const assistantMessageId = await messageRepository.addMessage({
@@ -357,23 +376,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           metadata: stepMetadata,
           todoSnapshot: currentTodos,
         });
-
-        // 9.5. Start title generation in parallel with streaming
-        const isFirstMessage =
-          updatedSession.messages.filter((m) => m.role === 'user').length === 1;
-
-        // Title generation (runs independently in background, publishes to eventStream)
-        if (needsTitleGeneration(updatedSession, isNewSession, isFirstMessage)) {
-          generateSessionTitle(
-            opts.appContext,
-            sessionRepository,
-            aiConfig,
-            updatedSession,
-            userMessageText
-          ).catch((error) => {
-            console.error('[Title Generation] Background error:', error);
-          });
-        }
 
         // 10. Process stream and emit events
         const callbacks: StreamCallbacks = {
