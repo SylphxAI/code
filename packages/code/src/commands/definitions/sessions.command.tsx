@@ -54,23 +54,35 @@ export const sessionsCommand: Command = {
       <SessionSelection
         sessions={sessionData}
         onSelect={async (sessionId) => {
-          // IMPORTANT: Clear inputComponent FIRST, before setCurrentSession
-          // setCurrentSession triggers Chat re-render, which can interfere with state updates
-          context.setInputComponent(null);
+          try {
+            console.log('[sessions] onSelect called with sessionId:', sessionId);
 
-          // Use session store directly instead of useAppStore wrapper
-          const { useSessionStore } = await import('@sylphx/code-client');
-          const sessionStore = useSessionStore.getState();
+            // IMPORTANT: Clear inputComponent FIRST, before setCurrentSession
+            // setCurrentSession triggers Chat re-render, which can interfere with state updates
+            context.setInputComponent(null);
+            console.log('[sessions] inputComponent cleared');
 
-          // Switch to selected session
-          await sessionStore.setCurrentSession(sessionId);
+            // Use session store directly instead of useAppStore wrapper
+            const { useSessionStore } = await import('@sylphx/code-client');
+            const sessionStore = useSessionStore.getState();
 
-          const selectedSession = sortedSessions.find((s) => s.id === sessionId);
-          const displayName = selectedSession
-            ? formatSessionDisplay(selectedSession.title, selectedSession.created)
-            : 'Unknown session';
+            console.log('[sessions] About to call setCurrentSession');
+            // Switch to selected session
+            await sessionStore.setCurrentSession(sessionId);
+            console.log('[sessions] setCurrentSession completed');
 
-          context.addLog(`[sessions] Switched to session: ${displayName}`);
+            const selectedSession = sortedSessions.find((s) => s.id === sessionId);
+            const displayName = selectedSession
+              ? formatSessionDisplay(selectedSession.title, selectedSession.created)
+              : 'Unknown session';
+
+            context.addLog(`[sessions] Switched to session: ${displayName}`);
+            console.log('[sessions] All done');
+          } catch (error) {
+            console.error('[sessions] Error in onSelect:', error);
+            context.addLog(`[sessions] Error switching session: ${error instanceof Error ? error.message : String(error)}`);
+            context.setInputComponent(null);
+          }
         }}
         onCancel={() => {
           context.setInputComponent(null);

@@ -38,29 +38,43 @@ export const useSessionStore = create<SessionState>()(
      * Set current session and load it from database
      */
     setCurrentSession: async (sessionId) => {
+      console.log('[SessionStore] setCurrentSession called with:', sessionId);
+
       set((state) => {
         state.currentSessionId = sessionId;
         state.currentSession = null; // Clear immediately
       });
+      console.log('[SessionStore] State updated: currentSessionId set, currentSession cleared');
 
       if (!sessionId) {
+        console.log('[SessionStore] No sessionId, clearing rules');
         // Clear enabled rules when no session
         const { useSettingsStore } = await import('./settings-store.js');
         useSettingsStore.getState().setEnabledRuleIds([]);
+        console.log('[SessionStore] Done clearing');
         return;
       }
 
+      console.log('[SessionStore] Fetching session from tRPC...');
       // Fetch session from tRPC
       const client = getTRPCClient();
       const session = await client.session.getById.query({ sessionId });
+      console.log('[SessionStore] Session fetched:', {
+        id: session.id,
+        title: session.title,
+        messageCount: session.messages?.length || 0,
+      });
 
       set((state) => {
         state.currentSession = session;
       });
+      console.log('[SessionStore] State updated: currentSession set');
 
       // Load session's enabled rules into settings store
+      console.log('[SessionStore] Loading enabled rules...');
       const { useSettingsStore } = await import('./settings-store.js');
       useSettingsStore.getState().setEnabledRuleIds(session.enabledRuleIds || []);
+      console.log('[SessionStore] setCurrentSession complete');
     },
 
     /**
