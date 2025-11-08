@@ -207,8 +207,29 @@ export default function Chat(_props: ChatProps) {
   // Multi-client message sync: Subscribe to session:{id} for messages from other clients
   // Filters out own streaming messages by checking streamingMessageIdRef
   // DISABLED: TUI is single-client, no need for multi-client sync callbacks
+  // ENABLED: Title streaming callbacks (independent from AI response stream)
   const eventStreamCallbacks = useMemo(
     () => ({
+      // ENABLED: Title streaming (independent channel, no loop issues)
+      onSessionTitleStart: (sessionId: string) => {
+        if (sessionId === currentSessionId) {
+          setIsTitleStreaming(true);
+          setStreamingTitle('');
+        }
+      },
+      onSessionTitleDelta: (sessionId: string, text: string) => {
+        if (sessionId === currentSessionId) {
+          setStreamingTitle((prev) => prev + text);
+        }
+      },
+      onSessionTitleComplete: (sessionId: string, title: string) => {
+        if (sessionId === currentSessionId) {
+          setIsTitleStreaming(false);
+          setStreamingTitle('');
+        }
+      },
+
+      // DISABLED: Message sync callbacks (single-client TUI)
       onAssistantMessageCreated: (messageId: string) => {
         // DISABLED: Causes infinite loop in single-client TUI
         // Event stream replay keeps triggering addMessage() creating duplicates
@@ -241,7 +262,7 @@ export default function Chat(_props: ChatProps) {
         return;
       },
     }),
-    [addLog, addMessage, currentSessionId, isStreaming, streamingMessageIdRef]
+    [addLog, addMessage, currentSessionId, isStreaming, streamingMessageIdRef, setIsTitleStreaming, setStreamingTitle]
   );
 
   // Event stream for multi-client sync
