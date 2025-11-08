@@ -100,6 +100,10 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
   } = params;
 
   return async (userMessage: string, attachments?: FileAttachment[]) => {
+    console.log('[OPTIMISTIC] Send user message called');
+    console.log('[OPTIMISTIC] User message:', userMessage);
+    console.log('[OPTIMISTIC] Attachments:', attachments?.length || 0);
+
     logSession('Send user message called');
     logSession('User message length:', userMessage.length);
     logSession('Provider:', selectedProvider, 'Model:', selectedModel);
@@ -138,13 +142,6 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
     // Client just passes null, server handles creation
     const sessionId = currentSessionId;
 
-    // DON'T optimistically add user message - server will add it
-    // Background load (loadSessionInBackground) will fetch it
-    // Optimistic updates cause duplicates due to race condition
-
-    // DON'T set isStreaming here - wait for server event (assistant-message-created)
-    // Client is passive subscriber, all state changes driven by server events
-
     // Reset flags for new stream
     wasAbortedRef.current = false;
     lastErrorRef.current = null;
@@ -165,6 +162,105 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
       const { parts: content } = parseUserInput(userMessage, attachments || []);
 
       logSession('Parsed content:', JSON.stringify(content, null, 2));
+
+      // Optimistic update: Add user message immediately for better UX
+      // IMPORTANT: Always add optimistic message, even for new sessions!
+      // Convert ParsedContentPart to MessagePart with proper structure
+      const optimisticMessageId = `temp-user-${Date.now()}`;
+
+      logSession('Creating optimistic update:', { sessionId, hasSession: !!sessionId });
+
+      // Build MessagePart[] from content and attachments
+      console.log('[OPTIMISTIC] Content parts:', content);
+      console.log('[OPTIMISTIC] Attachments:', attachments);
+
+      const messageParts: MessagePart[] = content.map((part) => {
+        console.log('[OPTIMISTIC] Processing part:', part);
+
+        if (part.type === 'text') {
+          return {
+            type: 'text',
+            content: part.content,
+            status: 'completed' as const,
+          };
+        } else if (part.type === 'file') {
+          console.log('[OPTIMISTIC] File part:', part.relativePath);
+          // For optimistic update, create file part WITHOUT base64
+          // Server will handle actual file reading and freezing
+          // We just need to display it correctly in UI
+          const attachment = attachments?.find(a => a.relativePath === part.relativePath);
+
+          return {
+            type: 'file',
+            relativePath: part.relativePath,
+            mediaType: attachment?.mimeType || 'application/octet-stream',
+            // Use empty base64 for optimistic display - server will provide real data
+            base64: '',
+            size: part.size || attachment?.size || 0,
+            status: 'completed' as const,
+          };
+        }
+        // Shouldn't reach here, but return text fallback
+        return {
+          type: 'text',
+          content: '',
+          status: 'completed' as const,
+        };
+      });
+
+      logSession('Built message parts:', messageParts.length, 'parts');
+
+      console.log('[OPTIMISTIC] Built message parts:', messageParts);
+
+      // Add optimistic message to store (works for both existing and new sessions)
+      // IMPORTANT: Use getState() to avoid triggering re-renders during subscription setup
+      const currentState = useAppStore.getState();
+      const shouldCreateTempSession = !sessionId || !currentState.currentSession || currentState.currentSession.id !== sessionId;
+
+      console.log('[OPTIMISTIC] Should create temp session:', shouldCreateTempSession);
+
+      useAppStore.setState((state) => {
+        // For existing sessions, add to current session
+        if (sessionId && state.currentSession?.id === sessionId) {
+          console.log('[OPTIMISTIC] Adding to existing session');
+          const beforeCount = state.currentSession.messages.length;
+          state.currentSession.messages.push({
+            id: optimisticMessageId,
+            role: 'user',
+            content: messageParts,
+            timestamp: Date.now(),
+            status: 'completed',
+          });
+          logSession('Added optimistic message to existing session:', {
+            id: optimisticMessageId,
+            beforeCount,
+            afterCount: state.currentSession.messages.length,
+          });
+        } else {
+          // For new sessions or no current session, create temporary session for display
+          console.log('[OPTIMISTIC] Creating temporary session');
+          logSession('Creating temporary session for optimistic display');
+          state.currentSession = {
+            id: 'temp-session',
+            title: 'New Chat',
+            agentId: 'coder',
+            provider: provider || '',
+            model: model || '',
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            messages: [{
+              id: optimisticMessageId,
+              role: 'user',
+              content: messageParts,
+              timestamp: Date.now(),
+              status: 'completed',
+            }],
+            todos: [],
+          };
+          logSession('Created temporary session with optimistic message');
+        }
+      });
+
       logSession('Calling streamResponse subscription', {
         sessionId,
         hasProvider: !!provider,

@@ -2,6 +2,8 @@
 -- Adds normalized entity relationship fields to existing tables
 
 -- Add new columns to sessions table
+ALTER TABLE `sessions` ADD COLUMN `model_id` text;
+--> statement-breakpoint
 ALTER TABLE `sessions` ADD COLUMN `enabled_tool_ids` text;
 --> statement-breakpoint
 ALTER TABLE `sessions` ADD COLUMN `enabled_mcp_server_ids` text;

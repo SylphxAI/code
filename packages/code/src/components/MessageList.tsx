@@ -30,42 +30,177 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
           </Box>
 
           {/* Message Content (Step-based or fallback to content array) */}
-          {msg.steps && msg.steps.length > 0 ? (
-            // Step-based structure (new architecture)
-            msg.steps.flatMap((step) =>
-              step.parts.map((part, partIdx) => (
-                <MessagePart key={`${msg.id}-step-${step.stepIndex}-part-${partIdx}`} part={part} />
-              ))
-            )
-          ) : msg.content && msg.content.length > 0 ? (
-            // Legacy content array (fallback for streaming or old messages)
-            msg.content.map((part, partIdx) => (
-              <MessagePart key={`${msg.id}-part-${partIdx}`} part={part} />
-            ))
-          ) : msg.status === 'active' ? (
-            // Active message with no content yet
-            <Box paddingX={1} marginLeft={2}>
-              <Text dimColor>...</Text>
-            </Box>
-          ) : null}
+          {msg.role === 'user' ? (
+            // User message: reconstruct original text with inline @file highlighting
+            msg.steps && msg.steps.length > 0 ? (
+              <Box marginLeft={2} paddingY={1} flexDirection="column">
+                {(() => {
+                  // Reconstruct original text from parts
+                  const parts = msg.steps.flatMap(step => step.parts);
+                  let fullText = '';
+                  const fileMap = new Map<string, boolean>();
 
-          {/* Attachments (for user messages) */}
-          {msg.role === 'user' &&
-            msg.attachments &&
-            msg.attachments.length > 0 &&
-            msg.attachments.map((att) => (
-              <Box key={`att-${att.path}`} marginLeft={2}>
-                <Text dimColor>Attached(</Text>
-                <Text color="#00D9FF">{att.relativePath}</Text>
-                <Text dimColor>)</Text>
-                {attachmentTokens.has(att.path) && (
-                  <>
-                    <Text dimColor> </Text>
-                    <Text dimColor>{formatTokenCount(attachmentTokens.get(att.path)!)} Tokens</Text>
-                  </>
-                )}
+                  for (const part of parts) {
+                    if (part.type === 'text') {
+                      fullText += part.content;
+                    } else if (part.type === 'file') {
+                      fullText += `@${part.relativePath}`;
+                      fileMap.set(part.relativePath, true);
+                    } else if (part.type === 'error') {
+                      fullText += `[Error: ${part.error}]`;
+                    }
+                  }
+
+                  // Split by newlines to preserve line breaks
+                  const lines = fullText.split('\n');
+
+                  return lines.map((line, lineIdx) => {
+                    // Parse each line to find @file references
+                    const segments: Array<{ text: string; isFile: boolean }> = [];
+                    const fileRegex = /@([^\s]+)/g;
+                    let lastIndex = 0;
+                    let match;
+
+                    while ((match = fileRegex.exec(line)) !== null) {
+                      const matchStart = match.index;
+                      const fileName = match[1];
+
+                      // Add text before @file
+                      if (matchStart > lastIndex) {
+                        segments.push({ text: line.slice(lastIndex, matchStart), isFile: false });
+                      }
+
+                      // Add @file reference (only highlight if it's an actual attached file)
+                      segments.push({
+                        text: `@${fileName}`,
+                        isFile: fileMap.has(fileName)
+                      });
+
+                      lastIndex = match.index + match[0].length;
+                    }
+
+                    // Add remaining text
+                    if (lastIndex < line.length) {
+                      segments.push({ text: line.slice(lastIndex), isFile: false });
+                    }
+
+                    // Render line with highlighted segments
+                    return (
+                      <Box key={`line-${lineIdx}`} flexDirection="row" flexWrap="wrap">
+                        {segments.map((seg, segIdx) =>
+                          seg.isFile ? (
+                            <Text key={`line-${lineIdx}-seg-${segIdx}`} backgroundColor="#1a472a" color="#00FF88">
+                              {seg.text}
+                            </Text>
+                          ) : (
+                            <Text key={`line-${lineIdx}-seg-${segIdx}`}>{seg.text}</Text>
+                          )
+                        )}
+                      </Box>
+                    );
+                  });
+                })()}
               </Box>
-            ))}
+            ) : msg.content && msg.content.length > 0 ? (
+              <Box marginLeft={2} paddingY={1} flexDirection="column">
+                {(() => {
+                  // Same logic for legacy content array
+                  let fullText = '';
+                  const fileMap = new Map<string, boolean>();
+
+                  for (const part of msg.content) {
+                    if (part.type === 'text') {
+                      fullText += part.content;
+                    } else if (part.type === 'file') {
+                      fullText += `@${part.relativePath}`;
+                      fileMap.set(part.relativePath, true);
+                    } else if (part.type === 'error') {
+                      fullText += `[Error: ${part.error}]`;
+                    }
+                  }
+
+                  const lines = fullText.split('\n');
+
+                  return lines.map((line, lineIdx) => {
+                    const segments: Array<{ text: string; isFile: boolean }> = [];
+                    const fileRegex = /@([^\s]+)/g;
+                    let lastIndex = 0;
+                    let match;
+
+                    while ((match = fileRegex.exec(line)) !== null) {
+                      const matchStart = match.index;
+                      const fileName = match[1];
+
+                      if (matchStart > lastIndex) {
+                        segments.push({ text: line.slice(lastIndex, matchStart), isFile: false });
+                      }
+
+                      segments.push({
+                        text: `@${fileName}`,
+                        isFile: fileMap.has(fileName)
+                      });
+
+                      lastIndex = match.index + match[0].length;
+                    }
+
+                    if (lastIndex < line.length) {
+                      segments.push({ text: line.slice(lastIndex), isFile: false });
+                    }
+
+                    return (
+                      <Box key={`legacy-line-${lineIdx}`} flexDirection="row" flexWrap="wrap">
+                        {segments.map((seg, segIdx) =>
+                          seg.isFile ? (
+                            <Text key={`legacy-line-${lineIdx}-seg-${segIdx}`} backgroundColor="#1a472a" color="#00FF88">
+                              {seg.text}
+                            </Text>
+                          ) : (
+                            <Text key={`legacy-line-${lineIdx}-seg-${segIdx}`}>{seg.text}</Text>
+                          )
+                        )}
+                      </Box>
+                    );
+                  });
+                })()}
+              </Box>
+            ) : null
+          ) : (
+            // Assistant message: render each part separately (tools, reasoning, files, etc.)
+            msg.steps && msg.steps.length > 0 ? (
+              (() => {
+                // Flatten all parts with globally unique index
+                let globalPartIndex = 0;
+                return msg.steps.flatMap((step) =>
+                  step.parts.map((part) => (
+                    <MessagePart key={`${msg.id}-part-${globalPartIndex++}`} part={part} />
+                  ))
+                );
+              })()
+            ) : msg.content && msg.content.length > 0 ? (
+              msg.content.map((part, partIdx) => (
+                <MessagePart key={`${msg.id}-part-${partIdx}`} part={part} />
+              ))
+            ) : msg.status === 'active' ? (
+              <Box paddingX={1} marginLeft={2}>
+                <Text dimColor>...</Text>
+              </Box>
+            ) : null
+          )}
+
+          {/* Attachments (for user messages) - extracted from steps.parts or content */}
+          {msg.role === 'user' && (() => {
+            // Extract file parts from steps or content
+            const fileParts = msg.steps && msg.steps.length > 0
+              ? msg.steps.flatMap(step => step.parts).filter(part => part.type === 'file')
+              : msg.content ? msg.content.filter(part => part.type === 'file') : [];
+
+            return fileParts.map((filePart, idx) => (
+              <Box key={`${msg.id}-file-${idx}`} marginLeft={2} marginBottom={1}>
+                <Text color="#00FF88">✓ </Text>
+                <Text bold>Read {filePart.relativePath}</Text>
+              </Box>
+            ));
+          })()}
 
           {/* Footer (for assistant messages) */}
           {msg.role === 'assistant' &&

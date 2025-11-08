@@ -79,15 +79,24 @@ function handleSessionCreated(event: Extract<StreamEvent, { type: 'session-creat
   context.addLog(`[Session] Created: ${event.sessionId}`);
 
   // Create skeleton session immediately
+  // IMPORTANT: Preserve optimistic messages from temporary session
   useAppStore.setState((state) => {
     state.currentSessionId = event.sessionId;
+
+    // Check if there's a temporary session with optimistic messages
+    const optimisticMessages = state.currentSession?.id === 'temp-session'
+      ? state.currentSession.messages
+      : [];
+
+    logSession('Creating session, preserving optimistic messages:', optimisticMessages.length);
+
     state.currentSession = {
       id: event.sessionId,
       provider: event.provider,
       model: event.model,
       agentId: 'coder',
       enabledRuleIds: [],
-      messages: [],
+      messages: optimisticMessages, // Preserve optimistic messages
       todos: [],
       nextTodoId: 1,
       created: Date.now(),
@@ -95,7 +104,7 @@ function handleSessionCreated(event: Extract<StreamEvent, { type: 'session-creat
     };
   });
 
-  logSession('Created skeleton session:', event.sessionId);
+  logSession('Created session with optimistic messages:', event.sessionId);
 }
 
 function handleSessionDeleted(event: Extract<StreamEvent, { type: 'session-deleted' }>, context: EventHandlerContext) {
@@ -187,14 +196,26 @@ function handleUserMessageCreated(event: Extract<StreamEvent, { type: 'user-mess
   useAppStore.setState((state) => {
     const session = state.currentSession;
     if (session && session.id === currentSessionId) {
-      session.messages.push({
-        id: event.messageId,
-        role: 'user',
-        content: [{ type: 'text', content: event.content, status: 'completed' }],
-        timestamp: Date.now(),
-        status: 'completed',
-      });
-      logMessage('Added user message, total:', session.messages.length);
+      // Find and replace optimistic message (temp-user-*)
+      const optimisticIndex = session.messages.findIndex(
+        m => m.role === 'user' && m.id.startsWith('temp-user-')
+      );
+
+      if (optimisticIndex !== -1) {
+        // Replace optimistic message ID with server's ID
+        session.messages[optimisticIndex].id = event.messageId;
+        logMessage('Replaced optimistic message with server ID:', event.messageId);
+      } else {
+        // No optimistic message found (shouldn't happen), add new message
+        session.messages.push({
+          id: event.messageId,
+          role: 'user',
+          content: [{ type: 'text', content: event.content, status: 'completed' }],
+          timestamp: Date.now(),
+          status: 'completed',
+        });
+        logMessage('Added user message (no optimistic found), total:', session.messages.length);
+      }
     } else {
       logMessage('Session mismatch! expected:', currentSessionId, 'got:', session?.id);
     }

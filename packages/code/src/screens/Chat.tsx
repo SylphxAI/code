@@ -275,6 +275,7 @@ export default function Chat(_props: ChatProps) {
   });
 
   // Create sendUserMessageToAI function using new subscription adapter
+  console.log('[Chat] Creating sendUserMessageToAI callback');
   const sendUserMessageToAI = useCallback(
     createSubscriptionSendUserMessageToAI({
       aiConfig,
