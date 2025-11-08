@@ -23,6 +23,11 @@ export interface AppEvents {
   'session:created': { sessionId: string; enabledRuleIds: string[] };
   'session:changed': { sessionId: string | null };
   'session:rulesUpdated': { sessionId: string; enabledRuleIds: string[] };
+  'session:loaded': { sessionId: string; enabledRuleIds: string[] }; // Server fetch complete
+
+  // Streaming events
+  'streaming:started': { sessionId: string; messageId: string };
+  'streaming:completed': { sessionId: string; messageId: string };
 
   // Settings events
   'settings:agentChanged': { agentId: string };

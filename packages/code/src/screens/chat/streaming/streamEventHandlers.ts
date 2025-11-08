@@ -11,7 +11,7 @@
  * - Clean, direct state mutations
  */
 
-import { useSessionStore } from '@sylphx/code-client';
+import { useSessionStore, eventBus } from '@sylphx/code-client';
 import type { AIConfig, Message, MessagePart, TokenUsage } from '@sylphx/code-core';
 import { createLogger } from '@sylphx/code-core';
 import type { StreamEvent } from '@sylphx/code-server';
@@ -266,6 +266,14 @@ function handleAssistantMessageCreated(event: Extract<StreamEvent, { type: 'assi
 
   // Start streaming UI
   context.setIsStreaming(true);
+
+  // Emit streaming:started event for store coordination
+  if (state.currentSessionId) {
+    eventBus.emit('streaming:started', {
+      sessionId: state.currentSessionId,
+      messageId: event.messageId,
+    });
+  }
 
   if (!state.currentSession || state.currentSession.id !== state.currentSessionId) {
     logMessage('Session mismatch! expected:', state.currentSessionId, 'got:', state.currentSession?.id);

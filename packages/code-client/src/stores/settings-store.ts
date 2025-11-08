@@ -92,6 +92,11 @@ eventBus.on('session:created', ({ enabledRuleIds }) => {
   useSettingsStore.setState({ enabledRuleIds });
 });
 
+eventBus.on('session:loaded', ({ enabledRuleIds }) => {
+  // Update settings when session loaded from server
+  useSettingsStore.setState({ enabledRuleIds });
+});
+
 eventBus.on('session:rulesUpdated', ({ enabledRuleIds }) => {
   // Update settings when current session's rules change
   useSettingsStore.setState({ enabledRuleIds });

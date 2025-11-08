@@ -23,9 +23,13 @@ export interface SessionState {
   // and cleared when server data is fetched
   currentSession: Session | null;
 
+  // Streaming State: Track if currently streaming to prevent server data overwrites
+  isStreaming: boolean;
+
   // UI Actions: Simple state setters (synchronous)
   setCurrentSessionId: (sessionId: string | null) => void;
   setCurrentSession: (session: Session | null) => void;
+  setIsStreaming: (isStreaming: boolean) => void;
 
   // Server Actions: Delegate to tRPC (return sessionId for convenience)
   createSession: (provider: ProviderId, model: string, agentId?: string, enabledRuleIds?: string[]) => Promise<string>;
@@ -39,6 +43,7 @@ export interface SessionState {
 export const useSessionStore = create<SessionState>((set, get) => ({
   currentSessionId: null,
   currentSession: null,
+  isStreaming: false,
 
   /**
    * Set current session ID (pure UI state)
@@ -57,6 +62,13 @@ export const useSessionStore = create<SessionState>((set, get) => ({
    */
   setCurrentSession: (session) => {
     set({ currentSession: session });
+  },
+
+  /**
+   * Set streaming state (prevents server data overwrites during streaming)
+   */
+  setIsStreaming: (isStreaming) => {
+    set({ isStreaming });
   },
 
   /**
@@ -143,3 +155,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     await client.session.delete.mutate({ sessionId });
   },
 }));
+
+// Subscribe to streaming events to track streaming state
+eventBus.on('streaming:started', () => {
+  useSessionStore.setState({ isStreaming: true });
+});
+
+eventBus.on('streaming:completed', () => {
+  useSessionStore.setState({ isStreaming: false });
+});

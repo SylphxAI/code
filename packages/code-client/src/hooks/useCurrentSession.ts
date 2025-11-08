@@ -2,22 +2,23 @@
  * useCurrentSession Hook
  * Fetches current session data from server using tRPC
  *
- * Hybrid Architecture:
- * - Store has currentSessionId (UI state) and currentSession (optimistic state)
- * - Prioritizes optimistic store data for instant UI updates
- * - Falls back to server fetch when optimistic data unavailable
- * - Server data replaces optimistic data after fetch
+ * Pure Data Fetching Hook:
+ * - Fetches session from server when currentSessionId changes
+ * - Respects streaming state (won't overwrite optimistic data during streaming)
+ * - Emits events for cross-store communication (no direct store imports)
+ * - Simple, focused responsibility: fetch data and emit events
  */
 
 import { useEffect, useState } from 'react';
 import type { Session } from '@sylphx/code-core';
 import { getTRPCClient } from '../trpc-provider.js';
 import { useSessionStore } from '../stores/session-store.js';
+import { eventBus } from '../lib/event-bus.js';
 
 export function useCurrentSession() {
   const currentSessionId = useSessionStore((state) => state?.currentSessionId ?? null);
   const optimisticSession = useSessionStore((state) => state?.currentSession ?? null);
-  const setCurrentSession = useSessionStore((state) => state?.setCurrentSession);
+  const isStreaming = useSessionStore((state) => state?.isStreaming ?? false);
 
   const [serverSession, setServerSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,36 +48,25 @@ export function useCurrentSession() {
         setServerSession(session);
         setIsLoading(false);
 
-        // Replace optimistic data with server data
-        // IMPORTANT: Don't include setCurrentSession in dependencies to avoid infinite loop
+        // Only update store and emit events if not streaming
+        // During streaming, optimistic data is authoritative
         const store = useSessionStore.getState();
-        if (store.setCurrentSession) {
-          // ⚠️ CRITICAL: Don't overwrite currentSession if there's an active assistant message (streaming in progress)
-          // During streaming, the optimistic assistant message is in memory but not yet in the database,
-          // so server data will be stale. We must preserve the optimistic data until streaming completes.
-          const hasActiveAssistantMessage = store.currentSession?.messages?.some(
-            m => m.role === 'assistant' && m.status === 'active'
-          );
-
-          if (hasActiveAssistantMessage) {
-            // Don't overwrite - streaming is in progress
-            return;
-          }
-
+        if (!store.isStreaming && store.setCurrentSession) {
           // Safe to replace with server data
           store.setCurrentSession(session);
-        }
 
-        // Load session's enabled rules into settings store
-        import('../stores/settings-store.js').then(({ useSettingsStore }) => {
-          useSettingsStore.getState().setEnabledRuleIds(session.enabledRuleIds || []);
-        });
+          // Emit event for other stores to react (e.g., settings store updates rules)
+          eventBus.emit('session:loaded', {
+            sessionId: session.id,
+            enabledRuleIds: session.enabledRuleIds || [],
+          });
+        }
       })
       .catch((err) => {
         setError(err as Error);
         setIsLoading(false);
       });
-  }, [currentSessionId]);  // ONLY depend on currentSessionId to prevent infinite loop
+  }, [currentSessionId]);
 
   // Return optimistic data if available (instant UI), otherwise server data
   const currentSession = optimisticSession || serverSession;
@@ -84,6 +74,7 @@ export function useCurrentSession() {
   return {
     currentSession,
     currentSessionId,
+    isStreaming,
     isLoading,
     error,
   };

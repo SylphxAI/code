@@ -41,6 +41,11 @@ export { useSessionStore, type SessionState } from './stores/session-store.js'
 export { useMessageStore, type MessageState } from './stores/message-store.js'
 
 // ============================================================================
+// Event Bus
+// ============================================================================
+export { eventBus, type AppEvents } from './lib/event-bus.js'
+
+// ============================================================================
 // Types (re-exported from dependencies)
 // ============================================================================
 export type { Session, MessagePart } from '@sylphx/code-core'

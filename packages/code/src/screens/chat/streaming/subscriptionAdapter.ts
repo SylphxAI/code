@@ -20,7 +20,7 @@
  * - All state changes are event-driven in switch/case handlers
  */
 
-import { getTRPCClient, useSessionStore, parseUserInput } from '@sylphx/code-client';
+import { getTRPCClient, useSessionStore, parseUserInput, eventBus } from '@sylphx/code-client';
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from '@sylphx/code-core';
 import { createLogger } from '@sylphx/code-core';
 import type { StreamEvent } from '@sylphx/code-server';
@@ -532,6 +532,15 @@ async function cleanupAfterStream(context: {
     // ALWAYS reset streaming state, even if cleanup fails
     try {
       context.setIsStreaming(false);
+
+      // Emit streaming:completed event for store coordination
+      const state = useSessionStore.getState();
+      if (state.currentSessionId && context.streamingMessageIdRef.current) {
+        eventBus.emit('streaming:completed', {
+          sessionId: state.currentSessionId,
+          messageId: context.streamingMessageIdRef.current,
+        });
+      }
     } catch (setStateError) {
       console.error('[cleanupAfterStream] Failed to set isStreaming to false:', setStateError);
     }
