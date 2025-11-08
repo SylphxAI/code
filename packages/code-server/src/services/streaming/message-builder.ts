@@ -42,13 +42,6 @@ function buildUserMessage(msg: Message, modelCapabilities?: ModelCapabilities): 
   const supportsFileInput = modelCapabilities?.has('file-input') || false;
   const supportsImageInput = modelCapabilities?.has('image-input') || false;
 
-  // DEBUG: Log capabilities
-  console.log('[buildUserMessage] Model capabilities:', {
-    has: modelCapabilities ? Array.from(modelCapabilities) : null,
-    supportsFileInput,
-    supportsImageInput,
-  });
-
   // Inject system status from metadata
   if (msg.metadata) {
     const systemStatusString = buildSystemStatusFromMetadata({
@@ -81,15 +74,6 @@ function buildUserMessage(msg: Message, modelCapabilities?: ModelCapabilities): 
           // Determine if we can send as FilePart
           const canSendAsFile = supportsFileInput || (isImage && supportsImageInput);
 
-          console.log('[buildUserMessage] Processing file part:', {
-            relativePath: part.relativePath,
-            mediaType: part.mediaType,
-            isImage,
-            canSendAsFile,
-            supportsFileInput,
-            supportsImageInput,
-          });
-
           if (canSendAsFile) {
             // Model supports this file type - send as FilePart
             const filePart = {
@@ -98,16 +82,6 @@ function buildUserMessage(msg: Message, modelCapabilities?: ModelCapabilities): 
               mediaType: part.mediaType,
               filename: part.relativePath,
             };
-
-            console.log('[buildUserMessage] Sending file as FilePart:', {
-              type: filePart.type,
-              mediaType: filePart.mediaType,
-              filename: filePart.filename,
-              dataType: typeof filePart.data,
-              dataIsBuffer: Buffer.isBuffer(filePart.data),
-              dataLength: filePart.data.length,
-              preview: buffer.toString('utf-8', 0, 100), // First 100 chars
-            });
 
             contentParts.push(filePart);
           } else {
@@ -134,12 +108,6 @@ function buildUserMessage(msg: Message, modelCapabilities?: ModelCapabilities): 
       }
     }
   }
-
-  console.log('[buildUserMessage] Final contentParts:', {
-    count: contentParts.length,
-    types: contentParts.map(p => p.type),
-    hasFileWithData: contentParts.some(p => p.type === 'file' && (p as any).data),
-  });
 
   return { role: msg.role as 'user', content: contentParts };
 }
