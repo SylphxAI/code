@@ -37,7 +37,9 @@ export function useCommandAutocomplete(
     const parts = input.split(' ');
     const commandName = parts[0];
 
-    const matchedCommand = commands.find((cmd) => cmd.label === commandName);
+    const matchedCommand = commands.find(
+      (cmd) => cmd.label === commandName || cmd.aliases?.includes(commandName)
+    );
 
     // Multi-level autocomplete: if command has args and user is typing args
     if (matchedCommand && matchedCommand.args && parts.length > 1) {
@@ -85,15 +87,20 @@ export function useCommandAutocomplete(
     }
 
     // Command filtering with priority:
-    // 1. Commands where label matches (exact command name match)
+    // 1. Commands where label or aliases match (exact command name match)
     // 2. Commands where description matches (secondary)
     const query = input.slice(1).toLowerCase();
 
-    const labelMatches = commands.filter((cmd) => cmd.label.toLowerCase().includes(`/${query}`));
+    const labelMatches = commands.filter(
+      (cmd) =>
+        cmd.label.toLowerCase().includes(`/${query}`) ||
+        cmd.aliases?.some((alias) => alias.toLowerCase().includes(`/${query}`))
+    );
 
     const descriptionMatches = commands.filter(
       (cmd) =>
         !cmd.label.toLowerCase().includes(`/${query}`) &&
+        !cmd.aliases?.some((alias) => alias.toLowerCase().includes(`/${query}`)) &&
         cmd.description.toLowerCase().includes(query)
     );
 

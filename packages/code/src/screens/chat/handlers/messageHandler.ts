@@ -217,9 +217,11 @@ export function createHandleSubmit(params: MessageHandlerParams) {
       const commandName = parts[0];
       const args = parts.slice(1);
 
-      // Find matching command
+      // Find matching command (check both label and aliases)
       const commands = getCommands();
-      const command = commands.find((cmd) => cmd.label === commandName);
+      const command = commands.find(
+        (cmd) => cmd.label === commandName || cmd.aliases?.includes(commandName)
+      );
 
       if (!command) {
         // Unknown command - add to conversation
