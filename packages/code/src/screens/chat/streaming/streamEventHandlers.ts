@@ -77,7 +77,7 @@ export function updateActiveMessageContent(
   // IMMUTABLE UPDATE: Create new messages array with updated content
   const updatedMessages = session.messages.map(msg =>
     msg.id === activeMessage.id
-      ? { ...msg, content: updater(msg.content) }
+      ? { ...msg, content: updater(msg.content || []) }  // Ensure content is array
       : msg
   );
 
