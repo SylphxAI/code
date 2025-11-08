@@ -284,7 +284,6 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
             logSession('Subscription started successfully');
           },
           onData: (event: StreamEvent) => {
-            console.log('[SubscriptionAdapter] onData received event:', event.type);
             logMessage('Received event:', event.type);
             handleStreamEvent(event, {
               currentSessionId: sessionId,

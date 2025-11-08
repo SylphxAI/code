@@ -362,12 +362,10 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         const isFirstMessage =
           updatedSession.messages.filter((m) => m.role === 'user').length === 1;
 
+        // Title generation (runs independently in background, publishes to eventStream)
         let titlePromise: Promise<string | null> = Promise.resolve(null);
 
         if (needsTitleGeneration(updatedSession, isNewSession, isFirstMessage)) {
-          console.log('[StreamAI] Starting title generation (will publish to eventStream)');
-          // Title generation publishes directly to eventStream (independent channel)
-          // No callbacks needed - title events flow through eventStream, not tRPC subscription
           titlePromise = generateSessionTitle(
             opts.appContext,
             sessionRepository,
@@ -375,8 +373,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
             updatedSession,
             userMessageText
           );
-        } else {
-          console.log('[StreamAI] Skipping title generation (not needed)');
         }
 
         // 10. Process stream and emit events

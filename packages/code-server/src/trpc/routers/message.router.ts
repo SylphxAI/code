@@ -372,8 +372,6 @@ export const messageRouter = router({
               eventSessionId = event.sessionId;
             }
 
-            console.log('[MessageRouter] Forwarding event to subscriber:', event.type);
-
             // Publish event to event stream (for replay and multi-client support)
             if (eventSessionId) {
               ctx.appContext.eventStream.publish(`session:${eventSessionId}`, event).catch(err => {

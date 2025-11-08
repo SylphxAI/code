@@ -75,34 +75,23 @@ Now generate the title:`,
     let fullTitle = '';
 
     // Emit start event
-    // If callbacks provided (TUI), emit via callback (message router will publish to eventStream)
-    // If no callbacks (direct eventStream consumer), publish to eventStream
     if (callbacks) {
-      console.log('[Title] Emitting START via callback');
       callbacks.onStart();
     } else {
-      console.log('[Title] Publishing START to eventStream');
       const startEvent = { type: 'session-title-updated-start' as const, sessionId: session.id };
       await appContext.eventStream.publish(`session:${session.id}`, startEvent);
     }
 
-    // Stream title chunks (wrap in try-catch to catch flush/finalize errors)
-    console.log('[Title] Starting to consume titleStream...');
+    // Stream title chunks
     try {
-      let chunkCount = 0;
       for await (const chunk of titleStream) {
-        chunkCount++;
-        console.log('[Title] Received chunk #', chunkCount, ':', JSON.stringify(chunk));
-
         if (chunk.type === 'text-delta' && chunk.textDelta) {
           fullTitle += chunk.textDelta;
 
           // Emit delta
           if (callbacks) {
-            console.log('[Title] Emitting DELTA via callback:', chunk.textDelta);
             callbacks.onDelta(chunk.textDelta);
           } else {
-            console.log('[Title] Publishing DELTA to eventStream:', chunk.textDelta);
             const deltaEvent = {
               type: 'session-title-updated-delta' as const,
               sessionId: session.id,
@@ -112,37 +101,26 @@ Now generate the title:`,
           }
         }
       }
-      console.log('[Title] titleStream completed, total chunks:', chunkCount, 'fullTitle:', fullTitle);
     } catch (streamError) {
       // Catch NoOutputGeneratedError and other stream errors
       console.error('[Title Generation] Stream error:', streamError);
-      console.error('[Title Generation] Error stack:', streamError instanceof Error ? streamError.stack : 'N/A');
       // If stream failed, use a default title based on first message
       if (fullTitle.length === 0) {
-        console.log('[Title] Using fallback title from user message');
         fullTitle = userMessage.slice(0, 50);
       }
     }
 
-    console.log('[Title] After stream loop, fullTitle length:', fullTitle.length);
-
     // Clean up and update database (only if we got some title)
     if (fullTitle.length > 0) {
-      console.log('[Title] Cleaning title:', fullTitle);
       const cleaned = cleanAITitle(fullTitle, 50);
-      console.log('[Title] Cleaned title:', cleaned);
 
       try {
-        console.log('[Title] Saving title to database...');
         await sessionRepository.updateSession(session.id, { title: cleaned });
-        console.log('[Title] Title saved to database');
 
         // Emit end event
         if (callbacks) {
-          console.log('[Title] Emitting END via callback:', cleaned);
           callbacks.onEnd(cleaned);
         } else {
-          console.log('[Title] Publishing END to eventStream:', cleaned);
           const endEvent = {
             type: 'session-title-updated-end' as const,
             sessionId: session.id,
@@ -150,7 +128,6 @@ Now generate the title:`,
           };
           await appContext.eventStream.publish(`session:${session.id}`, endEvent);
         }
-        console.log('[Title] Title generation complete:', cleaned);
         return cleaned;
       } catch (dbError) {
         console.error('[Title Generation] Failed to save title:', dbError);
@@ -158,7 +135,6 @@ Now generate the title:`,
       }
     }
 
-    console.log('[Title] No title generated (fullTitle was empty)');
     return null;
   } catch (error) {
     console.error('[Title Generation] Error:', error);
