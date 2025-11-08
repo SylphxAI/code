@@ -68,6 +68,12 @@ export default function Chat(_props: ChatProps) {
   // DO NOT use useAppStore for functions - it creates new references on every render
   const currentSessionId = useSessionStore((state) => state.currentSessionId);
   const currentSession = useSessionStore((state) => state.currentSession);
+
+  console.log('[Chat] Render - currentSession:', currentSession ? {
+    id: currentSession.id,
+    title: currentSession.title,
+    messageCount: currentSession.messages?.length || 0,
+  } : null);
   const createSession = useSessionStore((state) => state.createSession);
   const updateSessionModel = useSessionStore((state) => state.updateSessionModel);
   const updateSessionProvider = useSessionStore((state) => state.updateSessionProvider);
