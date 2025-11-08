@@ -74,6 +74,13 @@ export async function generateSessionTitle(
     // Stream title chunks
     try {
       for await (const chunk of titleStream) {
+        // Skip reasoning chunks - title generation should not reason
+        // This prevents 4+ second delay while AI "thinks" about the title
+        // Note: AI still generates these chunks (costs time/tokens), we just don't emit them
+        if (chunk.type === 'reasoning-start' || chunk.type === 'reasoning-delta' || chunk.type === 'reasoning-end') {
+          continue;
+        }
+
         if (chunk.type === 'text-delta' && chunk.textDelta) {
           fullTitle += chunk.textDelta;
 
