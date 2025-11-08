@@ -20,7 +20,7 @@
  * - All state changes are event-driven in switch/case handlers
  */
 
-import { getTRPCClient, useAppStore, parseUserInput } from '@sylphx/code-client';
+import { getTRPCClient, useAppStore, useSessionStore, parseUserInput } from '@sylphx/code-client';
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from '@sylphx/code-core';
 import { createLogger } from '@sylphx/code-core';
 import type { StreamEvent } from '@sylphx/code-server';
@@ -214,12 +214,12 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
       // Add optimistic message to store (works for both existing and new sessions)
       // IMPORTANT: Use getState() to avoid triggering re-renders during subscription setup
-      const currentState = useAppStore.getState();
+      const currentState = useSessionStore.getState();
       const shouldCreateTempSession = !sessionId || !currentState.currentSession || currentState.currentSession.id !== sessionId;
 
       console.log('[OPTIMISTIC] Should create temp session:', shouldCreateTempSession);
 
-      useAppStore.setState((state) => {
+      useSessionStore.setState((state) => {
         // For existing sessions, add to current session
         if (sessionId && state.currentSession?.id === sessionId) {
           console.log('[OPTIMISTIC] Adding to existing session');

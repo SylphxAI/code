@@ -6,18 +6,25 @@
  * - Store ONLY stores currentSessionId (a simple string)
  * - All data fetching handled by tRPC React Query (server is source of truth)
  * - No business logic in client - just UI state
+ * - PLUS: Optimistic currentSession for instant UI updates during streaming
  */
 
 import { create } from 'zustand';
-import type { ProviderId } from '@sylphx/code-core';
+import type { ProviderId, Session } from '@sylphx/code-core';
 import { getTRPCClient } from '../trpc-provider.js';
 
 export interface SessionState {
   // UI State: Which session is currently being viewed
   currentSessionId: string | null;
 
+  // Optimistic State: Current session data for instant UI updates
+  // This is set during optimistic updates (before server confirms)
+  // and cleared when server data is fetched
+  currentSession: Session | null;
+
   // UI Actions: Simple state setters (synchronous)
   setCurrentSessionId: (sessionId: string | null) => void;
+  setCurrentSession: (session: Session | null) => void;
 
   // Server Actions: Delegate to tRPC (return sessionId for convenience)
   createSession: (provider: ProviderId, model: string) => Promise<string>;
@@ -30,6 +37,7 @@ export interface SessionState {
 
 export const useSessionStore = create<SessionState>((set, get) => ({
   currentSessionId: null,
+  currentSession: null,
 
   /**
    * Set current session ID (pure UI state)
@@ -44,6 +52,14 @@ export const useSessionStore = create<SessionState>((set, get) => ({
         useSettingsStore.getState().setEnabledRuleIds([]);
       });
     }
+  },
+
+  /**
+   * Set current session (optimistic state for instant UI updates)
+   * Used during streaming to show messages immediately
+   */
+  setCurrentSession: (session) => {
+    set({ currentSession: session });
   },
 
   /**
