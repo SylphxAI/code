@@ -62,28 +62,28 @@ interface ChatProps {
 
 export default function Chat(_props: ChatProps) {
   // Store selectors
-  const addDebugLog = useAppStore((state) => state.addDebugLog);
-  const navigateTo = useAppStore((state) => state.navigateTo);
-  const aiConfig = useAppStore((state) => state.aiConfig);
+  const addDebugLog = useAppStore((state) => state?.addDebugLog);
+  const navigateTo = useAppStore((state) => state?.navigateTo);
+  const aiConfig = useAppStore((state) => state?.aiConfig);
 
   // Pure UI Client: Use hook to fetch session data from server
   const { currentSession, currentSessionId, isLoading: sessionLoading } = useCurrentSession();
 
   // Server actions
-  const createSession = useSessionStore((state) => state.createSession);
-  const updateSessionModel = useSessionStore((state) => state.updateSessionModel);
-  const updateSessionProvider = useSessionStore((state) => state.updateSessionProvider);
-  const updateSessionTitle = useSessionStore((state) => state.updateSessionTitle);
-  const setCurrentSessionId = useSessionStore((state) => state.setCurrentSessionId);
-  const addMessage = useMessageStore((state) => state.addMessage);
-  const updateProvider = useAppStore((state) => state.updateProvider);
-  const setAIConfig = useAppStore((state) => state.setAIConfig);
-  const setSelectedProvider = useAppStore((state) => state.setSelectedProvider);
-  const setSelectedModel = useAppStore((state) => state.setSelectedModel);
-  const updateNotificationSettings = useAppStore((state) => state.updateNotificationSettings);
-  const notificationSettings = useAppStore((state) => state.notificationSettings);
-  const selectedProvider = useAppStore((state) => state.selectedProvider);
-  const selectedModel = useAppStore((state) => state.selectedModel);
+  const createSession = useSessionStore((state) => state?.createSession);
+  const updateSessionModel = useSessionStore((state) => state?.updateSessionModel);
+  const updateSessionProvider = useSessionStore((state) => state?.updateSessionProvider);
+  const updateSessionTitle = useSessionStore((state) => state?.updateSessionTitle);
+  const setCurrentSessionId = useSessionStore((state) => state?.setCurrentSessionId);
+  const addMessage = useMessageStore((state) => state?.addMessage);
+  const updateProvider = useAppStore((state) => state?.updateProvider);
+  const setAIConfig = useAppStore((state) => state?.setAIConfig);
+  const setSelectedProvider = useAppStore((state) => state?.setSelectedProvider);
+  const setSelectedModel = useAppStore((state) => state?.setSelectedModel);
+  const updateNotificationSettings = useAppStore((state) => state?.updateNotificationSettings);
+  const notificationSettings = useAppStore((state) => state?.notificationSettings);
+  const selectedProvider = useAppStore((state) => state?.selectedProvider);
+  const selectedModel = useAppStore((state) => state?.selectedModel);
 
   // Helper function (memoized to prevent infinite re-renders)
   const addLog = useCallback((message: string) => {
