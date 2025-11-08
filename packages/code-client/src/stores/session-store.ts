@@ -28,8 +28,9 @@ export interface SessionState {
   deleteSession: (sessionId: string) => Promise<void>;
 }
 
-export const useSessionStore = create<SessionState>((set, get) => ({
-  currentSessionId: null,
+export const useSessionStore = create<SessionState>()(
+  (set, get) => ({
+    currentSessionId: null,
 
   /**
    * Set current session ID (pure UI state)
@@ -128,4 +129,5 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     const client = getTRPCClient();
     await client.session.delete.mutate({ sessionId });
   },
-}));
+})
+);
