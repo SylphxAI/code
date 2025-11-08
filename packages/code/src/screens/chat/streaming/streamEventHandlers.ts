@@ -4,10 +4,15 @@
  *
  * Each event type has its own dedicated handler function.
  * This replaces the large switch statement with a cleaner, more maintainable approach.
+ *
+ * ARCHITECTURE: Direct SessionStore updates (no AppStore wrapper)
+ * - All session data managed by useSessionStore
+ * - Immutable updates only (no Immer middleware)
+ * - Clean, direct state mutations
  */
 
-import { useAppStore } from '@sylphx/code-client';
-import type { AIConfig, MessagePart, TokenUsage } from '@sylphx/code-core';
+import { useSessionStore } from '@sylphx/code-client';
+import type { AIConfig, Message, MessagePart, TokenUsage } from '@sylphx/code-core';
 import { createLogger } from '@sylphx/code-core';
 import type { StreamEvent } from '@sylphx/code-server';
 import type React from 'react';
@@ -42,32 +47,46 @@ export interface EventHandlerContext {
 type EventHandler = (event: any, context: EventHandlerContext) => void;
 
 /**
- * Helper to update active message content in Zustand store
+ * Helper to update active message content in SessionStore
  * Exported for use in error handlers and cleanup
+ * Uses immutable updates (no Immer middleware)
  */
 export function updateActiveMessageContent(
   currentSessionId: string | null,
   messageId: string | null | undefined,
   updater: (prev: MessagePart[]) => MessagePart[]
 ) {
-  useAppStore.setState((state) => {
-    const session = state.currentSession;
-    if (!session || session.id !== currentSessionId) {
-      logContent('Session mismatch! expected:', currentSessionId, 'got:', session?.id);
-      return;
+  const state = useSessionStore.getState();
+  const session = state.currentSession;
+
+  if (!session || session.id !== currentSessionId) {
+    logContent('Session mismatch! expected:', currentSessionId, 'got:', session?.id);
+    return;
+  }
+
+  // Find active message by ID if provided, otherwise find any active message
+  const activeMessage = messageId
+    ? session.messages.find((m) => m.id === messageId && m.status === 'active')
+    : session.messages.find((m) => m.status === 'active');
+
+  if (!activeMessage) {
+    logContent('No active message found! messages:', session.messages.length, 'messageId:', messageId);
+    return;
+  }
+
+  // IMMUTABLE UPDATE: Create new messages array with updated content
+  const updatedMessages = session.messages.map(msg =>
+    msg.id === activeMessage.id
+      ? { ...msg, content: updater(msg.content) }
+      : msg
+  );
+
+  // Update store with new session object
+  useSessionStore.setState({
+    currentSession: {
+      ...session,
+      messages: updatedMessages
     }
-
-    // Find active message by ID if provided, otherwise find any active message
-    const activeMessage = messageId
-      ? session.messages.find((m) => m.id === messageId && m.status === 'active')
-      : session.messages.find((m) => m.status === 'active');
-
-    if (!activeMessage) {
-      logContent('No active message found! messages:', session.messages.length, 'messageId:', messageId);
-      return;
-    }
-
-    activeMessage.content = updater(activeMessage.content);
   });
 }
 
@@ -78,54 +97,56 @@ export function updateActiveMessageContent(
 function handleSessionCreated(event: Extract<StreamEvent, { type: 'session-created' }>, context: EventHandlerContext) {
   context.addLog(`[Session] Created: ${event.sessionId}`);
 
-  // Create skeleton session immediately
-  // IMPORTANT: Preserve optimistic messages from temporary session
-  useAppStore.setState((state) => {
-    state.currentSessionId = event.sessionId;
+  // Get current session state to preserve optimistic messages
+  const state = useSessionStore.getState();
 
-    // Check if there's a temporary session with optimistic messages
-    const optimisticMessages = state.currentSession?.id === 'temp-session'
-      ? state.currentSession.messages
-      : [];
+  // Check if there's a temporary session with optimistic messages
+  const optimisticMessages = state.currentSession?.id === 'temp-session'
+    ? state.currentSession.messages
+    : [];
 
-    logSession('Creating session, preserving optimistic messages:', optimisticMessages.length);
+  logSession('Creating session, preserving optimistic messages:', optimisticMessages.length);
 
-    state.currentSession = {
+  // IMMUTABLE UPDATE: Create new session with optimistic messages preserved
+  useSessionStore.setState({
+    currentSessionId: event.sessionId,
+    currentSession: {
       id: event.sessionId,
+      title: 'New Chat',
+      agentId: 'coder',
       provider: event.provider,
       model: event.model,
-      agentId: 'coder',
-      enabledRuleIds: [],
-      messages: optimisticMessages, // Preserve optimistic messages
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      messages: optimisticMessages, // Preserve optimistic user message
       todos: [],
-      nextTodoId: 1,
-      created: Date.now(),
-      updated: Date.now(),
-    };
+      enabledRuleIds: [],
+    }
   });
 
   logSession('Created session with optimistic messages:', event.sessionId);
 }
 
 function handleSessionDeleted(event: Extract<StreamEvent, { type: 'session-deleted' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   if (event.sessionId === currentSessionId) {
-    useAppStore.setState((state) => {
-      state.currentSessionId = null;
-      state.currentSession = null;
+    useSessionStore.setState({
+      currentSessionId: null,
+      currentSession: null,
     });
     context.addLog(`[Session] Deleted: ${event.sessionId}`);
   }
 }
 
 function handleSessionModelUpdated(event: Extract<StreamEvent, { type: 'session-model-updated' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const state = useSessionStore.getState();
 
-  if (event.sessionId === currentSessionId) {
-    useAppStore.setState((state) => {
-      if (state.currentSession && state.currentSession.id === event.sessionId) {
-        state.currentSession.model = event.model;
+  if (event.sessionId === state.currentSessionId && state.currentSession) {
+    useSessionStore.setState({
+      currentSession: {
+        ...state.currentSession,
+        model: event.model,
       }
     });
     context.addLog(`[Session] Model updated: ${event.model}`);
@@ -133,13 +154,14 @@ function handleSessionModelUpdated(event: Extract<StreamEvent, { type: 'session-
 }
 
 function handleSessionProviderUpdated(event: Extract<StreamEvent, { type: 'session-provider-updated' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const state = useSessionStore.getState();
 
-  if (event.sessionId === currentSessionId) {
-    useAppStore.setState((state) => {
-      if (state.currentSession && state.currentSession.id === event.sessionId) {
-        state.currentSession.provider = event.provider;
-        state.currentSession.model = event.model;
+  if (event.sessionId === state.currentSessionId && state.currentSession) {
+    useSessionStore.setState({
+      currentSession: {
+        ...state.currentSession,
+        provider: event.provider,
+        model: event.model,
       }
     });
     context.addLog(`[Session] Provider updated: ${event.provider}`);
@@ -189,64 +211,85 @@ function handleSessionTitleUpdated(event: Extract<StreamEvent, { type: 'session-
 // ============================================================================
 
 function handleUserMessageCreated(event: Extract<StreamEvent, { type: 'user-message-created' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const state = useSessionStore.getState();
 
   logMessage('User message created:', event.messageId);
 
-  useAppStore.setState((state) => {
-    const session = state.currentSession;
-    if (session && session.id === currentSessionId) {
-      // Find and replace optimistic message (temp-user-*)
-      const optimisticIndex = session.messages.findIndex(
-        m => m.role === 'user' && m.id.startsWith('temp-user-')
-      );
+  if (!state.currentSession || state.currentSession.id !== state.currentSessionId) {
+    logMessage('Session mismatch! expected:', state.currentSessionId, 'got:', state.currentSession?.id);
+    return;
+  }
 
-      if (optimisticIndex !== -1) {
-        // Replace optimistic message ID with server's ID
-        session.messages[optimisticIndex].id = event.messageId;
-        logMessage('Replaced optimistic message with server ID:', event.messageId);
-      } else {
-        // No optimistic message found (shouldn't happen), add new message
-        session.messages.push({
-          id: event.messageId,
-          role: 'user',
-          content: [{ type: 'text', content: event.content, status: 'completed' }],
-          timestamp: Date.now(),
-          status: 'completed',
-        });
-        logMessage('Added user message (no optimistic found), total:', session.messages.length);
+  // Find and replace optimistic message (temp-user-*)
+  const optimisticIndex = state.currentSession.messages.findIndex(
+    m => m.role === 'user' && m.id.startsWith('temp-user-')
+  );
+
+  let updatedMessages: Message[];
+
+  if (optimisticIndex !== -1) {
+    // Replace optimistic message ID with server's ID
+    updatedMessages = state.currentSession.messages.map((msg, idx) =>
+      idx === optimisticIndex
+        ? { ...msg, id: event.messageId }
+        : msg
+    );
+    logMessage('Replaced optimistic message with server ID:', event.messageId);
+  } else {
+    // No optimistic message found (shouldn't happen), add new message
+    updatedMessages = [
+      ...state.currentSession.messages,
+      {
+        id: event.messageId,
+        role: 'user',
+        content: [{ type: 'text', content: event.content, status: 'completed' }],
+        timestamp: Date.now(),
+        status: 'completed',
       }
-    } else {
-      logMessage('Session mismatch! expected:', currentSessionId, 'got:', session?.id);
+    ];
+    logMessage('Added user message (no optimistic found), total:', updatedMessages.length);
+  }
+
+  useSessionStore.setState({
+    currentSession: {
+      ...state.currentSession,
+      messages: updatedMessages,
     }
   });
 }
 
 function handleAssistantMessageCreated(event: Extract<StreamEvent, { type: 'assistant-message-created' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const state = useSessionStore.getState();
 
   context.streamingMessageIdRef.current = event.messageId;
-  logMessage('Message created:', event.messageId, 'session:', currentSessionId);
+  logMessage('Message created:', event.messageId, 'session:', state.currentSessionId);
 
   // Start streaming UI
   context.setIsStreaming(true);
 
-  // Sync to Zustand store
-  useAppStore.setState((state) => {
-    const session = state.currentSession;
-    if (session && session.id === currentSessionId) {
-      session.messages.push({
-        id: event.messageId,
-        role: 'assistant',
-        content: [],
-        timestamp: Date.now(),
-        status: 'active',
-      });
-      logMessage('Added assistant message, total:', session.messages.length);
-    } else {
-      logMessage('Session mismatch! expected:', currentSessionId, 'got:', session?.id);
+  if (!state.currentSession || state.currentSession.id !== state.currentSessionId) {
+    logMessage('Session mismatch! expected:', state.currentSessionId, 'got:', state.currentSession?.id);
+    return;
+  }
+
+  // Add new assistant message to session
+  useSessionStore.setState({
+    currentSession: {
+      ...state.currentSession,
+      messages: [
+        ...state.currentSession.messages,
+        {
+          id: event.messageId,
+          role: 'assistant',
+          content: [],
+          timestamp: Date.now(),
+          status: 'active',
+        }
+      ]
     }
   });
+
+  logMessage('Added assistant message, total:', state.currentSession.messages.length + 1);
 }
 
 // ============================================================================

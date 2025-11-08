@@ -454,7 +454,8 @@ async function cleanupAfterStream(context: {
   try {
     // IMPORTANT: Get current session ID from store (not from context)
     // For lazy sessions, the sessionId is updated in store after session-created event
-    const currentSessionId = useAppStore.getState().currentSessionId;
+    const state = useSessionStore.getState();
+    const currentSessionId = state.currentSessionId;
 
     const wasAborted = context.wasAbortedRef.current;
     const hasError = context.lastErrorRef.current;
@@ -463,23 +464,37 @@ async function cleanupAfterStream(context: {
     const finalStatus = wasAborted ? 'abort' : hasError ? 'error' : 'completed';
 
     try {
-      useAppStore.setState((state) => {
-        const session = state.currentSession;
-        if (!session || session.id !== currentSessionId) return;
+      const session = state.currentSession;
+      if (!session || session.id !== currentSessionId) {
+        console.log('[cleanupAfterStream] Session mismatch, skipping status update');
+        return;
+      }
 
-        const activeMessage = [...session.messages]
-          .reverse()
-          .find((m) => m.role === 'assistant' && m.status === 'active');
+      const activeMessage = [...session.messages]
+        .reverse()
+        .find((m) => m.role === 'assistant' && m.status === 'active');
 
-        if (!activeMessage) return;
+      if (!activeMessage) {
+        console.log('[cleanupAfterStream] No active message, skipping status update');
+        return;
+      }
 
-        // Update message status and metadata
-        activeMessage.status = finalStatus;
-        if (context.usageRef.current) {
-          activeMessage.usage = context.usageRef.current;
-        }
-        if (context.finishReasonRef.current) {
-          activeMessage.finishReason = context.finishReasonRef.current;
+      // IMMUTABLE UPDATE: Update message status and metadata
+      const updatedMessages = session.messages.map(msg =>
+        msg.id === activeMessage.id
+          ? {
+              ...msg,
+              status: finalStatus,
+              usage: context.usageRef.current || msg.usage,
+              finishReason: context.finishReasonRef.current || msg.finishReason,
+            }
+          : msg
+      );
+
+      useSessionStore.setState({
+        currentSession: {
+          ...session,
+          messages: updatedMessages,
         }
       });
     } catch (stateError) {
@@ -496,12 +511,13 @@ async function cleanupAfterStream(context: {
         const session = await client.session.getById.query({ sessionId: currentSessionId });
 
         if (session) {
-          // Update Zustand store with fresh data from database
-          useAppStore.setState((state) => {
-            if (state.currentSessionId === currentSessionId) {
-              state.currentSession = session;
-            }
-          });
+          // Update SessionStore with fresh data from database
+          const currentState = useSessionStore.getState();
+          if (currentState.currentSessionId === currentSessionId) {
+            useSessionStore.setState({
+              currentSession: session,
+            });
+          }
         }
       } catch (error) {
         console.error('[cleanupAfterStream] Failed to reload session:', error);
