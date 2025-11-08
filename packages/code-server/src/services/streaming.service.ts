@@ -114,7 +114,6 @@ export interface StreamAIResponseOptions {
 export function streamAIResponse(opts: StreamAIResponseOptions) {
   return observable<StreamEvent>((observer) => {
     let aborted = false;
-    let titleUnsubscribe: (() => void) | null = null;
 
     // Async execution wrapped in promise
     const executionPromise = (async () => {
@@ -366,26 +365,18 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         let titlePromise: Promise<string | null> = Promise.resolve(null);
 
         if (needsTitleGeneration(updatedSession, isNewSession, isFirstMessage)) {
-          // Subscribe to title events from eventStream and forward to subscription observer
-          const titleObservable = opts.appContext.eventStream.subscribe(`session:${sessionId}`);
-          const titleSubscription = titleObservable.subscribe((event) => {
-            // Forward title streaming events to subscription
-            if (event.type === 'session-title-updated-start') {
-              observer.next({ type: 'session-title-updated-start', sessionId: event.payload.sessionId });
-            } else if (event.type === 'session-title-updated-delta') {
-              observer.next({ type: 'session-title-updated-delta', sessionId: event.payload.sessionId, text: event.payload.text });
-            } else if (event.type === 'session-title-updated-end') {
-              observer.next({ type: 'session-title-updated-end', sessionId: event.payload.sessionId, title: event.payload.title });
-            }
-          });
-          titleUnsubscribe = () => titleSubscription.unsubscribe();
-
+          // Pass observer callback to title generator so it can emit events to subscription
           titlePromise = generateSessionTitle(
             opts.appContext,
             sessionRepository,
             aiConfig,
             updatedSession,
-            userMessageText
+            userMessageText,
+            {
+              onStart: () => observer.next({ type: 'session-title-updated-start', sessionId }),
+              onDelta: (text: string) => observer.next({ type: 'session-title-updated-delta', sessionId, text }),
+              onEnd: (title: string) => observer.next({ type: 'session-title-updated-end', sessionId, title }),
+            }
           );
         } else {
         }
@@ -512,10 +503,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           finishReason: result.finishReason,
         });
 
-        // 13. Unsubscribe from title events and complete observable
-        if (titleUnsubscribe) {
-          titleUnsubscribe();
-        }
+        // 13. Complete observable
         observer.complete();
 
         // 14. Let title generation finish in background
@@ -533,10 +521,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         if (error && typeof error === 'object') {
           console.error('[streamAIResponse] Error keys:', Object.keys(error));
           console.error('[streamAIResponse] Error JSON:', JSON.stringify(error, null, 2));
-        }
-        // Cleanup title subscription
-        if (titleUnsubscribe) {
-          titleUnsubscribe();
         }
         observer.next({
           type: 'error',
@@ -587,10 +571,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
     // Cleanup function
     return () => {
       aborted = true;
-      // Unsubscribe from title events
-      if (titleUnsubscribe) {
-        titleUnsubscribe();
-      }
     };
   });
 }

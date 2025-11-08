@@ -7,6 +7,15 @@ import type { SessionRepository, AIConfig, Session } from '@sylphx/code-core';
 import type { AppContext } from '../../context.js';
 
 /**
+ * Title streaming callbacks for real-time updates
+ */
+export interface TitleStreamCallbacks {
+  onStart: () => void;
+  onDelta: (text: string) => void;
+  onEnd: (title: string) => void;
+}
+
+/**
  * Generate session title with real-time streaming updates
  * Returns a promise that resolves when title generation is complete
  */
@@ -15,7 +24,8 @@ export async function generateSessionTitle(
   sessionRepository: SessionRepository,
   aiConfig: AIConfig,
   session: Session,
-  userMessage: string
+  userMessage: string,
+  callbacks?: TitleStreamCallbacks
 ): Promise<string | null> {
   try {
     const { createAIStream, cleanAITitle, getProvider } = await import('@sylphx/code-core');
@@ -64,21 +74,33 @@ Now generate the title:`,
 
     let fullTitle = '';
 
-    // Publish title events to event stream (all clients subscribe via useEventStream)
-    const startEvent = { type: 'session-title-updated-start' as const, sessionId: session.id };
-    await appContext.eventStream.publish(`session:${session.id}`, startEvent);
+    // Emit start event
+    // If callbacks provided (TUI), emit via callback (message router will publish to eventStream)
+    // If no callbacks (direct eventStream consumer), publish to eventStream
+    if (callbacks) {
+      callbacks.onStart();
+    } else {
+      const startEvent = { type: 'session-title-updated-start' as const, sessionId: session.id };
+      await appContext.eventStream.publish(`session:${session.id}`, startEvent);
+    }
 
     // Stream title chunks (wrap in try-catch to catch flush/finalize errors)
     try {
       for await (const chunk of titleStream) {
         if (chunk.type === 'text-delta' && chunk.textDelta) {
           fullTitle += chunk.textDelta;
-          const deltaEvent = {
-            type: 'session-title-updated-delta' as const,
-            sessionId: session.id,
-            text: chunk.textDelta,
-          };
-          await appContext.eventStream.publish(`session:${session.id}`, deltaEvent);
+
+          // Emit delta
+          if (callbacks) {
+            callbacks.onDelta(chunk.textDelta);
+          } else {
+            const deltaEvent = {
+              type: 'session-title-updated-delta' as const,
+              sessionId: session.id,
+              text: chunk.textDelta,
+            };
+            await appContext.eventStream.publish(`session:${session.id}`, deltaEvent);
+          }
         }
       }
     } catch (streamError) {
@@ -95,13 +117,18 @@ Now generate the title:`,
       const cleaned = cleanAITitle(fullTitle, 50);
       try {
         await sessionRepository.updateSession(session.id, { title: cleaned });
-        // Publish title end event
-        const endEvent = {
-          type: 'session-title-updated-end' as const,
-          sessionId: session.id,
-          title: cleaned,
-        };
-        await appContext.eventStream.publish(`session:${session.id}`, endEvent);
+
+        // Emit end event
+        if (callbacks) {
+          callbacks.onEnd(cleaned);
+        } else {
+          const endEvent = {
+            type: 'session-title-updated-end' as const,
+            sessionId: session.id,
+            title: cleaned,
+          };
+          await appContext.eventStream.publish(`session:${session.id}`, endEvent);
+        }
         return cleaned;
       } catch (dbError) {
         console.error('[Title Generation] Failed to save title:', dbError);
