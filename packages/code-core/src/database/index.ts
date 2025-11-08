@@ -249,6 +249,10 @@ export {
   loadMessageSteps,
 } from './step-repository-helpers.js';
 
+// Export file repository
+export { FileRepository } from './file-repository.js';
+export type { FileContentInput, FileContentRecord } from './file-repository.js';
+
 // Re-export commonly used database functions (these will be added when memory-db is fully implemented)
 // export {
 //   storeMemory,

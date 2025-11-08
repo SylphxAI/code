@@ -402,18 +402,31 @@ export const events = sqliteTable(
 
 
 /**
- * File contents table - Efficient file storage separate from message parts
- * Stores actual file content as BLOB instead of base64 in JSON
+ * File contents table - Frozen file storage for conversation history
  *
- * Design: Normalized file storage for efficiency and searchability
- * - Binary BLOB storage (no base64 overhead = 33% smaller)
- * - FTS5 index on text files for conversation search
- * - Large files don't bloat step_parts JSON
- * - Efficient queries (can load messages without file content)
+ * Design: Immutable file storage supporting multiple use cases
+ * =============================================================
+ *
+ * Use Cases:
+ * 1. Frozen History: Files never change → prompt cache preserved
+ * 2. Conversation Search: FTS5 index on text content
+ * 3. Rewind/Checkpoint: Each user message = checkpoint, can restore files
+ * 4. Deduplication: SHA256 hash to share identical files (future)
+ *
+ * Storage Format:
+ * - BLOB storage (no base64 overhead = 33% smaller than JSON)
+ * - Text files: content + text_content for FTS5 search
+ * - Binary files: content only (images, PDFs, etc.)
  *
  * Relationship:
  * - step_parts contains file-ref type with fileContentId
- * - file_contents stores actual content with ordering for reconstruction
+ * - file_contents stores actual frozen content
+ * - ordering preserves position within step for reconstruction
+ *
+ * Migration from base64-in-JSON:
+ * - Old: step_parts.content = { type: 'file', base64: '...' }
+ * - New: step_parts.content = { type: 'file-ref', fileContentId: '...' }
+ *       + file_contents row with BLOB
  */
 export const fileContents = sqliteTable(
   'file_contents',
@@ -422,19 +435,30 @@ export const fileContents = sqliteTable(
     stepId: text('step_id')
       .notNull()
       .references(() => messageSteps.id, { onDelete: 'cascade' }),
-    ordering: integer('ordering').notNull(), // Position within step (for order reconstruction)
+    ordering: integer('ordering').notNull(), // Position within step (preserves text-to-file order)
+
+    // File metadata
     relativePath: text('relative_path').notNull(),
     mediaType: text('media_type').notNull(),
     size: integer('size').notNull(),
-    content: text('content', { mode: 'blob' }).notNull(), // Binary storage (no base64!)
+
+    // Frozen content (immutable for prompt cache + rewind)
+    content: text('content', { mode: 'blob' }).notNull(), // Binary BLOB (no base64!)
+
+    // Search support
     isText: integer('is_text').notNull(), // 1 for text files, 0 for binary
-    textContent: text('text_content'), // Decoded text for text files (FTS5 indexable)
+    textContent: text('text_content'), // Decoded UTF-8 for FTS5 index (text files only)
+
+    // Deduplication (future optimization)
+    sha256: text('sha256'), // Share identical files across checkpoints
+
     createdAt: integer('created_at').notNull(),
   },
   (table) => ({
-    stepIdx: index('idx_file_contents_step').on(table.stepId, table.ordering),
+    stepOrderingIdx: index('idx_file_contents_step_ordering').on(table.stepId, table.ordering),
     typeIdx: index('idx_file_contents_type').on(table.mediaType),
     pathIdx: index('idx_file_contents_path').on(table.relativePath),
+    sha256Idx: index('idx_file_contents_sha256').on(table.sha256), // For deduplication queries
   })
 );
 

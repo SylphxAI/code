@@ -203,17 +203,18 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
             });
           } else if (part.type === 'file') {
             try {
-              // READ NOW and freeze as base64 - never re-read from disk
+              // READ NOW and freeze - never re-read from disk
               const buffer = await fs.readFile(part.path);
-              const base64 = buffer.toString('base64');
               const mimeType = part.mimeType || lookup(part.path) || 'application/octet-stream';
 
+              // LEGACY format for backward compatibility
+              // New messages will migrate to file-ref after step creation
               frozenContent.push({
                 type: 'file',
                 relativePath: part.relativePath,
                 size: buffer.length,
                 mediaType: mimeType,
-                base64,
+                base64: buffer.toString('base64'), // Temporary - will be moved to file_contents
                 status: 'completed',
               });
             } catch (error) {
@@ -298,7 +299,11 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           } : null,
         });
 
-        const messages = buildModelMessages(updatedSession.messages, modelCapabilities);
+        const messages = await buildModelMessages(
+          updatedSession.messages,
+          modelCapabilities,
+          messageRepository.getFileRepository()
+        );
 
         console.log('[streamAIResponse] Built ModelMessage[] for AI:', {
           count: messages.length,

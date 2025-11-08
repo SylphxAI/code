@@ -25,9 +25,21 @@ import type {
 } from '../types/session.types.js';
 import type { Todo as TodoType } from '../types/todo.types.js';
 import { retryDatabase } from '../utils/retry.js';
+import { FileRepository } from './file-repository.js';
 
 export class MessageRepository {
-  constructor(private db: LibSQLDatabase) {}
+  private fileRepo: FileRepository;
+
+  constructor(private db: LibSQLDatabase) {
+    this.fileRepo = new FileRepository(db);
+  }
+
+  /**
+   * Get FileRepository for message builder
+   */
+  getFileRepository(): FileRepository {
+    return this.fileRepo;
+  }
 
   /**
    * Add message to session with step-based structure
@@ -106,14 +118,49 @@ export class MessageRepository {
             finishReason: finishReason || null,
           });
 
-          // 3. Insert step parts
+          // 3. Insert step parts (with file migration to file_contents)
           for (let i = 0; i < content.length; i++) {
+            const part = content[i];
+            let partToStore: MessagePart = part;
+
+            // Migrate file parts to file_contents table
+            if (part.type === 'file' && 'base64' in part && part.base64) {
+              try {
+                // Convert base64 back to Buffer
+                const buffer = Buffer.from(part.base64, 'base64');
+
+                // Store in file_contents table
+                const fileId = await this.fileRepo.storeFileContent({
+                  stepId,
+                  ordering: i,
+                  relativePath: part.relativePath,
+                  mediaType: part.mediaType,
+                  content: buffer,
+                });
+
+                // Create file-ref part instead of full file part
+                partToStore = {
+                  type: 'file-ref',
+                  fileContentId: fileId,
+                  relativePath: part.relativePath,
+                  size: part.size,
+                  mediaType: part.mediaType,
+                  status: 'completed',
+                };
+
+                console.log(`[MessageRepository] Migrated file to file_contents: ${part.relativePath} → ${fileId}`);
+              } catch (error) {
+                console.error(`[MessageRepository] Failed to migrate file ${part.relativePath}:`, error);
+                // Keep original file part if migration fails
+              }
+            }
+
             await tx.insert(stepParts).values({
               id: randomUUID(),
               stepId,
               ordering: i,
-              type: content[i].type,
-              content: JSON.stringify(content[i]),
+              type: partToStore.type,
+              content: JSON.stringify(partToStore),
             });
           }
 

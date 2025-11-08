@@ -53,7 +53,15 @@ export type MessagePart =
       relativePath: string;  // Display path (e.g., "src/app.ts")
       size: number;          // File size in bytes
       mediaType: string;     // MIME type (e.g., "text/plain", "image/png")
-      base64: string;        // Frozen content - never re-read from disk
+      base64: string;        // LEGACY: Frozen content - never re-read from disk
+      status: 'completed';   // Files are immediately completed when received
+    }
+  | {
+      type: 'file-ref';
+      fileContentId: string; // Reference to file_contents table
+      relativePath: string;  // Denormalized for display (avoid JOIN for lists)
+      size: number;          // Denormalized for display
+      mediaType: string;     // Denormalized for display
       status: 'completed';   // Files are immediately completed when received
     }
   | {
