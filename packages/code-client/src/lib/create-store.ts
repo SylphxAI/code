@@ -51,14 +51,53 @@ export interface Store<T> {
 export function createStore<T extends object>(
   creator: StateCreator<T>
 ): Store<T> {
-  // Create zen store
-  const store: Zen<T> = zen({} as T);
+  // Create zen store with placeholder
+  let store: Zen<T>;
+  let initialized = false;
+
+  // Temporary setState for initialization phase
+  const tempSetState = (action: SetStateAction<T>): void => {
+    throw new Error('Cannot call setState during store initialization');
+  };
+
+  // Temporary getState for initialization phase
+  const tempGetState = (): T => {
+    throw new Error('Cannot call getState during store initialization');
+  };
+
+  // Initialize state using creator (should return initial state, not call set/get)
+  const initialState = creator(tempSetState, tempGetState);
+
+  // Now create the actual store with proper initial state
+  store = zen(initialState);
+  initialized = true;
 
   // Set implementation using zen-craft for immer-style updates
   const setState = (action: SetStateAction<T>): void => {
+    if (!initialized) {
+      throw new Error('Store not initialized');
+    }
+
     if (typeof action === 'function') {
       // Function update - use zen-craft for draft pattern
-      craftZen(store, action as (draft: T) => void);
+      // Wrap in try-catch to handle edge cases (e.g., null values in state)
+      try {
+        craftZen(store, action as (draft: T) => void);
+      } catch (error) {
+        // Fallback: Manual draft-like behavior
+        // Clone current state, apply mutations, set result
+        const current = get(store);
+        const draft = JSON.parse(JSON.stringify(current)) as T;
+        const actionFn = action as (state: T) => void | Partial<T>;
+        const result = actionFn(draft);
+
+        // If function returns updates, use those; otherwise use mutated draft
+        if (result !== undefined && typeof result === 'object') {
+          zenSet(store, { ...current, ...result });
+        } else {
+          zenSet(store, draft);
+        }
+      }
     } else {
       // Object update - merge with current state
       const current = get(store);
@@ -68,11 +107,12 @@ export function createStore<T extends object>(
   };
 
   // Get implementation
-  const getState = (): T => get(store);
-
-  // Initialize state using creator
-  const initialState = creator(setState, getState);
-  zenSet(store, initialState);
+  const getState = (): T => {
+    if (!initialized) {
+      throw new Error('Store not initialized');
+    }
+    return get(store);
+  };
 
   // Create React hook with optional selector support
   function useStore(): T;
