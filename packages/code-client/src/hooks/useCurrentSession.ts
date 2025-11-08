@@ -51,6 +51,20 @@ export function useCurrentSession() {
         // IMPORTANT: Don't include setCurrentSession in dependencies to avoid infinite loop
         const store = useSessionStore.getState();
         if (store.setCurrentSession) {
+          // ⚠️ CRITICAL: Don't overwrite currentSession if there's an active assistant message (streaming in progress)
+          // During streaming, the optimistic assistant message is in memory but not yet in the database,
+          // so server data will be stale. We must preserve the optimistic data until streaming completes.
+          const hasActiveAssistantMessage = store.currentSession?.messages?.some(
+            m => m.role === 'assistant' && m.status === 'active'
+          );
+
+          if (hasActiveAssistantMessage) {
+            console.log('[useCurrentSession] Skipping session update - active assistant message in progress');
+            // Don't overwrite - streaming is in progress
+            return;
+          }
+
+          // Safe to replace with server data
           store.setCurrentSession(session);
         }
 
