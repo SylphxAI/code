@@ -78,9 +78,9 @@ export interface UseEventStreamOptions {
  */
 export function useEventStream(options: UseEventStreamOptions = {}) {
   const { replayLast = 0, callbacks = {} } = options;
-  const currentSessionId = useAppStore((state) => state.currentSessionId);
-  const setError = useAppStore((state) => state.setError);
-  const updateSessionTitle = useAppStore((state) => state.updateSessionTitle);
+  const currentSessionId = useAppStore((state) => state?.currentSessionId);
+  const setError = useAppStore((state) => state?.setError);
+  const updateSessionTitle = useAppStore((state) => state?.updateSessionTitle);
 
   // Ref to track subscription
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
@@ -125,7 +125,7 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 
             case 'session-title-updated-end':
               // Update session title in store (passive reaction to server event)
-              if (event.sessionId === currentSessionId) {
+              if (event.sessionId === currentSessionId && updateSessionTitle) {
                 updateSessionTitle(event.sessionId, event.title).catch((err) => {
                   console.error('[EventStream] Failed to update title:', err);
                 });
