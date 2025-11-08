@@ -5,8 +5,7 @@
  * Single Responsibility: Todo lifecycle management
  */
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
+import { createStore } from '../lib/create-store.js';
 import type { TodoUpdate } from '@sylphx/code-core';
 import { getTRPCClient } from '../trpc-provider.js';
 
@@ -14,8 +13,7 @@ export interface TodoState {
   updateTodos: (sessionId: string, updates: TodoUpdate[]) => Promise<void>;
 }
 
-export const useTodoStore = create<TodoState>()(
-  immer(() => ({
+export const useTodoStore = createStore<TodoState>(() => ({
     /**
      * Update todos for a session
      */
@@ -115,5 +113,5 @@ export const useTodoStore = create<TodoState>()(
         });
       }
     },
-  }))
+  })
 );

@@ -5,8 +5,7 @@
  * Single Responsibility: Notification preferences
  */
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
+import { createStore } from '../lib/create-store.js';
 
 export interface NotificationSettings {
   osNotifications: boolean;
@@ -20,8 +19,8 @@ export interface NotificationState {
   updateNotificationSettings: (settings: Partial<NotificationSettings>) => void;
 }
 
-export const useNotificationStore = create<NotificationState>()(
-  immer((set) => ({
+export const useNotificationStore = createStore<NotificationState>(
+  (set) => ({
     notificationSettings: {
       osNotifications: true,
       terminalNotifications: true,
@@ -36,5 +35,5 @@ export const useNotificationStore = create<NotificationState>()(
           ...settings,
         };
       }),
-  }))
+  })
 );

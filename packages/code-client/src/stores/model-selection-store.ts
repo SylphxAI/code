@@ -5,8 +5,7 @@
  * Single Responsibility: Model selection state
  */
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
+import { createStore } from '../lib/create-store.js';
 import type { ProviderId } from '@sylphx/code-core';
 
 export interface ModelSelectionState {
@@ -16,8 +15,8 @@ export interface ModelSelectionState {
   setSelectedModel: (model: string | null) => void;
 }
 
-export const useModelSelectionStore = create<ModelSelectionState>()(
-  immer((set) => ({
+export const useModelSelectionStore = createStore<ModelSelectionState>(
+  (set) => ({
     selectedProvider: null,
     selectedModel: null,
 
@@ -30,5 +29,5 @@ export const useModelSelectionStore = create<ModelSelectionState>()(
       set((state) => {
         state.selectedModel = model;
       }),
-  }))
+  })
 );

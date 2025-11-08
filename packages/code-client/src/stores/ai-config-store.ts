@@ -6,8 +6,7 @@
  * Note: Coordinates with Model Selection Store for initialization
  */
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
+import { createStore } from '../lib/create-store.js';
 import type { AIConfig, ProviderId } from '@sylphx/code-core';
 
 export interface AIConfigState {
@@ -17,8 +16,8 @@ export interface AIConfigState {
   removeProvider: (provider: ProviderId) => void;
 }
 
-export const useAIConfigStore = create<AIConfigState>()(
-  immer((set) => ({
+export const useAIConfigStore = createStore<AIConfigState>(
+  (set) => ({
     aiConfig: null,
 
     setAIConfig: (config) => {
@@ -85,5 +84,5 @@ export const useAIConfigStore = create<AIConfigState>()(
           state.aiConfig.defaultProvider = undefined;
         }
       }),
-  }))
+  })
 );

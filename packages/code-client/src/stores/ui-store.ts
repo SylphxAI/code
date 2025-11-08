@@ -3,10 +3,10 @@
  * Manages global UI state (loading, errors)
  *
  * Single Responsibility: UI state management
+ * Powered by: zen (replaced zustand for better performance)
  */
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
+import { createStore } from '../lib/create-store.js';
 
 export interface UIState {
   isLoading: boolean;
@@ -15,19 +15,17 @@ export interface UIState {
   setError: (error: string | null) => void;
 }
 
-export const useUIStore = create<UIState>()(
-  immer((set) => ({
-    isLoading: false,
-    error: null,
+export const useUIStore = createStore<UIState>((set) => ({
+  isLoading: false,
+  error: null,
 
-    setLoading: (loading) =>
-      set((state) => {
-        state.isLoading = loading;
-      }),
+  setLoading: (loading) =>
+    set((state) => {
+      state.isLoading = loading;
+    }),
 
-    setError: (error) =>
-      set((state) => {
-        state.error = error;
-      }),
-  }))
-);
+  setError: (error) =>
+    set((state) => {
+      state.error = error;
+    }),
+}));

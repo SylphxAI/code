@@ -31,12 +31,10 @@
     "@trpc/client": "^11.7.1",
     "@trpc/react-query": "^11.7.1",
     "eventsource": "^4.0.0",
-    "immer": "^10.2.0",
     "react": "^19.2.0",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "superjson": "^2.2.5",
-    "zustand": "^5.0.8"
+    "superjson": "^2.2.5"
   },
   "devDependencies": {
     "@types/node": "^24.9.2",

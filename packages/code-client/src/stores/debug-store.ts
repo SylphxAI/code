@@ -5,8 +5,7 @@
  * Single Responsibility: Debug log collection and management
  */
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
+import { createStore } from '../lib/create-store.js';
 
 export interface DebugState {
   debugLogs: string[];
@@ -14,8 +13,8 @@ export interface DebugState {
   clearDebugLogs: () => void;
 }
 
-export const useDebugStore = create<DebugState>()(
-  immer((set) => ({
+export const useDebugStore = createStore<DebugState>(
+  (set) => ({
     debugLogs: [],
 
     addDebugLog: (message) =>
@@ -38,5 +37,5 @@ export const useDebugStore = create<DebugState>()(
       set((state) => {
         state.debugLogs = [];
       }),
-  }))
+  })
 );

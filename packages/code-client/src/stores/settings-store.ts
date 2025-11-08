@@ -5,8 +5,7 @@
  * Single Responsibility: User preference management
  */
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
+import { createStore } from '../lib/create-store.js';
 import { getTRPCClient } from '../trpc-provider.js';
 import { eventBus } from '../lib/event-bus.js';
 
@@ -20,8 +19,7 @@ export interface SettingsState {
   setEnabledRuleIds: (ruleIds: string[], sessionId?: string | null) => Promise<void>;
 }
 
-export const useSettingsStore = create<SettingsState>()(
-  immer((set, get) => ({
+export const useSettingsStore = createStore<SettingsState>((set, get) => ({
     selectedAgentId: 'coder',
     enabledRuleIds: [],
 
@@ -76,7 +74,7 @@ export const useSettingsStore = create<SettingsState>()(
 
       // Multi-client sync: Server events will propagate changes to all clients
     },
-  }))
+  })
 );
 
 /**

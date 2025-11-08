@@ -5,8 +5,7 @@
  * Single Responsibility: Screen navigation
  */
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
+import { createStore } from '../lib/create-store.js';
 
 export type Screen =
   | 'main-menu'
@@ -22,13 +21,13 @@ export interface NavigationState {
   navigateTo: (screen: Screen) => void;
 }
 
-export const useNavigationStore = create<NavigationState>()(
-  immer((set) => ({
+export const useNavigationStore = createStore<NavigationState>(
+  (set) => ({
     currentScreen: 'chat',
 
     navigateTo: (screen) =>
       set((state) => {
         state.currentScreen = screen;
       }),
-  }))
+  })
 );
