@@ -229,11 +229,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           }
         }
 
-          count: frozenContent.length,
-          types: frozenContent.map(p => p.type),
-          fileCount: frozenContent.filter(p => p.type === 'file').length,
-        });
-
         // 4. Add user message to session (with frozen content)
         const userMessageId = await messageRepository.addMessage({
           sessionId,
@@ -285,32 +280,11 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         }
 
         // 6. Build ModelMessage[] for AI (transforms frozen content, no file reading)
-          count: updatedSession.messages.length,
-          lastMessage: updatedSession.messages[updatedSession.messages.length - 1] ? {
-            role: updatedSession.messages[updatedSession.messages.length - 1].role,
-            stepsCount: updatedSession.messages[updatedSession.messages.length - 1].steps?.length || 0,
-            parts: updatedSession.messages[updatedSession.messages.length - 1].steps?.[0]?.parts?.map(p => ({
-              type: p.type,
-              ...('base64' in p ? { base64Length: p.base64?.length || 0 } : {}),
-              ...('content' in p ? { contentLength: p.content?.length || 0 } : {}),
-            })) || [],
-          } : null,
-        });
-
         const messages = await buildModelMessages(
           updatedSession.messages,
           modelCapabilities,
           messageRepository.getFileRepository()
         );
-
-          count: messages.length,
-          lastMessage: messages[messages.length - 1] ? {
-            role: messages[messages.length - 1].role,
-            contentCount: Array.isArray(messages[messages.length - 1].content) ? messages[messages.length - 1].content.length : 1,
-            contentTypes: Array.isArray(messages[messages.length - 1].content) ? messages[messages.length - 1].content.map((c: any) => c.type) : ['single'],
-          } : null,
-        });
-
 
         // 7. Determine agentId and build system prompt
         // STATELESS: Use explicit parameters from AppContext
@@ -441,10 +415,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         let result;
         try {
           result = await processStream(stream, callbacks);
-            hasUsage: !!result.usage,
-            partsCount: result.messageParts.length,
-            finishReason: result.finishReason
-          });
         } catch (processError) {
           console.error('[streamAIResponse] 10. processStream FAILED:', processError);
           throw processError;
