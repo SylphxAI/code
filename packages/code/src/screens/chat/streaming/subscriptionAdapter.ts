@@ -20,7 +20,7 @@
  * - All state changes are event-driven in switch/case handlers
  */
 
-import { getTRPCClient, useAppStore, useSessionStore, parseUserInput } from '@sylphx/code-client';
+import { getTRPCClient, useSessionStore, parseUserInput } from '@sylphx/code-client';
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from '@sylphx/code-core';
 import { createLogger } from '@sylphx/code-core';
 import type { StreamEvent } from '@sylphx/code-server';

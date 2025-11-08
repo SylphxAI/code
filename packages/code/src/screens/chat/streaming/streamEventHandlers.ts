@@ -173,7 +173,7 @@ function handleSessionProviderUpdated(event: Extract<StreamEvent, { type: 'sessi
 // ============================================================================
 
 function handleSessionTitleUpdatedStart(event: Extract<StreamEvent, { type: 'session-title-updated-start' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   if (event.sessionId === currentSessionId) {
     context.setIsTitleStreaming(true);
@@ -182,7 +182,7 @@ function handleSessionTitleUpdatedStart(event: Extract<StreamEvent, { type: 'ses
 }
 
 function handleSessionTitleUpdatedDelta(event: Extract<StreamEvent, { type: 'session-title-updated-delta' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   if (event.sessionId === currentSessionId) {
     context.setStreamingTitle((prev) => prev + event.text);
@@ -190,7 +190,7 @@ function handleSessionTitleUpdatedDelta(event: Extract<StreamEvent, { type: 'ses
 }
 
 function handleSessionTitleUpdatedEnd(event: Extract<StreamEvent, { type: 'session-title-updated-end' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   if (event.sessionId === currentSessionId) {
     context.setIsTitleStreaming(false);
@@ -199,7 +199,7 @@ function handleSessionTitleUpdatedEnd(event: Extract<StreamEvent, { type: 'sessi
 }
 
 function handleSessionTitleUpdated(event: Extract<StreamEvent, { type: 'session-title-updated' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   if (event.sessionId === currentSessionId) {
     context.updateSessionTitle(event.sessionId, event.title);
@@ -309,7 +309,7 @@ function handleStepComplete(event: Extract<StreamEvent, { type: 'step-complete' 
 // ============================================================================
 
 function handleReasoningStart(event: Extract<StreamEvent, { type: 'reasoning-start' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   logContent('Reasoning start, session:', currentSessionId);
   updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
@@ -322,7 +322,7 @@ function handleReasoningStart(event: Extract<StreamEvent, { type: 'reasoning-sta
 }
 
 function handleReasoningDelta(event: Extract<StreamEvent, { type: 'reasoning-delta' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
     const newParts = [...prev];
@@ -338,7 +338,7 @@ function handleReasoningDelta(event: Extract<StreamEvent, { type: 'reasoning-del
 }
 
 function handleReasoningEnd(event: Extract<StreamEvent, { type: 'reasoning-end' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
     const newParts = [...prev];
@@ -366,7 +366,7 @@ function handleReasoningEnd(event: Extract<StreamEvent, { type: 'reasoning-end' 
 // ============================================================================
 
 function handleTextStart(event: Extract<StreamEvent, { type: 'text-start' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => [
     ...prev,
@@ -375,7 +375,7 @@ function handleTextStart(event: Extract<StreamEvent, { type: 'text-start' }>, co
 }
 
 function handleTextDelta(event: Extract<StreamEvent, { type: 'text-delta' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
     const newParts = [...prev];
@@ -401,7 +401,7 @@ function handleTextDelta(event: Extract<StreamEvent, { type: 'text-delta' }>, co
 }
 
 function handleTextEnd(event: Extract<StreamEvent, { type: 'text-end' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
     const newParts = [...prev];
@@ -429,7 +429,7 @@ function handleTextEnd(event: Extract<StreamEvent, { type: 'text-end' }>, contex
 // ============================================================================
 
 function handleFile(event: Extract<StreamEvent, { type: 'file' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   logContent('File received, mediaType:', event.mediaType, 'size:', event.base64.length);
   updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => [
@@ -448,7 +448,7 @@ function handleFile(event: Extract<StreamEvent, { type: 'file' }>, context: Even
 // ============================================================================
 
 function handleToolCall(event: Extract<StreamEvent, { type: 'tool-call' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => [
     ...prev,
@@ -464,7 +464,7 @@ function handleToolCall(event: Extract<StreamEvent, { type: 'tool-call' }>, cont
 }
 
 function handleToolResult(event: Extract<StreamEvent, { type: 'tool-result' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) =>
     prev.map((part) =>
@@ -481,7 +481,7 @@ function handleToolResult(event: Extract<StreamEvent, { type: 'tool-result' }>, 
 }
 
 function handleToolError(event: Extract<StreamEvent, { type: 'tool-error' }>, context: EventHandlerContext) {
-  const currentSessionId = useAppStore.getState().currentSessionId;
+  const currentSessionId = useSessionStore.getState().currentSessionId;
 
   updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) =>
     prev.map((part) =>
