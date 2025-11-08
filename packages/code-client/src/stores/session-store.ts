@@ -32,11 +32,11 @@ export const useSessionStore = create<SessionState>()(
   (set, get) => ({
     currentSessionId: null,
 
-  /**
+    /**
    * Set current session ID (pure UI state)
    * Data will be fetched by React Query in components
    */
-  setCurrentSessionId: (sessionId) => {
+    setCurrentSessionId: (sessionId) => {
     set({ currentSessionId: sessionId });
 
     // Clear enabled rules when no session
@@ -47,11 +47,11 @@ export const useSessionStore = create<SessionState>()(
     }
   },
 
-  /**
+    /**
    * Create new session (server action)
    * Returns sessionId, sets it as current
    */
-  createSession: async (provider, model) => {
+    createSession: async (provider, model) => {
     const client = getTRPCClient();
 
     // Get agent and rules from settings store
@@ -74,38 +74,38 @@ export const useSessionStore = create<SessionState>()(
     return session.id;
   },
 
-  /**
+    /**
    * Update session model (server action)
    * React Query will refetch and update UI automatically
    */
-  updateSessionModel: async (sessionId, model) => {
+    updateSessionModel: async (sessionId, model) => {
     const client = getTRPCClient();
     await client.session.updateModel.mutate({ sessionId, model });
   },
 
-  /**
+    /**
    * Update session provider (server action)
    * React Query will refetch and update UI automatically
    */
-  updateSessionProvider: async (sessionId, provider, model) => {
+    updateSessionProvider: async (sessionId, provider, model) => {
     const client = getTRPCClient();
     await client.session.updateProvider.mutate({ sessionId, provider, model });
   },
 
-  /**
+    /**
    * Update session title (server action)
    * React Query will refetch and update UI automatically
    */
-  updateSessionTitle: async (sessionId, title) => {
+    updateSessionTitle: async (sessionId, title) => {
     const client = getTRPCClient();
     await client.session.updateTitle.mutate({ sessionId, title });
   },
 
-  /**
+    /**
    * Update session enabled rules (server action)
    * React Query will refetch and update UI automatically
    */
-  updateSessionRules: async (sessionId, enabledRuleIds) => {
+    updateSessionRules: async (sessionId, enabledRuleIds) => {
     const client = getTRPCClient();
     await client.session.updateRules.mutate({ sessionId, enabledRuleIds });
 
@@ -116,10 +116,10 @@ export const useSessionStore = create<SessionState>()(
     }
   },
 
-  /**
+    /**
    * Delete session (server action)
    */
-  deleteSession: async (sessionId) => {
+    deleteSession: async (sessionId) => {
     // Clear if it's the current session
     if (get().currentSessionId === sessionId) {
       set({ currentSessionId: null });
