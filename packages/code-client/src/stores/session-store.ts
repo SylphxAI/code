@@ -37,97 +37,97 @@ export const useSessionStore = create<SessionState>()(
    * Data will be fetched by React Query in components
    */
     setCurrentSessionId: (sessionId) => {
-    set({ currentSessionId: sessionId });
+      set({ currentSessionId: sessionId });
 
-    // Clear enabled rules when no session
-    if (!sessionId) {
-      import('./settings-store.js').then(({ useSettingsStore }) => {
-        useSettingsStore.getState().setEnabledRuleIds([]);
-      });
-    }
-  },
+      // Clear enabled rules when no session
+      if (!sessionId) {
+        import('./settings-store.js').then(({ useSettingsStore }) => {
+          useSettingsStore.getState().setEnabledRuleIds([]);
+        });
+      }
+    },
 
     /**
    * Create new session (server action)
    * Returns sessionId, sets it as current
    */
     createSession: async (provider, model) => {
-    const client = getTRPCClient();
+      const client = getTRPCClient();
 
-    // Get agent and rules from settings store
-    const { useSettingsStore } = await import('./settings-store.js');
-    const { selectedAgentId, enabledRuleIds } = useSettingsStore.getState();
+      // Get agent and rules from settings store
+      const { useSettingsStore } = await import('./settings-store.js');
+      const { selectedAgentId, enabledRuleIds } = useSettingsStore.getState();
 
-    const session = await client.session.create.mutate({
+      const session = await client.session.create.mutate({
       provider,
       model,
       agentId: selectedAgentId,
       enabledRuleIds,
-    });
+      });
 
-    // Set as current session (UI state only)
-    set({ currentSessionId: session.id });
+      // Set as current session (UI state only)
+      set({ currentSessionId: session.id });
 
-    // Update settings store with session's rules
-    useSettingsStore.getState().setEnabledRuleIds(session.enabledRuleIds || []);
+      // Update settings store with session's rules
+      useSettingsStore.getState().setEnabledRuleIds(session.enabledRuleIds || []);
 
-    return session.id;
-  },
+      return session.id;
+    },
 
     /**
    * Update session model (server action)
    * React Query will refetch and update UI automatically
    */
     updateSessionModel: async (sessionId, model) => {
-    const client = getTRPCClient();
-    await client.session.updateModel.mutate({ sessionId, model });
-  },
+      const client = getTRPCClient();
+      await client.session.updateModel.mutate({ sessionId, model });
+    },
 
     /**
    * Update session provider (server action)
    * React Query will refetch and update UI automatically
    */
     updateSessionProvider: async (sessionId, provider, model) => {
-    const client = getTRPCClient();
-    await client.session.updateProvider.mutate({ sessionId, provider, model });
-  },
+      const client = getTRPCClient();
+      await client.session.updateProvider.mutate({ sessionId, provider, model });
+    },
 
     /**
    * Update session title (server action)
    * React Query will refetch and update UI automatically
    */
     updateSessionTitle: async (sessionId, title) => {
-    const client = getTRPCClient();
-    await client.session.updateTitle.mutate({ sessionId, title });
-  },
+      const client = getTRPCClient();
+      await client.session.updateTitle.mutate({ sessionId, title });
+    },
 
     /**
    * Update session enabled rules (server action)
    * React Query will refetch and update UI automatically
    */
     updateSessionRules: async (sessionId, enabledRuleIds) => {
-    const client = getTRPCClient();
-    await client.session.updateRules.mutate({ sessionId, enabledRuleIds });
+      const client = getTRPCClient();
+      await client.session.updateRules.mutate({ sessionId, enabledRuleIds });
 
-    // Also update settings store for UI (if current session)
-    if (get().currentSessionId === sessionId) {
+      // Also update settings store for UI (if current session)
+      if (get().currentSessionId === sessionId) {
       const { useSettingsStore } = await import('./settings-store.js');
       useSettingsStore.getState().setEnabledRuleIds(enabledRuleIds);
-    }
-  },
+      }
+    },
 
     /**
    * Delete session (server action)
    */
     deleteSession: async (sessionId) => {
-    // Clear if it's the current session
-    if (get().currentSessionId === sessionId) {
+      // Clear if it's the current session
+      if (get().currentSessionId === sessionId) {
       set({ currentSessionId: null });
-    }
+      }
 
-    // Delete from database via tRPC
-    const client = getTRPCClient();
-    await client.session.delete.mutate({ sessionId });
-  },
+      // Delete from database via tRPC
+      const client = getTRPCClient();
+      await client.session.delete.mutate({ sessionId });
+    },
 })
 );
