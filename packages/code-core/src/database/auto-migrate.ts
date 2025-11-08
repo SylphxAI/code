@@ -259,10 +259,12 @@ export async function autoMigrate(onProgress?: ProgressCallback): Promise<any> {
 
   // Configure SQLite for better concurrency
   // WAL mode allows concurrent reads while writing
-  // Busy timeout retries when database is locked (5 seconds)
+  // Busy timeout retries when database is locked (10 seconds for streaming operations)
   await client.execute('PRAGMA journal_mode = WAL');
-  await client.execute('PRAGMA busy_timeout = 5000');
+  await client.execute('PRAGMA busy_timeout = 10000');
   await client.execute('PRAGMA synchronous = NORMAL');
+  // Cache size for better performance (negative = KB, 2000 = 2MB cache)
+  await client.execute('PRAGMA cache_size = -2000');
 
   onProgress?.({
     total: 2,
