@@ -78,7 +78,7 @@ export class SessionRepository {
       updated: now,
     };
 
-    await this.db.insert(sessions).values(newSession);
+    await retryDatabase(() => this.db.insert(sessions).values(newSession));
 
     return {
       id: sessionId,
@@ -505,30 +505,36 @@ export class SessionRepository {
    * Update session title
    */
   async updateSessionTitle(sessionId: string, title: string): Promise<void> {
-    await this.db
-      .update(sessions)
-      .set({ title, updated: Date.now() })
-      .where(eq(sessions.id, sessionId));
+    await retryDatabase(() =>
+      this.db
+        .update(sessions)
+        .set({ title, updated: Date.now() })
+        .where(eq(sessions.id, sessionId))
+    );
   }
 
   /**
    * Update session model
    */
   async updateSessionModel(sessionId: string, model: string): Promise<void> {
-    await this.db
-      .update(sessions)
-      .set({ model, updated: Date.now() })
-      .where(eq(sessions.id, sessionId));
+    await retryDatabase(() =>
+      this.db
+        .update(sessions)
+        .set({ model, updated: Date.now() })
+        .where(eq(sessions.id, sessionId))
+    );
   }
 
   /**
    * Update session provider and model
    */
   async updateSessionProvider(sessionId: string, provider: ProviderId, model: string): Promise<void> {
-    await this.db
-      .update(sessions)
-      .set({ provider, model, updated: Date.now() })
-      .where(eq(sessions.id, sessionId));
+    await retryDatabase(() =>
+      this.db
+        .update(sessions)
+        .set({ provider, model, updated: Date.now() })
+        .where(eq(sessions.id, sessionId))
+    );
   }
 
   /**
@@ -541,10 +547,12 @@ export class SessionRepository {
     agentId?: string;
     enabledRuleIds?: string[];
   }): Promise<void> {
-    await this.db
-      .update(sessions)
-      .set({ ...updates, updated: Date.now() })
-      .where(eq(sessions.id, sessionId));
+    await retryDatabase(() =>
+      this.db
+        .update(sessions)
+        .set({ ...updates, updated: Date.now() })
+        .where(eq(sessions.id, sessionId))
+    );
   }
 
   // REMOVED: updateStepParts - moved to MessageRepository
