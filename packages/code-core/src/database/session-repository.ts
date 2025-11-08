@@ -160,7 +160,62 @@ export class SessionRepository {
       query.where(sql`${sessions.updated} < ${cursor}`);
     }
 
-    const sessionRecords = await query;
+    let sessionRecords: typeof sessions.$inferSelect[];
+
+    try {
+      sessionRecords = await query;
+    } catch (error) {
+      // JSON parse error in corrupted session data - fix corrupted records
+      console.error('[getRecentSessionsMetadata] Error fetching sessions (likely corrupted JSON):', error);
+
+      // Query with raw SQL to bypass Drizzle's JSON parsing
+      const rawSessions = await this.db.all(sql`
+        SELECT * FROM sessions
+        ORDER BY updated DESC
+        LIMIT ${limit + 1}
+        ${cursor ? sql`WHERE updated < ${cursor}` : sql``}
+      `);
+
+      // Manually parse and fix corrupted records
+      sessionRecords = [];
+      for (const raw of rawSessions) {
+        try {
+          // Try to parse enabledRuleIds
+          let enabledRuleIds: string[] = [];
+          if (raw.enabled_rule_ids) {
+            try {
+              enabledRuleIds = JSON.parse(raw.enabled_rule_ids as string);
+            } catch {
+              // Corrupted JSON - default to empty array and fix it
+              console.warn(`[getRecentSessionsMetadata] Fixing corrupted enabledRuleIds for session ${raw.id}`);
+              enabledRuleIds = [];
+              // Fix the corrupted record
+              await this.db.update(sessions)
+                .set({ enabledRuleIds: [] })
+                .where(eq(sessions.id, raw.id as string));
+            }
+          }
+
+          sessionRecords.push({
+            id: raw.id as string,
+            title: raw.title as string | null,
+            modelId: raw.model_id as string | null,
+            provider: raw.provider as string | null,
+            model: raw.model as string | null,
+            agentId: raw.agent_id as string,
+            enabledRuleIds,
+            toolIds: raw.tool_ids ? JSON.parse(raw.tool_ids as string) : null,
+            mcpServerIds: raw.mcp_server_ids ? JSON.parse(raw.mcp_server_ids as string) : null,
+            nextTodoId: raw.next_todo_id as number,
+            created: raw.created as number,
+            updated: raw.updated as number,
+          });
+        } catch (parseError) {
+          console.error(`[getRecentSessionsMetadata] Failed to parse session ${raw.id}:`, parseError);
+          // Skip this session
+        }
+      }
+    }
 
     // Check if there are more results
     const hasMore = sessionRecords.length > limit;
