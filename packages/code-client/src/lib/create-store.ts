@@ -8,7 +8,6 @@
 
 import { zen, get, set as zenSet, type Zen } from '@sylphx/zen';
 import { useStore as useZenStore } from '@sylphx/zen-react';
-import { craft } from '@sylphx/craft';
 
 type SetStateAction<T> = T | Partial<T> | ((state: T) => void | Partial<T>);
 
@@ -56,10 +55,40 @@ export function createStore<T extends object>(
 
   // Define setState implementation (uses store reference)
   const setState = (action: SetStateAction<T>): void => {
+    if (!store) {
+      throw new Error('Store not initialized - cannot call setState during store creation');
+    }
+
     if (typeof action === 'function') {
-      // Function update - use craft for immer-style draft pattern
+      // Function update - manual immutable update
+      // structuredClone drops functions, so we manually preserve them
       const current = get(store);
-      const nextState = craft(current, action as (draft: T) => void);
+
+      // Separate data and methods
+      const data: Record<string, any> = {};
+      const methods: Record<string, any> = {};
+
+      for (const [key, value] of Object.entries(current)) {
+        if (typeof value === 'function') {
+          methods[key] = value;
+        } else {
+          data[key] = value;
+        }
+      }
+
+      // Clone only data (structuredClone drops functions anyway)
+      const draftData = structuredClone(data);
+      const draft = { ...draftData, ...methods } as T;
+
+      // Apply mutation
+      const actionFn = action as (draft: T) => void | Partial<T>;
+      const result = actionFn(draft);
+
+      // Merge back: preserve methods, update data
+      const nextState = result !== undefined
+        ? { ...current, ...result } // Return pattern: merge updates with current
+        : draft; // Mutation pattern: use mutated draft (already has methods)
+
       zenSet(store, nextState);
     } else {
       // Object update - merge with current state
@@ -70,7 +99,12 @@ export function createStore<T extends object>(
   };
 
   // Define getState implementation
-  const getState = (): T => get(store);
+  const getState = (): T => {
+    if (!store) {
+      throw new Error('Store not initialized - cannot call getState during store creation');
+    }
+    return get(store);
+  };
 
   // Call creator to get initial state
   // Creator defines methods that reference setState/getState
