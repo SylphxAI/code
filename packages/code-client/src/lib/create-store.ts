@@ -8,7 +8,7 @@
 
 import { zen, get, set as zenSet, type Zen } from '@sylphx/zen';
 import { useStore as useZenStore } from '@sylphx/zen-react';
-import { produce } from '@sylphx/craft';
+import { craft } from '@sylphx/craft';
 
 type SetStateAction<T> = T | Partial<T> | ((state: T) => void | Partial<T>);
 
@@ -57,9 +57,9 @@ export function createStore<T extends object>(
   // Define setState implementation (uses store reference)
   const setState = (action: SetStateAction<T>): void => {
     if (typeof action === 'function') {
-      // Function update - use produce for immer-style draft pattern
+      // Function update - use craft for immer-style draft pattern
       const current = get(store);
-      const nextState = produce(current, action as (draft: T) => void);
+      const nextState = craft(current, action as (draft: T) => void);
       zenSet(store, nextState);
     } else {
       // Object update - merge with current state
