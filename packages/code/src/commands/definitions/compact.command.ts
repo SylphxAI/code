@@ -69,9 +69,15 @@ export const compactCommand: Command = {
         if (newSession.messages && newSession.messages.length > 0) {
           addMessages(newSession.messages);
         }
+
+        // Auto-trigger AI response to acknowledge the compacted session
+        // Send a greeting message to prompt AI continuation
+        context.addLog('[Compact] Triggering AI response in new session...');
+        await context.triggerAIResponse('Hi');
       }
 
-      return `✓ Compacted session "${sessionTitle}" (${messageCount} messages)\n✓ Created new session with AI-generated summary\n✓ Switched to new session\n\nYou can now continue the conversation where you left off.`;
+      // Return success message (will be shown as assistant message)
+      return `✓ Compacted session "${sessionTitle}" (${messageCount} messages)\n✓ Created new session with AI-generated summary\n✓ Switched to new session`;
     } catch (error) {
       // Clear compacting status on error
       setCompacting(false);
