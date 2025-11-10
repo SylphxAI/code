@@ -55,7 +55,7 @@ export const compactCommand: Command = {
         }
       }
 
-      return `✓ Compacted session "${sessionTitle}" (${messageCount} messages)\n✓ Created new session with detailed summary\n✓ Switched to new session\n\nThe conversation summary is now loaded. You can continue working or send a message to trigger AI response.`;
+      return `✓ Compacted session "${sessionTitle}" (${messageCount} messages)\n✓ Created new session with AI-generated summary\n✓ Switched to new session\n\nYou can now continue the conversation where you left off.`;
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       context.addLog(`[Compact] Error: ${errorMsg}`);

@@ -212,10 +212,15 @@ export async function compactSession(
       },
     });
 
-    // 4.5. Add summary as first user message in new session
-    const summaryMessage = `This session is being continued from a previous conversation. The conversation is summarized below:
+    // 4.5. Add summary as first assistant message in new session
+    // ARCHITECTURE: Summary is added as assistant message (not user message)
+    // This makes semantic sense - it's the AI's understanding of the conversation
+    // User can then naturally continue by sending their next message
+    const summaryMessage = `This session is being continued from a previous conversation. Here's what we've discussed so far:
 
-${summary}`;
+${summary}
+
+You can continue working where we left off, or start a new task.`;
 
     // Import message repository to add message
     const { MessageRepository } = await import('../database/message-repository.js');
@@ -225,7 +230,7 @@ ${summary}`;
 
     await messageRepo.addMessage({
       sessionId: newSession.id,
-      role: 'user',
+      role: 'assistant',
       content: [{ type: 'text', content: summaryMessage }],
       attachments: [],
     });
