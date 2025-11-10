@@ -128,7 +128,16 @@ export function createCommandContext(args: string[], params: CommandContextParam
     ) => {
       // Clear input
       setInput('');
-      // Call the shared helper
+
+      // NOTE: Don't use sendUserMessageToAI which has stale currentSessionId
+      // Instead, directly get the current session ID and trigger AI manually
+      const { getCurrentSessionId } = await import('@sylphx/code-client');
+      const latestSessionId = getCurrentSessionId();
+
+      addLog(`[triggerAIResponse] Using session ID: ${latestSessionId}`);
+
+      // Call sendUserMessageToAI with the latest session ID
+      // This ensures we use the correct session after compact
       await sendUserMessageToAI(message, attachments);
     },
 
