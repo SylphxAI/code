@@ -42,13 +42,17 @@ export const compactCommand: Command = {
       const sessionTitle = result.oldSessionTitle || currentSession.title || 'Untitled session';
 
       // Clear current messages and switch to new session
-      const { clearMessages, setCurrentSession } = await import('@sylphx/code-client');
+      const { clearMessages, setCurrentSession, addMessages } = await import('@sylphx/code-client');
       clearMessages();
 
       // Fetch new session from server
       const newSession = await client.session.getById.query({ sessionId: result.newSessionId! });
       if (newSession) {
         setCurrentSession(newSession);
+        // Load messages from new session into UI
+        if (newSession.messages && newSession.messages.length > 0) {
+          addMessages(newSession.messages);
+        }
       }
 
       // Trigger AI response to process the summary
