@@ -223,7 +223,7 @@ This session continues from a previous conversation. Here's what we discussed:
 
 ${summary}
 
-You can continue working where we left off, or start a new task.`;
+Please acknowledge that you've reviewed the summary and confirm you're ready to continue.`;
 
     // Import message repository to add message
     const { MessageRepository } = await import('../database/message-repository.js');
