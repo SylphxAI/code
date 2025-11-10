@@ -10,10 +10,10 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { useCurrentSessionId } from '../signals/domain/session/index.js';
+import { useCurrentSessionId, $currentSession } from '../signals/domain/session/index.js';
 import { setError } from '../signals/domain/ui/index.js';
-import { updateSessionTitle } from '../signals/domain/session/index.js';
 import { getTRPCClient } from '../trpc-provider.js';
+import { get as getSignal, set as setSignal } from '@sylphx/zen';
 
 export interface EventStreamCallbacks {
   // Session events
@@ -140,11 +140,17 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
               break;
 
             case 'session-title-updated-end':
-              // Update session title in store (passive reaction to server event)
-              if (event.sessionId === currentSessionId && updateSessionTitle) {
-                updateSessionTitle(event.sessionId, event.title).catch((err) => {
-                  console.error('[EventStream] Failed to update title:', err);
-                });
+              // Update session title in local state ONLY (passive reaction to server event)
+              // DO NOT call updateSessionTitle() - that would trigger another API call → event loop!
+              // Just update local signals directly
+              if (event.sessionId === currentSessionId) {
+                const currentSession = getSignal($currentSession);
+                if (currentSession && currentSession.id === event.sessionId) {
+                  setSignal($currentSession, {
+                    ...currentSession,
+                    title: event.title,
+                  });
+                }
               }
               callbacks.onSessionTitleComplete?.(event.sessionId, event.title);
               break;
