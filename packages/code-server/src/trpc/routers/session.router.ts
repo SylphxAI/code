@@ -323,6 +323,36 @@ export const sessionRouter = router({
         model: session.model,
       });
 
+      // Auto-trigger AI streaming in new session (server-side business logic)
+      // The new session has a system message (summary) that will be used as context
+      // We trigger streaming with skipUserMessage=true to use existing messages only
+      const { streamAIResponse } = await import('../../services/streaming.service.js');
+
+      // Start streaming in background (don't await - return immediately)
+      // Events will be published to session:{newSessionId} channel for multi-client sync
+      streamAIResponse({
+        appContext: ctx.appContext,
+        sessionRepository: ctx.sessionRepository,
+        messageRepository: ctx.messageRepository,
+        aiConfig: ctx.aiConfig,
+        sessionId: result.newSessionId!,
+        content: [], // Empty content
+        skipUserMessage: true, // Use existing system message
+      }).subscribe({
+        next: (event) => {
+          // Publish streaming events to event stream for all clients
+          ctx.appContext.eventStream.publish(`session:${result.newSessionId}`, event).catch(err => {
+            console.error('[Compact] Event publish error:', err);
+          });
+        },
+        error: (error) => {
+          console.error('[Compact] AI streaming error:', error);
+        },
+        complete: () => {
+          console.log('[Compact] AI streaming completed');
+        },
+      });
+
       return {
         success: true,
         newSessionId: result.newSessionId,
