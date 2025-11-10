@@ -382,8 +382,29 @@ export const messageRouter = router({
             // Emit to current subscriber
             emit.next(event);
           },
-          error: (error) => emit.error(error),
-          complete: () => emit.complete(),
+          error: (error) => {
+            // Publish error to event stream for single-path architecture
+            if (eventSessionId) {
+              ctx.appContext.eventStream.publish(`session:${eventSessionId}`, {
+                type: 'error' as const,
+                error: error instanceof Error ? error.message : String(error),
+              }).catch(err => {
+                console.error('[StreamResponse] Error event publish error:', err);
+              });
+            }
+            emit.error(error);
+          },
+          complete: () => {
+            // Publish complete to event stream for single-path architecture
+            if (eventSessionId) {
+              ctx.appContext.eventStream.publish(`session:${eventSessionId}`, {
+                type: 'complete' as const,
+              }).catch(err => {
+                console.error('[StreamResponse] Complete event publish error:', err);
+              });
+            }
+            emit.complete();
+          },
         });
 
         return () => subscription.unsubscribe();

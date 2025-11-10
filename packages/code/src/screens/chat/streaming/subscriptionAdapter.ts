@@ -307,26 +307,20 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
         {
           onStarted: () => {
             logSession('Subscription started successfully');
+            // Set streaming flag immediately when subscription starts
+            setIsStreaming(true);
           },
           onData: (event: StreamEvent) => {
-            logMessage('Received event:', event.type);
+            // ARCHITECTURE: Single event stream path
+            // This subscription ONLY triggers server streaming
+            // All event handling happens in useEventStream (Chat.tsx)
+            //
+            // We don't process events here to avoid duplicates:
+            // - This subscription publishes to event bus
+            // - useEventStream receives from event bus
+            // - Processing here = double handling = duplicate UI
 
-            // Handle streaming events
-            handleStreamEvent(event, {
-              currentSessionId: sessionId,
-              updateSessionTitle,
-              setIsStreaming,
-              setIsTitleStreaming,
-              setStreamingTitle,
-              streamingMessageIdRef,
-              usageRef,
-              finishReasonRef,
-              lastErrorRef,
-              addLog,
-              aiConfig,
-              userMessage,
-              notificationSettings,
-            });
+            logMessage('Direct subscription received event (not processing):', event.type);
           },
           onError: (error: any) => {
             try {
