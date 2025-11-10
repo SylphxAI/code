@@ -258,10 +258,13 @@ export default function Chat(_props: ChatProps) {
       // Skip events if we have an active direct subscription (streamingMessageIdRef)
       // to avoid duplicate handling. Process events from other sources (e.g., compact auto-trigger, other clients)
       onAssistantMessageCreated: (messageId: string) => {
+        console.log('[EventStream] onAssistantMessageCreated:', messageId, 'streamingMessageIdRef:', streamingMessageIdRef.current);
         // Skip if this is from our direct subscription
         if (streamingMessageIdRef.current) {
+          console.log('[EventStream] Skipping - direct subscription active');
           return;
         }
+        console.log('[EventStream] Handling from event stream');
         // Handle from event stream (compact auto-trigger or other client)
         handleStreamEvent(
           { type: 'assistant-message-created', messageId },
@@ -283,10 +286,13 @@ export default function Chat(_props: ChatProps) {
         );
       },
       onTextDelta: (text: string) => {
+        console.log('[EventStream] onTextDelta:', text.substring(0, 50), 'streamingMessageIdRef:', streamingMessageIdRef.current);
         // Skip if this is from our direct subscription
         if (streamingMessageIdRef.current) {
+          console.log('[EventStream] Skipping text-delta - direct subscription active');
           return;
         }
+        console.log('[EventStream] Handling text-delta from event stream');
         // Handle from event stream
         handleStreamEvent(
           { type: 'text-delta', text },
