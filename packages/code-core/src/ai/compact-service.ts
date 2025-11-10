@@ -42,6 +42,7 @@ export type ProgressCallback = (status: string, detail?: string) => void;
  */
 function buildConversationHistory(messages: Message[]): string {
   return messages
+    .filter((msg) => msg.content && Array.isArray(msg.content)) // Skip messages without content
     .map((msg) => {
       // Extract text content
       const textParts = msg.content
@@ -141,8 +142,18 @@ export async function compactSession(
     onProgress?.('summarizing', 'Generating AI summary (this may take a moment)...');
 
     // 3. Generate summary with AI (no token limit!)
+    logger.info('Creating model client', {
+      provider: session.provider,
+      model: session.model,
+      hasProviderConfig: !!providerConfig,
+    });
+
     const model = provider.createClient(providerConfig, session.model);
     const summaryPrompt = createSummaryPrompt(conversationHistory);
+
+    logger.info('Starting AI streaming', {
+      promptLength: summaryPrompt.length,
+    });
 
     const result = await streamText({
       model,
@@ -249,7 +260,10 @@ ${summary}`;
     logger.error('Failed to compact session', {
       sessionId,
       error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
     });
+
+    console.error('[Compact] Full error:', error);
 
     return {
       success: false,
