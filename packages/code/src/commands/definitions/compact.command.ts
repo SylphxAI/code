@@ -57,25 +57,31 @@ export const compactCommand: Command = {
       const messageCount = result.messageCount || currentSession.messages.length;
       const sessionTitle = result.oldSessionTitle || currentSession.title || 'Untitled session';
 
-      // Clear current messages and switch to new session
-      const { clearMessages, setCurrentSession, addMessages } = await import('@sylphx/code-client');
-      clearMessages();
-
-      // Fetch new session from server
+      // Fetch new session to get the system message (summary)
+      // Filter out any active messages (those are being streamed and will come via event stream)
       const newSession = await client.session.getById.query({ sessionId: result.newSessionId! });
-      if (newSession) {
-        setCurrentSession(newSession);
 
-        // Load messages from new session into UI (includes the summary system message)
-        if (newSession.messages && newSession.messages.length > 0) {
-          addMessages(newSession.messages);
-        }
-
-        // Server auto-triggers AI streaming in background (business logic on server)
-        // Events are delivered via event stream to all clients
-        // Client receives events through useEventStream with deduplication
-        context.sendMessage(`✓ Compacted session "${sessionTitle}" (${messageCount} messages)\n✓ Created new session with AI-generated summary\n✓ Switched to new session\n✓ AI is processing the summary...`);
+      if (!newSession) {
+        return `❌ Failed to load new session`;
       }
+
+      // Only include completed messages (system message)
+      // Active messages are being streamed and will be added by event stream handlers
+      const completedMessages = newSession.messages.filter(m => m.status === 'completed');
+
+      // Switch to new session with completed messages only
+      const { setCurrentSessionId, set, $currentSession } = await import('@sylphx/code-client');
+
+      setCurrentSessionId(result.newSessionId!);
+      set($currentSession, {
+        ...newSession,
+        messages: completedMessages, // Only completed messages (system message)
+      });
+
+      // Server auto-triggers AI streaming in background (business logic on server)
+      // Events are delivered via event stream to all clients
+      // useEventStream with replayLast:50 will catch streaming events (assistant message, reasoning, text)
+      context.sendMessage(`✓ Compacted session "${sessionTitle}" (${messageCount} messages)\n✓ Created new session with AI-generated summary\n✓ Switched to new session\n✓ AI is processing the summary...`);
 
       return;
     } catch (error) {
