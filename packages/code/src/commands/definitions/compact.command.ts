@@ -71,10 +71,13 @@ export const compactCommand: Command = {
           addMessages(newSession.messages);
         }
 
-        // Server will auto-trigger AI streaming in background
-        // Client just needs to display the success message
-        // AI response will arrive via event stream and render automatically
-        context.sendMessage(`✓ Compacted session "${sessionTitle}" (${messageCount} messages)\n✓ Created new session with AI-generated summary\n✓ Switched to new session\n✓ AI is processing the summary...`);
+        // Trigger AI streaming using normal subscription flow
+        // This ensures proper event delivery (client subscribes → server streams → client receives)
+        // Pass empty message to trigger with existing messages only (the summary)
+        context.sendMessage(`✓ Compacted session "${sessionTitle}" (${messageCount} messages)\n✓ Created new session with AI-generated summary\n✓ Switched to new session`);
+
+        // Trigger AI response with empty message (uses existing summary message)
+        await context.triggerAIResponse('');
       }
 
       return;
