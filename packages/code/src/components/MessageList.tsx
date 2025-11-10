@@ -26,7 +26,19 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
             {msg.role === 'user' ? (
               <Text color="#00D9FF">▌ YOU</Text>
             ) : msg.role === 'system' ? (
-              <Text color="#FFD700">▌ SYSTEM</Text>
+              (() => {
+                // Extract system message type from <system_message type="..."> tag
+                const content = msg.content?.[0]?.type === 'text' ? msg.content[0].content : '';
+                const typeMatch = content.match(/<system_message type="([^"]+)">/);
+                const messageType = typeMatch ? typeMatch[1] : 'info';
+
+                return (
+                  <Box flexDirection="row">
+                    <Text color="#FFD700">▌ SYSTEM</Text>
+                    <Text color="#FFD700" dimColor> · {messageType}</Text>
+                  </Box>
+                );
+              })()
             ) : (
               <Text color="#00FF88">▌ SYLPHX</Text>
             )}
@@ -52,6 +64,14 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
                     } else if (part.type === 'error') {
                       fullText += `[Error: ${part.error}]`;
                     }
+                  }
+
+                  // For system messages, remove <system_message> tags and clean content
+                  if (msg.role === 'system') {
+                    fullText = fullText
+                      .replace(/<system_message[^>]*>/g, '')
+                      .replace(/<\/system_message>/g, '')
+                      .trim();
                   }
 
                   // Split by newlines to preserve line breaks
@@ -88,15 +108,27 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
                     }
 
                     // Render line with highlighted segments
+                    // System messages get special styling
                     return (
-                      <Box key={`line-${lineIdx}`} flexDirection="row" flexWrap="wrap">
+                      <Box
+                        key={`line-${lineIdx}`}
+                        flexDirection="row"
+                        flexWrap="wrap"
+                        paddingX={msg.role === 'system' ? 1 : 0}
+                        marginY={msg.role === 'system' && lineIdx === 0 ? 0 : undefined}
+                      >
                         {segments.map((seg, segIdx) =>
                           seg.isFile ? (
                             <Text key={`line-${lineIdx}-seg-${segIdx}`} backgroundColor="#1a472a" color="#00FF88">
                               {seg.text}
                             </Text>
                           ) : (
-                            <MarkdownText key={`line-${lineIdx}-seg-${segIdx}`}>{seg.text}</MarkdownText>
+                            <Text
+                              key={`line-${lineIdx}-seg-${segIdx}`}
+                              color={msg.role === 'system' ? '#FFD700' : undefined}
+                            >
+                              <MarkdownText>{seg.text}</MarkdownText>
+                            </Text>
                           )
                         )}
                       </Box>
@@ -120,6 +152,14 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
                     } else if (part.type === 'error') {
                       fullText += `[Error: ${part.error}]`;
                     }
+                  }
+
+                  // For system messages, remove <system_message> tags and clean content
+                  if (msg.role === 'system') {
+                    fullText = fullText
+                      .replace(/<system_message[^>]*>/g, '')
+                      .replace(/<\/system_message>/g, '')
+                      .trim();
                   }
 
                   const lines = fullText.split('\n');
@@ -151,14 +191,25 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
                     }
 
                     return (
-                      <Box key={`legacy-line-${lineIdx}`} flexDirection="row" flexWrap="wrap">
+                      <Box
+                        key={`legacy-line-${lineIdx}`}
+                        flexDirection="row"
+                        flexWrap="wrap"
+                        paddingX={msg.role === 'system' ? 1 : 0}
+                        marginY={msg.role === 'system' && lineIdx === 0 ? 0 : undefined}
+                      >
                         {segments.map((seg, segIdx) =>
                           seg.isFile ? (
                             <Text key={`legacy-line-${lineIdx}-seg-${segIdx}`} backgroundColor="#1a472a" color="#00FF88">
                               {seg.text}
                             </Text>
                           ) : (
-                            <MarkdownText key={`legacy-line-${lineIdx}-seg-${segIdx}`}>{seg.text}</MarkdownText>
+                            <Text
+                              key={`legacy-line-${lineIdx}-seg-${segIdx}`}
+                              color={msg.role === 'system' ? '#FFD700' : undefined}
+                            >
+                              <MarkdownText>{seg.text}</MarkdownText>
+                            </Text>
                           )
                         )}
                       </Box>
