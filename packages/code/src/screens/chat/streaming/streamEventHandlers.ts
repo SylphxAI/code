@@ -259,9 +259,6 @@ function handleAssistantMessageCreated(event: Extract<StreamEvent, { type: 'assi
   const currentSessionId = getCurrentSessionId();
   const currentSession = getSignal($currentSession);
 
-  console.log('🔍 [handleAssistantMessageCreated] START - messageId:', event.messageId, 'currentSessionId:', currentSessionId);
-  console.log('🔍 [handleAssistantMessageCreated] Current session messages:', currentSession?.messages.map(m => ({ id: m.id, role: m.role, status: m.status })));
-
   context.streamingMessageIdRef.current = event.messageId;
   logMessage('Message created:', event.messageId, 'session:', currentSessionId);
 
@@ -277,7 +274,6 @@ function handleAssistantMessageCreated(event: Extract<StreamEvent, { type: 'assi
   }
 
   if (!currentSession || currentSession.id !== currentSessionId) {
-    console.log('🔍 [handleAssistantMessageCreated] ABORTED - Session mismatch! expected:', currentSessionId, 'got:', currentSession?.id);
     logMessage('Session mismatch! expected:', currentSessionId, 'got:', currentSession?.id);
     return;
   }
@@ -285,12 +281,9 @@ function handleAssistantMessageCreated(event: Extract<StreamEvent, { type: 'assi
   // Check if message already exists (prevent duplicates)
   const messageExists = currentSession.messages.some(m => m.id === event.messageId);
   if (messageExists) {
-    console.log('🔍 [handleAssistantMessageCreated] ABORTED - Message already exists:', event.messageId);
     logMessage('Message already exists, skipping:', event.messageId);
     return;
   }
-
-  console.log('🔍 [handleAssistantMessageCreated] Creating new message, current message count:', currentSession.messages.length);
 
   // Add new assistant message to session
   const newMessage = {
@@ -301,8 +294,6 @@ function handleAssistantMessageCreated(event: Extract<StreamEvent, { type: 'assi
     status: 'active',
   };
 
-  console.log('🔍 [handleAssistantMessageCreated] About to update $currentSession signal');
-
   setSignal($currentSession, {
     ...currentSession,
     messages: [
@@ -311,7 +302,6 @@ function handleAssistantMessageCreated(event: Extract<StreamEvent, { type: 'assi
     ]
   });
 
-  console.log('🔍 [handleAssistantMessageCreated] SUCCESS - Message added, new count:', currentSession.messages.length + 1);
   logMessage('Added assistant message, total:', currentSession.messages.length + 1);
 }
 
@@ -523,8 +513,6 @@ function handleComplete(event: Extract<StreamEvent, { type: 'complete' }>, conte
   const currentSessionId = getCurrentSessionId();
   const currentSession = getSignal($currentSession);
 
-  console.log('🔍 [handleComplete] START - currentSessionId:', currentSessionId);
-
   // Store usage and finishReason
   if (event.usage) {
     context.usageRef.current = event.usage;
@@ -535,7 +523,6 @@ function handleComplete(event: Extract<StreamEvent, { type: 'complete' }>, conte
 
   // Stop streaming UI indicator
   context.setIsStreaming(false);
-  console.log('🔍 [handleComplete] Set isStreaming to false');
 
   // Update active message status to completed
   if (currentSession && context.streamingMessageIdRef.current) {
@@ -554,8 +541,6 @@ function handleComplete(event: Extract<StreamEvent, { type: 'complete' }>, conte
       ...currentSession,
       messages: updatedMessages,
     });
-
-    console.log('🔍 [handleComplete] Updated message status to completed');
   }
 
   // Clear streaming message ID
@@ -567,7 +552,6 @@ function handleComplete(event: Extract<StreamEvent, { type: 'complete' }>, conte
 function handleError(event: Extract<StreamEvent, { type: 'error' }>, context: EventHandlerContext) {
   const currentSessionId = getCurrentSessionId();
 
-  console.log('🔍 [handleError] Error received:', event.error);
   logContent('Error event received:', event.error);
   context.lastErrorRef.current = event.error;
 
@@ -582,16 +566,13 @@ function handleError(event: Extract<StreamEvent, { type: 'error' }>, context: Ev
 
   // Stop streaming UI indicator on error
   context.setIsStreaming(false);
-  console.log('🔍 [handleError] Set isStreaming to false');
 }
 
 function handleAbort(event: Extract<StreamEvent, { type: 'abort' }>, context: EventHandlerContext) {
-  console.log('🔍 [handleAbort] Stream aborted');
   context.addLog('[StreamEvent] Stream aborted');
 
   // Stop streaming UI indicator on abort
   context.setIsStreaming(false);
-  console.log('🔍 [handleAbort] Set isStreaming to false');
 }
 
 // ============================================================================
