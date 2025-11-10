@@ -71,13 +71,10 @@ export const compactCommand: Command = {
           addMessages(newSession.messages);
         }
 
-        // Trigger AI streaming using normal subscription flow
-        // This ensures proper event delivery (client subscribes → server streams → client receives)
-        // Pass empty message to trigger with existing messages only (the summary)
-        context.sendMessage(`✓ Compacted session "${sessionTitle}" (${messageCount} messages)\n✓ Created new session with AI-generated summary\n✓ Switched to new session`);
-
-        // Trigger AI response with empty message (uses existing summary message)
-        await context.triggerAIResponse('');
+        // Server auto-triggers AI streaming in background (business logic on server)
+        // Events are delivered via event stream to all clients
+        // Client receives events through useEventStream with deduplication
+        context.sendMessage(`✓ Compacted session "${sessionTitle}" (${messageCount} messages)\n✓ Created new session with AI-generated summary\n✓ Switched to new session\n✓ AI is processing the summary...`);
       }
 
       return;

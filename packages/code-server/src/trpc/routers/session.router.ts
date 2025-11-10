@@ -323,10 +323,35 @@ export const sessionRouter = router({
         model: session.model,
       });
 
-      // NOTE: We don't auto-trigger AI streaming here
-      // Client will trigger streaming after switching to new session
-      // This ensures proper subscription channel setup (client subscribes → server streams)
-      // Auto-triggering from server causes events to be lost (event stream callbacks disabled in TUI)
+      // Auto-trigger AI streaming in new session (server-side business logic)
+      // The new session has a system message (summary) that will be converted to model user message
+      // Events are published to session:${newSessionId} channel for all clients
+      // Clients with deduplication enabled will receive and display the streaming
+      const { streamAIResponse } = await import('../../services/streaming.service.js');
+
+      // Start streaming in background (don't await - return immediately)
+      // Events will be published to session:{newSessionId} channel for multi-client sync
+      streamAIResponse({
+        appContext: ctx.appContext,
+        sessionRepository: ctx.sessionRepository,
+        messageRepository: ctx.messageRepository,
+        aiConfig: ctx.aiConfig,
+        sessionId: result.newSessionId!,
+        userMessageContent: null, // No new user message - use existing system message
+      }).subscribe({
+        next: (event) => {
+          // Publish streaming events to event stream for all clients
+          ctx.appContext.eventStream.publish(`session:${result.newSessionId}`, event).catch(err => {
+            console.error('[Compact] Event publish error:', err);
+          });
+        },
+        error: (error) => {
+          console.error('[Compact] AI streaming error:', error);
+        },
+        complete: () => {
+          console.log('[Compact] AI streaming completed');
+        },
+      });
 
       return {
         success: true,

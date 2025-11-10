@@ -253,23 +253,108 @@ export default function Chat(_props: ChatProps) {
         }
       },
 
-      // DISABLED: Message sync callbacks (single-client TUI)
+      // Message sync callbacks with deduplication
+      // Skip events if we have an active direct subscription (streamingMessageIdRef)
+      // to avoid duplicate handling. Process events from other sources (e.g., compact auto-trigger, other clients)
       onAssistantMessageCreated: (messageId: string) => {
-        // DISABLED: Causes infinite loop in single-client TUI
-        // Event stream replay keeps triggering addMessage() creating duplicates
-        return;
+        // Skip if this is from our direct subscription
+        if (streamingMessageIdRef.current) {
+          return;
+        }
+        // Handle from event stream (compact auto-trigger or other client)
+        handleStreamEvent(
+          { type: 'assistant-message-created', messageId },
+          {
+            currentSessionId: getCurrentSessionId(),
+            updateSessionTitle,
+            setIsStreaming,
+            setIsTitleStreaming,
+            setStreamingTitle,
+            streamingMessageIdRef,
+            usageRef,
+            finishReasonRef,
+            lastErrorRef,
+            addLog,
+            aiConfig,
+            userMessage: '',
+            notificationSettings,
+          }
+        );
       },
       onTextDelta: (text: string) => {
-        // DISABLED: TUI is single-client, no multi-client sync needed
-        return;
+        // Skip if this is from our direct subscription
+        if (streamingMessageIdRef.current) {
+          return;
+        }
+        // Handle from event stream
+        handleStreamEvent(
+          { type: 'text-delta', text },
+          {
+            currentSessionId: getCurrentSessionId(),
+            updateSessionTitle,
+            setIsStreaming,
+            setIsTitleStreaming,
+            setStreamingTitle,
+            streamingMessageIdRef,
+            usageRef,
+            finishReasonRef,
+            lastErrorRef,
+            addLog,
+            aiConfig,
+            userMessage: '',
+            notificationSettings,
+          }
+        );
       },
       onToolCall: (toolCallId: string, toolName: string, args: unknown) => {
-        // DISABLED: TUI is single-client
-        return;
+        // Skip if this is from our direct subscription
+        if (streamingMessageIdRef.current) {
+          return;
+        }
+        // Handle from event stream
+        handleStreamEvent(
+          { type: 'tool-call', toolCallId, toolName, args },
+          {
+            currentSessionId: getCurrentSessionId(),
+            updateSessionTitle,
+            setIsStreaming,
+            setIsTitleStreaming,
+            setStreamingTitle,
+            streamingMessageIdRef,
+            usageRef,
+            finishReasonRef,
+            lastErrorRef,
+            addLog,
+            aiConfig,
+            userMessage: '',
+            notificationSettings,
+          }
+        );
       },
-      onComplete: () => {
-        // DISABLED: TUI is single-client
-        return;
+      onComplete: (usage?: any, finishReason?: string) => {
+        // Skip if this is from our direct subscription
+        if (streamingMessageIdRef.current) {
+          return;
+        }
+        // Handle from event stream
+        handleStreamEvent(
+          { type: 'complete', usage, finishReason },
+          {
+            currentSessionId: getCurrentSessionId(),
+            updateSessionTitle,
+            setIsStreaming,
+            setIsTitleStreaming,
+            setStreamingTitle,
+            streamingMessageIdRef,
+            usageRef,
+            finishReasonRef,
+            lastErrorRef,
+            addLog,
+            aiConfig,
+            userMessage: '',
+            notificationSettings,
+          }
+        );
       },
     }),
     [setIsTitleStreaming, setStreamingTitle]
