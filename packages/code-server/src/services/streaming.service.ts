@@ -50,6 +50,7 @@ export type StreamEvent =
   // Message-level events
   | { type: 'user-message-created'; messageId: string; content: string }
   | { type: 'assistant-message-created'; messageId: string }
+  | { type: 'system-message-inserted'; sessionId: string; messageId: string; content: string }
 
   // Step-level events (NEW)
   | { type: 'step-start'; stepId: string; stepIndex: number; metadata: { cpu: string; memory: string }; todoSnapshot: any[] }
@@ -318,10 +319,12 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
             console.log('[streamAIResponse] Trigger fired, inserting system message');
             const systemMessageId = await insertSystemMessage(messageRepository, sessionId, triggerResult.message);
 
-            // Emit session-updated event to refresh UI
+            // Emit system-message-inserted event with full message data for UI
             observer.next({
-              type: 'session-updated',
+              type: 'system-message-inserted',
               sessionId,
+              messageId: systemMessageId,
+              content: triggerResult.message,
             });
 
             // Reload session again to include system message and updated flags
