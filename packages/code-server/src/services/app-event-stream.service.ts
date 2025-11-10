@@ -246,15 +246,16 @@ export class AppEventStream {
   /**
    * Get or create ReplaySubject for channel
    *
-   * IMPORTANT: Uses bufferSize=0 to disable automatic replay.
-   * Replay is explicitly controlled via subscribeWithHistory() using persistence layer.
-   * This prevents double-replay (ReplaySubject + persistence).
+   * IMPORTANT: Uses small bufferSize (10) to handle immediate race conditions.
+   * - Prevents lost events when client subscribes right after mutation
+   * - Small enough to avoid massive auto-replay in tests
+   * - Persistence layer handles larger replay via subscribeWithHistory()
    */
   private getOrCreateSubject(channel: string): ReplaySubject<StoredEvent> {
     if (!this.subjects.has(channel)) {
-      // Use bufferSize=0 to disable automatic replay
-      // Replay is handled explicitly via subscribeWithHistory() + persistence
-      const bufferSize = 0
+      // Small buffer to handle race conditions (mutation → subscribe delay)
+      // Persistence handles larger replay (50+ events)
+      const bufferSize = 10
       const bufferTime = this.options.bufferTime ?? 5 * 60 * 1000
 
       this.subjects.set(
