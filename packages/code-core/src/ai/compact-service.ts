@@ -68,28 +68,61 @@ function buildConversationHistory(messages: Message[]): string {
  * Emphasizes completeness and current work state
  */
 function createSummaryPrompt(conversationHistory: string): string {
-  return `You are a conversation summarizer. Your task is to create a comprehensive, detailed summary of the following conversation that preserves ALL important information.
+  return `You are a conversation summarizer for a coding assistant. Create a summary that allows seamless continuation of work in a new session.
 
-CRITICAL REQUIREMENTS:
-1. DO NOT omit any important details, decisions, code snippets, file paths, commands, or configurations
-2. Preserve technical accuracy - include exact function names, variable names, file paths, and command syntax
-3. Maintain chronological flow of the conversation
-4. Highlight key decisions, problems solved, and solutions implemented
-5. Include all context that would be needed to continue this conversation naturally
-6. Use clear markdown formatting with sections and bullet points
-7. If code was discussed or written, include the essential parts or describe what was implemented
-8. **CRITICAL**: If there is ongoing work or tasks in progress, create a section called "## Current Work" that describes:
-   - What was being worked on when the conversation was compacted
-   - What the next steps should be
-   - Any pending tasks or unfinished work
-   - The current state of the implementation
+SUMMARY STRUCTURE (use these sections as applicable):
 
-The summary will be used to start a fresh conversation while maintaining full context.
+## Overview
+Brief 1-2 sentence description of what this conversation was about.
+
+## Recent Conversation
+**CRITICAL**: Include the last 3-5 exchanges verbatim or near-verbatim. The assistant needs to remember exactly what was just discussed to continue naturally.
+
+## Work Completed
+List concrete accomplishments:
+- Files created/modified (with paths)
+- Features implemented
+- Bugs fixed
+- Commands run
+- Decisions made
+
+## Current Work
+**CRITICAL**: What is actively being worked on RIGHT NOW:
+- Current task/feature being implemented
+- What stage it's at (debugging, implementing, testing, etc.)
+- What works and what doesn't
+- Any errors or blockers encountered
+
+## Pending Tasks
+Explicit list of what needs to be done next:
+- [ ] Immediate next steps
+- [ ] Known issues to fix
+- [ ] Planned features/improvements
+- [ ] User's explicit requests that haven't been completed
+
+## Technical Context
+Key technical details needed to continue:
+- Important file paths, function names, variable names
+- Architecture decisions and patterns used
+- Dependencies, libraries, frameworks
+- Configuration details
+- Command syntax used
+
+## User's Last Request
+**CRITICAL**: What did the user ask for most recently? This is what the assistant should focus on when the conversation resumes.
+
+REQUIREMENTS:
+- If conversation is simple (greetings, brief exchanges), keep summary concise but accurate
+- DO NOT invent work that wasn't done
+- DO NOT omit the user's last request
+- Preserve exact technical details (paths, function names, commands)
+- If there's ongoing work, make it crystal clear what the next step is
+- If conversation was just starting, say so clearly
 
 CONVERSATION TO SUMMARIZE:
 ${conversationHistory}
 
-Please provide a detailed, structured summary now:`;
+Provide the structured summary now:`;
 }
 
 /**
