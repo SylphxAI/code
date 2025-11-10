@@ -44,64 +44,99 @@ describe('Streaming Integration', () => {
     let output = '';
     const errors: string[] = [];
 
-    // Subscribe to stream
+    // NEW ARCHITECTURE: Trigger mutation + Subscribe to events
     const result = await new Promise<{
       success: boolean;
       sessionId: string | null;
       events: string[];
       output: string;
       errors: string[];
-    }>((resolve, reject) => {
+    }>(async (resolve, reject) => {
       const timeout = setTimeout(() => {
         reject(new Error('Test timeout after 30s'));
       }, 30000);
 
-      client.message.streamResponse.subscribe(
-        {
+      try {
+        // Step 1: Trigger streaming via mutation
+        const triggerResult = await client.message.triggerStream.mutate({
           sessionId: null,
           provider: 'openrouter',
           model: 'x-ai/grok-code-fast-1',
-          userMessage: 'say hello',
-        },
-        {
-          onData: (event: any) => {
-            events.push(event.type);
+          content: [{ type: 'text', content: 'say hello' }],
+        });
 
-            switch (event.type) {
-              case 'session-created':
-                sessionId = event.sessionId;
-                break;
-              case 'text-delta':
-                output += event.text;
-                break;
-              case 'error':
-                errors.push(event.error);
-                break;
-              case 'complete':
-                clearTimeout(timeout);
-                resolve({
-                  success: errors.length === 0,
-                  sessionId,
-                  events,
-                  output,
-                  errors,
-                });
-                break;
-            }
-          },
-          onError: (error: any) => {
-            clearTimeout(timeout);
-            errors.push(error.message || String(error));
-            resolve({
-              success: false,
-              sessionId,
-              events,
-              output,
-              errors,
-            });
-          },
+        sessionId = triggerResult.sessionId;
+
+        if (!sessionId) {
+          clearTimeout(timeout);
+          errors.push('No session ID returned');
+          resolve({
+            success: false,
+            sessionId,
+            events,
+            output,
+            errors,
+          });
+          return;
         }
-      );
+
+        // Step 2: Subscribe to session events
+        client.message.subscribe.subscribe(
+          {
+            sessionId,
+            replayLast: 50, // Replay to catch events already published
+          },
+          {
+            onData: (event: any) => {
+              events.push(event.type);
+
+              switch (event.type) {
+                case 'session-created':
+                  // Already captured from mutation result
+                  break;
+                case 'text-delta':
+                  output += event.text;
+                  break;
+                case 'error':
+                  errors.push(event.error);
+                  break;
+                case 'complete':
+                  clearTimeout(timeout);
+                  resolve({
+                    success: errors.length === 0,
+                    sessionId,
+                    events,
+                    output,
+                    errors,
+                  });
+                  break;
+              }
+            },
+            onError: (error: any) => {
+              clearTimeout(timeout);
+              errors.push(error.message || String(error));
+              resolve({
+                success: false,
+                sessionId,
+                events,
+                output,
+                errors,
+              });
+            },
+          }
+        );
+      } catch (error) {
+        clearTimeout(timeout);
+        errors.push(error instanceof Error ? error.message : String(error));
+        resolve({
+          success: false,
+          sessionId,
+          events,
+          output,
+          errors,
+        });
+      }
+    });
     });
 
     // Assertions
