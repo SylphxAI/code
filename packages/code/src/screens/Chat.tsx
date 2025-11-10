@@ -66,7 +66,7 @@ import { useSelectionState } from './chat/hooks/useSelectionState.js';
 import { useStreamingState } from './chat/hooks/useStreamingState.js';
 // Streaming utilities
 import { createSubscriptionSendUserMessageToAI } from './chat/streaming/subscriptionAdapter.js';
-import { wrapEventStreamCallback } from './chat/streaming/eventStreamWrapper.js';
+import { handleStreamEvent } from './chat/streaming/streamEventHandlers.js';
 
 // Note: useMessageHistory not needed - using useInputState which includes history management
 
@@ -135,7 +135,6 @@ export default function Chat(_props: ChatProps) {
     lastErrorRef,
     wasAbortedRef,
     streamingMessageIdRef,
-    directSubscriptionMessageIdsRef,
     usageRef,
     finishReasonRef,
     dbWriteTimerRef,
@@ -285,113 +284,51 @@ export default function Chat(_props: ChatProps) {
         }
       },
 
-      // Message sync callbacks with deduplication
-      // Skip events ONLY if we have an active direct subscription (both flags set)
-      // Process events from event stream sources (e.g., compact auto-trigger, other clients)
-      onAssistantMessageCreated: wrapEventStreamCallback(
-        'assistant-message-created',
-        streamingMessageIdRef,
-        directSubscriptionMessageIdsRef,
-        eventContextParams,
-        (messageId: string) => ({ type: 'assistant-message-created', messageId })
-      ),
+      // Message streaming callbacks - unified event stream path
+      // All events go through handleStreamEvent (no dual-path complexity)
+      onAssistantMessageCreated: (messageId: string) => {
+        handleStreamEvent({ type: 'assistant-message-created', messageId }, eventContextParams);
+      },
 
       // Text streaming
-      onTextStart: wrapEventStreamCallback(
-        'text-start',
-        streamingMessageIdRef,
-        directSubscriptionMessageIdsRef,
-        eventContextParams,
-        () => ({ type: 'text-start' })
-      ),
-      onTextDelta: wrapEventStreamCallback(
-        'text-delta',
-        streamingMessageIdRef,
-        directSubscriptionMessageIdsRef,
-        eventContextParams,
-        (text: string) => ({ type: 'text-delta', text })
-      ),
-      onTextEnd: wrapEventStreamCallback(
-        'text-end',
-        streamingMessageIdRef,
-        directSubscriptionMessageIdsRef,
-        eventContextParams,
-        () => ({ type: 'text-end' })
-      ),
+      onTextStart: () => {
+        handleStreamEvent({ type: 'text-start' }, eventContextParams);
+      },
+      onTextDelta: (text: string) => {
+        handleStreamEvent({ type: 'text-delta', text }, eventContextParams);
+      },
+      onTextEnd: () => {
+        handleStreamEvent({ type: 'text-end' }, eventContextParams);
+      },
 
       // Reasoning streaming
-      onReasoningStart: wrapEventStreamCallback(
-        'reasoning-start',
-        streamingMessageIdRef,
-        directSubscriptionMessageIdsRef,
-        eventContextParams,
-        () => ({ type: 'reasoning-start' })
-      ),
-      onReasoningDelta: wrapEventStreamCallback(
-        'reasoning-delta',
-        streamingMessageIdRef,
-        directSubscriptionMessageIdsRef,
-        eventContextParams,
-        (text: string) => ({ type: 'reasoning-delta', text })
-      ),
-      onReasoningEnd: wrapEventStreamCallback(
-        'reasoning-end',
-        streamingMessageIdRef,
-        directSubscriptionMessageIdsRef,
-        eventContextParams,
-        (duration: number) => ({ type: 'reasoning-end', duration })
-      ),
+      onReasoningStart: () => {
+        handleStreamEvent({ type: 'reasoning-start' }, eventContextParams);
+      },
+      onReasoningDelta: (text: string) => {
+        handleStreamEvent({ type: 'reasoning-delta', text }, eventContextParams);
+      },
+      onReasoningEnd: (duration: number) => {
+        handleStreamEvent({ type: 'reasoning-end', duration }, eventContextParams);
+      },
 
       // Tool streaming
-      onToolCall: wrapEventStreamCallback(
-        'tool-call',
-        streamingMessageIdRef,
-        directSubscriptionMessageIdsRef,
-        eventContextParams,
-        (toolCallId: string, toolName: string, args: unknown) => ({
-          type: 'tool-call',
-          toolCallId,
-          toolName,
-          args,
-        })
-      ),
-      onToolResult: wrapEventStreamCallback(
-        'tool-result',
-        streamingMessageIdRef,
-        directSubscriptionMessageIdsRef,
-        eventContextParams,
-        (toolCallId: string, toolName: string, result: unknown, duration: number) => ({
-          type: 'tool-result',
-          toolCallId,
-          toolName,
-          result,
-          duration,
-        })
-      ),
-      onToolError: wrapEventStreamCallback(
-        'tool-error',
-        streamingMessageIdRef,
-        directSubscriptionMessageIdsRef,
-        eventContextParams,
-        (toolCallId: string, toolName: string, error: string, duration: number) => ({
-          type: 'tool-error',
-          toolCallId,
-          toolName,
-          error,
-          duration,
-        })
-      ),
+      onToolCall: (toolCallId: string, toolName: string, args: unknown) => {
+        handleStreamEvent({ type: 'tool-call', toolCallId, toolName, args }, eventContextParams);
+      },
+      onToolResult: (toolCallId: string, toolName: string, result: unknown, duration: number) => {
+        handleStreamEvent({ type: 'tool-result', toolCallId, toolName, result, duration }, eventContextParams);
+      },
+      onToolError: (toolCallId: string, toolName: string, error: string, duration: number) => {
+        handleStreamEvent({ type: 'tool-error', toolCallId, toolName, error, duration }, eventContextParams);
+      },
 
       // Completion
-      onComplete: wrapEventStreamCallback(
-        'complete',
-        streamingMessageIdRef,
-        directSubscriptionMessageIdsRef,
-        eventContextParams,
-        (usage?: any, finishReason?: string) => ({ type: 'complete', usage, finishReason })
-      ),
+      onComplete: (usage?: any, finishReason?: string) => {
+        handleStreamEvent({ type: 'complete', usage, finishReason }, eventContextParams);
+      },
     }),
-    [eventContextParams, streamingMessageIdRef, directSubscriptionMessageIdsRef]
+    [eventContextParams]
   );
 
   // Event stream for multi-client sync and compact auto-response
@@ -419,7 +356,6 @@ export default function Chat(_props: ChatProps) {
       lastErrorRef,
       wasAbortedRef,
       streamingMessageIdRef,
-      directSubscriptionMessageIdsRef,
       usageRef,
       finishReasonRef,
       setIsStreaming,

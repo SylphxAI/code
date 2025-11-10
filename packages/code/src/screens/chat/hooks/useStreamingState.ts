@@ -17,7 +17,6 @@ export interface StreamingState {
   lastErrorRef: React.MutableRefObject<string | null>;
   wasAbortedRef: React.MutableRefObject<boolean>;
   streamingMessageIdRef: React.MutableRefObject<string | null>;
-  directSubscriptionMessageIdsRef: React.MutableRefObject<Set<string>>;
   usageRef: React.MutableRefObject<TokenUsage | null>;
   finishReasonRef: React.MutableRefObject<string | null>;
   dbWriteTimerRef: React.MutableRefObject<NodeJS.Timeout | null>;
@@ -34,7 +33,6 @@ export function useStreamingState(): StreamingState {
   const lastErrorRef = useRef<string | null>(null);
   const wasAbortedRef = useRef(false);
   const streamingMessageIdRef = useRef<string | null>(null);
-  const directSubscriptionMessageIdsRef = useRef<Set<string>>(new Set());
   const usageRef = useRef<TokenUsage | null>(null);
   const finishReasonRef = useRef<string | null>(null);
 
@@ -53,7 +51,6 @@ export function useStreamingState(): StreamingState {
     lastErrorRef,
     wasAbortedRef,
     streamingMessageIdRef,
-    directSubscriptionMessageIdsRef,
     usageRef,
     finishReasonRef,
     dbWriteTimerRef,
