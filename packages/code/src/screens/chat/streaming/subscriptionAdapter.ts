@@ -41,6 +41,17 @@ const logSession = createLogger('subscription:session');
 const logMessage = createLogger('subscription:message');
 
 /**
+ * Options for triggering AI streaming
+ */
+export interface TriggerAIOptions {
+  /**
+   * Skip adding a new user message (use existing messages only)
+   * Used for scenarios like /compact where the session already has the necessary context
+   */
+  skipUserMessage?: boolean;
+}
+
+/**
  * Parameters for subscription adapter
  */
 export interface SubscriptionAdapterParams {
@@ -86,6 +97,10 @@ export interface SubscriptionAdapterParams {
  * Creates sendUserMessageToAI function using tRPC subscription
  *
  * Maintains same interface as old implementation but uses new subscription backend.
+ *
+ * OPTIONS:
+ * - skipUserMessage: When true, triggers AI with existing messages only (no new user message)
+ *   Use case: /compact command where session already has system message that converts to user message
  */
 export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapterParams) {
   const {
@@ -108,8 +123,14 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
     setStreamingTitle,
   } = params;
 
-  return async (userMessage: string, attachments?: FileAttachment[]) => {
-    logSession('Send user message called');
+  return async (
+    userMessage: string,
+    attachments?: FileAttachment[],
+    options?: TriggerAIOptions
+  ) => {
+    const skipUserMessage = options?.skipUserMessage ?? false;
+
+    logSession('Send user message called', { skipUserMessage });
     logSession('User message length:', userMessage.length);
     logSession('Provider:', selectedProvider, 'Model:', selectedModel);
 
@@ -169,11 +190,9 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
       logSession('Parsed content:', JSON.stringify(content, null, 2));
 
       // Optimistic update: Add user message immediately for better UX
-      // SKIP if userMessage is empty (used for triggering AI with existing messages)
-      // This allows /compact to trigger AI without adding a new user message
-      const skipOptimisticUpdate = userMessage.length === 0;
-
-      if (!skipOptimisticUpdate) {
+      // SKIP if skipUserMessage option is set (used for triggering AI with existing messages)
+      // Use case: /compact command where session already has system message
+      if (!skipUserMessage) {
         // Convert ParsedContentPart to MessagePart with proper structure
         const optimisticMessageId = `temp-user-${Date.now()}`;
 
@@ -268,7 +287,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
           logSession('Created temporary session with optimistic message');
         }
       } else {
-        logSession('Skipping optimistic update (empty userMessage - triggering with existing messages)');
+        logSession('Skipping optimistic update (skipUserMessage=true - triggering with existing messages)');
       }
 
       logSession('Calling streamResponse subscription', {
@@ -290,6 +309,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
           provider: sessionId ? undefined : provider,
           model: sessionId ? undefined : model,
           content,
+          skipUserMessage,
         },
         {
           onStarted: () => {

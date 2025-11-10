@@ -97,6 +97,7 @@ export interface StreamAIResponseOptions {
   provider?: string;  // Required if sessionId is null
   model?: string;     // Required if sessionId is null
   content: ParsedContentPart[]; // Ordered content parts (text + files)
+  skipUserMessage?: boolean; // Skip adding user message (use existing messages)
   abortSignal?: AbortSignal;
 }
 
@@ -127,6 +128,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           provider: inputProvider,
           model: inputModel,
           content,
+          skipUserMessage = false,
           abortSignal,
         } = opts;
 
@@ -230,9 +232,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         }
 
         // 4. Add user message to session (with frozen content)
-        // SKIP if content is empty (used for triggering AI with existing messages, e.g., /compact)
+        // SKIP if skipUserMessage is true (used for triggering AI with existing messages, e.g., /compact)
         let userMessageId: string | null = null;
-        if (content.length > 0) {
+        if (!skipUserMessage) {
           userMessageId = await messageRepository.addMessage({
             sessionId,
             role: 'user',

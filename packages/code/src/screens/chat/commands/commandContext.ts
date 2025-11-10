@@ -40,7 +40,8 @@ export interface CommandContextParams {
   // AI operations
   sendUserMessageToAI: (
     message: string,
-    attachments?: Array<{ path: string; relativePath: string; size?: number }>
+    attachments?: Array<{ path: string; relativePath: string; size?: number }>,
+    options?: { skipUserMessage?: boolean }
   ) => Promise<void>;
 
   // UI state setters (for waitForInput implementation)
@@ -129,16 +130,15 @@ export function createCommandContext(args: string[], params: CommandContextParam
       // Clear input
       setInput('');
 
-      // NOTE: Don't use sendUserMessageToAI which has stale currentSessionId
-      // Instead, directly get the current session ID and trigger AI manually
-      const { getCurrentSessionId } = await import('@sylphx/code-client');
-      const latestSessionId = getCurrentSessionId();
+      // Determine if we should skip adding user message
+      // If message is empty, trigger AI with existing messages only (e.g., /compact)
+      const skipUserMessage = message.length === 0;
 
-      addLog(`[triggerAIResponse] Using session ID: ${latestSessionId}`);
+      addLog(`[triggerAIResponse] Triggering AI (skipUserMessage=${skipUserMessage})`);
 
-      // Call sendUserMessageToAI with the latest session ID
-      // This ensures we use the correct session after compact
-      await sendUserMessageToAI(message, attachments);
+      // Call sendUserMessageToAI with skipUserMessage option
+      // This ensures /compact can trigger AI without adding new message
+      await sendUserMessageToAI(message, attachments, { skipUserMessage });
     },
 
     waitForInput: (options) => {
