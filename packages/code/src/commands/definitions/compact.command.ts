@@ -11,8 +11,11 @@ export const compactCommand: Command = {
   label: '/compact',
   description: 'Summarize current session and create a new session with the summary',
   execute: async (context) => {
-    const { useCurrentSession, getTRPCClient, setCurrentSessionId } = await import('@sylphx/code-client');
-    const { currentSession } = useCurrentSession();
+    const { getTRPCClient, setCurrentSessionId } = await import('@sylphx/code-client');
+    const { $currentSession } = await import('@sylphx/code-client');
+    const { get } = await import('@sylphx/zen');
+
+    const currentSession = get($currentSession);
 
     if (!currentSession) {
       return 'No active session to compact.';
