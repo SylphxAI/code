@@ -394,9 +394,13 @@ export default function Chat(_props: ChatProps) {
     [eventContextParams, streamingMessageIdRef, directSubscriptionMessageIdsRef]
   );
 
-  // Event stream for multi-client sync
+  // Event stream for multi-client sync and compact auto-response
+  // IMPORTANT: replayLast > 0 required for compact auto-trigger
+  // When compact creates new session and starts streaming, client switches session
+  // By the time client subscribes, streaming events already published
+  // Replay ensures client receives all events (reasoning, text, tool calls)
   useEventStream({
-    replayLast: 0, // Don't replay - we already loaded history
+    replayLast: 50, // Replay last 50 events to catch compact auto-response streaming
     callbacks: eventStreamCallbacks,
   });
 
