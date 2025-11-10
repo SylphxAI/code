@@ -38,29 +38,101 @@ export type ProgressCallback = (status: string, detail?: string) => void;
 
 /**
  * Build conversation history from messages
- * Preserves all context including attachments
+ * Preserves ALL content including reasoning, tools, files, etc.
  */
 function buildConversationHistory(messages: Message[]): string {
-  return messages
+  logger.info('Building conversation history', {
+    messageCount: messages.length,
+    messagesWithContent: messages.filter(m => m.content && Array.isArray(m.content)).length,
+  });
+
+  const history = messages
     .filter((msg) => msg.content && Array.isArray(msg.content)) // Skip messages without content
     .map((msg) => {
-      // Extract text content
-      const textParts = msg.content
-        .filter((part) => part.type === 'text')
-        .map((part: any) => part.content);
-      let content = textParts.join('\n');
+      const parts: string[] = [];
+
+      logger.info('Processing message', {
+        role: msg.role,
+        contentParts: msg.content.length,
+        partTypes: msg.content.map((p: any) => p.type).join(', '),
+      });
+
+      // Process each part based on type
+      for (const part of msg.content) {
+        switch (part.type) {
+          case 'text':
+            parts.push(part.content);
+            break;
+
+          case 'reasoning':
+            // Include reasoning/thinking process
+            parts.push(`<thinking>\n${part.content}\n</thinking>`);
+            break;
+
+          case 'tool':
+            // Include tool calls and results
+            if (part.status === 'active') {
+              parts.push(`[Tool Call: ${part.name}]`);
+              if (part.args) {
+                parts.push(`Args: ${JSON.stringify(part.args, null, 2)}`);
+              }
+            } else if (part.status === 'completed') {
+              parts.push(`[Tool: ${part.name}]`);
+              if (part.result) {
+                const resultStr = typeof part.result === 'string'
+                  ? part.result
+                  : JSON.stringify(part.result, null, 2);
+                // Truncate very long results
+                parts.push(resultStr.length > 500
+                  ? `Result: ${resultStr.slice(0, 500)}... [truncated]`
+                  : `Result: ${resultStr}`
+                );
+              }
+            } else if (part.status === 'error') {
+              parts.push(`[Tool ${part.name} Error: ${part.error}]`);
+            }
+            break;
+
+          case 'file':
+            // Include file/image information
+            if (part.mediaType?.startsWith('image/')) {
+              parts.push(`[Image: ${part.mediaType}]`);
+            } else {
+              parts.push(`[File: ${part.mediaType || 'unknown'}${part.relativePath ? ` - ${part.relativePath}` : ''}]`);
+            }
+            break;
+
+          case 'error':
+            parts.push(`[Error: ${part.error}]`);
+            break;
+
+          default:
+            // Unknown part type - include type for debugging
+            logger.warn('Unknown part type in message', { type: (part as any).type });
+        }
+      }
 
       // Include attachments info
       if (msg.attachments && msg.attachments.length > 0) {
         const attachmentsList = msg.attachments
           .map((att) => `[Attached: ${att.relativePath}]`)
           .join('\n');
-        content += `\n${attachmentsList}`;
+        parts.push(attachmentsList);
       }
 
-      return `${msg.role === 'user' ? 'User' : 'Assistant'}: ${content}`;
+      const content = parts.join('\n\n');
+      const roleLabel = msg.role === 'user' ? 'User' : msg.role === 'assistant' ? 'Assistant' : 'System';
+
+      return `${roleLabel}: ${content}`;
     })
     .join('\n\n---\n\n');
+
+  logger.info('Conversation history built', {
+    historyLength: history.length,
+    preview: history.slice(0, 200) + '...'
+  });
+
+  return history;
 }
 
 /**
