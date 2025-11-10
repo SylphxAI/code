@@ -137,7 +137,6 @@ describe('Streaming Integration', () => {
         });
       }
     });
-    });
 
     // Assertions
     expect(result.success).toBe(true);
@@ -302,8 +301,8 @@ describe('Streaming Integration', () => {
     expect(firstSessionId).toBeTruthy();
 
     // Second message - reuses session
-    let secondSessionId: string | null = null;
     const events: string[] = [];
+    let returnedSessionId: string | null = null;
 
     await new Promise<void>(async (resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Timeout')), 30000);
@@ -315,7 +314,8 @@ describe('Streaming Integration', () => {
           content: [{ type: 'text', content: 'second message' }],
         });
 
-        secondSessionId = triggerResult.sessionId;
+        // Store returned session ID to verify it matches input
+        returnedSessionId = triggerResult.sessionId;
 
         // Subscribe to events
         client.message.subscribe.subscribe(
@@ -326,9 +326,6 @@ describe('Streaming Integration', () => {
           {
             onData: (event: any) => {
               events.push(event.type);
-              if (event.type === 'session-created') {
-                secondSessionId = event.sessionId;
-              }
               if (event.type === 'complete') {
                 clearTimeout(timeout);
                 resolve();
@@ -348,6 +345,7 @@ describe('Streaming Integration', () => {
 
     // Should NOT create new session
     expect(events).not.toContain('session-created');
-    expect(secondSessionId).toBeNull();
+    // Returned session ID should match input (not a new session)
+    expect(returnedSessionId).toBe(firstSessionId);
   }, 90000);
 });

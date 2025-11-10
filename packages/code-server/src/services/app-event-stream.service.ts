@@ -245,10 +245,16 @@ export class AppEventStream {
 
   /**
    * Get or create ReplaySubject for channel
+   *
+   * IMPORTANT: Uses bufferSize=0 to disable automatic replay.
+   * Replay is explicitly controlled via subscribeWithHistory() using persistence layer.
+   * This prevents double-replay (ReplaySubject + persistence).
    */
   private getOrCreateSubject(channel: string): ReplaySubject<StoredEvent> {
     if (!this.subjects.has(channel)) {
-      const bufferSize = this.options.bufferSize ?? 100
+      // Use bufferSize=0 to disable automatic replay
+      // Replay is handled explicitly via subscribeWithHistory() + persistence
+      const bufferSize = 0
       const bufferTime = this.options.bufferTime ?? 5 * 60 * 1000
 
       this.subjects.set(
