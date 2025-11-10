@@ -260,7 +260,7 @@ export default function Chat(_props: ChatProps) {
           try {
             const { getTRPCClient } = await import('@sylphx/code-client/trpc-provider');
             const { setCurrentSession } = await import('@sylphx/code-client/signals/domain/session');
-            const client = await getTRPCClient();
+            const client = getTRPCClient();
             const updatedSession = await client.session.getById.query({ sessionId });
             // Update current session signal with fresh data
             setCurrentSession(updatedSession);
