@@ -84,19 +84,22 @@ export type StreamingPart = MessagePart;
  *
  * CRITICAL: Step represents ONE AI call at ONE point in time
  * - Has its own timestamp → its own system status (cpu, memory)
- * - Has its own todo state → its own todoSnapshot
  * - Has its own cost → usage, provider, model, duration
  *
- * Why steps have metadata + todoSnapshot:
+ * Why steps have metadata:
  * 1. Step = request at specific time → captures system status at that moment
- * 2. Todos change between steps → each step sees different todo state
- * 3. Multi-step execution → step 0 has different context than step 1
- * 4. LLM needs context for EACH step, not just message start
+ * 2. Multi-step execution → step 0 may have different CPU/memory than step 1
+ *
+ * Note: todoSnapshot REMOVED for performance
+ * - Original design: Each step stored todos (step 0 sees [A,B], step 1 sees [A,B,C])
+ * - Problem: 100+ steps per message × todos = excessive storage
+ * - Current: Todos managed at session level only (session.todos)
+ * - See: TODOSNAPSHOT-REALITY.md
  *
  * Example multi-step flow:
- * Step 0 (t=0): metadata={cpu:20%}, todos=[task1, task2]
+ * Step 0 (t=0): metadata={cpu:20%, memory:2GB}
  *   → Tool calls to read files
- * Step 1 (t=5s): metadata={cpu:45%}, todos=[task1, task2, task3]  // New todo added!
+ * Step 1 (t=5s): metadata={cpu:45%, memory:3GB}
  *   → Process tool results, generate response
  *
  * Step lifecycle:
@@ -117,7 +120,23 @@ export interface MessageStep {
 
   // Per-step context (captured at step start time)
   metadata?: MessageMetadata;  // System status at THIS step's start time
-  todoSnapshot?: Todo[];       // Todo state at THIS step's start time
+
+  /**
+   * @deprecated No longer stored per-step (REMOVED for performance)
+   *
+   * Rationale:
+   * - User reported 100+ steps per message being common
+   * - Storing todos on every step is excessive and wasteful
+   * - Todos are managed at session level (session.todos)
+   *
+   * Current Status:
+   * - NOT stored in database (no column exists)
+   * - MAY appear in runtime events (step-start event)
+   * - NOT injected into LLM context (buildUserMessage check never executes)
+   *
+   * See: TODOSNAPSHOT-REALITY.md for complete analysis
+   */
+  todoSnapshot?: Todo[];       // ❌ DEPRECATED - Not stored, not used
 
   // Per-step execution metadata
   usage?: TokenUsage;

@@ -555,6 +555,37 @@ export class SessionRepository {
     );
   }
 
+  /**
+   * Update session flags (system message trigger states)
+   * Merges new flags with existing flags
+   */
+  async updateSessionFlags(sessionId: string, flagUpdates: Record<string, boolean>): Promise<void> {
+    await retryDatabase(async () => {
+      // Read current session
+      const [session] = await this.db
+        .select()
+        .from(sessions)
+        .where(eq(sessions.id, sessionId))
+        .limit(1);
+
+      if (!session) {
+        throw new Error(`Session ${sessionId} not found`);
+      }
+
+      // Merge flags
+      const currentFlags = session.flags || {};
+      const newFlags = { ...currentFlags, ...flagUpdates };
+
+      // Update
+      await this.db
+        .update(sessions)
+        .set({ flags: newFlags, updated: Date.now() })
+        .where(eq(sessions.id, sessionId));
+
+      console.log(`[SessionRepository] Updated flags for ${sessionId}:`, flagUpdates);
+    });
+  }
+
   // REMOVED: updateStepParts - moved to MessageRepository
   // REMOVED: updateMessageParts - moved to MessageRepository
   // REMOVED: updateMessageStatus - moved to MessageRepository

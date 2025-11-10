@@ -57,21 +57,19 @@ async function buildUserMessage(
   const supportsFileInput = modelCapabilities?.has('file-input') || false;
   const supportsImageInput = modelCapabilities?.has('image-input') || false;
 
-  // Inject system status from metadata
-  if (msg.metadata) {
-    const systemStatusString = buildSystemStatusFromMetadata({
-      timestamp: new Date(msg.timestamp).toISOString(),
-      cpu: msg.metadata.cpu || 'N/A',
-      memory: msg.metadata.memory || 'N/A',
-    });
-    contentParts.push({ type: 'text', text: systemStatusString });
-  }
+  // REMOVED: System status metadata injection
+  // Rationale: System status is now provided via dynamic system messages
+  // - Resource warnings (CPU/Memory > 80%) triggered when needed
+  // - Avoids polluting every message with redundant status info
+  // - System messages use <system_message> tags for LLM recognition
+  //
+  // See: system-messages/index.ts for new approach
 
-  // Inject todo context from snapshot
-  if (msg.todoSnapshot && msg.todoSnapshot.length > 0) {
-    const todoContext = buildTodoContext(msg.todoSnapshot);
-    contentParts.push({ type: 'text', text: todoContext });
-  }
+  // REMOVED: Todo context from snapshot
+  // Rationale: todoSnapshot no longer stored in database (performance optimization)
+  // - Todos managed at session level (session.todos)
+  // - Session start todo hints provided via system messages
+  // - See: TODOSNAPSHOT-REALITY.md for details
 
   // Transform frozen content (NO file reading from disk!)
   // Content order is preserved: [text, file, text] stays as [text, file, text]

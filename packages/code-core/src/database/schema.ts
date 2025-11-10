@@ -133,6 +133,11 @@ export const sessions = sqliteTable(
 
     nextTodoId: integer('next_todo_id').notNull().default(1),
 
+    // System message trigger flags
+    // Tracks which system messages have been shown or which states are active
+    // Examples: { cpuWarning: true, contextWarning80: true }
+    flags: text('flags', { mode: 'json' }).$type<Record<string, boolean>>(),
+
     // Note: Streaming state moved to messages table (message-level, not session-level)
     // Each message can be in streaming state with isStreaming flag
 

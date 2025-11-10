@@ -195,7 +195,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
         // 3. Read and freeze file content (immutable history)
         // Only if userMessageContent is provided
-        const systemStatus = getSystemStatus();
         let frozenContent: MessagePart[] = [];
 
         if (userMessageContent) {
@@ -249,11 +248,8 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
             sessionId,
             role: 'user',
             content: frozenContent,
-            metadata: {
-              cpu: systemStatus.cpu,
-              memory: systemStatus.memory,
-            },
-            todoSnapshot: session.todos,
+            // REMOVED: metadata with cpu/memory (now provided via dynamic system messages)
+            // REMOVED: todoSnapshot (no longer stored, see TODOSNAPSHOT-REALITY.md)
           });
 
           // 4.1. Emit user-message-created event
@@ -272,10 +268,60 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         }
 
         // 4. Reload session to get updated messages
-        const updatedSession = await sessionRepository.getSessionById(sessionId);
+        let updatedSession = await sessionRepository.getSessionById(sessionId);
         if (!updatedSession) {
           observer.error(new Error('Session not found after adding message'));
           return;
+        }
+
+        // 4.5. Check system message triggers
+        // Insert system messages for context warnings, todo hints, resource warnings
+        const { checkAllTriggers, insertSystemMessage } = await import('@sylphx/code-core');
+
+        // Calculate context token usage
+        let contextTokens: { current: number; max: number } | undefined;
+        try {
+          // Sum up tokens from all messages
+          let totalTokens = 0;
+          for (const message of updatedSession.messages) {
+            if (message.usage) {
+              totalTokens += message.usage.totalTokens;
+            }
+          }
+
+          // Get model context length
+          const modelDetails = await providerInstance.getModelDetails(modelName, providerConfig);
+          const maxContextLength = modelDetails?.contextLength;
+
+          if (maxContextLength && totalTokens > 0) {
+            contextTokens = {
+              current: totalTokens,
+              max: maxContextLength,
+            };
+            console.log(`[streamAIResponse] Context usage: ${totalTokens}/${maxContextLength} (${Math.round((totalTokens / maxContextLength) * 100)}%)`);
+          }
+        } catch (error) {
+          console.error('[streamAIResponse] Failed to calculate context tokens:', error);
+          // Continue without context warnings if calculation fails
+        }
+
+        const triggerResult = await checkAllTriggers(
+          updatedSession,
+          messageRepository,
+          sessionRepository,
+          contextTokens
+        );
+
+        if (triggerResult) {
+          console.log('[streamAIResponse] Trigger fired, inserting system message');
+          await insertSystemMessage(messageRepository, sessionId, triggerResult.message);
+
+          // Reload session again to include system message and updated flags
+          updatedSession = await sessionRepository.getSessionById(sessionId);
+          if (!updatedSession) {
+            observer.error(new Error('Session not found after adding system message'));
+            return;
+          }
         }
 
         // 5. Lazy load model capabilities (server-side autonomous)
@@ -376,36 +422,31 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         // 9.1. Emit assistant message created event
         observer.next({ type: 'assistant-message-created', messageId: assistantMessageId });
 
-        // 9.2. Capture metadata and todoSnapshot for step-0
-        const currentSystemStatus = getSystemStatus();
-        const currentTodos = updatedSession.todos || [];
-        const stepMetadata = {
-          cpu: currentSystemStatus.cpu,
-          memory: currentSystemStatus.memory,
-        };
-
-        // 9.3. Create step-0 in database
+        // 9.2. Create step-0 in database
+        // REMOVED: stepMetadata with cpu/memory (now provided via dynamic system messages)
+        // REMOVED: todoSnapshot (no longer stored, see TODOSNAPSHOT-REALITY.md)
         const stepId = `${assistantMessageId}-step-0`;
         try {
           await createMessageStep(
             sessionRepository.db,
             assistantMessageId,
             0, // stepIndex
-            stepMetadata,
-            currentTodos
+            undefined, // metadata (reserved for future use)
+            undefined  // todoSnapshot (deprecated)
           );
         } catch (stepError) {
           console.error('[streamAIResponse] 9.3. FAILED to create step:', stepError);
           throw stepError;
         }
 
-        // 9.4. Emit step-start event
+        // 9.3. Emit step-start event
+        // REMOVED: metadata and todoSnapshot (now provided via system messages)
         observer.next({
           type: 'step-start',
           stepId,
           stepIndex: 0,
-          metadata: stepMetadata,
-          todoSnapshot: currentTodos,
+          metadata: { cpu: 'N/A', memory: 'N/A' }, // Placeholder for backward compatibility
+          todoSnapshot: [], // Deprecated
         });
 
         // 10. Process stream and emit events

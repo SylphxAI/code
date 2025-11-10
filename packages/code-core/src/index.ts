@@ -22,6 +22,14 @@ export { processStream, type StreamCallbacks } from './ai/stream-handler.js'
 export { buildModelMessages } from './ai/message-builder/index.js'
 
 // ============================================================================
+// System Messages (Dynamic LLM Hints)
+// ============================================================================
+export { SystemMessages, createSystemMessage, parseSystemMessageType, isSystemMessage } from './ai/system-messages/index.js'
+export { checkAllTriggers, insertSystemMessage, initializeTriggers, triggerRegistry } from './ai/system-messages/triggers.js'
+export type { SystemMessageType } from './ai/system-messages/index.js'
+export type { TriggerHook, TriggerRegistration, TriggerContext, TriggerResult } from './ai/system-messages/registry.js'
+
+// ============================================================================
 // Agent Manager (Pure Functions Only)
 // ============================================================================
 export { DEFAULT_AGENT_ID } from './ai/builtin-agents.js'
