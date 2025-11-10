@@ -9,12 +9,12 @@
  * - Detailed progress tracking
  */
 
-import { streamText } from 'ai';
 import { getProvider } from './providers/index.js';
 import type { ProviderId } from '../types/provider.types.js';
 import type { Session, Message } from '../types/session.types.js';
 import type { SessionRepository } from '../database/session-repository.js';
 import { createLogger } from '../utils/logger.js';
+import { createAIStream } from './ai-sdk.js';
 
 const logger = createLogger('CompactService');
 
@@ -82,10 +82,7 @@ CRITICAL REQUIREMENTS:
 - If there's real coding work, include concrete details (file paths, function names, error messages)
 - DO NOT add explanatory text like "Here is the summary..." - just provide the summary directly
 
-CONVERSATION TO SUMMARIZE:
-${conversationHistory}
-
-Summary:`;
+Please provide the summary now:`;
 }
 
 /**
@@ -155,16 +152,16 @@ export async function compactSession(
       hasProviderConfig: !!providerConfig,
     });
 
-    const model = provider.createClient(providerConfig, session.model);
     const summaryPrompt = createSummaryPrompt();
 
     logger.info('Starting AI streaming for summarization', {
       conversationMessages: conversationMessages.length,
     });
 
-    // Pass full conversation as structured messages + summary prompt
-    const result = await streamText({
-      model,
+    // Use createAIStream (our wrapper) for consistency
+    // Disable tools since summarization doesn't need them
+    const stream = createAIStream({
+      model: provider.createClient(providerConfig, session.model),
       messages: [
         ...conversationMessages, // Full conversation with all content types
         {
@@ -172,21 +169,27 @@ export async function compactSession(
           content: summaryPrompt, // Instruction to summarize
         },
       ],
-      // NO maxTokens - let AI use as many tokens as needed!
+      enableTools: false, // No tools needed for summarization
+      disableReasoning: false, // Allow reasoning if model wants to think through summary
     });
 
     // Collect full summary with progress updates
     let summary = '';
     let chunkCount = 0;
-    for await (const chunk of result.textStream) {
-      summary += chunk;
-      chunkCount++;
-      if (chunkCount % 10 === 0) {
-        // Update progress every 10 chunks
-        onProgress?.(
-          'summarizing',
-          `Generating summary... (${summary.length} characters)`
-        );
+
+    for await (const chunk of stream) {
+      // Extract text from our wrapper's chunk format
+      if (chunk.type === 'text-delta') {
+        summary += chunk.textDelta;
+        chunkCount++;
+
+        if (chunkCount % 10 === 0) {
+          // Update progress every 10 chunks
+          onProgress?.(
+            'summarizing',
+            `Generating summary... (${summary.length} characters)`
+          );
+        }
       }
     }
 
