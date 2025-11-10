@@ -178,6 +178,38 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
       logSession('Parsed content:', JSON.stringify(content, null, 2));
 
+      /**
+       * OPTIMISTIC UPDATE STRATEGY
+       *
+       * Goal: Show user message immediately without waiting for server confirmation
+       *
+       * New Session Flow:
+       * 1. Create temp session ('temp-session') with optimistic message
+       * 2. Display temp session in UI (instant feedback)
+       * 3. Call triggerStream mutation → Server creates real session
+       * 4. Server emits session-created event with real sessionId
+       * 5. handleSessionCreated (streamEventHandlers.ts) replaces temp with real session
+       * 6. User sees seamless transition from temp → real session
+       *
+       * Existing Session Flow:
+       * 1. Add optimistic message to current session with temp ID
+       * 2. Display message immediately (instant feedback)
+       * 3. Call triggerStream mutation → Server saves real message
+       * 4. Server emits user-message-created with real messageId
+       * 5. handleUserMessageCreated replaces temp ID with real ID
+       * 6. User doesn't notice the ID swap
+       *
+       * Rollback Strategy:
+       * - If mutation fails: Error is displayed as assistant error message
+       * - Optimistic message is NOT removed (keeps user input visible)
+       * - User can retry by sending again
+       *
+       * File Attachments:
+       * - Optimistic display: Show file metadata only (no base64)
+       * - Server reads and freezes actual file content
+       * - Real message contains full base64 data
+       */
+
       // Optimistic update: Add user message immediately for better UX
       // Only add if there is actual content (empty message = using existing messages only)
       if (content.length > 0) {

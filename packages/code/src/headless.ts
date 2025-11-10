@@ -3,8 +3,36 @@ import { loadAIConfig } from '@sylphx/code-core';
 import chalk from 'chalk';
 
 /**
- * Headless mode - execute prompt and get response via tRPC
- * All logic handled by code-server
+ * Headless Mode - Execute prompt and stream response
+ *
+ * Architecture Difference from TUI:
+ * - TUI: Uses React hook (useEventStream) for automatic subscription management
+ * - Headless: Manually subscribes to events in Promise wrapper
+ *
+ * Event Flow:
+ * 1. Load AI config and validate provider
+ * 2. Call triggerStream mutation → Get sessionId
+ * 3. Subscribe to session events with replayLast=0 (no replay needed)
+ * 4. Print text-delta events to stdout (streaming output)
+ * 5. Wait for complete/error event
+ * 6. Exit process with appropriate code (0 = success, 1 = error)
+ *
+ * Error Handling:
+ * - No provider configured: Print instructions, exit(1)
+ * - Subscription error: Print error, exit(1)
+ * - Stream error: Print error event, exit(1)
+ * - No output received: Print warning, exit(1)
+ *
+ * Output:
+ * - stdout: AI text output (text-delta events)
+ * - stderr: Tool calls, errors, metadata (if --verbose)
+ *
+ * Usage:
+ * ```bash
+ * bun dev:code --headless "write a hello world program"
+ * bun dev:code --headless "continue" --continue  # Continue last session
+ * bun dev:code --headless "fix the bug" --verbose  # Show debug info
+ * ```
  */
 export async function runHeadless(prompt: string, options: any): Promise<void> {
   try {

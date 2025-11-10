@@ -91,6 +91,20 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
   // Ref to track subscription
   const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
 
+  /**
+   * CRITICAL: Store callbacks in ref to avoid stale closures
+   *
+   * Problem: If callbacks are in dependency array, useEffect re-runs on every render
+   * (callbacks object is recreated each render). This causes infinite subscription loops.
+   *
+   * Solution: Store callbacks in ref, update ref on each render, use ref in subscription.
+   * This ensures callbacks always reference current state without triggering re-subscription.
+   */
+  const callbacksRef = useRef(callbacks);
+  useEffect(() => {
+    callbacksRef.current = callbacks;
+  }, [callbacks]);
+
   useEffect(() => {
     // Cleanup previous subscription
     if (subscriptionRef.current) {
@@ -116,17 +130,18 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
           // Event is directly SessionEvent (no need to unwrap payload)
 
           // Handle all event types
+          // Use callbacksRef.current to access latest callbacks (avoid stale closures)
           switch (event.type) {
             case 'session-created':
-              callbacks.onSessionCreated?.(event.sessionId, event.provider, event.model);
+              callbacksRef.current.onSessionCreated?.(event.sessionId, event.provider, event.model);
               break;
 
             case 'session-title-updated-start':
-              callbacks.onSessionTitleStart?.(event.sessionId);
+              callbacksRef.current.onSessionTitleStart?.(event.sessionId);
               break;
 
             case 'session-title-updated-delta':
-              callbacks.onSessionTitleDelta?.(event.sessionId, event.text);
+              callbacksRef.current.onSessionTitleDelta?.(event.sessionId, event.text);
               break;
 
             case 'session-title-updated-end':
@@ -142,74 +157,74 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
                   });
                 }
               }
-              callbacks.onSessionTitleComplete?.(event.sessionId, event.title);
+              callbacksRef.current.onSessionTitleComplete?.(event.sessionId, event.title);
               break;
 
             case 'assistant-message-created':
-              callbacks.onAssistantMessageCreated?.(event.messageId);
+              callbacksRef.current.onAssistantMessageCreated?.(event.messageId);
               break;
 
             case 'text-start':
-              callbacks.onTextStart?.();
+              callbacksRef.current.onTextStart?.();
               break;
 
             case 'text-delta':
-              callbacks.onTextDelta?.(event.text);
+              callbacksRef.current.onTextDelta?.(event.text);
               break;
 
             case 'text-end':
-              callbacks.onTextEnd?.();
+              callbacksRef.current.onTextEnd?.();
               break;
 
             case 'reasoning-start':
-              callbacks.onReasoningStart?.();
+              callbacksRef.current.onReasoningStart?.();
               break;
 
             case 'reasoning-delta':
-              callbacks.onReasoningDelta?.(event.text);
+              callbacksRef.current.onReasoningDelta?.(event.text);
               break;
 
             case 'reasoning-end':
-              callbacks.onReasoningEnd?.(event.duration);
+              callbacksRef.current.onReasoningEnd?.(event.duration);
               break;
 
             case 'tool-call':
-              callbacks.onToolCall?.(event.toolCallId, event.toolName, event.args);
+              callbacksRef.current.onToolCall?.(event.toolCallId, event.toolName, event.args);
               break;
 
             case 'tool-result':
-              callbacks.onToolResult?.(event.toolCallId, event.toolName, event.result, event.duration);
+              callbacksRef.current.onToolResult?.(event.toolCallId, event.toolName, event.result, event.duration);
               break;
 
             case 'tool-error':
-              callbacks.onToolError?.(event.toolCallId, event.toolName, event.error, event.duration);
+              callbacksRef.current.onToolError?.(event.toolCallId, event.toolName, event.error, event.duration);
               break;
 
             case 'file':
-              callbacks.onFile?.(event.mediaType, event.base64);
+              callbacksRef.current.onFile?.(event.mediaType, event.base64);
               break;
 
             case 'ask-question':
-              callbacks.onAskQuestion?.(event.questionId, event.questions);
+              callbacksRef.current.onAskQuestion?.(event.questionId, event.questions);
               break;
 
             case 'complete':
-              callbacks.onComplete?.(event.usage, event.finishReason);
+              callbacksRef.current.onComplete?.(event.usage, event.finishReason);
               break;
 
             case 'error':
-              callbacks.onError?.(event.error);
+              callbacksRef.current.onError?.(event.error);
               setError(event.error);
               break;
 
             case 'abort':
-              callbacks.onAbort?.();
+              callbacksRef.current.onAbort?.();
               break;
           }
         },
         onError: (error: any) => {
           const errorMessage = error instanceof Error ? error.message : 'Event stream error';
-          callbacks.onError?.(errorMessage);
+          callbacksRef.current.onError?.(errorMessage);
           setError(errorMessage);
         },
         onComplete: () => {

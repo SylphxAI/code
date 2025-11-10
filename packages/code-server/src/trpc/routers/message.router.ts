@@ -393,26 +393,40 @@ export const messageRouter = router({
         userMessageContent: input.content.length > 0 ? input.content : null,
       });
 
-      // For lazy sessions, wait for session-created before returning
-      // Otherwise client can't subscribe to correct sessionId
+      /**
+       * ARCHITECTURE: Wait for session-created event (lazy sessions only)
+       *
+       * Problem: Client needs sessionId to subscribe to correct event channel
+       * Solution: Wait for session-created event before returning from mutation
+       *
+       * Flow:
+       * 1. Existing session → Resolve immediately with sessionId
+       * 2. Lazy session → Wait for session-created event → Resolve with new sessionId
+       * 3. Client uses returned sessionId to subscribe via message.subscribe
+       *
+       * Memory: Subscription is cleaned up after session-created or error
+       */
       const sessionIdPromise = new Promise<string>((resolve, reject) => {
+        // Early exit: Session already exists, no need to subscribe
         if (eventSessionId) {
-          // Session already exists, resolve immediately
           resolve(eventSessionId);
+          return;
         }
 
+        // Subscribe to stream to capture session-created event
+        // CRITICAL: Must unsubscribe to prevent memory leak
         const subscription = streamObservable.subscribe({
           next: (event) => {
             // Capture sessionId from session-created event
             if (event.type === 'session-created') {
               eventSessionId = event.sessionId;
-              if (!input.sessionId) {
-                // Lazy session created, resolve the promise
-                resolve(eventSessionId);
-              }
+              // Resolve promise with new sessionId
+              resolve(eventSessionId);
+              // CRITICAL: Cleanup subscription immediately
+              subscription.unsubscribe();
             }
 
-            // Publish all events to event stream
+            // Publish all events to event stream for client subscriptions
             if (eventSessionId) {
               ctx.appContext.eventStream.publish(`session:${eventSessionId}`, event).catch(err => {
                 console.error('[TriggerStream] Event publish error:', err);
@@ -429,6 +443,8 @@ export const messageRouter = router({
                 console.error('[TriggerStream] Error event publish error:', err);
               });
             }
+            // CRITICAL: Cleanup before rejecting
+            subscription.unsubscribe();
             reject(error);
           },
           complete: () => {
@@ -440,6 +456,8 @@ export const messageRouter = router({
                 console.error('[TriggerStream] Complete event publish error:', err);
               });
             }
+            // CRITICAL: Cleanup on complete
+            subscription.unsubscribe();
           },
         });
       });

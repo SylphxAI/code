@@ -128,26 +128,66 @@ export class AppEventStream {
   /**
    * Subscribe to latest N events + new events
    *
+   * Replay Behavior:
+   * - If persistence configured: Fetches last N from database, emits async
+   * - If no persistence: Only new events (no replay)
+   * - ReplaySubject buffer: Automatically replays last 10 in-memory events
+   *
+   * Event Ordering:
+   * - Replay events (from DB): Oldest to newest, emitted first
+   * - Buffer events (from ReplaySubject): Last 10 in-memory events
+   * - New events: Real-time as published
+   *
+   * IMPORTANT - Deduplication:
+   * ReplaySubject has bufferSize=10, which means:
+   * 1. Recent events (last 10) replayed from in-memory buffer automatically
+   * 2. Historical events (lastN) replayed from database if requested
+   * 3. If lastN <= 10, you may receive duplicate events
+   * 4. Client should deduplicate by event ID if needed
+   *
+   * Example Timeline:
+   * ```
+   * Events published: e1, e2, e3, ..., e20
+   * ReplaySubject buffer (size 10): e11, e12, ..., e20
+   * Database: e1, e2, ..., e20
+   *
+   * Client subscribes with replayLast=15:
+   * - DB replay: e6, e7, e8, e9, e10 (15 events, but only e1-e10 exist before buffer)
+   * - Buffer replay: e11, e12, ..., e20 (automatic from ReplaySubject)
+   * - Result: Client receives e6-e20 (no duplicates because DB stops at e10)
+   *
+   * Client subscribes with replayLast=50:
+   * - DB replay: e1, e2, ..., e20 (all 20 events)
+   * - Buffer replay: e11, e12, ..., e20 (automatic from ReplaySubject)
+   * - Result: Client receives e1-e20, with e11-e20 DUPLICATED
+   * - Solution: Deduplicate by event.id on client side
+   * ```
+   *
    * @param channel - Channel to subscribe to
-   * @param lastN - Number of latest events to replay (default: 0)
+   * @param lastN - Number of latest events to replay from database (0 = no DB replay)
    */
   subscribeWithHistory(channel: string, lastN: number = 0): Observable<StoredEvent> {
     return new Observable((observer) => {
-      // 1. Replay latest N from persistence
+      // 1. Replay latest N from persistence (database)
+      // This emits asynchronously, before ReplaySubject buffer events
       if (this.persistence && lastN > 0) {
         this.persistence.readLatest(channel, lastN)
           .then(events => {
+            // Emit events in order (oldest to newest)
             events.forEach(event => observer.next(event))
           })
           .catch(err => {
             console.error('[AppEventStream] History replay error:', err)
+            // Non-fatal: Continue with live subscription even if replay fails
           })
       }
 
-      // 2. Subscribe to new events
+      // 2. Subscribe to new events + ReplaySubject buffer
+      // ReplaySubject automatically replays last 10 in-memory events
       const subject = this.getOrCreateSubject(channel)
       const subscription = subject.subscribe(observer)
 
+      // Cleanup function
       return () => subscription.unsubscribe()
     })
   }
