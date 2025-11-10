@@ -288,11 +288,22 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         }
 
         // 6. Build ModelMessage[] for AI (transforms frozen content, no file reading)
+        console.log('[streamAIResponse] Session messages:', JSON.stringify(updatedSession.messages.map(m => ({
+          role: m.role,
+          contentLength: Array.isArray(m.content) ? m.content.length : 'string',
+          stepsCount: m.steps?.length || 0
+        })), null, 2));
+
         const messages = await buildModelMessages(
           updatedSession.messages,
           modelCapabilities,
           messageRepository.getFileRepository()
         );
+
+        console.log('[streamAIResponse] Built model messages:', JSON.stringify(messages.map(m => ({
+          role: m.role,
+          contentLength: Array.isArray(m.content) ? m.content.length : 'string'
+        })), null, 2));
 
         // 7. Determine agentId and build system prompt
         // STATELESS: Use explicit parameters from AppContext

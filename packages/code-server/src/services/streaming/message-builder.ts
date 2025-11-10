@@ -155,7 +155,9 @@ async function buildUserMessage(
     }
   }
 
-  return { role: msg.role as 'user', content: contentParts };
+  // IMPORTANT: Always return 'user' role for model messages
+  // Session 'system' and 'user' both map to model 'user' (for attention decay)
+  return { role: 'user', content: contentParts };
 }
 
 /**
