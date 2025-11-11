@@ -428,12 +428,13 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
                 );
                 console.log(`🔄 [onPrepareMessages] Created step-${stepNumber}${systemMessages.length > 0 ? ` with ${systemMessages.length} system messages` : ''}`);
 
-                // Emit step-created event for UI
+                // Emit step-start event for UI
                 observer.next({
-                  type: 'step-created' as const,
+                  type: 'step-start' as const,
                   stepId: newStepId,
-                  stepNumber,
-                  systemMessages: systemMessages.length > 0 ? systemMessages : undefined,
+                  stepIndex: stepNumber,
+                  metadata: { cpu: 'N/A', memory: 'N/A' }, // Placeholder (resources now in system messages)
+                  todoSnapshot: [], // Deprecated
                 });
               } catch (stepError) {
                 console.error('[onPrepareMessages] Failed to create step:', stepError);
@@ -491,7 +492,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
         // 9.2. Step creation now handled by onPrepareMessages hook
         // All steps (including step-0) are created dynamically with system messages if needed
-        // step-created event will be emitted by onPrepareMessages
+        // step-start event will be emitted by onPrepareMessages
 
         // 10. Process stream and emit events
         const callbacks: StreamCallbacks = {
