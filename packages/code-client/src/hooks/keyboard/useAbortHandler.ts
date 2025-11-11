@@ -29,6 +29,9 @@ export function useAbortHandler(options: UseAbortHandlerOptions) {
 
   useInput(
     (char, key) => {
+      // Debug: Log to verify useInput callback is actually being called
+      console.log('[AbortDebug] useInput callback fired, key.escape:', key.escape, 'key:', Object.keys(key).filter(k => key[k]));
+
       if (!key.escape) {
         return false;
       }
