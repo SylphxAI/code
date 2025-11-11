@@ -36,7 +36,7 @@ import debug from "debug";
  * // Enable with:
  * // DEBUG=sylphx:subscription:session bun ./packages/code/src/index.ts
  */
-export function createLogger(namespace: string) {
+export function createLogger(namespace: string): debug.Debugger {
 	return debug(`sylphx:${namespace}`);
 }
 
@@ -44,7 +44,7 @@ export function createLogger(namespace: string) {
  * For backwards compatibility
  * @deprecated Use createLogger instead
  */
-export function debugLog(namespace: string, ...args: any[]) {
+export function debugLog(namespace: string, ...args: any[]): void {
 	const log = debug(`sylphx:${namespace}`);
 	log(...args);
 }

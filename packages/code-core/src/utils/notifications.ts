@@ -13,7 +13,7 @@ export function sendTerminalNotification(
 		sound?: boolean;
 		duration?: number;
 	},
-) {
+): void {
 	const { sound = true, duration = 3000 } = options || {};
 
 	// Play system sound using cross-platform audio player
@@ -43,7 +43,7 @@ export async function sendOSNotification(
 		sound?: boolean;
 		timeout?: number;
 	},
-) {
+): Promise<void> {
 	const { icon = "🤖", urgency = "normal", sound = true, timeout = 5000 } = options || {};
 
 	try {
@@ -144,7 +144,7 @@ export function sendNotification(
 		terminalNotification?: boolean;
 		sound?: boolean;
 	},
-) {
+): void {
 	const { osNotification = true, terminalNotification = true, sound = true } = options || {};
 
 	if (terminalNotification) {
