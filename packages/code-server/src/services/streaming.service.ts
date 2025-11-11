@@ -301,7 +301,12 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         console.log('[streamAIResponse] Session messages:', JSON.stringify(updatedSession.messages.map(m => ({
           role: m.role,
           contentLength: Array.isArray(m.content) ? m.content.length : 'string',
-          stepsCount: m.steps?.length || 0
+          stepsCount: m.steps?.length || 0,
+          steps: m.steps?.map(s => ({
+            stepIndex: s.stepIndex,
+            partsCount: s.parts.length,
+            partTypes: s.parts.map(p => p.type)
+          }))
         })), null, 2));
 
         const messages = await buildModelMessages(

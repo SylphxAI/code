@@ -177,8 +177,13 @@ async function buildAssistantMessageWithSteps(
   results: ModelMessage[]
 ): Promise<void> {
   if (msg.steps && msg.steps.length > 0) {
+    console.log(`[buildAssistantMessageWithSteps] Processing ${msg.steps.length} steps`);
+
     // Process each step separately
     for (const step of msg.steps) {
+      const resultsBefore = results.length;
+      console.log(`[buildAssistantMessageWithSteps] Processing step ${step.stepIndex} with ${step.parts.length} parts:`, step.parts.map(p => p.type));
+
       // If step has systemMessages, insert them as 'user' role messages BEFORE step content
       if (step.systemMessages && step.systemMessages.length > 0) {
         // Combine all system messages with headers
@@ -197,6 +202,9 @@ async function buildAssistantMessageWithSteps(
 
       // Build assistant message for this step (may also create tool message)
       await buildAssistantMessage(msg, modelCapabilities, fileRepo, [step], results);
+
+      const resultsAfter = results.length;
+      console.log(`[buildAssistantMessageWithSteps] Step ${step.stepIndex} created ${resultsAfter - resultsBefore} messages`);
     }
   } else {
     // Legacy: no steps, build as single message
