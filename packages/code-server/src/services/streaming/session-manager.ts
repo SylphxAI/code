@@ -26,7 +26,7 @@ export async function ensureSession(
 	sessionRepository: SessionRepository,
 	aiConfig: AIConfig,
 	sessionId: string | null,
-	provider?: string,
+	provider?: ProviderId,
 	model?: string,
 	agentId?: string,
 ): Promise<SessionResult> {
@@ -48,7 +48,7 @@ export async function ensureSession(
 	// Create session in database
 	const effectiveAgentId = agentId || DEFAULT_AGENT_ID;
 	const newSession = await sessionRepository.createSession(
-		provider as ProviderId,
+		provider,
 		model,
 		effectiveAgentId,
 	);

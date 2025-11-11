@@ -15,7 +15,7 @@ export interface ProcessManager {
 interface ProcessManagerState {
 	readonly childProcesses: Set<any>;
 	isShuttingDown: boolean;
-	readonly signalHandlers: Map<string, (...args: any[]) => void>;
+	readonly signalHandlers: Map<NodeJS.Signals, (...args: any[]) => void>;
 }
 
 /**
@@ -34,7 +34,7 @@ export function createProcessManager(): ProcessManager {
 	const cleanup = (): void => {
 		// Remove signal handlers
 		for (const [signal, handler] of state.signalHandlers.entries()) {
-			process.removeListener(signal as NodeJS.Signals, handler);
+			process.removeListener(signal, handler);
 		}
 		state.signalHandlers.clear();
 

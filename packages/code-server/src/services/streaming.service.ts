@@ -20,6 +20,7 @@ import type {
 	AIConfig,
 	TokenUsage,
 	MessagePart,
+	ProviderId,
 } from "@sylphx/code-core";
 import {
 	buildSystemPrompt,
@@ -151,7 +152,7 @@ export interface StreamAIResponseOptions {
 	aiConfig: AIConfig;
 	sessionId: string | null; // null = create new session
 	agentId?: string; // Optional - override session agent
-	provider?: string; // Required if sessionId is null
+	provider?: ProviderId; // Required if sessionId is null
 	model?: string; // Required if sessionId is null
 
 	// User message content to add before streaming
