@@ -37,34 +37,54 @@ export interface BatchApiResult<T = unknown> {
 /**
  * Individual batch operation result
  */
-export interface BatchOperationResult<T = unknown> {
-	/** Operation index in the batch */
-	index: number;
-	/** Operation ID */
-	id: string;
-	/** Operation success status */
-	success: boolean;
-	/** Operation result data */
-	data?: T;
-	/** Operation error (if failed) */
-	error?: ApiError;
-	/** Operation processing time in milliseconds */
-	processingTime?: number;
-	/** Operation retry attempts */
-	retryCount?: number;
-}
+export type BatchOperationResult<T = unknown> =
+	| {
+			/** Operation index in the batch */
+			index: number;
+			/** Operation ID */
+			id: string;
+			/** Operation success status */
+			success: true;
+			/** Operation result data */
+			data: T;
+			/** Operation processing time in milliseconds */
+			processingTime?: number;
+			/** Operation retry attempts */
+			retryCount?: number;
+	  }
+	| {
+			/** Operation index in the batch */
+			index: number;
+			/** Operation ID */
+			id: string;
+			/** Operation success status */
+			success: false;
+			/** Operation error (if failed) */
+			error: ApiError;
+			/** Operation processing time in milliseconds */
+			processingTime?: number;
+			/** Operation retry attempts */
+			retryCount?: number;
+	  };
 
 // ============================================================================
 // ZOD SCHEMAS
 // ============================================================================
 
-export const BatchOperationResultSchema = z.object({
-	index: z.number().min(0),
-	id: z.string(),
-	success: z.boolean(),
-	data: z.unknown().optional(),
-	error: z
-		.object({
+export const BatchOperationResultSchema = z.discriminatedUnion("success", [
+	z.object({
+		index: z.number().min(0),
+		id: z.string(),
+		success: z.literal(true),
+		data: z.unknown(),
+		processingTime: z.number().min(0).optional(),
+		retryCount: z.number().min(0).optional(),
+	}),
+	z.object({
+		index: z.number().min(0),
+		id: z.string(),
+		success: z.literal(false),
+		error: z.object({
 			code: z.string(),
 			message: z.string(),
 			statusCode: z.number().optional(),
@@ -84,11 +104,11 @@ export const BatchOperationResultSchema = z.object({
 			stack: z.string().optional(),
 			context: z.record(z.unknown()).optional(),
 			suggestions: z.array(z.string()).optional(),
-		})
-		.optional(),
-	processingTime: z.number().min(0).optional(),
-	retryCount: z.number().min(0).optional(),
-});
+		}),
+		processingTime: z.number().min(0).optional(),
+		retryCount: z.number().min(0).optional(),
+	}),
+]);
 
 export const BatchApiResultSchema = z.object({
 	batchId: z.string(),

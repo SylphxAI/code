@@ -5,33 +5,55 @@ import { z } from "zod";
 // ============================================================================
 
 /**
- * Standard API response wrapper
+ * Standard API response wrapper (discriminated union)
  */
-export interface ApiResponse<T = unknown> {
-	/** Response success status */
-	success: boolean;
-	/** Response data */
-	data?: T;
-	/** Response message */
-	message?: string;
-	/** Response metadata */
-	metadata?: {
-		/** Response timestamp */
-		timestamp: string;
-		/** Request ID for tracing */
-		requestId?: string;
-		/** API version */
-		version?: string;
-		/** Response time in milliseconds */
-		responseTime?: number;
-		/** Pagination information */
-		pagination?: PaginationInfo;
-		/** Rate limiting information */
-		rateLimit?: RateLimitInfo;
-	};
-	/** Error information */
-	error?: ApiError;
-}
+export type ApiResponse<T = unknown> =
+	| {
+			/** Response success status */
+			success: true;
+			/** Response data */
+			data: T;
+			/** Response message */
+			message?: string;
+			/** Response metadata */
+			metadata?: {
+				/** Response timestamp */
+				timestamp: string;
+				/** Request ID for tracing */
+				requestId?: string;
+				/** API version */
+				version?: string;
+				/** Response time in milliseconds */
+				responseTime?: number;
+				/** Pagination information */
+				pagination?: PaginationInfo;
+				/** Rate limiting information */
+				rateLimit?: RateLimitInfo;
+			};
+	  }
+	| {
+			/** Response success status */
+			success: false;
+			/** Error information */
+			error: ApiError;
+			/** Response message */
+			message?: string;
+			/** Response metadata */
+			metadata?: {
+				/** Response timestamp */
+				timestamp: string;
+				/** Request ID for tracing */
+				requestId?: string;
+				/** API version */
+				version?: string;
+				/** Response time in milliseconds */
+				responseTime?: number;
+				/** Pagination information */
+				pagination?: PaginationInfo;
+				/** Rate limiting information */
+				rateLimit?: RateLimitInfo;
+			};
+	  };
 
 /**
  * HTTP response wrapper
@@ -146,22 +168,38 @@ export const ApiErrorSchema = z.object({
 	suggestions: z.array(z.string()).optional(),
 });
 
-export const ApiResponseSchema = z.object({
-	success: z.boolean(),
-	data: z.unknown().optional(),
-	message: z.string().optional(),
-	metadata: z
-		.object({
-			timestamp: z.string(),
-			requestId: z.string().optional(),
-			version: z.string().optional(),
-			responseTime: z.number().optional(),
-			pagination: PaginationInfoSchema.optional(),
-			rateLimit: RateLimitInfoSchema.optional(),
-		})
-		.optional(),
-	error: ApiErrorSchema.optional(),
-});
+export const ApiResponseSchema = z.discriminatedUnion("success", [
+	z.object({
+		success: z.literal(true),
+		data: z.unknown(),
+		message: z.string().optional(),
+		metadata: z
+			.object({
+				timestamp: z.string(),
+				requestId: z.string().optional(),
+				version: z.string().optional(),
+				responseTime: z.number().optional(),
+				pagination: PaginationInfoSchema.optional(),
+				rateLimit: RateLimitInfoSchema.optional(),
+			})
+			.optional(),
+	}),
+	z.object({
+		success: z.literal(false),
+		error: ApiErrorSchema,
+		message: z.string().optional(),
+		metadata: z
+			.object({
+				timestamp: z.string(),
+				requestId: z.string().optional(),
+				version: z.string().optional(),
+				responseTime: z.number().optional(),
+				pagination: PaginationInfoSchema.optional(),
+				rateLimit: RateLimitInfoSchema.optional(),
+			})
+			.optional(),
+	}),
+]);
 
 export const HttpResponseSchema = z.object({
 	data: z.unknown(),
