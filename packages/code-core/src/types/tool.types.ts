@@ -48,14 +48,20 @@ export type ToolSecurityLevel =
 	| "dangerous"; // Destructive, irreversible
 
 /**
- * Tool execution result
+ * Tool execution result as discriminated union
+ * Prevents illegal states where success=false but output is present, or success=true but error is present
  */
-export interface ToolExecutionResult {
-	success: boolean;
-	output?: unknown;
-	error?: string;
-	duration?: number;
-}
+export type ToolExecutionResult<T = unknown> =
+	| {
+			success: true;
+			output: T;
+			duration?: number;
+	  }
+	| {
+			success: false;
+			error: string;
+			duration?: number;
+	  };
 
 /**
  * Tool entity
