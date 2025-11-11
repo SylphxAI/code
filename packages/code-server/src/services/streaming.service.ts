@@ -577,12 +577,19 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
         try {
           for await (const chunk of stream) {
+            // Debug: log all chunk types
+            if ((chunk as any).type === 'step-start' || (chunk as any).type === 'step-end') {
+              console.log(`🔔 [streamAIResponse] Event: ${(chunk as any).type}, stepNumber: ${(chunk as any).stepNumber}`);
+            } else {
+              console.log(`🔔 [streamAIResponse] Event: ${chunk.type}`);
+            }
+
             // Handle step-end event: save current step's parts
             if ((chunk as any).type === 'step-end') {
               const stepNum = (chunk as any).stepNumber;
               const stepId = `${assistantMessageId}-step-${stepNum}`;
 
-              console.log(`📦 [streamAIResponse] Step ${stepNum} ended, saving ${currentStepParts.length} parts`);
+              console.log(`📦 [streamAIResponse] Step ${stepNum} ended, saving ${currentStepParts.length} parts:`, currentStepParts.map(p => p.type));
 
               // Save any pending text content
               if (currentTextContent) {
