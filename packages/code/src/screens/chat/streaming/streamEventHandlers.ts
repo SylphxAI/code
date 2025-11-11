@@ -441,10 +441,12 @@ function handleReasoningEnd(event: Extract<StreamEvent, { type: 'reasoning-end' 
 function handleTextStart(event: Extract<StreamEvent, { type: 'text-start' }>, context: EventHandlerContext) {
   const currentSessionId = getCurrentSessionId();
 
-  updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => [
-    ...prev,
-    { type: 'text', content: '', status: 'active' } as MessagePart,
-  ]);
+  updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
+    return [
+      ...prev,
+      { type: 'text', content: '', status: 'active' } as MessagePart,
+    ];
+  });
 }
 
 function handleTextDelta(event: Extract<StreamEvent, { type: 'text-delta' }>, context: EventHandlerContext) {
@@ -461,7 +463,6 @@ function handleTextDelta(event: Extract<StreamEvent, { type: 'text-delta' }>, co
         status: 'active' as const,
       };
     } else {
-      console.warn('[text-delta] No active text part found, creating new one');
       newParts.push({
         type: 'text',
         content: event.text,
@@ -573,17 +574,8 @@ function handleComplete(event: Extract<StreamEvent, { type: 'complete' }>, conte
   const currentSessionId = getCurrentSessionId();
   const currentSession = getSignal($currentSession);
 
-  console.log('🎯 [handleComplete] Called!', {
-    usage: event.usage,
-    finishReason: event.finishReason,
-    hasContext: !!context,
-    hasSetIsStreaming: !!context.setIsStreaming,
-  });
-
   // Stop streaming UI indicator
   context.setIsStreaming(false);
-
-  console.log('🎯 [handleComplete] Set isStreaming to false');
 
   // Update active message status to completed
   if (currentSession && context.streamingMessageIdRef.current) {

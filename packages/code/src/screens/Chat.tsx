@@ -245,11 +245,7 @@ export default function Chat(_props: ChatProps) {
     () => ({
       // ENABLED: Session lifecycle events (for lazy session creation)
       onSessionCreated: (sessionId: string, provider: string, model: string) => {
-        // When server creates real session, update from temp-session to real ID
-        const currentSessionId = getCurrentSessionId();
-        if (currentSessionId === 'temp-session' || currentSessionId === null) {
-          setCurrentSessionId(sessionId);
-        }
+        handleStreamEvent({ type: 'session-created', sessionId, provider, model }, eventContextParams);
       },
 
       // ENABLED: Title streaming (independent channel, no loop issues)
@@ -281,6 +277,14 @@ export default function Chat(_props: ChatProps) {
       },
       onSystemMessageCreated: (messageId: string, content: string) => {
         handleStreamEvent({ type: 'system-message-created', messageId, content }, eventContextParams);
+      },
+
+      // Step events
+      onStepStart: (stepId: string, stepIndex: number, metadata: any, todoSnapshot: any[], systemMessages?: any[]) => {
+        handleStreamEvent({ type: 'step-start', stepId, stepIndex, metadata, todoSnapshot, systemMessages }, eventContextParams);
+      },
+      onStepComplete: (stepId: string, usage: any, duration: number, finishReason: string) => {
+        handleStreamEvent({ type: 'step-complete', stepId, usage, duration, finishReason }, eventContextParams);
       },
 
       // Text streaming

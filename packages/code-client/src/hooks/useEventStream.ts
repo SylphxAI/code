@@ -33,6 +33,10 @@ export interface EventStreamCallbacks {
   onAssistantMessageCreated?: (messageId: string) => void;
   onSystemMessageCreated?: (messageId: string, content: string) => void;
 
+  // Step events
+  onStepStart?: (stepId: string, stepIndex: number, metadata: any, todoSnapshot: any[], systemMessages?: any[]) => void;
+  onStepComplete?: (stepId: string, usage: any, duration: number, finishReason: string) => void;
+
   // Text streaming
   onTextStart?: () => void;
   onTextDelta?: (text: string) => void;
@@ -175,6 +179,25 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
               callbacksRef.current.onSystemMessageCreated?.(event.messageId, event.content);
               break;
 
+            case 'step-start':
+              callbacksRef.current.onStepStart?.(
+                event.stepId,
+                event.stepIndex,
+                event.metadata,
+                event.todoSnapshot,
+                event.systemMessages
+              );
+              break;
+
+            case 'step-complete':
+              callbacksRef.current.onStepComplete?.(
+                event.stepId,
+                event.usage,
+                event.duration,
+                event.finishReason
+              );
+              break;
+
             case 'text-start':
               callbacksRef.current.onTextStart?.();
               break;
@@ -220,11 +243,6 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
               break;
 
             case 'complete':
-              console.log('📡 [useEventStream] complete event received:', {
-                usage: event.usage,
-                finishReason: event.finishReason,
-                hasCallback: !!callbacksRef.current.onComplete,
-              });
               callbacksRef.current.onComplete?.(event.usage, event.finishReason);
               break;
 
