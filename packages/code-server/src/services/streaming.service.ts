@@ -48,6 +48,7 @@ export type StreamEvent =
   | { type: 'user-message-created'; messageId: string; content: string }
   | { type: 'assistant-message-created'; messageId: string }
   | { type: 'system-message-created'; messageId: string; content: string }
+  | { type: 'message-status-updated'; messageId: string; status: 'active' | 'completed' | 'error' | 'abort'; usage?: TokenUsage; finishReason?: string }
 
   // Step-level events (NEW)
   | { type: 'step-start'; stepId: string; stepIndex: number; metadata: { cpu: string; memory: string }; todoSnapshot: any[]; systemMessages?: Array<{ type: string; content: string; timestamp: number }> }
@@ -838,18 +839,29 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         }
 
         // 11. Update message status (aggregated from all steps)
+        const finalStatus = aborted ? 'abort' : finalUsage ? 'completed' : 'error';
         try {
           await messageRepository.updateMessageStatus(
             assistantMessageId,
-            aborted ? 'abort' : finalUsage ? 'completed' : 'error',
+            finalStatus,
             finalFinishReason
           );
+
+          // Emit message-status-updated event (unified status change event)
+          observer.next({
+            type: 'message-status-updated',
+            messageId: assistantMessageId,
+            status: finalStatus,
+            usage: finalUsage,
+            finishReason: finalFinishReason,
+          });
         } catch (dbError) {
           console.error('[streamAIResponse] Failed to update message status:', dbError);
           // Continue - not critical for user experience
         }
 
-        // 12. Emit complete event (message content done)
+        // 12. Emit complete event (message content done) - DEPRECATED, kept for compatibility
+        // TODO: Remove after all clients migrate to message-status-updated
         observer.next({
           type: 'complete',
           usage: finalUsage,

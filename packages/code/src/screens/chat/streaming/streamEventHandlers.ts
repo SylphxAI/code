@@ -571,35 +571,14 @@ function handleToolError(event: Extract<StreamEvent, { type: 'tool-error' }>, co
 // ============================================================================
 
 function handleComplete(event: Extract<StreamEvent, { type: 'complete' }>, context: EventHandlerContext) {
-  const currentSessionId = getCurrentSessionId();
-  const currentSession = getSignal($currentSession);
+  // DEPRECATED: Status updates now handled by message-status-updated event
+  // This handler kept for backwards compatibility only
 
-  // Stop streaming UI indicator
-  context.setIsStreaming(false);
-
-  // Update active message status to completed
-  if (currentSession && context.streamingMessageIdRef.current) {
-    const updatedMessages = currentSession.messages.map(msg =>
-      msg.id === context.streamingMessageIdRef.current
-        ? {
-            ...msg,
-            status: 'completed' as const,
-            usage: event.usage || msg.usage,
-            finishReason: event.finishReason || msg.finishReason,
-          }
-        : msg
-    );
-
-    setSignal($currentSession, {
-      ...currentSession,
-      messages: updatedMessages,
-    });
-  }
-
-  // Clear streaming message ID
-  context.streamingMessageIdRef.current = null;
-
+  console.log('[handleComplete] Complete event received (DEPRECATED - use message-status-updated)');
   logMessage('Stream completed successfully');
+
+  // Note: Streaming state cleanup is handled by message-status-updated
+  // This ensures correct order: status update → cleanup
 }
 
 function handleError(event: Extract<StreamEvent, { type: 'error' }>, context: EventHandlerContext) {
@@ -622,12 +601,12 @@ function handleError(event: Extract<StreamEvent, { type: 'error' }>, context: Ev
 
 function handleAbort(event: Extract<StreamEvent, { type: 'abort' }>, context: EventHandlerContext) {
   const currentSessionId = getCurrentSessionId();
-  const currentSession = getSignal($currentSession);
 
-  console.log('[handleAbort] Abort event received, streamingMessageId:', context.streamingMessageIdRef.current);
+  console.log('[handleAbort] Abort event received (DEPRECATED - use message-status-updated)');
   context.addLog('[StreamEvent] Stream aborted');
 
-  // Mark all active parts as aborted
+  // DEPRECATED: Mark all active parts as aborted
+  // This is now handled by message-status-updated event from server
   updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
     console.log('[handleAbort] Marking', prev.length, 'parts as aborted');
     return prev.map((part) =>
@@ -635,13 +614,43 @@ function handleAbort(event: Extract<StreamEvent, { type: 'abort' }>, context: Ev
     );
   });
 
-  // Update active message status to abort (same as handleComplete but with 'abort' status)
-  if (currentSession && context.streamingMessageIdRef.current) {
+  // Clear streaming state
+  context.streamingMessageIdRef.current = null;
+  context.setIsStreaming(false);
+}
+
+/**
+ * Handle message status update (UNIFIED STATUS CHANGE EVENT)
+ *
+ * Server is the source of truth for message status.
+ * This handler receives status updates from the database and applies them to the UI.
+ *
+ * Replaces client-side status calculation in handleComplete/handleAbort/handleError.
+ *
+ * Architecture:
+ * - Server updates database → emits message-status-updated event
+ * - All clients receive event → update UI state
+ * - Multi-client sync automatically consistent
+ */
+function handleMessageStatusUpdated(
+  event: Extract<StreamEvent, { type: 'message-status-updated' }>,
+  context: EventHandlerContext
+) {
+  const currentSessionId = getCurrentSessionId();
+  const currentSession = getSignal($currentSession);
+
+  console.log('[handleMessageStatusUpdated] Status updated:', event.status, 'for message:', event.messageId);
+  context.addLog(`[StreamEvent] Message status updated to: ${event.status}`);
+
+  // Update message status in session (server is source of truth)
+  if (currentSession && currentSession.messages.some(m => m.id === event.messageId)) {
     const updatedMessages = currentSession.messages.map(msg =>
-      msg.id === context.streamingMessageIdRef.current
+      msg.id === event.messageId
         ? {
             ...msg,
-            status: 'abort' as const,
+            status: event.status,
+            usage: event.usage || msg.usage,
+            finishReason: event.finishReason || msg.finishReason,
           }
         : msg
     );
@@ -652,12 +661,21 @@ function handleAbort(event: Extract<StreamEvent, { type: 'abort' }>, context: Ev
     });
   }
 
-  // Clear streaming message ID
-  context.streamingMessageIdRef.current = null;
+  // If this is the currently streaming message, clean up streaming state
+  if (context.streamingMessageIdRef.current === event.messageId) {
+    // Mark all active parts with the final status
+    updateActiveMessageContent(currentSessionId, event.messageId, (prev) =>
+      prev.map((part) =>
+        part.status === 'active' ? { ...part, status: event.status } : part
+      )
+    );
 
-  // Stop streaming UI indicator on abort
-  console.log('[handleAbort] Setting isStreaming to false');
-  context.setIsStreaming(false);
+    // Clear streaming state
+    context.streamingMessageIdRef.current = null;
+    context.setIsStreaming(false);
+
+    console.log('[handleMessageStatusUpdated] Cleared streaming state for message:', event.messageId);
+  }
 }
 
 // ============================================================================
@@ -685,6 +703,7 @@ const eventHandlers: Record<StreamEvent['type'], EventHandler> = {
   'user-message-created': handleUserMessageCreated,
   'assistant-message-created': handleAssistantMessageCreated,
   'system-message-created': handleSystemMessageCreated,
+  'message-status-updated': handleMessageStatusUpdated,
 
   // Step events
   'step-start': handleStepStart,
