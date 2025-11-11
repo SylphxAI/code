@@ -7,12 +7,29 @@ import { readdir, stat, readFile as fsReadFile, writeFile } from "node:fs/promis
 import { join, relative } from "node:path";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
+import { z } from "zod";
 
 export interface FileInfo {
 	path: string;
 	relativePath: string;
 	size: number;
 }
+
+/**
+ * Zod schemas for validating file scanner cache from disk
+ */
+const FileInfoSchema = z.object({
+	path: z.string(),
+	relativePath: z.string(),
+	size: z.number(),
+});
+
+const ScanCacheSchema = z.object({
+	version: z.number(),
+	rootPath: z.string(),
+	timestamp: z.number(),
+	files: z.array(FileInfoSchema),
+});
 
 // Default ignore patterns
 const DEFAULT_IGNORE = [
@@ -175,9 +192,16 @@ async function loadCache(rootPath: string): Promise<FileInfo[] | null> {
 	try {
 		const cachePath = getCachePath(rootPath);
 		const content = await fsReadFile(cachePath, "utf8");
-		const cache: ScanCache = JSON.parse(content);
 
-		// Validate cache
+		// Validate cache structure with Zod
+		const parsed = ScanCacheSchema.safeParse(JSON.parse(content));
+		if (!parsed.success) {
+			// Invalid cache format - return null to trigger rescan
+			return null;
+		}
+		const cache = parsed.data;
+
+		// Validate cache metadata
 		if (cache.version !== CACHE_VERSION || cache.rootPath !== rootPath) {
 			return null;
 		}

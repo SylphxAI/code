@@ -5,6 +5,7 @@
 
 import fs from "node:fs/promises";
 import path from "node:path";
+import { z } from "zod";
 import { type Result, success, tryCatchAsync, isOk, isErr } from "../ai/result.js";
 
 export interface ProjectSettings {
@@ -13,6 +14,14 @@ export interface ProjectSettings {
 	/** Settings version for migration purposes */
 	version?: string;
 }
+
+/**
+ * Zod schema for validating ProjectSettings from disk
+ */
+const ProjectSettingsSchema = z.object({
+	defaultTarget: z.string().optional(),
+	version: z.string().optional(),
+}).passthrough(); // Allow additional fields for forward compatibility
 
 const SETTINGS_FILE = ".sylphx-code/settings.json";
 const CURRENT_VERSION = "1.0.0";
@@ -47,7 +56,11 @@ export const loadSettings = async (
 	return tryCatchAsync(
 		async () => {
 			const content = await fs.readFile(settingsPath, "utf8");
-			return JSON.parse(content) as ProjectSettings;
+			const parsed = ProjectSettingsSchema.safeParse(JSON.parse(content));
+			if (!parsed.success) {
+				throw new Error(`Invalid settings format: ${parsed.error.message}`);
+			}
+			return parsed.data as ProjectSettings;
 		},
 		(error: any) => {
 			// File not found is not an error - return empty settings
