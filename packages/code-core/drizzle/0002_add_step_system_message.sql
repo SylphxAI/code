@@ -1,1 +1,1 @@
-ALTER TABLE `message_steps` ADD `system_message` text;
+ALTER TABLE `message_steps` ADD `system_messages` text;

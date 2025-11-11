@@ -20,6 +20,7 @@ import type {
   MessagePart,
   TokenUsage,
   MessageMetadata,
+  SystemMessage,
 } from '../types/session.types.js';
 import type { Todo as TodoType } from '../types/todo.types.js';
 import { retryDatabase } from '../utils/retry.js';
@@ -27,7 +28,7 @@ import { retryDatabase } from '../utils/retry.js';
 /**
  * Create a new step in a message
  *
- * @param systemMessage Optional system message to insert BEFORE this step (for LLM context)
+ * @param systemMessages Optional system messages to insert BEFORE this step (for LLM context)
  * @param todoSnapshot DEPRECATED - No longer stored per-step
  *   Todos are only sent on first user message after /compact
  *   This parameter is kept for backward compatibility but ignored
@@ -38,7 +39,7 @@ export async function createMessageStep(
   stepIndex: number,
   metadata?: MessageMetadata,
   _todoSnapshot?: TodoType[],
-  systemMessage?: string
+  systemMessages?: SystemMessage[]
 ): Promise<string> {
   const stepId = `${messageId}-step-${stepIndex}`;
   const now = Date.now();
@@ -50,7 +51,7 @@ export async function createMessageStep(
         id: stepId,
         messageId,
         stepIndex,
-        systemMessage: systemMessage || null,
+        systemMessages: systemMessages && systemMessages.length > 0 ? JSON.stringify(systemMessages) : null,
         status: 'active',
         metadata: metadata ? JSON.stringify(metadata) : null,
         startTime: now,
@@ -210,8 +211,12 @@ export async function loadMessageSteps(
       status: (step.status as 'active' | 'completed' | 'error' | 'abort') || 'completed',
     };
 
-    if (step.systemMessage) {
-      messageStep.systemMessage = step.systemMessage;
+    if (step.systemMessages) {
+      try {
+        messageStep.systemMessages = JSON.parse(step.systemMessages) as SystemMessage[];
+      } catch (error) {
+        console.error('[loadMessageSteps] Failed to parse systemMessages:', error);
+      }
     }
 
     if (step.metadata) {

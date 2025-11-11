@@ -37,6 +37,7 @@ const cpuResourceTrigger: TriggerHook = async (context) => {
   // State transition: Normal → Warning
   if (cpuUsage >= RESOURCE_WARNING_THRESHOLD && !isWarningActive) {
     return {
+      messageType: 'resource-warning-cpu',
       message: SystemMessages.resourceWarningCPU(status.cpu),
       flagUpdates: { cpuWarning: true },
     };
@@ -45,6 +46,7 @@ const cpuResourceTrigger: TriggerHook = async (context) => {
   // State transition: Warning → Normal
   if (cpuUsage < RESOURCE_WARNING_THRESHOLD && isWarningActive) {
     return {
+      messageType: 'resource-recovered-cpu',
       message: `<system_message type="resource-recovered-cpu">
 ✅ System Resource Recovered - CPU
 
@@ -91,6 +93,7 @@ const memoryResourceTrigger: TriggerHook = async (context) => {
   if (memUsage >= RESOURCE_WARNING_THRESHOLD && !isWarningActive) {
     console.log(`💾 [memoryTrigger] Triggering warning (Normal → Warning)`);
     return {
+      messageType: 'resource-warning-memory',
       message: SystemMessages.resourceWarningMemory(status.memory),
       flagUpdates: { memoryWarning: true },
     };
@@ -100,6 +103,7 @@ const memoryResourceTrigger: TriggerHook = async (context) => {
   if (memUsage < RESOURCE_WARNING_THRESHOLD && isWarningActive) {
     console.log(`💾 [memoryTrigger] Triggering recovery (Warning → Normal)`);
     return {
+      messageType: 'resource-recovered-memory',
       message: `<system_message type="resource-recovered-memory">
 ✅ System Resource Recovered - Memory
 
@@ -137,6 +141,7 @@ const context80Trigger: TriggerHook = async (context) => {
   // Only fire once when crossing threshold
   if (usage >= CONTEXT_WARNING_80 && !isWarningShown) {
     return {
+      messageType: 'context-warning-80',
       message: SystemMessages.contextWarning80(),
       flagUpdates: { contextWarning80: true },
     };
@@ -162,6 +167,7 @@ const context90Trigger: TriggerHook = async (context) => {
   // Only fire once when crossing threshold
   if (usage >= CONTEXT_WARNING_90 && !isWarningShown) {
     return {
+      messageType: 'context-warning-90',
       message: SystemMessages.contextWarning90(),
       flagUpdates: { contextWarning90: true },
     };
@@ -195,6 +201,7 @@ const sessionStartTodoTrigger: TriggerHook = async (context) => {
     : SystemMessages.sessionStartNoTodos();
 
   return {
+    messageType: 'session-start-todos',
     message,
     flagUpdates: { sessionStartTodoShown: true },
   };

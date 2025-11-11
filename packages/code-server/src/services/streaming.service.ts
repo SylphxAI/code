@@ -469,14 +469,18 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
                 contextTokens
               );
 
-              // If triggers fired, create new step with systemMessage
+              // If triggers fired, create new step with systemMessages
               if (triggerResults.length > 0) {
                 console.log(`🔄 [onPrepareMessages] ${triggerResults.length} trigger(s) fired`);
 
-                // Combine all trigger messages
-                const combinedSystemMessage = triggerResults.map(t => t.message).join('\n\n');
+                // Build SystemMessage array from trigger results
+                const systemMessages = triggerResults.map(trigger => ({
+                  type: trigger.messageType || 'unknown',
+                  content: trigger.message,
+                  timestamp: Date.now(),
+                }));
 
-                // Create step for this stepNumber with systemMessage
+                // Create step for this stepNumber with systemMessages
                 const newStepId = `${assistantMessageId}-step-${stepNumber}`;
                 try {
                   await createMessageStep(
@@ -485,28 +489,33 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
                     stepNumber,
                     undefined, // metadata
                     undefined, // todoSnapshot (deprecated)
-                    combinedSystemMessage // systemMessage
+                    systemMessages // systemMessages array
                   );
-                  console.log(`🔄 [onPrepareMessages] Created step-${stepNumber} with system message`);
+                  console.log(`🔄 [onPrepareMessages] Created step-${stepNumber} with ${systemMessages.length} system messages`);
 
                   // Emit step-created event for UI
                   observer.next({
                     type: 'step-created' as const,
                     stepId: newStepId,
                     stepNumber,
-                    systemMessage: combinedSystemMessage,
+                    systemMessages, // Send array to UI
                   });
                 } catch (stepError) {
                   console.error('[onPrepareMessages] Failed to create step:', stepError);
                 }
 
-                // Insert system message as 'user' role in model messages
+                // Insert system messages as 'user' role in model messages
+                // Combine with type headers for LLM context
+                const combinedContent = systemMessages
+                  .map(sm => `<system_message type="${sm.type}">\n${sm.content}\n</system_message>`)
+                  .join('\n\n');
+
                 const systemMessageContent: ModelMessage = {
                   role: 'user',
-                  content: [{ type: 'text', text: combinedSystemMessage }],
+                  content: [{ type: 'text', text: combinedContent }],
                 };
 
-                console.log(`🔄 [onPrepareMessages] Injecting system message into model messages`);
+                console.log(`🔄 [onPrepareMessages] Injecting ${systemMessages.length} system messages into model messages`);
                 return [...messages, systemMessageContent];
               }
 

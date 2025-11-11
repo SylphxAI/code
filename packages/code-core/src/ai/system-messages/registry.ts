@@ -16,7 +16,8 @@ import type { MessageRepository } from '../../database/message-repository.js';
  * Trigger result - message to insert and flag updates
  */
 export interface TriggerResult {
-  message: string;
+  messageType: string; // Trigger type (e.g., 'context-warning-80', 'resource-warning-memory')
+  message: string;     // Full message content
   flagUpdates: Record<string, boolean>;
 }
 

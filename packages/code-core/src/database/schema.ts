@@ -205,9 +205,10 @@ export const messageSteps = sqliteTable(
       .references(() => messages.id, { onDelete: 'cascade' }),
     stepIndex: integer('step_index').notNull(), // 0, 1, 2, ... (order)
 
-    // System message to insert BEFORE this step (for LLM context)
-    // When building model messages, this becomes a 'user' role message inserted before step content
-    systemMessage: text('system_message'),
+    // System messages to insert BEFORE this step (for LLM context)
+    // Stored as JSON array: [{ type: 'context-warning-80', content: '...', timestamp: 123 }, ...]
+    // When building model messages, these become 'user' role messages inserted before step content
+    systemMessages: text('system_messages'), // JSON array of SystemMessage[]
 
     // Per-step execution metadata
     provider: text('provider'), // May route different steps to different providers

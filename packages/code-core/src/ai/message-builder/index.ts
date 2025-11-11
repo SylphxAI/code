@@ -164,7 +164,7 @@ async function buildUserMessage(
 
 /**
  * Build assistant message with steps (handles step-level system messages)
- * Each step can have a systemMessage that is inserted BEFORE the step content
+ * Each step can have systemMessages array that is inserted BEFORE the step content
  */
 async function buildAssistantMessageWithSteps(
   msg: Message,
@@ -173,13 +173,21 @@ async function buildAssistantMessageWithSteps(
   results: ModelMessage[]
 ): Promise<void> {
   if (msg.steps && msg.steps.length > 0) {
-    // Step-based structure: process each step with its optional systemMessage
+    // Step-based structure: process each step with its optional systemMessages
     for (const step of msg.steps) {
-      // If step has systemMessage, insert it as 'user' role message BEFORE step content
-      if (step.systemMessage) {
+      // If step has systemMessages, insert them as 'user' role messages BEFORE step content
+      if (step.systemMessages && step.systemMessages.length > 0) {
+        // Combine all system messages with headers
+        const combinedContent = step.systemMessages
+          .map(sm => {
+            // Add type header for context
+            return `<system_message type="${sm.type}">\n${sm.content}\n</system_message>`;
+          })
+          .join('\n\n');
+
         results.push({
           role: 'user',
-          content: [{ type: 'text', text: step.systemMessage }],
+          content: [{ type: 'text', text: combinedContent }],
         });
       }
 
