@@ -12,6 +12,7 @@
  * This service is called by message.streamResponse subscription procedure
  */
 
+import { streamText } from "ai";
 import { observable } from "@trpc/server/observable";
 import type {
 	SessionRepository,
@@ -21,7 +22,6 @@ import type {
 	MessagePart,
 } from "@sylphx/code-core";
 import {
-	createAIStream,
 	buildSystemPrompt,
 	createMessageStep,
 	updateStepParts,
@@ -30,6 +30,7 @@ import {
 	getAISDKTools,
 	hasUserInputHandler,
 } from "@sylphx/code-core";
+
 import type { StreamCallbacks } from "@sylphx/code-core";
 import type { AppContext } from "../context.js";
 import { ensureSession } from "./streaming/session-manager.js";
@@ -361,33 +362,83 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 					updatedSession.messages.filter((m) => m.role === "user").length === 1;
 				const needsTitle = needsTitleGeneration(updatedSession, isNewSession, isFirstMessage);
 
-				// 10. Create AI stream with system prompt
+				// 9.6. Create assistant message in database BEFORE stream (need ID for prepareStep)
+				const assistantMessageId = await messageRepository.addMessage({
+					sessionId,
+					role: "assistant",
+					content: [], // Empty content initially
+					status: "active",
+				});
+
+				// 9.7. Emit assistant message created event
+				observer.next({
+					type: "assistant-message-created",
+					messageId: assistantMessageId,
+				});
+
+				// 10. Create AI stream with system prompt using AI SDK's native prepareStep
 				// Only provide tools if model supports them
 				// Models without native support (like claude-code) will fall back to text-based tools
 
-				let currentStepNumber = 0;
+				let currentStepParts: MessagePart[] = [];
+				let lastCompletedStepNumber = -1;
 
-				const stream = createAIStream({
+				const { fullStream } = streamText({
 					model,
 					messages,
-					systemPrompt,
+					system: systemPrompt, // AI SDK uses 'system' not 'systemPrompt'
 					tools,
 					...(abortSignal ? { abortSignal } : {}),
-					// REMOVED: onTransformToolResult - system status now injected via system-message mechanism
-					// ⭐ NEW: Prepare messages before each step (allows injecting system messages mid-stream)
-					onPrepareMessages: async (messages, stepNumber) => {
-						// Update current step number
-						currentStepNumber = stepNumber;
-
+					maxSteps: 10, // Reasonable limit for multi-step tool calling
+					// ⭐ AI SDK's native prepareStep hook - called before each step
+					prepareStep: async ({ steps, stepNumber }) => {
 						try {
-							// Reload session to get latest state (includes new tool results)
-							const currentSession = await sessionRepository.getSessionById(sessionId);
-							if (!currentSession) {
-								console.warn(`[onPrepareMessages] Session ${sessionId} not found`);
-								return messages;
+							// 1. Complete previous step if this is not the first step
+							if (stepNumber > 0 && lastCompletedStepNumber < stepNumber - 1) {
+								const prevStepId = `${assistantMessageId}-step-${stepNumber - 1}`;
+								const prevStep = steps[steps.length - 1];
+
+								// Update step parts
+								try {
+									await updateStepParts(sessionRepository.db, prevStepId, currentStepParts);
+								} catch (dbError) {
+									console.error(`[prepareStep] Failed to update step ${stepNumber - 1} parts:`, dbError);
+								}
+
+								// Complete step
+								try {
+									await completeMessageStep(sessionRepository.db, prevStepId, {
+										status: "completed",
+										finishReason: prevStep.finishReason,
+										usage: prevStep.usage,
+										provider: session.provider,
+										model: session.model,
+									});
+								} catch (dbError) {
+									console.error(`[prepareStep] Failed to complete step ${stepNumber - 1}:`, dbError);
+								}
+
+								// Emit step-complete event
+								observer.next({
+									type: "step-complete",
+									stepId: prevStepId,
+									usage: prevStep.usage,
+									duration: 0, // TODO: track duration
+									finishReason: prevStep.finishReason,
+								});
+
+								lastCompletedStepNumber = stepNumber - 1;
+								currentStepParts = [];
 							}
 
-							// Calculate context token usage
+							// 2. Reload session to get latest state (includes new tool results)
+							const currentSession = await sessionRepository.getSessionById(sessionId);
+							if (!currentSession) {
+								console.warn(`[prepareStep] Session ${sessionId} not found`);
+								return {};
+							}
+
+							// 3. Calculate context token usage
 							let contextTokens: { current: number; max: number } | undefined;
 							try {
 								let totalTokens = 0;
@@ -410,10 +461,10 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 									};
 								}
 							} catch (error) {
-								console.error("[onPrepareMessages] Failed to calculate context tokens:", error);
+								console.error("[prepareStep] Failed to calculate context tokens:", error);
 							}
 
-							// Check all triggers for this step (unified for all steps)
+							// 4. Check all triggers for this step (unified for all steps)
 							const triggerResults = await checkAllTriggers(
 								currentSession,
 								messageRepository,
@@ -421,7 +472,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 								contextTokens,
 							);
 
-							// Build SystemMessage array from trigger results (may be empty)
+							// 5. Build SystemMessage array from trigger results (may be empty)
 							const systemMessages =
 								triggerResults.length > 0
 									? triggerResults.map((trigger) => ({
@@ -431,8 +482,8 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 										}))
 									: [];
 
-							// Always create step (even if no system messages)
-							const newStepId = `${assistantMessageId}-step-${stepNumber}`;
+							// 6. Create step record in database
+							const stepId = `${assistantMessageId}-step-${stepNumber}`;
 							try {
 								await createMessageStep(
 									sessionRepository.db,
@@ -442,28 +493,30 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 									undefined, // todoSnapshot (deprecated)
 									systemMessages.length > 0 ? systemMessages : undefined,
 								);
-
-								// Emit step-start event for UI
-								const stepStartEvent = {
-									type: "step-start" as const,
-									stepId: newStepId,
-									stepIndex: stepNumber,
-									metadata: { cpu: "N/A", memory: "N/A" }, // Placeholder (resources now in system messages)
-									todoSnapshot: [], // Deprecated
-									systemMessages: systemMessages.length > 0 ? systemMessages : undefined,
-								};
-								observer.next(stepStartEvent);
 							} catch (stepError) {
-								console.error("[onPrepareMessages] Failed to create step:", stepError);
+								console.error("[prepareStep] Failed to create step:", stepError);
 							}
 
-							// If there are system messages, inject them into model messages
+							// 7. Emit step-start event for UI
+							observer.next({
+								type: "step-start",
+								stepId,
+								stepIndex: stepNumber,
+								metadata: { cpu: "N/A", memory: "N/A" },
+								todoSnapshot: [],
+								systemMessages: systemMessages.length > 0 ? systemMessages : undefined,
+							});
+
+							// 8. Inject system messages if present
 							if (systemMessages.length > 0) {
+								// Get base messages (from last step or initial messages)
+								const baseMessages = steps.length > 0 ? steps[steps.length - 1].messages : messages;
+
 								// Combine system messages (already wrapped in <system_message> tags)
 								const combinedContent = systemMessages.map((sm) => sm.content).join("\n\n");
 
 								// Append to last message to avoid consecutive user messages
-								const lastMessage = messages[messages.length - 1];
+								const lastMessage = baseMessages[baseMessages.length - 1];
 								if (lastMessage && lastMessage.role === "user") {
 									// Append system message to last user message
 									const lastContent = lastMessage.content;
@@ -478,29 +531,29 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 										: [{ type: "text" as const, text: combinedContent }];
 
 									const updatedMessages = [
-										...messages.slice(0, -1),
+										...baseMessages.slice(0, -1),
 										{ ...lastMessage, content: updatedContent },
 									];
 
-									return updatedMessages;
+									return { messages: updatedMessages };
 								} else {
 									// Fallback: add as separate user message (shouldn't happen in practice)
 									const updatedMessages = [
-										...messages,
+										...baseMessages,
 										{
 											role: "user" as const,
 											content: [{ type: "text" as const, text: combinedContent }],
 										},
 									];
-									return updatedMessages;
+									return { messages: updatedMessages };
 								}
 							}
 
-							return messages;
+							return {}; // No modifications needed
 						} catch (error) {
-							console.error("[onPrepareMessages] Error checking triggers:", error);
-							// Don't crash the stream, just skip trigger check
-							return messages;
+							console.error("[prepareStep] Error:", error);
+							// Don't crash the stream, just skip modifications
+							return {};
 						}
 					},
 				});
@@ -519,25 +572,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 					});
 				}
 
-				// 9. Create assistant message in database (status: active)
-				const assistantMessageId = await messageRepository.addMessage({
-					sessionId,
-					role: "assistant",
-					content: [], // Empty content initially
-					status: "active",
-				});
-
-				// 9.1. Emit assistant message created event
-				observer.next({
-					type: "assistant-message-created",
-					messageId: assistantMessageId,
-				});
-
-				// 9.2. Step creation now handled by onPrepareMessages hook
-				// All steps (including step-0) are created dynamically with system messages if needed
-				// step-start event will be emitted by onPrepareMessages
-
-				// 10. Process stream and emit events
+				// 11. Process stream and emit events
 				const callbacks: StreamCallbacks = {
 					onTextStart: () => {
 						observer.next({ type: "text-start" });
@@ -587,13 +622,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 					},
 				};
 
-				// 10. Process stream with step-aware part accumulation
-				// CRITICAL: We need to save parts PER STEP, not accumulate all steps into one array
-				// Each step-end event should trigger saving parts for that step
-				let currentStepParts: MessagePart[] = [];
-				const activeTools = new Map<string, { name: string; startTime: number; args: unknown }>();
-
+				// 12. Initialize stream processing state
 				// Track active parts by index (for updating on delta/end events)
+				const activeTools = new Map<string, { name: string; startTime: number; args: unknown }>();
 				let currentTextPartIndex: number | null = null;
 				let currentReasoningPartIndex: number | null = null;
 
@@ -602,62 +633,10 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 				let hasError = false;
 
 				try {
-					for await (const chunk of stream) {
-						// Handle step-end event: save current step's parts
-						if ((chunk as any).type === "step-end") {
-							const stepNum = (chunk as any).stepNumber;
-							const stepId = `${assistantMessageId}-step-${stepNum}`;
-
-							// Update step parts in database
-							try {
-								await updateStepParts(sessionRepository.db, stepId, currentStepParts);
-							} catch (dbError) {
-								console.error(
-									`[streamAIResponse] Failed to update step ${stepNum} parts:`,
-									dbError,
-								);
-							}
-
-							// Complete the step
-							try {
-								await completeMessageStep(sessionRepository.db, stepId, {
-									status: aborted ? "abort" : finalUsage ? "completed" : "error",
-									finishReason: (chunk as any).finishReason,
-									usage: finalUsage,
-									provider: session.provider,
-									model: session.model,
-								});
-							} catch (dbError) {
-								console.error(`[streamAIResponse] Failed to complete step ${stepNum}:`, dbError);
-							}
-
-							// Emit step-complete event
-							const stepDuration = 0; // TODO: Calculate from step startTime
-							observer.next({
-								type: "step-complete",
-								stepId,
-								usage: finalUsage || {
-									promptTokens: 0,
-									completionTokens: 0,
-									totalTokens: 0,
-								},
-								duration: stepDuration,
-								finishReason: (chunk as any).finishReason || "unknown",
-							});
-
-							// Reset parts accumulation for next step
-							currentStepParts = [];
-							continue;
-						}
-
-						// Handle step-start event
-						if ((chunk as any).type === "step-start") {
-							// Just reset parts (step record already created by onPrepareMessages)
-							currentStepParts = [];
-							continue;
-						}
-
-						// Regular chunk processing
+					console.log("[streamAIResponse] Starting to process fullStream");
+					for await (const chunk of fullStream) {
+						console.log("[streamAIResponse] Received chunk:", chunk.type, JSON.stringify(chunk).substring(0, 200));
+						// Process AI SDK stream chunks
 						// CRITICAL: Part ordering is determined by START events, not END events
 						// This ensures correct ordering regardless of when end events arrive
 						switch (chunk.type) {
@@ -676,13 +655,15 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
 							case "text-delta": {
 								// Update active text part
-								if (currentTextPartIndex !== null) {
+								if (currentTextPartIndex !== null && chunk.textDelta !== undefined) {
 									const part = currentStepParts[currentTextPartIndex];
 									if (part && part.type === "text") {
 										part.content += chunk.textDelta;
 									}
+									callbacks.onTextDelta?.(chunk.textDelta);
+								} else if (chunk.textDelta === undefined) {
+									console.error("[streamAIResponse] text-delta event with undefined textDelta:", chunk);
 								}
-								callbacks.onTextDelta?.(chunk.textDelta);
 								break;
 							}
 
@@ -853,6 +834,12 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 								callbacks.onFinish?.(chunk.usage, chunk.finishReason);
 								break;
 							}
+
+							default: {
+								// Log unhandled event types for debugging
+								console.log("[streamAIResponse] Unhandled chunk type:", chunk.type, chunk);
+								break;
+							}
 						}
 					}
 
@@ -885,7 +872,47 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 					}
 				}
 
-				// Emit error event if no valid response
+				// 13. Complete final step (if there is one)
+				// prepareStep only completes previous steps, so we need to manually complete the last step
+				if (lastCompletedStepNumber >= 0 || currentStepParts.length > 0) {
+					const finalStepNumber = lastCompletedStepNumber + 1;
+					const finalStepId = `${assistantMessageId}-step-${finalStepNumber}`;
+
+					// Update final step parts
+					try {
+						await updateStepParts(sessionRepository.db, finalStepId, currentStepParts);
+					} catch (dbError) {
+						console.error(`[streamAIResponse] Failed to update final step ${finalStepNumber} parts:`, dbError);
+					}
+
+					// Complete final step
+					try {
+						await completeMessageStep(sessionRepository.db, finalStepId, {
+							status: aborted ? "abort" : finalUsage ? "completed" : "error",
+							finishReason: finalFinishReason,
+							usage: finalUsage,
+							provider: session.provider,
+							model: session.model,
+						});
+					} catch (dbError) {
+						console.error(`[streamAIResponse] Failed to complete final step ${finalStepNumber}:`, dbError);
+					}
+
+					// Emit final step-complete event
+					observer.next({
+						type: "step-complete",
+						stepId: finalStepId,
+						usage: finalUsage || {
+							promptTokens: 0,
+							completionTokens: 0,
+							totalTokens: 0,
+						},
+						duration: 0, // TODO: track duration
+						finishReason: finalFinishReason || "unknown",
+					});
+				}
+
+				// 14. Emit error event if no valid response
 				if (!finalUsage && !aborted && !hasError) {
 					const errorPart = currentStepParts.find((p) => p.type === "error");
 					if (errorPart && errorPart.type === "error") {

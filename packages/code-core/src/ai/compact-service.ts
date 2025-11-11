@@ -9,12 +9,12 @@
  * - Detailed progress tracking
  */
 
+import { streamText } from "ai";
 import { getProvider } from "./providers/index.js";
 import type { ProviderId } from "../types/provider.types.js";
 import type { Session, Message } from "../types/session.types.js";
 import type { SessionRepository } from "../database/session-repository.js";
 import { createLogger } from "../utils/logger.js";
-import { createAIStream } from "./ai-sdk.js";
 
 const logger = createLogger("CompactService");
 
@@ -160,9 +160,8 @@ export async function compactSession(
 			conversationMessages: conversationMessages.length,
 		});
 
-		// Use createAIStream (our wrapper) for consistency
-		// Disable tools since summarization doesn't need them
-		const stream = createAIStream({
+		// Use AI SDK's streamText directly
+		const { fullStream } = streamText({
 			model: provider.createClient(providerConfig, session.model),
 			messages: [
 				...conversationMessages, // Full conversation with all content types
@@ -171,15 +170,14 @@ export async function compactSession(
 					content: summaryPrompt, // Instruction to summarize
 				},
 			],
-			// No tools parameter - summarization doesn't need tools
+			// No tools - summarization doesn't need them
 		});
 
 		// Collect full summary with progress updates
 		let summary = "";
 		let chunkCount = 0;
 
-		for await (const chunk of stream) {
-			// Extract text from our wrapper's chunk format
+		for await (const chunk of fullStream) {
 			if (chunk.type === "text-delta") {
 				summary += chunk.textDelta;
 				chunkCount++;

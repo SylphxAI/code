@@ -29,7 +29,8 @@ export async function generateSessionTitle(
 	callbacks?: TitleStreamCallbacks,
 ): Promise<string | null> {
 	try {
-		const { createAIStream, cleanAITitle, getProvider } = await import("@sylphx/code-core");
+		const { streamText } = await import("ai");
+		const { cleanAITitle, getProvider } = await import("@sylphx/code-core");
 
 		const provider = session.provider;
 		const modelName = session.model;
@@ -46,10 +47,10 @@ export async function generateSessionTitle(
 
 		const model = providerInstance.createClient(providerConfig, modelName);
 
-		// Create AI stream for title generation (no tools - fastest possible)
-		const titleStream = createAIStream({
+		// Use AI SDK's streamText directly for title generation
+		const { fullStream } = streamText({
 			model,
-			systemPrompt: `Generate a concise title for this conversation.
+			system: `Generate a concise title for this conversation.
 
 Requirements:
 - 2-6 words maximum
@@ -71,7 +72,7 @@ Output only the title, nothing else.`,
 					content: userMessage,
 				},
 			],
-			// No tools parameter - title generation doesn't need tools
+			// No tools - title generation doesn't need them
 		});
 
 		let fullTitle = "";
@@ -92,7 +93,7 @@ Output only the title, nothing else.`,
 
 		// Stream title chunks
 		try {
-			for await (const chunk of titleStream) {
+			for await (const chunk of fullStream) {
 				if (chunk.type === "text-delta" && chunk.textDelta) {
 					fullTitle += chunk.textDelta;
 

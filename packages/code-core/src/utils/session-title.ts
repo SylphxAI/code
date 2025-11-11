@@ -3,7 +3,7 @@
  * Re-exports pure functions from feature and adds streaming functionality
  */
 
-import { createAIStream } from "../ai/ai-sdk.js";
+import { streamText } from "ai";
 import type { ProviderId } from "../types/config.types.js";
 import { cleanAITitle } from "../session/utils/title.js";
 
@@ -37,8 +37,8 @@ export async function generateSessionTitle(
 		const providerInstance = getProvider(provider);
 		const model = providerInstance.createClient(providerConfig, modelName);
 
-		// Use our createAIStream for consistency
-		const streamGenerator = createAIStream({
+		// Use AI SDK's streamText directly
+		const { fullStream } = streamText({
 			model,
 			messages: [
 				{
@@ -66,7 +66,7 @@ Now generate the title:`,
 		let fullTitle = "";
 
 		// Collect all text chunks from stream
-		for await (const chunk of streamGenerator) {
+		for await (const chunk of fullStream) {
 			if (chunk.type === "text-delta" && chunk.textDelta) {
 				fullTitle += chunk.textDelta;
 			}
@@ -102,7 +102,7 @@ export async function generateSessionTitleWithStreaming(
 		const providerInstance = getProvider(provider);
 		const model = providerInstance.createClient(providerConfig, modelName);
 
-		const streamGenerator = createAIStream({
+		const { fullStream } = streamText({
 			model,
 			messages: [
 				{
@@ -130,7 +130,7 @@ Now generate the title:`,
 		let fullTitle = "";
 
 		// Iterate the async generator and stream to UI
-		for await (const chunk of streamGenerator) {
+		for await (const chunk of fullStream) {
 			if (chunk.type === "text-delta" && chunk.textDelta) {
 				fullTitle += chunk.textDelta;
 				onChunk(chunk.textDelta);
