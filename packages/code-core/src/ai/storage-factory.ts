@@ -78,12 +78,25 @@ export async function createVectorStorage<T = unknown>(options?: {
 }
 
 /**
+ * Type guard for valid storage types
+ */
+function isValidStorageType(type: string): type is "memory" | "cache" | "vector" {
+	return type === "memory" || type === "cache" || type === "vector";
+}
+
+/**
  * Create storage from environment configuration
  */
 export async function createStorageFromEnv<T = unknown>(type?: string): Promise<any> {
 	const storageType = type || process.env.STORAGE_TYPE || "memory";
 
-	const config: StorageConfig = { type: storageType as any };
+	if (!isValidStorageType(storageType)) {
+		throw new Error(
+			`Invalid storage type: ${storageType}. Must be one of: memory, cache, vector`
+		);
+	}
+
+	const config: StorageConfig = { type: storageType };
 
 	// Load configuration from environment variables
 	const connectionString = process.env.STORAGE_CONNECTION_STRING;
