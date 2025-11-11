@@ -136,7 +136,11 @@ export const deepMerge = <T extends object>(target: T, source: Partial<T>): T =>
 			targetValue !== null &&
 			!Array.isArray(targetValue)
 		) {
-			result[key] = deepMerge(targetValue, sourceValue as any);
+			// Both are objects, recursively merge them
+			result[key] = deepMerge(targetValue as object, sourceValue as object) as T[Extract<
+				keyof T,
+				string
+			>];
 		} else if (sourceValue !== undefined) {
 			result[key] = sourceValue as T[Extract<keyof T, string>];
 		}
@@ -250,7 +254,7 @@ export const clone = <T>(obj: T): T => {
 	}
 
 	if (Array.isArray(obj)) {
-		return obj.map(clone) as any;
+		return obj.map((item) => clone(item)) as T;
 	}
 
 	const cloned = {} as T;

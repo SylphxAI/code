@@ -180,10 +180,15 @@ export async function listMCPServersForTarget(cwd: string, targetId: string): Pr
 	for (const [name, serverConfig] of Object.entries(mcpSection)) {
 		let configInfo = "";
 		if (serverConfig && typeof serverConfig === "object" && "type" in serverConfig) {
-			if (serverConfig.type === "local") {
-				configInfo = (serverConfig as any).command?.join(" ") || "Unknown command";
-			} else if (serverConfig.type === "remote") {
-				configInfo = `HTTP: ${(serverConfig as any).url}`;
+			const config = serverConfig as Record<string, unknown>;
+			if (config.type === "local" && "command" in config) {
+				const command = config.command;
+				configInfo =
+					Array.isArray(command) && command.every((c) => typeof c === "string")
+						? command.join(" ")
+						: "Unknown command";
+			} else if (config.type === "remote" && "url" in config && typeof config.url === "string") {
+				configInfo = `HTTP: ${config.url}`;
 			}
 		}
 

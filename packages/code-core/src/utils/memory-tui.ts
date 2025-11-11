@@ -4,7 +4,7 @@ import inquirer from "inquirer";
 import { DrizzleMemoryStorage, type MemoryEntry } from "../utils/drizzle-storage.js";
 
 interface MemoryEntryChoice extends inquirer.ChoiceBase {
-	value: MemoryEntry;
+	value: MemoryEntry | null;
 	name: string;
 	short: string;
 }
@@ -154,7 +154,7 @@ export class MemoryTUI {
 		if (allowEmpty) {
 			choices.unshift({
 				name: "← Back to menu",
-				value: null as any,
+				value: null,
 				short: "Back",
 			});
 		}

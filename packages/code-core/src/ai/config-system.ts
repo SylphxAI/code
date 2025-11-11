@@ -228,8 +228,13 @@ export class ConfigManager {
 				return ok(source.data);
 			case "memory":
 				return ok(source.data);
-			default:
-				return err(new ConfigurationError(`Unknown source type: ${(source as any).type}`));
+			default: {
+				// Exhaustive check - TypeScript will error if a new ConfigSource type is added
+				const exhaustiveCheck: never = source;
+				return err(
+					new ConfigurationError(`Unknown source type: ${(exhaustiveCheck as ConfigSource).type}`),
+				);
+			}
 		}
 	}
 
@@ -349,8 +354,11 @@ export class ConfigManager {
 	 */
 	private getNestedValue(obj: Record<string, unknown>, path: string): unknown {
 		return path.split(".").reduce((current, key) => {
-			return current && typeof current === "object" ? (current as any)[key] : undefined;
-		}, obj);
+			if (current && typeof current === "object" && !Array.isArray(current)) {
+				return (current as Record<string, unknown>)[key];
+			}
+			return undefined;
+		}, obj as unknown);
 	}
 
 	/**

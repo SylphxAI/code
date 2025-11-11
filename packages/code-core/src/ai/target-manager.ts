@@ -88,9 +88,10 @@ export function createTargetManager(): TargetManager {
 				message: "Select target platform:",
 				choices: availableTargets.map((id) => {
 					const targetOption = getTarget(id);
-					const target = getOrElse({ id, name: id } as any)(targetOption);
+					// Use target.name if available, otherwise fallback to id
+					const displayName = isSome(targetOption) ? targetOption.value.name : id;
 					return {
-						name: target.name || id,
+						name: displayName,
 						value: id,
 					};
 				}),
