@@ -240,6 +240,7 @@ Use both message-level and step-level system messages:
 
 #### Message-Level System Messages
 - **Format**: `role = 'system'` standalone message in database
+- **Storage**: Separate message entry (not a MessagePart)
 - **Use cases**:
   - Session start (todos, reminders)
   - After compact (summary context)
@@ -247,7 +248,9 @@ Use both message-level and step-level system messages:
 - **Timing**: Checked **before** streaming starts
 
 #### Step-Level System Messages
-- **Format**: Injected into model messages during `onPrepareMessages` hook
+- **Format**: `role = 'system'` message inserted between steps via `onPrepareMessages` hook
+- **Storage**: Separate message entry (not a MessagePart)
+- **Key insight**: System messages are inserted as standalone messages BETWEEN steps, not as parts within a step
 - **Use cases**:
   - Context warnings during long operations
   - Resource alerts mid-execution
@@ -278,6 +281,7 @@ const stream = createAIStream({
     // 4. Insert system messages if triggers fired
     if (triggerResults.length > 0) {
       for (const trigger of triggerResults) {
+        // ⭐ Creates standalone 'system' role message
         await insertSystemMessage(messageRepository, sessionId, trigger.message);
       }
 
@@ -290,6 +294,13 @@ const stream = createAIStream({
   }
 });
 ```
+
+**Key Implementation Note**:
+System messages are NOT stored as MessagePart types. Instead:
+- `insertSystemMessage()` creates a standalone message with `role='system'`
+- The message contains a regular text part: `{ type: 'text', content: '...', status: 'completed' }`
+- These separate messages are inserted BETWEEN steps in the conversation
+- `buildModelMessages()` rebuilds the messages array to include them
 
 ### Benefits
 
