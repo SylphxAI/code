@@ -338,6 +338,12 @@ export default function Chat(_props: ChatProps) {
         console.log('[Chat] onAbort callback fired');
         handleStreamEvent({ type: 'abort' }, eventContextParams);
       },
+
+      // Message status updates (UNIFIED STATUS CHANGE EVENT)
+      onMessageStatusUpdated: (messageId: string, status: 'active' | 'completed' | 'error' | 'abort', usage?: any, finishReason?: string) => {
+        console.log('[Chat] onMessageStatusUpdated callback fired:', { messageId, status });
+        handleStreamEvent({ type: 'message-status-updated', messageId, status, usage, finishReason }, eventContextParams);
+      },
     }),
     [eventContextParams]
   );

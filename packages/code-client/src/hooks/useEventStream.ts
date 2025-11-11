@@ -32,6 +32,7 @@ export interface EventStreamCallbacks {
   // Message events
   onAssistantMessageCreated?: (messageId: string) => void;
   onSystemMessageCreated?: (messageId: string, content: string) => void;
+  onMessageStatusUpdated?: (messageId: string, status: 'active' | 'completed' | 'error' | 'abort', usage?: any, finishReason?: string) => void;
 
   // Step events
   onStepStart?: (stepId: string, stepIndex: number, metadata: any, todoSnapshot: any[], systemMessages?: any[]) => void;
@@ -177,6 +178,15 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 
             case 'system-message-created':
               callbacksRef.current.onSystemMessageCreated?.(event.messageId, event.content);
+              break;
+
+            case 'message-status-updated':
+              callbacksRef.current.onMessageStatusUpdated?.(
+                event.messageId,
+                event.status,
+                event.usage,
+                event.finishReason
+              );
               break;
 
             case 'step-start':
