@@ -12,7 +12,7 @@
  * This service is called by message.streamResponse subscription procedure
  */
 
-import { streamText } from "ai";
+import { streamText, type TextStreamPart, type LanguageModelUsage } from "ai";
 import { observable } from "@trpc/server/observable";
 import type {
 	SessionRepository,
@@ -38,7 +38,23 @@ import { buildModelMessages } from "./streaming/message-builder.js";
 import { generateSessionTitle, needsTitleGeneration } from "./streaming/title-generator.js";
 import { validateProvider } from "./streaming/provider-validator.js";
 
+// ============================================================================
+// AI SDK Type Helpers
+// ============================================================================
+// Extract specific chunk types from AI SDK's TextStreamPart union for type safety
+type TextDeltaChunk = Extract<TextStreamPart<any>, { type: "text-delta" }>;
+type ReasoningDeltaChunk = Extract<TextStreamPart<any>, { type: "reasoning-delta" }>;
+type FinishChunk = Extract<TextStreamPart<any>, { type: "finish" }>;
+
+// Reasoning part with internal startTime tracking
+interface ReasoningPartWithStartTime extends MessagePart {
+	type: "reasoning";
+	startTime?: number; // Internal field for duration calculation
+}
+
+// ============================================================================
 // Re-export StreamEvent type from message router
+// ============================================================================
 export type StreamEvent =
 	// Session-level events
 	| {
@@ -653,14 +669,14 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
 							case "text-delta": {
 								// Update active text part
-								// ASSUMPTION: AI SDK v5 uses 'text' property, not 'textDelta'
-								const textContent = (chunk as any).text || (chunk as any).textDelta;
-								if (currentTextPartIndex !== null && textContent !== undefined) {
+								// AI SDK v5 uses 'text' property
+								const textDelta = chunk as TextDeltaChunk;
+								if (currentTextPartIndex !== null && textDelta.text !== undefined) {
 									const part = currentStepParts[currentTextPartIndex];
 									if (part && part.type === "text") {
-										part.content += textContent;
+										part.content += textDelta.text;
 									}
-									callbacks.onTextDelta?.(textContent);
+									callbacks.onTextDelta?.(textDelta.text);
 								}
 								break;
 							}
@@ -696,14 +712,14 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
 							case "reasoning-delta": {
 								// Update active reasoning part
-								// ASSUMPTION: AI SDK v5 uses 'text' property, not 'textDelta'
-								const reasoningContent = (chunk as any).text || (chunk as any).textDelta;
-								if (currentReasoningPartIndex !== null && reasoningContent !== undefined) {
+								// AI SDK v5 uses 'text' property
+								const reasoningDelta = chunk as ReasoningDeltaChunk;
+								if (currentReasoningPartIndex !== null && reasoningDelta.text !== undefined) {
 									const part = currentStepParts[currentReasoningPartIndex];
 									if (part && part.type === "reasoning") {
-										part.content += reasoningContent;
+										part.content += reasoningDelta.text;
 									}
-									callbacks.onReasoningDelta?.(reasoningContent);
+									callbacks.onReasoningDelta?.(reasoningDelta.text);
 								}
 								break;
 							}
@@ -711,14 +727,12 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 							case "reasoning-end": {
 								// Mark reasoning part as completed and calculate duration
 								if (currentReasoningPartIndex !== null) {
-									const part = currentStepParts[currentReasoningPartIndex];
+									const part = currentStepParts[currentReasoningPartIndex] as ReasoningPartWithStartTime;
 									if (part && part.type === "reasoning") {
 										part.status = "completed";
-										const duration = (part as any).startTime
-											? Date.now() - (part as any).startTime
-											: 0;
+										const duration = part.startTime ? Date.now() - part.startTime : 0;
 										part.duration = duration;
-										delete (part as any).startTime; // Clean up temp field
+										delete part.startTime; // Clean up temp field
 										callbacks.onReasoningEnd?.(duration);
 									}
 									currentReasoningPartIndex = null;
@@ -829,11 +843,23 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 							}
 
 							case "finish": {
-								// ASSUMPTION: AI SDK v5 uses 'totalUsage' property
-								const usage = (chunk as any).totalUsage || (chunk as any).usage;
-								finalUsage = usage;
-								finalFinishReason = chunk.finishReason;
-								callbacks.onFinish?.(usage, chunk.finishReason);
+								// AI SDK v5 uses 'totalUsage' property with standardized field names
+								const finishChunk = chunk as FinishChunk;
+								const sdkUsage: LanguageModelUsage = finishChunk.totalUsage;
+
+								// Map AI SDK v5 usage to our database schema
+								// AI SDK v5: inputTokens, outputTokens, totalTokens
+								// Database: promptTokens, completionTokens, totalTokens
+								if (sdkUsage) {
+									finalUsage = {
+										promptTokens: sdkUsage.inputTokens ?? 0,
+										completionTokens: sdkUsage.outputTokens ?? 0,
+										totalTokens: sdkUsage.totalTokens ?? 0,
+									};
+								}
+
+								finalFinishReason = finishChunk.finishReason;
+								callbacks.onFinish?.(finalUsage, finishChunk.finishReason);
 								break;
 							}
 
