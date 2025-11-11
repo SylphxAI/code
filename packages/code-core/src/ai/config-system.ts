@@ -285,8 +285,16 @@ export class ConfigManager {
 		const ext = path.split(".").pop()?.toLowerCase();
 
 		switch (ext) {
-			case "json":
-				return JSON.parse(content);
+			case "json": {
+				const parsed = JSON.parse(content);
+				// Validate that result is a plain object (not array or primitive)
+				if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+					throw new Error(
+						`Config file must contain a JSON object, got ${Array.isArray(parsed) ? "array" : typeof parsed}: ${path}`
+					);
+				}
+				return parsed as Record<string, unknown>;
+			}
 			case "js":
 			case "ts":
 				// For JS/TS files, we'd need to use dynamic imports
