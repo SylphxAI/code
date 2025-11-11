@@ -149,6 +149,7 @@ const mergeConfigs = (a: AIConfig, b: AIConfig): AIConfig => {
     defaultModelId: b.defaultModelId ?? a.defaultModelId,
     defaultToolIds: b.defaultToolIds ?? a.defaultToolIds,
     defaultMcpServerIds: b.defaultMcpServerIds ?? a.defaultMcpServerIds,
+    notifyLLMOnAbort: b.notifyLLMOnAbort ?? a.notifyLLMOnAbort,
     // ❌ Removed: defaultModel merging
     providers: mergedProviders,
   };

@@ -865,6 +865,11 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         }
 
         // 11.5. Create system message to notify LLM about abort (if enabled)
+        console.log('[streamAIResponse] DEBUG abort notification check:', {
+          finalStatus,
+          notifyLLMOnAbort: aiConfig.notifyLLMOnAbort,
+          condition: finalStatus === 'abort' && aiConfig.notifyLLMOnAbort,
+        });
         if (finalStatus === 'abort' && aiConfig.notifyLLMOnAbort) {
           try {
             console.log('[streamAIResponse] Creating system message to notify LLM about abort');
