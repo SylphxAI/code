@@ -171,7 +171,7 @@ export async function compactSession(
 					content: summaryPrompt, // Instruction to summarize
 				},
 			],
-			enableTools: false, // No tools needed for summarization
+			// No tools parameter - summarization doesn't need tools
 		});
 
 		// Collect full summary with progress updates

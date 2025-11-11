@@ -71,7 +71,7 @@ Output only the title, nothing else.`,
 					content: userMessage,
 				},
 			],
-			enableTools: false, // Title generation doesn't need tools
+			// No tools parameter - title generation doesn't need tools
 		});
 
 		let fullTitle = "";

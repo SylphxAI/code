@@ -27,6 +27,8 @@ import {
 	updateStepParts,
 	completeMessageStep,
 	getProvider,
+	getAISDKTools,
+	hasUserInputHandler,
 } from "@sylphx/code-core";
 import type { StreamCallbacks } from "@sylphx/code-core";
 import type { AppContext } from "../context.js";
@@ -348,8 +350,11 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 				// 8. Create AI model
 				const model = providerInstance.createClient(providerConfig, modelName);
 
-				// 9. Determine tool support from capabilities
-				const enableTools = modelCapabilities.has("tools");
+				// 9. Determine tool support from capabilities and load tools if supported
+				const supportsTools = modelCapabilities.has("tools");
+				const tools = supportsTools
+					? getAISDKTools({ interactive: hasUserInputHandler() })
+					: undefined;
 
 				// 9.5. Check if title generation is needed (before creating streams)
 				const isFirstMessage =
@@ -357,17 +362,16 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 				const needsTitle = needsTitleGeneration(updatedSession, isNewSession, isFirstMessage);
 
 				// 10. Create AI stream with system prompt
-				// Only enable native tools if model supports them
+				// Only provide tools if model supports them
 				// Models without native support (like claude-code) will fall back to text-based tools
 
 				let currentStepNumber = 0;
 
 				const stream = createAIStream({
 					model,
-					providerInstance, // Pass provider for reasoning control
 					messages,
-					system: systemPrompt,
-					enableTools, // Conditional tool usage based on model capabilities
+					systemPrompt,
+					tools,
 					...(abortSignal ? { abortSignal } : {}),
 					// REMOVED: onTransformToolResult - system status now injected via system-message mechanism
 					// ⭐ NEW: Prepare messages before each step (allows injecting system messages mid-stream)
