@@ -46,10 +46,9 @@ export async function generateSessionTitle(
 
 		const model = providerInstance.createClient(providerConfig, modelName);
 
-		// Create AI stream for title generation (no tools, no reasoning - fastest possible)
+		// Create AI stream for title generation (no tools - fastest possible)
 		const titleStream = createAIStream({
 			model,
-			providerInstance, // Pass provider for reasoning control
 			systemPrompt: `Generate a concise title for this conversation.
 
 Requirements:
@@ -73,7 +72,6 @@ Output only the title, nothing else.`,
 				},
 			],
 			enableTools: false, // Title generation doesn't need tools
-			disableReasoning: true, // Disable extended thinking to prevent 3+ second delays
 		});
 
 		let fullTitle = "";

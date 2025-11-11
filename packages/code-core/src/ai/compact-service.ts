@@ -172,7 +172,6 @@ export async function compactSession(
 				},
 			],
 			enableTools: false, // No tools needed for summarization
-			disableReasoning: false, // Allow reasoning if model wants to think through summary
 		});
 
 		// Collect full summary with progress updates
