@@ -239,7 +239,17 @@ export function clearCredentialRegistry(): void {
 /**
  * Get credential statistics
  */
-export function getCredentialStats() {
+export function getCredentialStats(): {
+	total: number;
+	active: number;
+	expired: number;
+	revoked: number;
+	byProvider: Record<string, number>;
+	byScope: {
+		global: number;
+		project: number;
+	};
+} {
 	const allCreds = Array.from(credentials.values());
 	const now = Date.now();
 

@@ -322,14 +322,14 @@ export const tapBoth =
  */
 
 // For src/core/functional/result.ts users
-export const success = ok;
-export const failure = err;
-export const isSuccess = isOk;
-export const isFailure = isErr;
+export const success: typeof ok = ok;
+export const failure: typeof err = err;
+export const isSuccess: typeof isOk = isOk;
+export const isFailure: typeof isErr = isErr;
 
 // For src/utils/functional.ts users
-export const unwrapResult = unwrap;
-export const mapResult = map;
+export const unwrapResult: typeof unwrap = unwrap;
+export const mapResult: typeof map = map;
 
 // ============================================================================
 // TYPE INFERENCE HELPERS

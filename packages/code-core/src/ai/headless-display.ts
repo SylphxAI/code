@@ -43,13 +43,24 @@ function formatResult(result: unknown): string {
 }
 
 /**
+ * Headless display interface
+ */
+export interface HeadlessDisplay {
+	onToolCall: (toolName: string, args: unknown) => void;
+	onToolResult: (toolName: string, result: unknown, duration: number) => void;
+	onTextDelta: (text: string) => void;
+	onComplete: () => void;
+	hasOutput: () => boolean;
+}
+
+/**
  * Display callbacks for headless mode
  */
-export function createHeadlessDisplay(quiet: boolean) {
+export function createHeadlessDisplay(quiet: boolean): HeadlessDisplay {
 	let hasOutput = false;
 
 	return {
-		onToolCall: (toolName: string, args: unknown) => {
+		onToolCall: (toolName: string, args: unknown): void => {
 			if (quiet) return;
 
 			// Flush stdout to ensure proper ordering
@@ -66,7 +77,7 @@ export function createHeadlessDisplay(quiet: boolean) {
 			}
 		},
 
-		onToolResult: (toolName: string, result: unknown, duration: number) => {
+		onToolResult: (toolName: string, result: unknown, duration: number): void => {
 			if (quiet) return;
 
 			const resultStr = formatResult(result);
@@ -76,7 +87,7 @@ export function createHeadlessDisplay(quiet: boolean) {
 			process.stderr.write(chalk.dim(`  ⎿ ${resultStr.split("\n").join("\n     ")}\n\n`));
 		},
 
-		onTextDelta: (text: string) => {
+		onTextDelta: (text: string): void => {
 			if (!hasOutput) {
 				hasOutput = true;
 				// Add newline before first text output if we're not in quiet mode
@@ -87,12 +98,12 @@ export function createHeadlessDisplay(quiet: boolean) {
 			process.stdout.write(text);
 		},
 
-		onComplete: () => {
+		onComplete: (): void => {
 			if (hasOutput) {
 				process.stdout.write("\n\n");
 			}
 		},
 
-		hasOutput: () => hasOutput,
+		hasOutput: (): boolean => hasOutput,
 	};
 }
