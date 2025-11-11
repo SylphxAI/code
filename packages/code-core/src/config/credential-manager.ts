@@ -16,7 +16,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { z } from 'zod';
-import { type Result, success, failure, tryCatchAsync } from '../ai/functional/result.js';
+import { type Result, success, failure, tryCatchAsync, isErr, isOk } from '../ai/result.js';
 import type { ProviderCredential, CreateCredentialInput, CredentialScope } from '../types/credential.types.js';
 import {
   getAllCredentials,
@@ -205,7 +205,7 @@ export async function addCredential(
       const credential = createCredential(input);
       const saveResult = await saveCredentials(cwd);
 
-      if (saveResult._tag === 'Failure') {
+      if (isErr(saveResult)) {
         // Rollback: remove from registry
         deleteCredential(credential.id);
         throw saveResult.error;
@@ -235,7 +235,7 @@ export async function removeCredential(
       const deleted = deleteCredential(credentialId);
       if (deleted) {
         const saveResult = await saveCredentials(cwd);
-        if (saveResult._tag === 'Failure') {
+        if (isErr(saveResult)) {
           // Rollback: re-add to registry
           registerCredential(credential);
           throw saveResult.error;
@@ -267,7 +267,7 @@ export async function modifyCredential(
       const updated = updateCredential(credentialId, updates);
       if (updated) {
         const saveResult = await saveCredentials(cwd);
-        if (saveResult._tag === 'Failure') {
+        if (isErr(saveResult)) {
           // Rollback: restore original
           registerCredential(original);
           throw saveResult.error;
@@ -341,7 +341,7 @@ export async function migrateProviderConfigToCredentials(
 
       if (migratedCount > 0) {
         const saveResult = await saveCredentials(cwd);
-        if (saveResult._tag === 'Failure') {
+        if (isErr(saveResult)) {
           throw saveResult.error;
         }
 

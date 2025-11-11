@@ -243,6 +243,9 @@ export { formatTokenCount, getTokenizerInfo, countTokens } from './utils/token-c
 export { filterFiles, type FileInfo } from './utils/file-scanner.js'
 export { fetchModels, type ModelInfo } from './utils/ai-model-fetcher.js'
 export { debugLog, createLogger } from './utils/debug-logger.js'
+export * from './utils/cursor-utils.js'
+export * from './utils/scroll-viewport.js'
+export * from './utils/tool-formatters.js'
 
 // ============================================================================
 // Tools

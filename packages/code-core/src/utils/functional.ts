@@ -395,61 +395,21 @@ export const trace =
 // ============================================================================
 
 /**
- * Result type - Represents success or failure
- */
-export type Result<T, E = Error> = { ok: true; value: T } | { ok: false; error: E };
-
-/**
- * TryCatch - Convert exception to Result type
+ * DEPRECATED: Result type has been moved to ../ai/result.ts
+ * Please import from there instead:
+ * import { Result, tryCatch, tryCatchAsync, unwrap, map } from '../ai/result.js';
  *
- * @example
- * const result = tryCatch(() => JSON.parse(input));
- * if (result.ok) {
- *   console.log(result.value);
- * } else {
- *   console.error(result.error);
- * }
+ * These legacy exports are kept for backward compatibility but will be removed.
  */
-export const tryCatch = <T, E = Error>(fn: () => T): Result<T, E> => {
-  try {
-    return { ok: true, value: fn() };
-  } catch (error) {
-    return { ok: false, error: error as E };
-  }
-};
 
-/**
- * TryCatchAsync - Async version of tryCatch
- */
-export const tryCatchAsync = async <T, E = Error>(fn: () => Promise<T>): Promise<Result<T, E>> => {
-  try {
-    return { ok: true, value: await fn() };
-  } catch (error) {
-    return { ok: false, error: error as E };
-  }
-};
-
-/**
- * UnwrapResult - Extract value from Result or throw error
- */
-export const unwrapResult = <T, E>(result: Result<T, E>): T => {
-  if (result.ok) {
-    return result.value;
-  }
-  throw result.error;
-};
-
-/**
- * MapResult - Transform Result value
- */
-export const mapResult =
-  <T, U, E>(fn: (value: T) => U) =>
-  (result: Result<T, E>): Result<U, E> => {
-    if (result.ok) {
-      return { ok: true, value: fn(result.value) };
-    }
-    return result;
-  };
+// Re-export from unified Result module
+export type { Result } from '../ai/result.js';
+export {
+  tryCatch,
+  tryCatchAsync,
+  unwrap as unwrapResult,
+  map as mapResult
+} from '../ai/result.js';
 
 // ============================================================================
 // PREDICATES & LOGIC

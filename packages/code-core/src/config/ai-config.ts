@@ -13,7 +13,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { z } from 'zod';
-import { type Result, success, tryCatchAsync } from '../ai/functional/result.js';
+import { type Result, success, tryCatchAsync, isErr, isOk } from '../ai/result.js';
 import { getAllProviders } from '../ai/providers/index.js';
 import type { ProviderId, ProviderConfigValue as ProviderConfigValueType } from '../types/provider.types.js';
 import { createLogger } from '../utils/logger.js';
@@ -421,15 +421,15 @@ export const updateAIConfig = async (
 ): Promise<Result<void, Error>> => {
   const currentResult = await loadAIConfig(cwd);
 
-  if (currentResult._tag === 'Failure') {
+  if (isErr(currentResult)) {
     return currentResult;
   }
 
   const merged: AIConfig = {
-    ...currentResult.value,
+    ...currentResult.data,
     ...updates,
     providers: {
-      ...currentResult.value.providers,
+      ...currentResult.data.providers,
       ...updates.providers,
     },
   };
@@ -447,12 +447,12 @@ export const getConfiguredProviders = async (
 ): Promise<ProviderId[]> => {
   const result = await loadAIConfig(cwd);
 
-  if (result._tag === 'Failure') {
+  if (isErr(result)) {
     return [];
   }
 
   const providers: ProviderId[] = [];
-  const config = result.value;
+  const config = result.data;
 
   if (!config.providers) {
     return [];

@@ -5,7 +5,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { type Result, success, tryCatchAsync } from '../ai/functional/result.js';
+import { type Result, success, tryCatchAsync, isOk, isErr } from '../ai/result.js';
 
 export interface ProjectSettings {
   /** Default target for the project */
@@ -58,7 +58,7 @@ export const loadSettings = async (
     }
   ).then((result) => {
     // Convert EMPTY_SETTINGS error to success with empty object
-    if (result._tag === 'Failure' && result.error.message === 'EMPTY_SETTINGS') {
+    if (isErr(result) && result.error.message === 'EMPTY_SETTINGS') {
       return success({});
     }
     return result;
@@ -102,11 +102,11 @@ export const updateSettings = async (
 ): Promise<Result<void, Error>> => {
   const currentResult = await loadSettings(cwd);
 
-  if (currentResult._tag === 'Failure') {
+  if (isErr(currentResult)) {
     return currentResult;
   }
 
-  const newSettings = { ...currentResult.value, ...updates };
+  const newSettings = { ...currentResult.data, ...updates };
   return saveSettings(newSettings, cwd);
 };
 
@@ -117,7 +117,7 @@ export const getDefaultTarget = async (
   cwd: string = process.cwd()
 ): Promise<string | undefined> => {
   const result = await loadSettings(cwd);
-  return result._tag === 'Success' ? result.value.defaultTarget : undefined;
+  return isOk(result) ? result.data.defaultTarget : undefined;
 };
 
 /**
@@ -139,22 +139,22 @@ export class ProjectSettings {
 
   async load(): Promise<ProjectSettings> {
     const result = await loadSettings(this.cwd);
-    if (result._tag === 'Failure') {
+    if (isErr(result)) {
       throw result.error;
     }
-    return result.value;
+    return result.data;
   }
 
   async save(settings: ProjectSettings): Promise<void> {
     const result = await saveSettings(settings, this.cwd);
-    if (result._tag === 'Failure') {
+    if (isErr(result)) {
       throw result.error;
     }
   }
 
   async update(updates: Partial<ProjectSettings>): Promise<void> {
     const result = await updateSettings(updates, this.cwd);
-    if (result._tag === 'Failure') {
+    if (isErr(result)) {
       throw result.error;
     }
   }
@@ -165,7 +165,7 @@ export class ProjectSettings {
 
   async setDefaultTarget(target: string): Promise<void> {
     const result = await setDefaultTarget(target, this.cwd);
-    if (result._tag === 'Failure') {
+    if (isErr(result)) {
       throw result.error;
     }
   }

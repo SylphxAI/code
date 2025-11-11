@@ -10,7 +10,7 @@
  */
 
 import type { DatabaseError } from '../functional/error-types.js';
-import type { Result } from '../functional/result.js';
+import type { Result } from '../result.js';
 
 /**
  * Query options for filtering, sorting, pagination

@@ -3,8 +3,8 @@
  * Shared validation for limit parameters across features
  */
 
-import type { Result } from '../functional/result.js';
-import { success, failure } from '../functional/result.js';
+import type { Result } from '../result.js';
+import { success, failure } from '../result.js';
 import type { AppError } from '../functional/error-types.js';
 import { validationError } from '../functional/error-types.js';
 
