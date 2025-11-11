@@ -453,8 +453,6 @@ export async function* createAIStream(
       }
     }
 
-    console.log("[DEBUG]", JSON.stringify(preparedMessages, null, 2))
-
     // Call AI SDK with single step
     const { fullStream, response, finishReason, usage, content } = streamText({
       model,

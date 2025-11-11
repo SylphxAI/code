@@ -594,11 +594,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
                         if (toolPart && toolPart.type === 'tool') {
                           // Update with AI SDK's wrapped format
-                          console.log('[streaming] Updating tool result with AI SDK wrapped format:', {
-                            toolId: part.toolCallId,
-                            toolName: part.toolName,
-                            wrappedOutput: part.output,
-                          });
                           toolPart.result = part.output;  // ← Store wrapped format: { type: 'json', value: {...} }
                         }
                       }
@@ -761,8 +756,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
                   const duration = Date.now() - tool.startTime;
                   activeTools.delete(chunk.toolCallId);
 
-                  console.log('[streaming] tool-result chunk.result:', JSON.stringify(chunk.result, null, 2));
-
                   const toolPart = currentStepParts.find(
                     (p) => p.type === 'tool' && p.name === chunk.toolName && p.status === 'active'
                   );
@@ -771,7 +764,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
                     toolPart.status = 'completed';
                     toolPart.duration = duration;
                     toolPart.result = chunk.result;
-                    console.log('[streaming] Stored toolPart.result:', JSON.stringify(toolPart.result, null, 2));
                   }
 
                   callbacks.onToolResult?.(chunk.toolCallId, chunk.toolName, chunk.result, duration);
