@@ -61,6 +61,7 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
     const isActive = status === 'active';
 
     // Calculate real-time elapsed time for active reasoning
+    // useElapsedTime handles both active (real-time) and completed (fixed duration) display
     const { display: durationDisplay } = useElapsedTime({
       startTime: part.startTime,
       duration: part.duration,
@@ -78,12 +79,12 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
         </Box>
       );
     } else {
-      // Show completed reasoning with duration
-      const seconds = part.duration ? Math.round(part.duration / 1000) : 0;
+      // Show completed/aborted reasoning with humanized duration
+      // durationDisplay uses same format as active state (e.g., "523ms", "5.2s", "45s", "1m11s")
       return (
         <Box flexDirection="column" marginLeft={2} marginBottom={1}>
           <Box>
-            <Text dimColor>Thought {seconds}s</Text>
+            <Text dimColor>Thought {durationDisplay}</Text>
           </Box>
         </Box>
       );
