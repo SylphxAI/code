@@ -1,14 +1,10 @@
 /**
- * Sylphx Flow AI SDK
- * Unified AI streaming interface with tool support
- * Content parts based design - own type system with proper conversion
+ * AI SDK - Generic streaming interface
+ * Unified AI streaming with tool support and message history management
  */
 
-import { streamText, TextPart, UserContent, type AssistantContent, type ModelMessage } from "ai";
-import type { LanguageModelV2, LanguageModelV2ToolResultOutput } from "@ai-sdk/provider";
-// NOTE: getAISDKTools is imported dynamically to avoid circular dependency
-// (ai-sdk → tools → index → ai-sdk creates a bundler issue with duplicate exports)
-import { hasUserInputHandler } from "../tools/interaction.js";
+import { streamText, type AssistantContent, type ModelMessage } from "ai";
+import type { LanguageModelV2 } from "@ai-sdk/provider";
 
 /**
  * Stream chunk types (our own)
@@ -141,35 +137,26 @@ export interface CreateAIStreamOptions {
 	messages: ModelMessage[];
 	systemPrompt?: string;
 	/**
-	 * Enable tool usage (default: true)
-	 * Set to false for scenarios like title generation where tools are unnecessary
-	 * Improves performance and reduces token usage
+	 * Tools to provide to the model
+	 * If not provided, no tools will be available
 	 */
-	enableTools?: boolean;
+	tools?: Record<string, unknown>;
 	/**
 	 * Optional abort signal to cancel the stream
 	 */
 	abortSignal?: AbortSignal;
+	/**
+	 * Called after each step finishes
+	 */
 	onStepFinish?: (step: StepInfo) => void;
 	/**
 	 * Called before each step to prepare messages
-	 * Can be used to inject context (e.g., todo list, system status)
+	 * Can be used to inject context dynamically
 	 * @param messages - Current message history
 	 * @param stepNumber - Current step number
 	 * @returns Modified messages array
 	 */
 	onPrepareMessages?: (messages: ModelMessage[], stepNumber: number) => ModelMessage[];
-	/**
-	 * Called to transform tool result output before saving to history
-	 * Can be used to inject metadata (e.g., system status, timestamp)
-	 * @param output - Tool result output
-	 * @param toolName - Name of the tool
-	 * @returns Modified output
-	 */
-	onTransformToolResult?: (
-		output: LanguageModelV2ToolResultOutput,
-		toolName: string,
-	) => LanguageModelV2ToolResultOutput;
 }
 
 
@@ -205,11 +192,10 @@ async function* createAIStream(options: CreateAIStreamOptions): AsyncIterable<St
 		systemPrompt,
 		model,
 		messages: initialMessages,
-		enableTools = true,
+		tools,
 		abortSignal,
 		onStepFinish,
 		onPrepareMessages,
-		onTransformToolResult,
 	} = options;
 
 	// Normalize all messages to array format
@@ -230,25 +216,13 @@ async function* createAIStream(options: CreateAIStreamOptions): AsyncIterable<St
 			? await onPrepareMessages(messageHistory, stepNumber)
 			: messageHistory;
 
-		// Get tools dynamically to avoid circular dependency during module initialization
-		const tools = enableTools
-			? await (async () => {
-					const { getAISDKTools } = await import("../tools/index.js");
-					return getAISDKTools({ interactive: hasUserInputHandler() });
-				})()
-			: undefined;
-
 		// Call AI SDK with single step
 		const { fullStream, response, finishReason, usage, content } = streamText({
 			model,
 			messages: preparedMessages,
 			system: systemPrompt,
-			// Only provide tools if enabled (saves tokens and improves performance for simple tasks)
 			...(tools ? { tools } : {}),
-			// Only pass abortSignal if provided (exactOptionalPropertyTypes compliance)
 			...(abortSignal ? { abortSignal } : {}),
-			// Don't handle errors here - let them propagate to the caller
-			// onError callback is for non-fatal errors, fatal ones should throw
 		});
 
 		// Stream all chunks to user
