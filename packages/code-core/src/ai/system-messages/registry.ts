@@ -107,7 +107,6 @@ class TriggerRegistry {
       try {
         const result = await trigger.hook(context);
         if (result) {
-          console.log(`[TriggerRegistry] Trigger fired: ${trigger.id}`);
           firedTriggers.push(result);
         }
       } catch (error) {

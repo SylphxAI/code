@@ -337,7 +337,6 @@ export const sessionRouter = router({
         userMessageContent: null, // No new user message - use existing system message
       }).subscribe({
         next: (event) => {
-          console.log('[Compact] Streaming event:', event.type);
           // Publish streaming events to event stream for all clients
           ctx.appContext.eventStream.publish(`session:${result.newSessionId}`, event).catch(err => {
             console.error('[Compact] Event publish error:', err);
