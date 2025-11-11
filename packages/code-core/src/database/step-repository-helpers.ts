@@ -9,6 +9,7 @@
 import { eq, inArray } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { messageSteps, stepParts, stepUsage, type NewMessageStep } from "./schema.js";
 import type {
 	MessageStep,
@@ -19,6 +20,16 @@ import type {
 } from "../types/session.types.js";
 import type { Todo as TodoType } from "../types/todo.types.js";
 import { retryDatabase } from "../utils/retry.js";
+
+/**
+ * Zod schemas for validating JSON data from database
+ */
+const MessagePartSchema: z.ZodType<MessagePart> = z.any(); // ASSUMPTION: MessagePart already validated when inserted
+const SystemMessageSchema: z.ZodType<SystemMessage> = z.any(); // ASSUMPTION: SystemMessage already validated when inserted
+const MessageMetadataSchema = z.object({
+	cpu: z.string().optional(),
+	memory: z.string().optional(),
+}).passthrough(); // Allow additional fields for future extensions
 
 /**
  * Create a new step in a message
@@ -200,20 +211,34 @@ export async function loadMessageSteps(
 		const messageStep: MessageStep = {
 			id: step.id,
 			stepIndex: step.stepIndex,
-			parts: parts.map((p) => JSON.parse(p.content) as MessagePart),
+			parts: parts.map((p) => {
+			const parsed = MessagePartSchema.safeParse(JSON.parse(p.content));
+			return parsed.success ? parsed.data as MessagePart : JSON.parse(p.content) as MessagePart;
+		}),
 			status: (step.status as "active" | "completed" | "error" | "abort") || "completed",
 		};
 
 		if (step.systemMessages) {
 			try {
-				messageStep.systemMessages = JSON.parse(step.systemMessages) as SystemMessage[];
+				const parsedSys = z.array(SystemMessageSchema).safeParse(JSON.parse(step.systemMessages));
+			if (parsedSys.success) {
+				messageStep.systemMessages = parsedSys.data as SystemMessage[];
+			} else {
+				console.error("[loadMessageSteps] Failed to validate systemMessages:", parsedSys.error);
+			}
 			} catch (error) {
 				console.error("[loadMessageSteps] Failed to parse systemMessages:", error);
 			}
 		}
 
 		if (step.metadata) {
-			messageStep.metadata = JSON.parse(step.metadata) as MessageMetadata;
+			const parsedMeta = MessageMetadataSchema.safeParse(JSON.parse(step.metadata));
+		if (parsedMeta.success) {
+			messageStep.metadata = parsedMeta.data;
+		} else {
+			// Skip corrupted metadata - use empty object as fallback
+			messageStep.metadata = {};
+		}
 		}
 
 		// REMOVED: todoSnapshot - no longer stored per-step
