@@ -22,7 +22,6 @@ import {
   useProjectFiles,
   useSessionInitialization,
   useTokenCalculation,
-  useAbortHandler,
   // Zen signals
   useCurrentScreen,
   useIsLoading,
@@ -141,12 +140,8 @@ export default function Chat(_props: ChatProps) {
     setStreamingTitle,
   } = streamingState;
 
-  // Abort handler - ESC to cancel streaming
-  useAbortHandler({
-    isStreaming,
-    abortControllerRef,
-    addLog,
-  });
+  // Note: useAbortHandler is called inside useKeyboardNavigation, not here
+  // Calling it twice causes conflicts with Ink's useInput system
 
   const selectionState = useSelectionState();
   const {
