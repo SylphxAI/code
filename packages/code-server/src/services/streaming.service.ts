@@ -276,54 +276,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           return;
         }
 
-        // 4.5. Check system message triggers for initial state
-        // Store initial trigger results to be applied to first assistant step
+        // 4.5. Import trigger checker for use in onPrepareMessages
+        // All trigger checks happen dynamically in onPrepareMessages hook (unified for all steps)
         const { checkAllTriggers } = await import('@sylphx/code-core');
-
-        let initialTriggerResults: Array<{ messageType: string; message: string; flagUpdates: Record<string, boolean> }> = [];
-
-        // Calculate context token usage
-        let contextTokens: { current: number; max: number } | undefined;
-        try {
-          // Sum up tokens from all messages
-          let totalTokens = 0;
-          for (const message of updatedSession.messages) {
-            if (message.usage) {
-              totalTokens += message.usage.totalTokens;
-            }
-          }
-
-          // Get model context length
-          const modelDetails = await providerInstance.getModelDetails(modelName, providerConfig);
-          const maxContextLength = modelDetails?.contextLength;
-
-          if (maxContextLength && totalTokens > 0) {
-            contextTokens = {
-              current: totalTokens,
-              max: maxContextLength,
-            };
-            console.log(`[streamAIResponse] Context usage: ${totalTokens}/${maxContextLength} (${Math.round((totalTokens / maxContextLength) * 100)}%)`);
-          }
-        } catch (error) {
-          console.error('[streamAIResponse] Failed to calculate context tokens:', error);
-          // Continue without context warnings if calculation fails
-        }
-
-        try {
-          initialTriggerResults = await checkAllTriggers(
-            updatedSession,
-            messageRepository,
-            sessionRepository,
-            contextTokens
-          );
-
-          if (initialTriggerResults.length > 0) {
-            console.log(`[streamAIResponse] ${initialTriggerResults.length} initial trigger(s) fired, will attach to first step`);
-          }
-        } catch (error) {
-          console.error('[streamAIResponse] Initial trigger check failed:', error);
-          // Continue without system messages if trigger check fails
-        }
 
         // 5. Lazy load model capabilities (server-side autonomous)
         // Check if capabilities are cached, if not, fetch from API to populate cache
@@ -409,53 +364,43 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
             console.log(`🔄 [onPrepareMessages] Step ${stepNumber}: Checking triggers`);
 
             try {
-              // Determine trigger results for this step
-              let triggerResults: Array<{ messageType: string; message: string; flagUpdates: Record<string, boolean> }>;
-
-              if (stepNumber === 0) {
-                // Step 0: Use initial trigger results (checked before stream start)
-                triggerResults = initialTriggerResults;
-                console.log(`🔄 [onPrepareMessages] Step 0: Using ${triggerResults.length} initial trigger(s)`);
-              } else {
-                // Step > 0: Check triggers dynamically
-                // Reload session to get latest state (includes new tool results)
-                const currentSession = await sessionRepository.getSessionById(sessionId);
-                if (!currentSession) {
-                  console.warn(`[onPrepareMessages] Session ${sessionId} not found`);
-                  return messages;
-                }
-
-                // Calculate context token usage
-                let contextTokens: { current: number; max: number } | undefined;
-                try {
-                  let totalTokens = 0;
-                  for (const message of currentSession.messages) {
-                    if (message.usage) {
-                      totalTokens += message.usage.totalTokens;
-                    }
-                  }
-
-                  const modelDetails = await providerInstance.getModelDetails(modelName, providerConfig);
-                  const maxContextLength = modelDetails?.contextLength;
-
-                  if (maxContextLength && totalTokens > 0) {
-                    contextTokens = {
-                      current: totalTokens,
-                      max: maxContextLength,
-                    };
-                  }
-                } catch (error) {
-                  console.error('[onPrepareMessages] Failed to calculate context tokens:', error);
-                }
-
-                // Check all triggers for this step
-                triggerResults = await checkAllTriggers(
-                  currentSession,
-                  messageRepository,
-                  sessionRepository,
-                  contextTokens
-                );
+              // Reload session to get latest state (includes new tool results)
+              const currentSession = await sessionRepository.getSessionById(sessionId);
+              if (!currentSession) {
+                console.warn(`[onPrepareMessages] Session ${sessionId} not found`);
+                return messages;
               }
+
+              // Calculate context token usage
+              let contextTokens: { current: number; max: number } | undefined;
+              try {
+                let totalTokens = 0;
+                for (const message of currentSession.messages) {
+                  if (message.usage) {
+                    totalTokens += message.usage.totalTokens;
+                  }
+                }
+
+                const modelDetails = await providerInstance.getModelDetails(modelName, providerConfig);
+                const maxContextLength = modelDetails?.contextLength;
+
+                if (maxContextLength && totalTokens > 0) {
+                  contextTokens = {
+                    current: totalTokens,
+                    max: maxContextLength,
+                  };
+                }
+              } catch (error) {
+                console.error('[onPrepareMessages] Failed to calculate context tokens:', error);
+              }
+
+              // Check all triggers for this step (unified for all steps)
+              const triggerResults = await checkAllTriggers(
+                currentSession,
+                messageRepository,
+                sessionRepository,
+                contextTokens
+              );
 
               // If triggers fired, create new step with systemMessages
               if (triggerResults.length > 0) {
