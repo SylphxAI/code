@@ -200,10 +200,10 @@ MIT © 2024 Sylphx Ltd
 
 ## 🔗 Links
 
-- **Main Repo**: [github.com/sylphxltd/code](https://github.com/sylphxltd/code)
+- **Main Repo**: [github.com/SylphxAI/code](https://github.com/SylphxAI/code)
 - **Documentation**: [Root README](../../README.md)
 - **Architecture**: [ARCHITECTURE_OPTIMIZATION.md](../../ARCHITECTURE_OPTIMIZATION.md)
-- **Issues**: [Report bugs](https://github.com/sylphxltd/code/issues)
+- **Issues**: [Report bugs](https://github.com/SylphxAI/code/issues)
 
 ---
 

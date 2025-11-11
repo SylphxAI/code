@@ -390,10 +390,10 @@ MIT © 2024 Sylphx Ltd
 
 ## 🔗 Links
 
-- **GitHub**: [github.com/sylphxltd/code](https://github.com/sylphxltd/code)
+- **GitHub**: [github.com/SylphxAI/code](https://github.com/SylphxAI/code)
 - **Documentation**: [Root README](../../README.md)
 - **Daemon Guide**: [DAEMON_VERIFICATION.md](../../DAEMON_VERIFICATION.md)
-- **Issues**: [Report bugs](https://github.com/sylphxltd/code/issues)
+- **Issues**: [Report bugs](https://github.com/SylphxAI/code/issues)
 
 ---
 

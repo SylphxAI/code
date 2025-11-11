@@ -49,11 +49,11 @@
     "vite",
     "typescript"
   ],
-  "author": "sylphxltd",
+  "author": "SylphxAI",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sylphxltd/code.git",
+    "url": "https://github.com/SylphxAI/code.git",
     "directory": "packages/code-web"
   }
 }

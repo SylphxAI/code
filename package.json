@@ -9,7 +9,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/sylphxltd/code.git"
+    "url": "https://github.com/SylphxAI/code.git"
   },
   "keywords": [
     "ai",
@@ -20,12 +20,12 @@
     "streaming",
     "trpc"
   ],
-  "author": "sylphxltd",
+  "author": "SylphxAI",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/sylphxltd/code/issues"
+    "url": "https://github.com/SylphxAI/code/issues"
   },
-  "homepage": "https://github.com/sylphxltd/code#readme",
+  "homepage": "https://github.com/SylphxAI/code#readme",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev --parallel",

@@ -183,6 +183,6 @@ Would appreciate team guidance on:
 
 ## Contact
 
-Kyle (sylphxltd)
+Kyle (SylphxAI)
 - Using zen in production migration from zustand
 - Happy to provide more debug info or test cases as needed

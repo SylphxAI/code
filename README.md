@@ -4,7 +4,7 @@
 
 **The AI code assistant that actually understands your workflow**
 
-[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](https://github.com/sylphxltd/code)
+[![Version](https://img.shields.io/badge/version-0.1.0-green.svg)](https://github.com/SylphxAI/code)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Built with Bun](https://img.shields.io/badge/Built%20with-Bun-orange)](https://bun.sh)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
@@ -209,7 +209,7 @@ Web Client   ←──┘
 
 ```bash
 # Clone the repo
-git clone https://github.com/sylphxltd/code.git
+git clone https://github.com/SylphxAI/code.git
 cd code
 
 # Install dependencies (uses workspace)
@@ -543,9 +543,9 @@ Built with ❤️ by developers who believe AI assistants should be **fast, tran
 
 ## 🔗 Links
 
-- **GitHub**: [github.com/sylphxltd/code](https://github.com/sylphxltd/code)
-- **Issues**: [Report bugs](https://github.com/sylphxltd/code/issues)
-- **Discussions**: [Join the conversation](https://github.com/sylphxltd/code/discussions)
+- **GitHub**: [github.com/SylphxAI/code](https://github.com/SylphxAI/code)
+- **Issues**: [Report bugs](https://github.com/SylphxAI/code/issues)
+- **Discussions**: [Join the conversation](https://github.com/SylphxAI/code/discussions)
 
 ---
 

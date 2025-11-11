@@ -444,11 +444,11 @@ MIT © 2024 Sylphx Ltd
 
 ## 🔗 Links
 
-- **GitHub**: [github.com/sylphxltd/code](https://github.com/sylphxltd/code)
+- **GitHub**: [github.com/SylphxAI/code](https://github.com/SylphxAI/code)
 - **Documentation**: [Root README](../../README.md)
 - **Architecture**: [ARCHITECTURE_OPTIMIZATION.md](../../ARCHITECTURE_OPTIMIZATION.md)
 - **Tests**: [TESTING.md](../../TESTING.md)
-- **Issues**: [Report bugs](https://github.com/sylphxltd/code/issues)
+- **Issues**: [Report bugs](https://github.com/SylphxAI/code/issues)
 
 ---
 

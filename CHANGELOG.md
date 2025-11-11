@@ -108,7 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ```bash
 # Clone and install
-git clone https://github.com/sylphxltd/code.git
+git clone https://github.com/SylphxAI/code.git
 cd code
 bun install
 bun run build
@@ -156,4 +156,4 @@ Nothing yet.
 
 ---
 
-[0.1.0]: https://github.com/sylphxltd/code/releases/tag/v0.1.0
+[0.1.0]: https://github.com/SylphxAI/code/releases/tag/v0.1.0
