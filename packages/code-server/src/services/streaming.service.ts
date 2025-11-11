@@ -402,6 +402,11 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         // 10. Create AI stream with system prompt
         // Only enable native tools if model supports them
         // Models without native support (like claude-code) will fall back to text-based tools
+
+        // Track pending system message for next step creation
+        let pendingSystemMessage: string | undefined;
+        let currentStepNumber = 0;
+
         const stream = createAIStream({
           model,
           providerInstance, // Pass provider for reasoning control
@@ -415,6 +420,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           },
           // ⭐ NEW: Prepare messages before each step (allows injecting system messages mid-stream)
           onPrepareMessages: async (messages, stepNumber) => {
+            // Update current step number
+            currentStepNumber = stepNumber;
+
             // Step 0: Already checked triggers before stream start, skip
             if (stepNumber === 0) {
               return messages;
@@ -461,42 +469,45 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
                 contextTokens
               );
 
-              // If triggers fired, insert system messages and rebuild model messages
+              // If triggers fired, create new step with systemMessage
               if (triggerResults.length > 0) {
-                console.log(`🔄 [onPrepareMessages] ${triggerResults.length} trigger(s) fired, inserting system messages`);
+                console.log(`🔄 [onPrepareMessages] ${triggerResults.length} trigger(s) fired`);
 
-                // Insert each system message into database
-                for (const triggerResult of triggerResults) {
-                  const systemMessageId = await insertSystemMessage(
-                    messageRepository,
-                    sessionId,
-                    triggerResult.message
+                // Combine all trigger messages
+                const combinedSystemMessage = triggerResults.map(t => t.message).join('\n\n');
+
+                // Create step for this stepNumber with systemMessage
+                const newStepId = `${assistantMessageId}-step-${stepNumber}`;
+                try {
+                  await createMessageStep(
+                    sessionRepository.db,
+                    assistantMessageId,
+                    stepNumber,
+                    undefined, // metadata
+                    undefined, // todoSnapshot (deprecated)
+                    combinedSystemMessage // systemMessage
                   );
+                  console.log(`🔄 [onPrepareMessages] Created step-${stepNumber} with system message`);
 
-                  // Emit system-message-created event for UI
+                  // Emit step-created event for UI
                   observer.next({
-                    type: 'system-message-created' as const,
-                    messageId: systemMessageId,
-                    content: triggerResult.message,
+                    type: 'step-created' as const,
+                    stepId: newStepId,
+                    stepNumber,
+                    systemMessage: combinedSystemMessage,
                   });
+                } catch (stepError) {
+                  console.error('[onPrepareMessages] Failed to create step:', stepError);
                 }
 
-                // Reload session with new system messages
-                const refreshedSession = await sessionRepository.getSessionById(sessionId);
-                if (!refreshedSession) {
-                  console.warn(`[onPrepareMessages] Failed to reload session after inserting system messages`);
-                  return messages;
-                }
+                // Insert system message as 'user' role in model messages
+                const systemMessageContent: ModelMessage = {
+                  role: 'user',
+                  content: [{ type: 'text', text: combinedSystemMessage }],
+                };
 
-                // Rebuild model messages (includes new system messages)
-                const newMessages = await buildModelMessages(
-                  refreshedSession.messages,
-                  modelCapabilities,
-                  messageRepository.getFileRepository()
-                );
-
-                console.log(`🔄 [onPrepareMessages] Rebuilt messages: ${messages.length} → ${newMessages.length}`);
-                return newMessages;
+                console.log(`🔄 [onPrepareMessages] Injecting system message into model messages`);
+                return [...messages, systemMessageContent];
               }
 
               return messages;

@@ -27,6 +27,7 @@ import { retryDatabase } from '../utils/retry.js';
 /**
  * Create a new step in a message
  *
+ * @param systemMessage Optional system message to insert BEFORE this step (for LLM context)
  * @param todoSnapshot DEPRECATED - No longer stored per-step
  *   Todos are only sent on first user message after /compact
  *   This parameter is kept for backward compatibility but ignored
@@ -36,7 +37,8 @@ export async function createMessageStep(
   messageId: string,
   stepIndex: number,
   metadata?: MessageMetadata,
-  _todoSnapshot?: TodoType[]
+  _todoSnapshot?: TodoType[],
+  systemMessage?: string
 ): Promise<string> {
   const stepId = `${messageId}-step-${stepIndex}`;
   const now = Date.now();
@@ -48,6 +50,7 @@ export async function createMessageStep(
         id: stepId,
         messageId,
         stepIndex,
+        systemMessage: systemMessage || null,
         status: 'active',
         metadata: metadata ? JSON.stringify(metadata) : null,
         startTime: now,
@@ -206,6 +209,10 @@ export async function loadMessageSteps(
       parts: parts.map((p) => JSON.parse(p.content) as MessagePart),
       status: (step.status as 'active' | 'completed' | 'error' | 'abort') || 'completed',
     };
+
+    if (step.systemMessage) {
+      messageStep.systemMessage = step.systemMessage;
+    }
 
     if (step.metadata) {
       messageStep.metadata = JSON.parse(step.metadata) as MessageMetadata;

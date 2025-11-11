@@ -296,11 +296,13 @@ const stream = createAIStream({
 ```
 
 **Key Implementation Note**:
-System messages are NOT stored as MessagePart types. Instead:
-- `insertSystemMessage()` creates a standalone message with `role='system'`
-- The message contains a regular text part: `{ type: 'text', content: '...', status: 'completed' }`
-- These separate messages are inserted BETWEEN steps in the conversation
-- `buildModelMessages()` rebuilds the messages array to include them
+System messages are stored at the STEP level, not as separate messages:
+- When triggers fire during `onPrepareMessages`, a new step is created with `systemMessage` field set
+- The systemMessage is also inserted into model messages as a 'user' role message (for LLM context)
+- When building model messages, `buildModelMessages()` reads `step.systemMessage` and inserts it BEFORE the step's content
+- This approach keeps system messages tied to specific execution points (steps) rather than as standalone messages
+
+**Storage**: `message_steps.system_message` TEXT column in database
 
 ### Benefits
 

@@ -17,6 +17,9 @@ import type { FileRepository } from '@sylphx/code-core';
  * Convert session messages to AI SDK ModelMessage format
  * Transforms frozen database content to AI SDK format (no file reading)
  *
+ * Step-level system messages: Each step can have a systemMessage field
+ * that is inserted as a 'user' role message BEFORE the step's content
+ *
  * @param fileRepo Optional FileRepository for loading file-ref content
  *   If not provided, file-ref parts will be skipped (for backward compatibility)
  */
@@ -32,7 +35,8 @@ export async function buildModelMessages(
     if (msg.role === 'user' || msg.role === 'system') {
       results.push(await buildUserMessage(msg, modelCapabilities, fileRepo));
     } else {
-      results.push(await buildAssistantMessage(msg, modelCapabilities, fileRepo));
+      // Assistant messages: may have multiple steps, each with optional systemMessage
+      await buildAssistantMessageWithSteps(msg, modelCapabilities, fileRepo, results);
     }
   }
 
@@ -159,21 +163,58 @@ async function buildUserMessage(
 }
 
 /**
+ * Build assistant message with steps (handles step-level system messages)
+ * Each step can have a systemMessage that is inserted BEFORE the step content
+ */
+async function buildAssistantMessageWithSteps(
+  msg: Message,
+  modelCapabilities?: ModelCapabilities,
+  fileRepo?: FileRepository,
+  results: ModelMessage[]
+): Promise<void> {
+  if (msg.steps && msg.steps.length > 0) {
+    // Step-based structure: process each step with its optional systemMessage
+    for (const step of msg.steps) {
+      // If step has systemMessage, insert it as 'user' role message BEFORE step content
+      if (step.systemMessage) {
+        results.push({
+          role: 'user',
+          content: [{ type: 'text', text: step.systemMessage }],
+        });
+      }
+
+      // Build assistant message for this step
+      const stepMessage = await buildAssistantMessage(msg, modelCapabilities, fileRepo, [step]);
+      results.push(stepMessage);
+    }
+  } else {
+    // Legacy: no steps, build as single message
+    const legacyMessage = await buildAssistantMessage(msg, modelCapabilities, fileRepo);
+    results.push(legacyMessage);
+  }
+}
+
+/**
  * Build assistant message from steps or legacy content
+ * @param stepsOverride Optional: only build from these steps (for step-by-step processing)
  */
 async function buildAssistantMessage(
   msg: Message,
   modelCapabilities?: ModelCapabilities,
-  fileRepo?: FileRepository
+  fileRepo?: FileRepository,
+  stepsOverride?: MessageStep[]
 ): Promise<ModelMessage> {
   let contentParts: AssistantContent = [];
 
   // Check if model supports image input
   const supportsImageInput = modelCapabilities?.has('image-input') ?? false;
 
-  if (msg.steps && msg.steps.length > 0) {
-    // Step-based structure: aggregate content from all steps
-    contentParts = msg.steps.flatMap((step) =>
+  // Use provided steps or all steps
+  const steps = stepsOverride || msg.steps || [];
+
+  if (steps.length > 0) {
+    // Step-based structure: aggregate content from steps
+    contentParts = steps.flatMap((step) =>
       step.parts.flatMap((part) => {
         switch (part.type) {
           case 'text':

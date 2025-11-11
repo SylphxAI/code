@@ -118,6 +118,10 @@ export interface MessageStep {
   stepIndex: number;       // 0, 1, 2, ... (order)
   parts: MessagePart[];    // Content parts for this step
 
+  // System message to insert BEFORE this step (for LLM context)
+  // When building model messages, this becomes a 'user' role message inserted before step content
+  systemMessage?: string;
+
   // Per-step context (captured at step start time)
   metadata?: MessageMetadata;  // System status at THIS step's start time
 
