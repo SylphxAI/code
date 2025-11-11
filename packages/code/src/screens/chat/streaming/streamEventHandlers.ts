@@ -303,18 +303,21 @@ function handleAssistantMessageCreated(event: Extract<StreamEvent, { type: 'assi
 }
 
 function handleSystemMessageCreated(event: Extract<StreamEvent, { type: 'system-message-created' }>, context: EventHandlerContext) {
-  const currentSessionId = getCurrentSessionId();
   const currentSession = getSignal($currentSession);
 
-  logMessage('System message created:', event.messageId, 'session:', currentSessionId);
+  logMessage('System message created:', event.messageId);
 
-  if (!currentSession || currentSession.id !== currentSessionId) {
-    logMessage('Session mismatch! expected:', currentSessionId, 'got:', currentSession?.id);
+  if (!currentSession) {
     return;
   }
 
+  // NOTE: Don't check session ID match - during session creation, $currentSessionId
+  // may be updated before $currentSession, causing race condition.
+  // Since this event comes from the subscription which is already filtered by session,
+  // we can trust it belongs to the current session.
+
   // Check if message already exists (prevent duplicates)
-  const messageExists = currentSession.messages.some(m => m.id === event.messageId);
+  const messageExists = currentSession.messages?.some(m => m.id === event.messageId);
   if (messageExists) {
     logMessage('System message already exists, skipping:', event.messageId);
     return;
@@ -329,12 +332,14 @@ function handleSystemMessageCreated(event: Extract<StreamEvent, { type: 'system-
     status: 'completed',
   };
 
+  const updatedMessages = [
+    ...currentSession.messages,
+    newMessage
+  ];
+
   setSignal($currentSession, {
     ...currentSession,
-    messages: [
-      ...currentSession.messages,
-      newMessage
-    ]
+    messages: updatedMessages
   });
 
   logMessage('Added system message, total:', currentSession.messages.length + 1);

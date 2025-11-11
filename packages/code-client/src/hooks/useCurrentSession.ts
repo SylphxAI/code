@@ -12,7 +12,7 @@
 import { useEffect, useState } from 'react';
 import type { Session } from '@sylphx/code-core';
 import { getTRPCClient } from '../trpc-provider.js';
-import { useCurrentSessionId, useCurrentSession as useOptimisticSession, useIsStreaming, setCurrentSession, $isStreaming } from '../signals/domain/session/index.js';
+import { useCurrentSessionId, useCurrentSession as useOptimisticSession, useIsStreaming, setCurrentSession, $isStreaming, $currentSession } from '../signals/domain/session/index.js';
 import { eventBus } from '../lib/event-bus.js';
 import { get } from '@sylphx/zen';
 
@@ -52,8 +52,33 @@ export function useCurrentSession() {
         // Only update store and emit events if not streaming
         // During streaming, optimistic data is authoritative
         if (!get($isStreaming)) {
-          // Safe to replace with server data
-          setCurrentSession(session);
+          // IMPORTANT: Merge with existing optimistic messages (don't overwrite)
+          // System messages may have been added by events after this query started
+          const currentOptimistic = get($currentSession);
+
+          // Always merge if we have optimistic data (even if session IDs don't match)
+          // This handles the case where temp-session → real session transition
+          if (currentOptimistic && currentOptimistic.messages && currentOptimistic.messages.length > 0) {
+            // Merge: keep messages that exist in optimistic but not in server response
+            // ONLY merge system/assistant messages (user messages handled by user-message-created event)
+            const serverMessageIds = new Set(session.messages.map(m => m.id));
+            const optimisticOnlyMessages = currentOptimistic.messages.filter(
+              m => !serverMessageIds.has(m.id) && m.role !== 'user'
+            );
+
+            if (optimisticOnlyMessages.length > 0) {
+              setCurrentSession({
+                ...session,
+                messages: [...session.messages, ...optimisticOnlyMessages],
+              });
+            } else {
+              // No extra messages to merge
+              setCurrentSession(session);
+            }
+          } else {
+            // No optimistic data to merge
+            setCurrentSession(session);
+          }
 
           // Emit event for other stores to react (e.g., settings store updates rules)
           eventBus.emit('session:loaded', {
