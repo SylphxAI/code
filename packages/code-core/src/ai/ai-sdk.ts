@@ -1,103 +1,19 @@
 /**
  * AI SDK - Generic streaming interface
- * Unified AI streaming with tool support and message history management
+ * Wraps AI SDK's auto multi-step mode into manual control for flexibility
  */
 
-import { streamText, type AssistantContent, type ModelMessage } from "ai";
+import {
+	streamText,
+	type AssistantContent,
+	type ModelMessage,
+	type StreamTextPart,
+} from "ai";
 import type { LanguageModel, ToolSet } from "ai";
 
 /**
- * Stream chunk types (our own)
+ * Additional chunk types for manual step control
  */
-export type TextStartChunk = {
-	type: "text-start";
-};
-
-export type TextDeltaChunk = {
-	type: "text-delta";
-	textDelta: string;
-};
-
-export type TextEndChunk = {
-	type: "text-end";
-};
-
-export type ReasoningStartChunk = {
-	type: "reasoning-start";
-};
-
-export type ReasoningDeltaChunk = {
-	type: "reasoning-delta";
-	textDelta: string;
-};
-
-export type ReasoningEndChunk = {
-	type: "reasoning-end";
-};
-
-export type ToolCallChunk = {
-	type: "tool-call";
-	toolCallId: string;
-	toolName: string;
-	args: unknown;
-};
-
-export type ToolInputStartChunk = {
-	type: "tool-input-start";
-	toolCallId: string;
-	toolName: string;
-};
-
-export type ToolInputDeltaChunk = {
-	type: "tool-input-delta";
-	toolCallId: string;
-	argsTextDelta: string;
-};
-
-export type ToolInputEndChunk = {
-	type: "tool-input-end";
-	toolCallId: string;
-};
-
-export type ToolResultChunk = {
-	type: "tool-result";
-	toolCallId: string;
-	toolName: string;
-	result: unknown;
-};
-
-export type ToolErrorChunk = {
-	type: "tool-error";
-	toolCallId: string;
-	toolName: string;
-	error: string;
-};
-
-export type FileChunk = {
-	type: "file";
-	mediaType: string;
-	base64: string;
-};
-
-export type StreamErrorChunk = {
-	type: "error";
-	error: string;
-};
-
-export type AbortChunk = {
-	type: "abort";
-};
-
-export type FinishChunk = {
-	type: "finish";
-	finishReason: string;
-	usage: {
-		promptTokens: number;
-		completionTokens: number;
-		totalTokens: number;
-	};
-};
-
 export type StepStartChunk = {
 	type: "step-start";
 	stepNumber: number;
@@ -109,25 +25,10 @@ export type StepEndChunk = {
 	finishReason: string;
 };
 
-export type StreamChunk =
-	| TextStartChunk
-	| TextDeltaChunk
-	| TextEndChunk
-	| ReasoningStartChunk
-	| ReasoningDeltaChunk
-	| ReasoningEndChunk
-	| ToolCallChunk
-	| ToolInputStartChunk
-	| ToolInputDeltaChunk
-	| ToolInputEndChunk
-	| ToolResultChunk
-	| ToolErrorChunk
-	| FileChunk
-	| StreamErrorChunk
-	| AbortChunk
-	| FinishChunk
-	| StepStartChunk
-	| StepEndChunk;
+/**
+ * Stream chunk = AI SDK chunks + our step control chunks
+ */
+export type StreamChunk = StreamTextPart<ToolSet> | StepStartChunk | StepEndChunk;
 
 /**
  * Step info (our own)
