@@ -4,7 +4,7 @@
  */
 
 import { streamText, type AssistantContent, type ModelMessage } from "ai";
-import type { LanguageModelV2 } from "@ai-sdk/provider";
+import type { LanguageModel, ToolSet } from "ai";
 
 /**
  * Stream chunk types (our own)
@@ -133,14 +133,14 @@ export interface StepInfo {
  * Create AI stream options
  */
 export interface CreateAIStreamOptions {
-	model: LanguageModelV2;
+	model: LanguageModel;
 	messages: ModelMessage[];
 	systemPrompt?: string;
 	/**
 	 * Tools to provide to the model
 	 * If not provided, no tools will be available
 	 */
-	tools?: Record<string, unknown>;
+	tools?: ToolSet;
 	/**
 	 * Optional abort signal to cancel the stream
 	 */
@@ -221,8 +221,8 @@ async function* createAIStream(options: CreateAIStreamOptions): AsyncIterable<St
 			model,
 			messages: preparedMessages,
 			system: systemPrompt,
-			...(tools ? { tools } : {}),
-			...(abortSignal ? { abortSignal } : {}),
+			tools,
+			abortSignal,
 		});
 
 		// Stream all chunks to user
