@@ -402,43 +402,46 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
                 contextTokens
               );
 
-              // If triggers fired, create new step with systemMessages
+              // Build SystemMessage array from trigger results (may be empty)
+              const systemMessages = triggerResults.length > 0
+                ? triggerResults.map(trigger => ({
+                    type: trigger.messageType || 'unknown',
+                    content: trigger.message,
+                    timestamp: Date.now(),
+                  }))
+                : [];
+
               if (triggerResults.length > 0) {
                 console.log(`🔄 [onPrepareMessages] ${triggerResults.length} trigger(s) fired`);
+              }
 
-                // Build SystemMessage array from trigger results
-                const systemMessages = triggerResults.map(trigger => ({
-                  type: trigger.messageType || 'unknown',
-                  content: trigger.message,
-                  timestamp: Date.now(),
-                }));
+              // Always create step (even if no system messages)
+              const newStepId = `${assistantMessageId}-step-${stepNumber}`;
+              try {
+                await createMessageStep(
+                  sessionRepository.db,
+                  assistantMessageId,
+                  stepNumber,
+                  undefined, // metadata
+                  undefined, // todoSnapshot (deprecated)
+                  systemMessages.length > 0 ? systemMessages : undefined
+                );
+                console.log(`🔄 [onPrepareMessages] Created step-${stepNumber}${systemMessages.length > 0 ? ` with ${systemMessages.length} system messages` : ''}`);
 
-                // Create step for this stepNumber with systemMessages
-                const newStepId = `${assistantMessageId}-step-${stepNumber}`;
-                try {
-                  await createMessageStep(
-                    sessionRepository.db,
-                    assistantMessageId,
-                    stepNumber,
-                    undefined, // metadata
-                    undefined, // todoSnapshot (deprecated)
-                    systemMessages // systemMessages array
-                  );
-                  console.log(`🔄 [onPrepareMessages] Created step-${stepNumber} with ${systemMessages.length} system messages`);
+                // Emit step-created event for UI
+                observer.next({
+                  type: 'step-created' as const,
+                  stepId: newStepId,
+                  stepNumber,
+                  systemMessages: systemMessages.length > 0 ? systemMessages : undefined,
+                });
+              } catch (stepError) {
+                console.error('[onPrepareMessages] Failed to create step:', stepError);
+              }
 
-                  // Emit step-created event for UI
-                  observer.next({
-                    type: 'step-created' as const,
-                    stepId: newStepId,
-                    stepNumber,
-                    systemMessages, // Send array to UI
-                  });
-                } catch (stepError) {
-                  console.error('[onPrepareMessages] Failed to create step:', stepError);
-                }
-
-                // Insert system messages as 'user' role in model messages
-                // Combine with type headers for LLM context
+              // If there are system messages, inject them into model messages
+              if (systemMessages.length > 0) {
+                // Combine system messages with type headers for LLM context
                 const combinedContent = systemMessages
                   .map(sm => `<system_message type="${sm.type}">\n${sm.content}\n</system_message>`)
                   .join('\n\n');
@@ -488,16 +491,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
         // 9.2. Step creation now handled by onPrepareMessages hook
         // All steps (including step-0) are created dynamically with system messages if needed
-
-        // 9.3. Emit step-start event
-        // REMOVED: metadata and todoSnapshot (now provided via system messages)
-        observer.next({
-          type: 'step-start',
-          stepId,
-          stepIndex: 0,
-          metadata: { cpu: 'N/A', memory: 'N/A' }, // Placeholder for backward compatibility
-          todoSnapshot: [], // Deprecated
-        });
+        // step-created event will be emitted by onPrepareMessages
 
         // 10. Process stream and emit events
         const callbacks: StreamCallbacks = {
