@@ -107,7 +107,6 @@ export type StepEndChunk = {
 	type: "step-end";
 	stepNumber: number;
 	finishReason: string;
-	responseMessages: ModelMessage[];
 };
 
 export type StreamChunk =
@@ -379,13 +378,11 @@ async function* createAIStream(options: CreateAIStreamOptions): AsyncIterable<St
 
 		const currentFinishReason = await finishReason;
 
-		// Emit step-end event with response messages
-		// These messages contain tool results in AI SDK's wrapped format
+		// Emit step-end event
 		yield {
 			type: "step-end",
 			stepNumber,
 			finishReason: currentFinishReason,
-			responseMessages, // Include AI SDK's processed messages
 		};
 
 		// Check if we should continue the loop
