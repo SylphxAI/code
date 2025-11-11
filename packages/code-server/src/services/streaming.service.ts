@@ -486,22 +486,8 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         // 9.1. Emit assistant message created event
         observer.next({ type: 'assistant-message-created', messageId: assistantMessageId });
 
-        // 9.2. Create step-0 in database
-        // REMOVED: stepMetadata with cpu/memory (now provided via dynamic system messages)
-        // REMOVED: todoSnapshot (no longer stored, see TODOSNAPSHOT-REALITY.md)
-        const stepId = `${assistantMessageId}-step-0`;
-        try {
-          await createMessageStep(
-            sessionRepository.db,
-            assistantMessageId,
-            0, // stepIndex
-            undefined, // metadata (reserved for future use)
-            undefined  // todoSnapshot (deprecated)
-          );
-        } catch (stepError) {
-          console.error('[streamAIResponse] 9.3. FAILED to create step:', stepError);
-          throw stepError;
-        }
+        // 9.2. Step creation now handled by onPrepareMessages hook
+        // All steps (including step-0) are created dynamically with system messages if needed
 
         // 9.3. Emit step-start event
         // REMOVED: metadata and todoSnapshot (now provided via system messages)
