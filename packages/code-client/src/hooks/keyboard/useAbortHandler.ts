@@ -31,6 +31,10 @@ export function useAbortHandler(options: UseAbortHandlerOptions) {
         return false;
       }
 
+      console.log('[AbortDebug] ESC key pressed in useAbortHandler');
+      console.log('[AbortDebug] isStreaming:', isStreaming);
+      console.log('[AbortDebug] abortControllerRef.current:', !!abortControllerRef.current);
+
       // Check if compacting (highest priority)
       const isCompacting = get($isCompacting);
       if (isCompacting) {
@@ -42,13 +46,16 @@ export function useAbortHandler(options: UseAbortHandlerOptions) {
       // ESC to abort streaming AI response
       if (isStreaming) {
         if (abortControllerRef.current) {
+          console.log('[AbortDebug] Calling abortControllerRef.current.abort()');
           addLog('[abort] Cancelling AI response...');
           abortControllerRef.current.abort();
+          console.log('[AbortDebug] abort() called, setting ref to null');
           abortControllerRef.current = null;
         }
         return true; // Consumed
       }
 
+      console.log('[AbortDebug] ESC not consumed (not streaming)');
       return false; // Not consumed, let other handlers process
     },
     { isActive: true }
