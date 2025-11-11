@@ -798,7 +798,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           // No cleanup needed - all parts created on start events
 
         } catch (error) {
-          console.error('[streamAIResponse] Stream processing error:', error);
           const errorMessage = error instanceof Error ? error.message : String(error);
 
           // Check if this is an abort error (NoOutputGeneratedError when aborted)
@@ -807,12 +806,13 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
             (abortSignal && abortSignal.aborted);
 
           if (isAbortError) {
-            // This is an abort, not an error
+            // This is an abort, not an error - don't log as error
             aborted = true;
-            console.log('[streamAIResponse] Stream aborted by user');
             // Emit abort event
             observer.next({ type: 'abort' });
           } else {
+            // Real error - log it
+            console.error('[streamAIResponse] Stream processing error:', error);
             // Add error part for real errors
             currentStepParts.push({ type: 'error', error: errorMessage, status: 'completed' });
             hasError = true;

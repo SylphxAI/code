@@ -19,6 +19,18 @@
 // Install global unhandled rejection handler to prevent crashes
 // This is a safety net for errors that escape all other error handling
 process.on('unhandledRejection', (reason, promise) => {
+  // Check for NoOutputGeneratedError first (abort case)
+  if (reason && typeof reason === 'object' && 'name' in reason) {
+    const errorName = (reason as any).name;
+    if (errorName === 'NoOutputGeneratedError' || errorName === 'AI_NoOutputGeneratedError') {
+      // This is expected when user aborts streaming (ESC key)
+      // AI SDK throws this error internally when abortSignal is triggered
+      // Silently ignore - abort is handled properly in streaming.service.ts
+      return;
+    }
+  }
+
+  // Log other errors
   console.error('[CRITICAL] Unhandled Promise Rejection:');
   console.error('Reason:', reason);
 
@@ -28,17 +40,6 @@ process.on('unhandledRejection', (reason, promise) => {
   }
 
   // Log but don't exit - let the app continue running
-  // Most unhandled rejections are from stream cleanup and can be safely ignored
-  if (reason && typeof reason === 'object' && 'name' in reason) {
-    const errorName = (reason as any).name;
-    if (errorName === 'NoOutputGeneratedError' || errorName === 'AI_NoOutputGeneratedError') {
-      console.error('[CRITICAL] NoOutputGeneratedError caught at process level - this indicates a stream error that was not properly caught');
-      // Don't exit - this is recoverable
-      return;
-    }
-  }
-
-  // For other errors, log but still don't exit
   console.error('[CRITICAL] Non-stream error - logging but continuing');
 });
 
