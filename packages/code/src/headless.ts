@@ -40,13 +40,13 @@ export async function runHeadless(prompt: string, options: any): Promise<void> {
 
     // Load AI config to get default provider/model
     const configResult = await loadAIConfig();
-    if (configResult._tag === 'Failure') {
+    if (!configResult.success) {
       console.error(chalk.red('\n✗ Failed to load AI config'));
       console.error(chalk.dim(`Error: ${configResult.error.message}\n`));
       process.exit(1);
     }
 
-    const aiConfig = configResult.value;
+    const aiConfig = configResult.data;
     const provider = aiConfig.defaultProvider || 'openrouter';
     const model = aiConfig.providers?.[provider]?.defaultModel || 'x-ai/grok-code-fast-1';
 

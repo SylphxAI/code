@@ -59,7 +59,7 @@ export const exitWithError = (error: AppError, exitCode = 1): never => {
  * Use at top-level command handlers
  */
 export const toExitCode = <T>(result: Result<T, AppError>): number => {
-  if (result._tag === 'Success') {
+  if (result.success) {
     return 0;
   }
   logError(result.error);
@@ -87,7 +87,7 @@ export const retry = async <T>(
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const result = await fn();
 
-    if (result._tag === 'Success') {
+    if (result.success) {
       return result;
     }
 
@@ -115,7 +115,7 @@ export const createAsyncHandler =
   async (options: T): Promise<void> => {
     const result = await handler(options);
 
-    if (result._tag === 'Failure') {
+    if (!result.success) {
       exitWithError(result.error);
     }
   };
@@ -129,7 +129,7 @@ export const createSyncHandler =
   (options: T): void => {
     const result = handler(options);
 
-    if (result._tag === 'Failure') {
+    if (!result.success) {
       exitWithError(result.error);
     }
   };

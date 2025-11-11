@@ -106,9 +106,9 @@ export const configRouter = router({
     .input(z.object({ cwd: z.string().default(process.cwd()) }))
     .query(async ({ input }) => {
       const result = await loadAIConfig(input.cwd);
-      if (result._tag === 'Success') {
+      if (result.success) {
         // Sanitize config: REMOVE sensitive fields
-        const sanitizedConfig = sanitizeAIConfig(result.value);
+        const sanitizedConfig = sanitizeAIConfig(result.data);
         return { success: true as const, config: sanitizedConfig };
       }
       // No config yet - return empty
@@ -129,14 +129,14 @@ export const configRouter = router({
     )
     .mutation(async ({ input }) => {
       const result = await loadAIConfig(input.cwd);
-      if (result._tag === 'Failure') {
+      if (!result.success) {
         return { success: false as const, error: result.error.message };
       }
 
-      const updated = { ...result.value, defaultProvider: input.provider };
+      const updated = { ...result.data, defaultProvider: input.provider };
       const saveResult = await saveAIConfig(updated, input.cwd);
 
-      if (saveResult._tag === 'Success') {
+      if (saveResult.success) {
         return { success: true as const };
       }
       return { success: false as const, error: saveResult.error.message };
@@ -156,14 +156,14 @@ export const configRouter = router({
     )
     .mutation(async ({ input }) => {
       const result = await loadAIConfig(input.cwd);
-      if (result._tag === 'Failure') {
+      if (!result.success) {
         return { success: false as const, error: result.error.message };
       }
 
-      const updated = { ...result.value, defaultModel: input.model };
+      const updated = { ...result.data, defaultModel: input.model };
       const saveResult = await saveAIConfig(updated, input.cwd);
 
-      if (saveResult._tag === 'Success') {
+      if (saveResult.success) {
         return { success: true as const };
       }
       return { success: false as const, error: saveResult.error.message };
@@ -189,12 +189,12 @@ export const configRouter = router({
     )
     .mutation(async ({ input }) => {
       const result = await loadAIConfig(input.cwd);
-      if (result._tag === 'Failure') {
+      if (!result.success) {
         return { success: false as const, error: result.error.message };
       }
 
-      const isNewProvider = !result.value.providers?.[input.providerId];
-      const currentProviderConfig = result.value.providers?.[input.providerId] || {};
+      const isNewProvider = !result.data.providers?.[input.providerId];
+      const currentProviderConfig = result.data.providers?.[input.providerId] || {};
       const mergedProviderConfig: Record<string, any> = { ...input.config };
 
       // Always merge ALL secret fields from disk (client never sends them)
@@ -219,16 +219,16 @@ export const configRouter = router({
       }
 
       const updated = {
-        ...result.value,
+        ...result.data,
         providers: {
-          ...result.value.providers,
+          ...result.data.providers,
           [input.providerId]: mergedProviderConfig,
         },
       };
 
       const saveResult = await saveAIConfig(updated, input.cwd);
 
-      if (saveResult._tag === 'Success') {
+      if (saveResult.success) {
         // Note: Config changes are persisted in database
         return { success: true as const };
       }
@@ -255,7 +255,7 @@ export const configRouter = router({
     )
     .mutation(async ({ input }) => {
       const result = await loadAIConfig(input.cwd);
-      if (result._tag === 'Failure') {
+      if (!result.success) {
         return { success: false as const, error: result.error.message };
       }
 
@@ -277,23 +277,23 @@ export const configRouter = router({
       }
 
       // Update the secret field
-      const currentProviderConfig = result.value.providers?.[input.providerId] || {};
+      const currentProviderConfig = result.data.providers?.[input.providerId] || {};
       const updatedProviderConfig = {
         ...currentProviderConfig,
         [input.fieldName]: input.value,
       };
 
       const updated = {
-        ...result.value,
+        ...result.data,
         providers: {
-          ...result.value.providers,
+          ...result.data.providers,
           [input.providerId]: updatedProviderConfig,
         },
       };
 
       const saveResult = await saveAIConfig(updated, input.cwd);
 
-      if (saveResult._tag === 'Success') {
+      if (saveResult.success) {
         return { success: true as const };
       }
       return { success: false as const, error: saveResult.error.message };
@@ -313,17 +313,17 @@ export const configRouter = router({
     )
     .mutation(async ({ input }) => {
       const result = await loadAIConfig(input.cwd);
-      if (result._tag === 'Failure') {
+      if (!result.success) {
         return { success: false as const, error: result.error.message };
       }
 
-      const providers = { ...result.value.providers };
+      const providers = { ...result.data.providers };
       delete providers[input.providerId];
 
-      const updated = { ...result.value, providers };
+      const updated = { ...result.data, providers };
       const saveResult = await saveAIConfig(updated, input.cwd);
 
-      if (saveResult._tag === 'Success') {
+      if (saveResult.success) {
         return { success: true as const };
       }
       return { success: false as const, error: saveResult.error.message };
@@ -350,7 +350,7 @@ export const configRouter = router({
     .mutation(async ({ input }) => {
       // Load current config from disk to get secrets
       const currentResult = await loadAIConfig(input.cwd);
-      const currentConfig = currentResult._tag === 'Success' ? currentResult.value : { providers: {} };
+      const currentConfig = currentResult.success ? currentResult.data : { providers: {} };
 
       // Merge incoming config with current config
       // Always preserve ALL secret fields from disk
@@ -392,7 +392,7 @@ export const configRouter = router({
       }
 
       const result = await saveAIConfig(mergedConfig, input.cwd);
-      if (result._tag === 'Success') {
+      if (result.success) {
         // Note: Config changes are persisted in database
         return { success: true as const };
       }
@@ -421,11 +421,11 @@ export const configRouter = router({
       const configResult = await loadAIConfig(cwd);
 
       // Handle Result type
-      if (configResult._tag === 'Failure') {
+      if (!configResult.success) {
         throw new Error('Failed to load AI config');
       }
 
-      const config = configResult.value;
+      const config = configResult.data;
 
       const providersWithStatus: Record<string, {
         id: string;
@@ -490,7 +490,7 @@ export const configRouter = router({
         // Load config to get provider credentials
         const configResult = await loadAIConfig(input.cwd);
         const providerConfig =
-          configResult._tag === 'Success' ? configResult.value.providers?.[input.providerId] || {} : {};
+          configResult.success ? configResult.data.providers?.[input.providerId] || {} : {};
 
         // Fetch models using provider API
         const models = await fetchModels(input.providerId, providerConfig);
@@ -575,14 +575,14 @@ export const configRouter = router({
       } else {
         // Global rules → persist to config file
         const result = await loadAIConfig(input.cwd);
-        if (result._tag === 'Failure') {
+        if (!result.success) {
           return { success: false as const, error: result.error.message };
         }
 
-        const updated = { ...result.value, defaultEnabledRuleIds: input.ruleIds };
+        const updated = { ...result.data, defaultEnabledRuleIds: input.ruleIds };
         const saveResult = await saveAIConfig(updated, input.cwd);
 
-        if (saveResult._tag === 'Success') {
+        if (saveResult.success) {
           return { success: true as const, scope: 'global' as const };
         }
         return { success: false as const, error: saveResult.error.message };

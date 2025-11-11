@@ -60,8 +60,8 @@ export async function createContext(options: ContextOptions): Promise<Context> {
   let aiConfig: AIConfig = { providers: {} };
   try {
     const result = await loadAIConfig();
-    if (result._tag === 'Success') {
-      aiConfig = result.value;
+    if (result.success) {
+      aiConfig = result.data;
     }
   } catch (error) {
     console.error('Failed to load AI config:', error);

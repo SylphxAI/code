@@ -48,12 +48,12 @@ export async function getOrCreateSession(
   const cwd = process.cwd();
   const configResult = await loadAIConfig(cwd);
 
-  if (configResult._tag === 'Failure') {
+  if (!configResult.success) {
     console.error(chalk.red('✗ Failed to load AI config'));
     return null;
   }
 
-  const config = configResult.value;
+  const config = configResult.data;
   const configuredProviders = await getConfiguredProviders(cwd);
 
   if (configuredProviders.length === 0) {

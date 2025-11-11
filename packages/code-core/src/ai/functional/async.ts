@@ -130,7 +130,7 @@ export const allAsync = async <T>(promises: AsyncResult<T, AppError>[]): AsyncRe
   const values: T[] = [];
   for (const result of results) {
     if (isSuccess(result)) {
-      values.push(result.value);
+      values.push(result.data);
     } else {
       return result;
     }
@@ -160,7 +160,7 @@ export const sequenceAsync = async <T>(
   for (const promiseFn of promises) {
     const result = await promiseFn();
     if (isSuccess(result)) {
-      values.push(result.value);
+      values.push(result.data);
     } else {
       return result;
     }
@@ -197,7 +197,7 @@ export const withConcurrency = async <T>(
     const promise = (async () => {
       const result = await task();
       if (isSuccess(result)) {
-        results.push(result.value);
+        results.push(result.data);
       } else {
         throw result.error;
       }
