@@ -1,56 +1,64 @@
 # Testing System Messages
 
-This guide shows how to test the system message functionality.
-
-## Method 1: TEST_MODE with Mock Context (Recommended)
-
-Enables automatic testing with simulated context growth.
+## Quick Start (Simplest)
 
 ```bash
-# Start app in test mode
+# 1. Start in test mode
 TEST_MODE=1 npm start
 
-# Or for specific package
-cd packages/code
+# 2. Send messages with tool calls
+# Random system messages will appear (10% chance per step)
+
+# 3. See system messages in UI
+```
+
+That's it! Random test messages will appear to verify UI display.
+
+---
+
+## For Real Trigger Testing
+
+Wait for real conditions or run unit tests.
+
+---
+
+## Method 1: Random UI Testing (Recommended)
+
+**Just for UI display testing.**
+
+```bash
 TEST_MODE=1 npm start
 ```
 
 **What happens:**
-- Context warning triggers at 50% instead of 80% (more realistic)
-- Resource warnings trigger at 50% instead of 80%
-- Test trigger enabled - fires at steps 3, 7, 12, 18, 25, 33
-- Mock context starts at 30%, increases 8% per message
-
-**Enable mocking for a session:**
-```bash
-# Find your session ID
-sqlite3 ~/.sylphx-code/code.db "SELECT id, title FROM sessions ORDER BY updated DESC LIMIT 1;"
-
-# Enable mocking
-sqlite3 ~/.sylphx-code/code.db "
-  UPDATE sessions
-  SET flags = json_set(COALESCE(flags, '{}'), '$.__mockContext', 1)
-  WHERE id = 'YOUR_SESSION_ID';
-"
-```
+- Random test trigger enabled
+- 10% chance to fire on each assistant message (after step 0)
+- Shows random test messages in UI
+- No complex setup needed
 
 **To test:**
 1. Start app with `TEST_MODE=1`
-2. Enable mocking for your session (see above)
-3. Send messages that trigger tool calls
-4. Watch context grow: 30% → 38% → 46% → **54% (warning!)**
-5. System messages appear at step 3, 7, 12, etc.
-6. Context warnings trigger when reaching 50%/70%
+2. Send any message that triggers tool calls
+3. Random system messages appear between steps
+4. Verify UI displays them correctly
 
-**Expected progression:**
+**Example:**
 ```
-Message 1: Context 30%
-Message 2: Context 38%
-Message 3: Context 46% + 🧪 Test trigger fires
-Message 4: Context 54% + ⚠️ Real context warning!
-Message 5: Context 62%
-Message 7: Context 78% + 🧪 Test trigger fires
-Message 9: Context 94% + ⚠️ Critical warning!
+User: "understand this project"
+
+Assistant Step 0:
+  Read(file1.ts)
+  Read(file2.ts)
+
+🧪 UI Test: Context Warning (10% chance)
+
+Assistant Step 1:
+  Write(summary.md)
+
+🧪 UI Test: Memory Warning (10% chance)
+
+Assistant Step 2:
+  Text: "Analysis complete"
 ```
 
 ---

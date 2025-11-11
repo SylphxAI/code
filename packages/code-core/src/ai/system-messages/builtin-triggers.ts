@@ -9,16 +9,14 @@ import type { TriggerHook } from './registry.js';
 
 /**
  * Context Warning Thresholds
- * In TEST_MODE: 50% threshold allows gradual buildup testing
  */
-const CONTEXT_WARNING_80 = process.env.TEST_MODE ? 0.5 : 0.8;
-const CONTEXT_WARNING_90 = process.env.TEST_MODE ? 0.7 : 0.9;
+const CONTEXT_WARNING_80 = 0.8;
+const CONTEXT_WARNING_90 = 0.9;
 
 /**
  * Resource Warning Threshold
- * In TEST_MODE: 50% threshold allows realistic testing
  */
-const RESOURCE_WARNING_THRESHOLD = process.env.TEST_MODE ? 0.5 : 0.8;
+const RESOURCE_WARNING_THRESHOLD = 0.8;
 
 /**
  * CPU Resource Trigger
@@ -210,78 +208,66 @@ const sessionStartTodoTrigger: TriggerHook = async (context) => {
 };
 
 /**
- * Test Trigger - Randomly trigger system messages for testing
- * Only enabled in TEST_MODE
+ * Random Test Trigger - For UI testing only
+ * Randomly triggers to show system messages in UI
  *
- * Triggers every N steps to simulate real conditions
+ * 10% chance to trigger on each assistant message (step > 0)
  */
-const testTrigger: TriggerHook = async (context) => {
+const randomTestTrigger: TriggerHook = async (context) => {
   const { session } = context;
 
   // Count assistant messages to determine step
   const assistantMessages = session.messages.filter(m => m.role === 'assistant');
   const currentStep = assistantMessages.length;
 
-  // Trigger on steps 3, 7, 12, 18... (increasing intervals)
-  // This simulates warnings appearing at different points
-  const shouldTriggerSteps = [3, 7, 12, 18, 25, 33];
-
-  if (!shouldTriggerSteps.includes(currentStep)) {
+  // Skip first step
+  if (currentStep === 0) {
     return null;
   }
 
-  // Check if already shown at this step
-  const testFlagKey = `testMessage_step${currentStep}`;
-  if (isFlagSet(session, testFlagKey)) {
+  // 10% chance to trigger
+  if (Math.random() > 0.1) {
     return null;
   }
 
-  // Randomly choose message type for variety
-  const messageTypes = [
-    {
-      type: 'test-context-warning',
+  // Randomly choose message type
+  const random = Math.random();
+
+  if (random < 0.33) {
+    return {
+      messageType: 'test-context-warning',
       message: `<system_message type="test-context-warning">
-🧪 Test: Context Warning (Step ${currentStep})
+🧪 UI Test: Context Warning
 
-Simulated context usage: ${Math.floor(Math.random() * 30 + 50)}%
-
-This is a test message to verify system message display.
-In production, this would be a real context warning.
+This is a random test message to verify UI display.
+Simulated context: ${Math.floor(Math.random() * 30 + 50)}%
 </system_message>`,
-    },
-    {
-      type: 'test-memory-warning',
+      flagUpdates: {},
+    };
+  } else if (random < 0.66) {
+    return {
+      messageType: 'test-memory-warning',
       message: `<system_message type="test-memory-warning">
-🧪 Test: Memory Warning (Step ${currentStep})
+🧪 UI Test: Memory Warning
 
-Simulated memory usage: ${(Math.random() * 4 + 10).toFixed(1)}GB / 16.0GB
-
-This is a test message to verify system message display.
-In production, this would be a real resource warning.
+This is a random test message to verify UI display.
+Simulated memory: ${(Math.random() * 4 + 10).toFixed(1)}GB / 16.0GB
 </system_message>`,
-    },
-    {
-      type: 'test-multiple-warnings',
+      flagUpdates: {},
+    };
+  } else {
+    return {
+      messageType: 'test-multiple-warnings',
       message: `<system_message type="test-multiple-warnings">
-🧪 Test: Multiple Warnings (Step ${currentStep})
+🧪 UI Test: Multiple Warnings
 
-Testing multiple simultaneous warnings:
+This tests how UI handles multiple warnings:
 - Context: ${Math.floor(Math.random() * 20 + 60)}%
 - Memory: ${(Math.random() * 3 + 11).toFixed(1)}GB / 16.0GB
-- CPU: ${Math.floor(Math.random() * 30 + 40)}%
-
-This tests how UI handles multiple warnings at once.
 </system_message>`,
-    },
-  ];
-
-  const selected = messageTypes[Math.floor(Math.random() * messageTypes.length)];
-
-  return {
-    messageType: selected.type,
-    message: selected.message,
-    flagUpdates: { [testFlagKey]: true },
-  };
+      flagUpdates: {},
+    };
+  }
 };
 
 /**
@@ -290,15 +276,15 @@ This tests how UI handles multiple warnings at once.
 export function registerBuiltinTriggers(): void {
   // Priority order (lower = higher priority)
 
-  // Test trigger (only in TEST_MODE)
+  // Random test trigger (only in TEST_MODE)
   if (process.env.TEST_MODE) {
     triggerRegistry.register({
-      id: 'test-trigger',
-      name: 'Test System Message',
-      description: 'Manual test trigger for development',
+      id: 'random-test-trigger',
+      name: 'Random Test System Message',
+      description: 'Random trigger for UI testing (10% chance)',
       priority: -1, // Highest priority
       enabled: true,
-      hook: testTrigger,
+      hook: randomTestTrigger,
     });
   }
 
