@@ -166,9 +166,9 @@ async function buildUserMessage(
  * Build assistant message with steps (handles step-level system messages)
  * Each step can have systemMessages array that is inserted BEFORE the step content
  *
- * IMPORTANT: Separates tool-calls and tool-results into different messages
- * - assistant message: contains tool-call parts only
- * - tool message: contains tool-result parts (if any)
+ * IMPORTANT: Aggregates all steps into ONE assistant message
+ * - Inserts system messages as separate user messages between steps
+ * - Separates tool-calls and tool-results into different messages
  */
 async function buildAssistantMessageWithSteps(
   msg: Message,
@@ -177,7 +177,9 @@ async function buildAssistantMessageWithSteps(
   results: ModelMessage[]
 ): Promise<void> {
   if (msg.steps && msg.steps.length > 0) {
-    // Step-based structure: process each step with its optional systemMessages
+    // Collect all content from all steps (system messages inserted as user messages)
+    const allSteps: MessageStep[] = [];
+
     for (const step of msg.steps) {
       // If step has systemMessages, insert them as 'user' role messages BEFORE step content
       if (step.systemMessages && step.systemMessages.length > 0) {
@@ -195,9 +197,12 @@ async function buildAssistantMessageWithSteps(
         });
       }
 
-      // Build assistant message for this step (separates tool-calls and tool-results)
-      await buildAssistantMessage(msg, modelCapabilities, fileRepo, [step], results);
+      // Collect this step
+      allSteps.push(step);
     }
+
+    // Build ONE assistant message from ALL steps
+    await buildAssistantMessage(msg, modelCapabilities, fileRepo, allSteps, results);
   } else {
     // Legacy: no steps, build as single message
     await buildAssistantMessage(msg, modelCapabilities, fileRepo, undefined, results);
