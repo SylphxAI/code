@@ -3,7 +3,7 @@
  * Converts database messages to AI SDK format
  */
 
-import type { Message, ModelCapabilities } from '@sylphx/code-core';
+import type { Message, MessageStep, ModelCapabilities } from '@sylphx/code-core';
 import type { ModelMessage, UserContent, AssistantContent } from 'ai';
 import type { ToolCallPart, ToolResultPart } from '@ai-sdk/provider';
 import { buildSystemStatusFromMetadata, buildTodoContext } from '@sylphx/code-core';
@@ -165,6 +165,10 @@ async function buildUserMessage(
 /**
  * Build assistant message with steps (handles step-level system messages)
  * Each step can have systemMessages array that is inserted BEFORE the step content
+ *
+ * IMPORTANT: Separates tool-calls and tool-results into different messages
+ * - assistant message: contains tool-call parts only
+ * - tool message: contains tool-result parts (if any)
  */
 async function buildAssistantMessageWithSteps(
   msg: Message,
@@ -191,28 +195,34 @@ async function buildAssistantMessageWithSteps(
         });
       }
 
-      // Build assistant message for this step
-      const stepMessage = await buildAssistantMessage(msg, modelCapabilities, fileRepo, [step]);
-      results.push(stepMessage);
+      // Build assistant message for this step (separates tool-calls and tool-results)
+      await buildAssistantMessage(msg, modelCapabilities, fileRepo, [step], results);
     }
   } else {
     // Legacy: no steps, build as single message
-    const legacyMessage = await buildAssistantMessage(msg, modelCapabilities, fileRepo);
-    results.push(legacyMessage);
+    await buildAssistantMessage(msg, modelCapabilities, fileRepo, undefined, results);
   }
 }
 
 /**
  * Build assistant message from steps or legacy content
+ *
+ * IMPORTANT: Separates tool-calls and tool-results into different messages
+ * - assistant message: contains text, reasoning, tool-call parts
+ * - tool message: contains tool-result parts (created separately if needed)
+ *
  * @param stepsOverride Optional: only build from these steps (for step-by-step processing)
+ * @param results Array to append messages to
  */
 async function buildAssistantMessage(
   msg: Message,
   modelCapabilities?: ModelCapabilities,
   fileRepo?: FileRepository,
-  stepsOverride?: MessageStep[]
-): Promise<ModelMessage> {
-  let contentParts: AssistantContent = [];
+  stepsOverride?: MessageStep[],
+  results?: ModelMessage[]
+): Promise<void> {
+  const assistantContent: AssistantContent = [];
+  const toolResults: ToolResultPart[] = [];
 
   // Check if model supports image input
   const supportsImageInput = modelCapabilities?.has('image-input') ?? false;
@@ -222,183 +232,180 @@ async function buildAssistantMessage(
 
   if (steps.length > 0) {
     // Step-based structure: aggregate content from steps
-    contentParts = steps.flatMap((step) =>
-      step.parts.flatMap((part) => {
+    for (const step of steps) {
+      for (const part of step.parts) {
         switch (part.type) {
           case 'text':
-            return [{ type: 'text' as const, text: part.content }];
+            assistantContent.push({ type: 'text', text: part.content });
+            break;
 
           case 'reasoning':
-            return [{ type: 'reasoning' as const, text: part.content }];
+            assistantContent.push({ type: 'reasoning', text: part.content });
+            break;
 
-          case 'tool': {
-            const parts: AssistantContent = [
-              {
-                type: 'tool-call' as const,
-                toolCallId: part.toolId,
-                toolName: part.name,
-                input: part.args,
-              } as ToolCallPart,
-            ];
+          case 'tool':
+            // Tool-call goes in assistant message
+            assistantContent.push({
+              type: 'tool-call',
+              toolCallId: part.toolId,
+              toolName: part.name,
+              args: part.args || {},
+            } as ToolCallPart);
 
+            // Tool-result goes in separate tool message (if present)
             if (part.result !== undefined) {
-              parts.push({
-                type: 'tool-result' as const,
+              toolResults.push({
+                type: 'tool-result',
                 toolCallId: part.toolId,
                 toolName: part.name,
-                output: part.result,
+                result: part.result,
               } as ToolResultPart);
             }
-
-            return parts;
-          }
+            break;
 
           case 'file':
             // Handle file parts - use AI SDK's FilePart type
-            // Check if model supports this file type
             if (part.mediaType.startsWith('image/')) {
-              // Image files
               if (supportsImageInput) {
-                // Model supports image-input: send as file part with base64 data
-                return [
-                  {
-                    type: 'file' as const,
-                    data: part.base64, // AI SDK accepts base64 string directly
-                    mediaType: part.mediaType,
-                  },
-                ];
+                assistantContent.push({
+                  type: 'file',
+                  data: part.base64,
+                  mediaType: part.mediaType,
+                });
               } else {
-                // Model doesn't support image-input: save to temp and provide path
+                // Save to temp and provide path
                 try {
                   const ext = part.mediaType.split('/')[1] || 'png';
                   const filename = `sylphx-${randomBytes(8).toString('hex')}.${ext}`;
                   const filepath = join(tmpdir(), filename);
                   const buffer = Buffer.from(part.base64, 'base64');
                   writeFileSync(filepath, buffer);
-                  return [
-                    {
-                      type: 'text' as const,
-                      text: `[I generated an image and saved it to: ${filepath}]`,
-                    },
-                  ];
+                  assistantContent.push({
+                    type: 'text',
+                    text: `[I generated an image and saved it to: ${filepath}]`,
+                  });
                 } catch (err) {
-                  return [{ type: 'text' as const, text: `[I generated an image but failed to save it]` }];
+                  assistantContent.push({
+                    type: 'text',
+                    text: `[I generated an image but failed to save it]`,
+                  });
                 }
               }
             } else {
-              // Non-image files: send as file part
-              return [
-                {
-                  type: 'file' as const,
-                  data: part.base64,
-                  mediaType: part.mediaType,
-                },
-              ];
+              assistantContent.push({
+                type: 'file',
+                data: part.base64,
+                mediaType: part.mediaType,
+              });
             }
+            break;
 
           case 'error':
-            return [{ type: 'text' as const, text: `[Error: ${part.error}]` }];
+            assistantContent.push({ type: 'text', text: `[Error: ${part.error}]` });
+            break;
 
-          default:
-            return [];
+          case 'system-message':
+            // Skip - already handled at step level
+            break;
         }
-      })
-    );
+      }
+    }
   } else if (msg.content) {
     // LEGACY: Direct content array (for backward compatibility)
-    contentParts = msg.content.flatMap((part) => {
+    for (const part of msg.content) {
       switch (part.type) {
         case 'text':
-          return [{ type: 'text' as const, text: part.content }];
+          assistantContent.push({ type: 'text', text: part.content });
+          break;
 
         case 'reasoning':
-          return [{ type: 'reasoning' as const, text: part.content }];
+          assistantContent.push({ type: 'reasoning', text: part.content });
+          break;
 
-        case 'tool': {
-          const parts: AssistantContent = [
-            {
-              type: 'tool-call' as const,
-              toolCallId: part.toolId,
-              toolName: part.name,
-              input: part.args,
-            } as ToolCallPart,
-          ];
+        case 'tool':
+          assistantContent.push({
+            type: 'tool-call',
+            toolCallId: part.toolId,
+            toolName: part.name,
+            args: part.args || {},
+          } as ToolCallPart);
 
           if (part.result !== undefined) {
-            parts.push({
-              type: 'tool-result' as const,
+            toolResults.push({
+              type: 'tool-result',
               toolCallId: part.toolId,
               toolName: part.name,
-              output: part.result,
+              result: part.result,
             } as ToolResultPart);
           }
-
-          return parts;
-        }
+          break;
 
         case 'file':
-          // Handle file parts - use AI SDK's FilePart type
           if (part.mediaType.startsWith('image/')) {
-            // Image files
             if (supportsImageInput) {
-              // Model supports image-input: send as file part with base64 data
-              return [
-                {
-                  type: 'file' as const,
-                  data: part.base64,
-                  mediaType: part.mediaType,
-                },
-              ];
+              assistantContent.push({
+                type: 'file',
+                data: part.base64,
+                mediaType: part.mediaType,
+              });
             } else {
-              // Model doesn't support image-input: save to temp and provide path
               try {
                 const ext = part.mediaType.split('/')[1] || 'png';
                 const filename = `sylphx-${randomBytes(8).toString('hex')}.${ext}`;
                 const filepath = join(tmpdir(), filename);
                 const buffer = Buffer.from(part.base64, 'base64');
                 writeFileSync(filepath, buffer);
-                return [
-                  {
-                    type: 'text' as const,
-                    text: `[I generated an image and saved it to: ${filepath}]`,
-                  },
-                ];
+                assistantContent.push({
+                  type: 'text',
+                  text: `[I generated an image and saved it to: ${filepath}]`,
+                });
               } catch (err) {
-                return [{ type: 'text' as const, text: `[I generated an image but failed to save it]` }];
+                assistantContent.push({
+                  type: 'text',
+                  text: `[I generated an image but failed to save it]`,
+                });
               }
             }
           } else {
-            // Non-image files: send as file part
-            return [
-              {
-                type: 'file' as const,
-                data: part.base64,
-                mediaType: part.mediaType,
-              },
-            ];
+            assistantContent.push({
+              type: 'file',
+              data: part.base64,
+              mediaType: part.mediaType,
+            });
           }
+          break;
 
         case 'error':
-          return [{ type: 'text' as const, text: `[Error: ${part.error}]` }];
+          assistantContent.push({ type: 'text', text: `[Error: ${part.error}]` });
+          break;
 
-        default:
-          return [];
+        case 'system-message':
+          // Skip - already handled at step level
+          break;
       }
-    });
+    }
   }
 
   // Add status annotation
   if (msg.status === 'abort') {
-    contentParts.push({
+    assistantContent.push({
       type: 'text',
       text: '[This response was aborted by the user]',
     });
   } else if (msg.status === 'error') {
-    contentParts.push({
+    assistantContent.push({
       type: 'text',
       text: '[This response ended with an error]',
     });
   }
 
-  return { role: msg.role as 'assistant', content: contentParts };
+  // Push assistant message
+  if (results) {
+    results.push({ role: 'assistant', content: assistantContent });
+
+    // Push tool message if there are tool results
+    if (toolResults.length > 0) {
+      results.push({ role: 'tool', content: toolResults });
+    }
+  }
 }
