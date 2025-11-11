@@ -234,9 +234,8 @@ ${summary}
 
 		// Import message repository to add message
 		const { MessageRepository } = await import("../database/message-repository.js");
-		// Access the db property from sessionRepository (private, but we need it)
-		// @ts-ignore - accessing private property
-		const messageRepo = new MessageRepository(sessionRepository.db);
+		// Get database instance from sessionRepository for cross-repository operation
+		const messageRepo = new MessageRepository(sessionRepository.getDatabase());
 
 		await messageRepo.addMessage({
 			sessionId: newSession.id,

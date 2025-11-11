@@ -69,6 +69,13 @@ export class SessionRepository {
 	constructor(private db: LibSQLDatabase) {}
 
 	/**
+	 * Get database instance for cross-repository operations
+	 */
+	getDatabase(): LibSQLDatabase {
+		return this.db;
+	}
+
+	/**
 	 * Create a new session
 	 */
 	async createSession(
