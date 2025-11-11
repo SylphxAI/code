@@ -442,9 +442,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
 
               // If there are system messages, inject them into model messages
               if (systemMessages.length > 0) {
-                // Combine system messages with type headers for LLM context
+                // Combine system messages (already wrapped in <system_message> tags)
                 const combinedContent = systemMessages
-                  .map(sm => `<system_message type="${sm.type}">\n${sm.content}\n</system_message>`)
+                  .map(sm => sm.content)
                   .join('\n\n');
 
                 const systemMessageContent: ModelMessage = {
