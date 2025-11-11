@@ -27,10 +27,7 @@ export function StatusIndicator({ isStreaming, streamParts }: StatusIndicatorPro
     );
   }
 
-  // Hide spinner if not streaming OR if all parts have been aborted
-  const allPartsAborted = streamParts.length > 0 && streamParts.every((p) => p.status === 'abort');
-
-  if (!isStreaming || allPartsAborted) {
+  if (!isStreaming) {
     return (
       <Box paddingY={1}>
         <Text> </Text>
