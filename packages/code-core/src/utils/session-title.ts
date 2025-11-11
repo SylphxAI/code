@@ -3,47 +3,47 @@
  * Re-exports pure functions from feature and adds streaming functionality
  */
 
-import { createAIStream } from '../ai/ai-sdk.js';
-import type { ProviderId } from '../types/config.types.js';
-import { cleanAITitle } from '../session/utils/title.js';
+import { createAIStream } from "../ai/ai-sdk.js";
+import type { ProviderId } from "../types/config.types.js";
+import { cleanAITitle } from "../session/utils/title.js";
 
 // Re-export pure functions from session feature
 export {
-  generateSessionTitle as generateSimpleTitle,
-  formatSessionDisplay,
-  formatRelativeTime,
-  cleanTitle,
-  truncateTitle,
-  cleanAITitle,
-} from '../session/utils/title.js';
+	generateSessionTitle as generateSimpleTitle,
+	formatSessionDisplay,
+	formatRelativeTime,
+	cleanTitle,
+	truncateTitle,
+	cleanAITitle,
+} from "../session/utils/title.js";
 
 /**
  * Generate a session title using LLM with streaming (collects full text)
  * Uses our ai-sdk.ts for consistency
  */
 export async function generateSessionTitle(
-  firstMessage: string,
-  provider: ProviderId,
-  modelName: string,
-  providerConfig: any
+	firstMessage: string,
+	provider: ProviderId,
+	modelName: string,
+	providerConfig: any,
 ): Promise<string> {
-  if (!firstMessage || firstMessage.trim().length === 0) {
-    return 'New Chat';
-  }
+	if (!firstMessage || firstMessage.trim().length === 0) {
+		return "New Chat";
+	}
 
-  try {
-    // Get the provider instance and create the model
-    const { getProvider } = await import('../ai/providers/index.js');
-    const providerInstance = getProvider(provider);
-    const model = providerInstance.createClient(providerConfig, modelName);
+	try {
+		// Get the provider instance and create the model
+		const { getProvider } = await import("../ai/providers/index.js");
+		const providerInstance = getProvider(provider);
+		const model = providerInstance.createClient(providerConfig, modelName);
 
-    // Use our createAIStream for consistency
-    const streamGenerator = createAIStream({
-      model,
-      messages: [
-        {
-          role: 'user',
-          content: `You need to generate a SHORT, DESCRIPTIVE title (maximum 50 characters) for a chat conversation.
+		// Use our createAIStream for consistency
+		const streamGenerator = createAIStream({
+			model,
+			messages: [
+				{
+					role: "user",
+					content: `You need to generate a SHORT, DESCRIPTIVE title (maximum 50 characters) for a chat conversation.
 
 User's first message: "${firstMessage}"
 
@@ -59,55 +59,55 @@ Examples:
 - Message: "Can you help me with React hooks?" → Title: "React Hooks Help"
 
 Now generate the title:`,
-        },
-      ],
-    });
+				},
+			],
+		});
 
-    let fullTitle = '';
+		let fullTitle = "";
 
-    // Collect all text chunks from stream
-    for await (const chunk of streamGenerator) {
-      if (chunk.type === 'text-delta' && chunk.textDelta) {
-        fullTitle += chunk.textDelta;
-      }
-    }
+		// Collect all text chunks from stream
+		for await (const chunk of streamGenerator) {
+			if (chunk.type === "text-delta" && chunk.textDelta) {
+				fullTitle += chunk.textDelta;
+			}
+		}
 
-    // Clean up title using our utility function
-    return cleanAITitle(fullTitle, 50);
-  } catch (error) {
-    console.error('[generateSessionTitle] Error:', error);
-    // Fallback to simple title generation on any error
-    const { generateSessionTitle: fallback } = await import('../session/utils/title.js');
-    return fallback(firstMessage);
-  }
+		// Clean up title using our utility function
+		return cleanAITitle(fullTitle, 50);
+	} catch (error) {
+		console.error("[generateSessionTitle] Error:", error);
+		// Fallback to simple title generation on any error
+		const { generateSessionTitle: fallback } = await import("../session/utils/title.js");
+		return fallback(firstMessage);
+	}
 }
 
 /**
  * Generate a session title using LLM with streaming
  */
 export async function generateSessionTitleWithStreaming(
-  firstMessage: string,
-  provider: ProviderId,
-  modelName: string,
-  providerConfig: any,
-  onChunk: (chunk: string) => void
+	firstMessage: string,
+	provider: ProviderId,
+	modelName: string,
+	providerConfig: any,
+	onChunk: (chunk: string) => void,
 ): Promise<string> {
-  if (!firstMessage || firstMessage.trim().length === 0) {
-    return 'New Chat';
-  }
+	if (!firstMessage || firstMessage.trim().length === 0) {
+		return "New Chat";
+	}
 
-  try {
-    // Get the provider instance and create the model
-    const { getProvider } = await import('../ai/providers/index.js');
-    const providerInstance = getProvider(provider);
-    const model = providerInstance.createClient(providerConfig, modelName);
+	try {
+		// Get the provider instance and create the model
+		const { getProvider } = await import("../ai/providers/index.js");
+		const providerInstance = getProvider(provider);
+		const model = providerInstance.createClient(providerConfig, modelName);
 
-    const streamGenerator = createAIStream({
-      model,
-      messages: [
-        {
-          role: 'user',
-          content: `You need to generate a SHORT, DESCRIPTIVE title (maximum 50 characters) for a chat conversation.
+		const streamGenerator = createAIStream({
+			model,
+			messages: [
+				{
+					role: "user",
+					content: `You need to generate a SHORT, DESCRIPTIVE title (maximum 50 characters) for a chat conversation.
 
 User's first message: "${firstMessage}"
 
@@ -123,32 +123,31 @@ Examples:
 - Message: "Can you help me with React hooks?" → Title: "React Hooks Help"
 
 Now generate the title:`,
-        },
-      ],
-    });
+				},
+			],
+		});
 
-    let fullTitle = '';
+		let fullTitle = "";
 
-    // Iterate the async generator and stream to UI
-    for await (const chunk of streamGenerator) {
-      if (chunk.type === 'text-delta' && chunk.textDelta) {
-        fullTitle += chunk.textDelta;
-        onChunk(chunk.textDelta);
-      }
-    }
+		// Iterate the async generator and stream to UI
+		for await (const chunk of streamGenerator) {
+			if (chunk.type === "text-delta" && chunk.textDelta) {
+				fullTitle += chunk.textDelta;
+				onChunk(chunk.textDelta);
+			}
+		}
 
-    // Clean up title
-    let cleaned = fullTitle.trim();
-    cleaned = cleaned.replace(/^["'「『]+|["'」』]+$/g, ''); // Remove quotes
-    cleaned = cleaned.replace(/^(Title:|标题：)\s*/i, ''); // Remove "Title:" prefix
-    cleaned = cleaned.replace(/\n+/g, ' '); // Replace newlines with spaces
-    cleaned = cleaned.trim();
+		// Clean up title
+		let cleaned = fullTitle.trim();
+		cleaned = cleaned.replace(/^["'「『]+|["'」』]+$/g, ""); // Remove quotes
+		cleaned = cleaned.replace(/^(Title:|标题：)\s*/i, ""); // Remove "Title:" prefix
+		cleaned = cleaned.replace(/\n+/g, " "); // Replace newlines with spaces
+		cleaned = cleaned.trim();
 
-    // Return truncated if needed
-    return cleaned.length > 50 ? cleaned.substring(0, 50) + '...' : cleaned;
-  } catch (error) {
-    // Fallback to simple title generation on any error
-    return generateSessionTitle(firstMessage);
-  }
+		// Return truncated if needed
+		return cleaned.length > 50 ? cleaned.substring(0, 50) + "..." : cleaned;
+	} catch (error) {
+		// Fallback to simple title generation on any error
+		return generateSessionTitle(firstMessage);
+	}
 }
-

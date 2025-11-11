@@ -4,13 +4,13 @@
  * Content parts based design - own type system with proper conversion
  */
 
-import { streamText, TextPart, UserContent, type AssistantContent, type ModelMessage } from 'ai';
-import type { LanguageModelV2, LanguageModelV2ToolResultOutput } from '@ai-sdk/provider';
-import * as os from 'node:os';
+import { streamText, TextPart, UserContent, type AssistantContent, type ModelMessage } from "ai";
+import type { LanguageModelV2, LanguageModelV2ToolResultOutput } from "@ai-sdk/provider";
+import * as os from "node:os";
 // NOTE: getAISDKTools is imported dynamically to avoid circular dependency
 // (ai-sdk → tools → index → ai-sdk creates a bundler issue with duplicate exports)
-import { hasUserInputHandler } from '../tools/interaction.js';
-import { buildTodoContext } from '../utils/todo-context.js';
+import { hasUserInputHandler } from "../tools/interaction.js";
+import { buildTodoContext } from "../utils/todo-context.js";
 
 // Legacy system prompt - kept for backwards compatibility and fallback
 const LEGACY_SYSTEM_PROMPT = `You are a helpful coding assistant.
@@ -38,9 +38,9 @@ const BASE_SYSTEM_PROMPT = `You are Sylphx, an AI development assistant.`;
  * @deprecated Use buildSystemPrompt(agentId) instead for stateless architecture
  */
 function getSystemPrompt(): string {
-  // Fallback to legacy for backwards compatibility
-  // New code should use buildSystemPrompt(agentId) from system-prompt-builder.ts
-  return LEGACY_SYSTEM_PROMPT;
+	// Fallback to legacy for backwards compatibility
+	// New code should use buildSystemPrompt(agentId) from system-prompt-builder.ts
+	return LEGACY_SYSTEM_PROMPT;
 }
 
 // For backwards compatibility
@@ -50,175 +50,175 @@ const SYSTEM_PROMPT = LEGACY_SYSTEM_PROMPT;
  * Stream chunk types (our own)
  */
 export type TextStartChunk = {
-  type: 'text-start';
+	type: "text-start";
 };
 
 export type TextDeltaChunk = {
-  type: 'text-delta';
-  textDelta: string;
+	type: "text-delta";
+	textDelta: string;
 };
 
 export type TextEndChunk = {
-  type: 'text-end';
+	type: "text-end";
 };
 
 export type ReasoningStartChunk = {
-  type: 'reasoning-start';
+	type: "reasoning-start";
 };
 
 export type ReasoningDeltaChunk = {
-  type: 'reasoning-delta';
-  textDelta: string;
+	type: "reasoning-delta";
+	textDelta: string;
 };
 
 export type ReasoningEndChunk = {
-  type: 'reasoning-end';
+	type: "reasoning-end";
 };
 
 export type ToolCallChunk = {
-  type: 'tool-call';
-  toolCallId: string;
-  toolName: string;
-  args: unknown;
+	type: "tool-call";
+	toolCallId: string;
+	toolName: string;
+	args: unknown;
 };
 
 export type ToolInputStartChunk = {
-  type: 'tool-input-start';
-  toolCallId: string;
-  toolName: string;
+	type: "tool-input-start";
+	toolCallId: string;
+	toolName: string;
 };
 
 export type ToolInputDeltaChunk = {
-  type: 'tool-input-delta';
-  toolCallId: string;
-  argsTextDelta: string;
+	type: "tool-input-delta";
+	toolCallId: string;
+	argsTextDelta: string;
 };
 
 export type ToolInputEndChunk = {
-  type: 'tool-input-end';
-  toolCallId: string;
+	type: "tool-input-end";
+	toolCallId: string;
 };
 
 export type ToolResultChunk = {
-  type: 'tool-result';
-  toolCallId: string;
-  toolName: string;
-  result: unknown;
+	type: "tool-result";
+	toolCallId: string;
+	toolName: string;
+	result: unknown;
 };
 
 export type ToolErrorChunk = {
-  type: 'tool-error';
-  toolCallId: string;
-  toolName: string;
-  error: string;
+	type: "tool-error";
+	toolCallId: string;
+	toolName: string;
+	error: string;
 };
 
 export type FileChunk = {
-  type: 'file';
-  mediaType: string;
-  base64: string;
+	type: "file";
+	mediaType: string;
+	base64: string;
 };
 
 export type StreamErrorChunk = {
-  type: 'error';
-  error: string;
+	type: "error";
+	error: string;
 };
 
 export type AbortChunk = {
-  type: 'abort';
+	type: "abort";
 };
 
 export type FinishChunk = {
-  type: 'finish';
-  finishReason: string;
-  usage: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
+	type: "finish";
+	finishReason: string;
+	usage: {
+		promptTokens: number;
+		completionTokens: number;
+		totalTokens: number;
+	};
 };
 
 export type StreamChunk =
-  | TextStartChunk
-  | TextDeltaChunk
-  | TextEndChunk
-  | ReasoningStartChunk
-  | ReasoningDeltaChunk
-  | ReasoningEndChunk
-  | ToolCallChunk
-  | ToolInputStartChunk
-  | ToolInputDeltaChunk
-  | ToolInputEndChunk
-  | ToolResultChunk
-  | ToolErrorChunk
-  | FileChunk
-  | StreamErrorChunk
-  | AbortChunk
-  | FinishChunk;
+	| TextStartChunk
+	| TextDeltaChunk
+	| TextEndChunk
+	| ReasoningStartChunk
+	| ReasoningDeltaChunk
+	| ReasoningEndChunk
+	| ToolCallChunk
+	| ToolInputStartChunk
+	| ToolInputDeltaChunk
+	| ToolInputEndChunk
+	| ToolResultChunk
+	| ToolErrorChunk
+	| FileChunk
+	| StreamErrorChunk
+	| AbortChunk
+	| FinishChunk;
 
 /**
  * Step info (our own)
  */
 export interface StepInfo {
-  finishReason: string;
-  usage: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-  content: AssistantContent[];
+	finishReason: string;
+	usage: {
+		promptTokens: number;
+		completionTokens: number;
+		totalTokens: number;
+	};
+	content: AssistantContent[];
 }
 
 /**
  * Create AI stream options
  */
 export interface CreateAIStreamOptions {
-  model: LanguageModelV2;
-  messages: ModelMessage[];
-  systemPrompt?: string;
-  /**
-   * Provider instance (optional)
-   * Used to translate generic options (disableReasoning) to provider-specific format
-   * If not provided, provider-specific features may not work
-   */
-  providerInstance?: any; // AIProvider type causes circular dependency
-  /**
-   * Enable tool usage (default: true)
-   * Set to false for scenarios like title generation where tools are unnecessary
-   * Improves performance and reduces token usage
-   */
-  enableTools?: boolean;
-  /**
-   * Disable reasoning/extended thinking mode (default: false)
-   * Set to true for scenarios like title generation where reasoning is unnecessary
-   * Prevents AI from spending time on internal reasoning before generating output
-   * Requires providerInstance to be provided for provider-specific translation
-   */
-  disableReasoning?: boolean;
-  /**
-   * Optional abort signal to cancel the stream
-   */
-  abortSignal?: AbortSignal;
-  onStepFinish?: (step: StepInfo) => void;
-  /**
-   * Called before each step to prepare messages
-   * Can be used to inject context (e.g., todo list, system status)
-   * @param messages - Current message history
-   * @param stepNumber - Current step number
-   * @returns Modified messages array
-   */
-  onPrepareMessages?: (messages: ModelMessage[], stepNumber: number) => ModelMessage[];
-  /**
-   * Called to transform tool result output before saving to history
-   * Can be used to inject metadata (e.g., system status, timestamp)
-   * @param output - Tool result output
-   * @param toolName - Name of the tool
-   * @returns Modified output
-   */
-  onTransformToolResult?: (
-    output: LanguageModelV2ToolResultOutput,
-    toolName: string
-  ) => LanguageModelV2ToolResultOutput;
+	model: LanguageModelV2;
+	messages: ModelMessage[];
+	systemPrompt?: string;
+	/**
+	 * Provider instance (optional)
+	 * Used to translate generic options (disableReasoning) to provider-specific format
+	 * If not provided, provider-specific features may not work
+	 */
+	providerInstance?: any; // AIProvider type causes circular dependency
+	/**
+	 * Enable tool usage (default: true)
+	 * Set to false for scenarios like title generation where tools are unnecessary
+	 * Improves performance and reduces token usage
+	 */
+	enableTools?: boolean;
+	/**
+	 * Disable reasoning/extended thinking mode (default: false)
+	 * Set to true for scenarios like title generation where reasoning is unnecessary
+	 * Prevents AI from spending time on internal reasoning before generating output
+	 * Requires providerInstance to be provided for provider-specific translation
+	 */
+	disableReasoning?: boolean;
+	/**
+	 * Optional abort signal to cancel the stream
+	 */
+	abortSignal?: AbortSignal;
+	onStepFinish?: (step: StepInfo) => void;
+	/**
+	 * Called before each step to prepare messages
+	 * Can be used to inject context (e.g., todo list, system status)
+	 * @param messages - Current message history
+	 * @param stepNumber - Current step number
+	 * @returns Modified messages array
+	 */
+	onPrepareMessages?: (messages: ModelMessage[], stepNumber: number) => ModelMessage[];
+	/**
+	 * Called to transform tool result output before saving to history
+	 * Can be used to inject metadata (e.g., system status, timestamp)
+	 * @param output - Tool result output
+	 * @param toolName - Name of the tool
+	 * @returns Modified output
+	 */
+	onTransformToolResult?: (
+		output: LanguageModelV2ToolResultOutput,
+		toolName: string,
+	) => LanguageModelV2ToolResultOutput;
 }
 
 /**
@@ -255,9 +255,9 @@ export interface CreateAIStreamOptions {
  *     → Prompt cache recognizes T1 message as unchanged → cache hit!
  */
 export interface SystemStatus {
-  timestamp: string;  // ISO format
-  cpu: string;        // e.g., "45.3% (8 cores)"
-  memory: string;     // e.g., "4.2GB/16.0GB"
+	timestamp: string; // ISO format
+	cpu: string; // e.g., "45.3% (8 cores)"
+	memory: string; // e.g., "4.2GB/16.0GB"
 }
 
 /**
@@ -267,37 +267,37 @@ export interface SystemStatus {
  * Use buildSystemStatusFromMetadata() instead to preserve prompt cache.
  */
 function getSystemStatus(): SystemStatus {
-  const timestamp = new Date().toISOString();
+	const timestamp = new Date().toISOString();
 
-  // Get memory usage
-  const totalMem = os.totalmem();
-  const freeMem = os.freemem();
-  const usedMem = totalMem - freeMem;
-  const memUsageGB = (usedMem / 1024 / 1024 / 1024).toFixed(1);
-  const totalMemGB = (totalMem / 1024 / 1024 / 1024).toFixed(1);
+	// Get memory usage
+	const totalMem = os.totalmem();
+	const freeMem = os.freemem();
+	const usedMem = totalMem - freeMem;
+	const memUsageGB = (usedMem / 1024 / 1024 / 1024).toFixed(1);
+	const totalMemGB = (totalMem / 1024 / 1024 / 1024).toFixed(1);
 
-  // Get CPU usage (average load)
-  const cpus = os.cpus();
-  const cpuCount = cpus.length;
+	// Get CPU usage (average load)
+	const cpus = os.cpus();
+	const cpuCount = cpus.length;
 
-  // Calculate average CPU usage from all cores
-  let totalIdle = 0;
-  let totalTick = 0;
+	// Calculate average CPU usage from all cores
+	let totalIdle = 0;
+	let totalTick = 0;
 
-  cpus.forEach((cpu) => {
-    for (const type in cpu.times) {
-      totalTick += cpu.times[type as keyof typeof cpu.times];
-    }
-    totalIdle += cpu.times.idle;
-  });
+	cpus.forEach((cpu) => {
+		for (const type in cpu.times) {
+			totalTick += cpu.times[type as keyof typeof cpu.times];
+		}
+		totalIdle += cpu.times.idle;
+	});
 
-  const cpuUsage = (100 - (100 * totalIdle) / totalTick).toFixed(1);
+	const cpuUsage = (100 - (100 * totalIdle) / totalTick).toFixed(1);
 
-  return {
-    timestamp,
-    cpu: `${cpuUsage}% (${cpuCount} cores)`,
-    memory: `${memUsageGB}GB/${totalMemGB}GB`,
-  };
+	return {
+		timestamp,
+		cpu: `${cpuUsage}% (${cpuCount} cores)`,
+		memory: `${memUsageGB}GB/${totalMemGB}GB`,
+	};
 }
 
 /**
@@ -317,7 +317,7 @@ function getSystemStatus(): SystemStatus {
  * @returns Formatted system status string for LLM
  */
 function buildSystemStatusFromMetadata(metadata: SystemStatus): string {
-  return `<system_status>
+	return `<system_status>
 Time: ${metadata.timestamp}
 CPU: ${metadata.cpu}
 Memory: ${metadata.memory}
@@ -334,48 +334,45 @@ Memory: ${metadata.memory}
  * - source (code files)
  * - raw (binary/custom data)
  */
-function injectSystemStatusToOutput(output: LanguageModelV2ToolResultOutput, systemStatus: SystemStatus): Extract<
-  LanguageModelV2ToolResultOutput,
-  { type: 'content' }
-> {
-  if (!output || typeof output !== 'object') {
-    return output;
-  }
+function injectSystemStatusToOutput(
+	output: LanguageModelV2ToolResultOutput,
+	systemStatus: SystemStatus,
+): Extract<LanguageModelV2ToolResultOutput, { type: "content" }> {
+	if (!output || typeof output !== "object") {
+		return output;
+	}
 
-  // Convert to content type if not already
-  const content: Extract<
-    LanguageModelV2ToolResultOutput,
-    { type: 'content' }
-  > = {
-    type: 'content',
-    value: [],
-  }
+	// Convert to content type if not already
+	const content: Extract<LanguageModelV2ToolResultOutput, { type: "content" }> = {
+		type: "content",
+		value: [],
+	};
 
-  if (output.type === 'content') {
-    // Already content type - MUST preserve ALL part types (text, image, file, source, raw)
-    // BUGFIX: Previously only copied array reference, now properly spread to preserve all parts
-    content.value = [...output.value];
-  } else if (output.type === 'text' || output.type === 'error-text') {
-    content.value.push({
-        type: 'text',
-        text: output.value,
-    });
-  } else if (output.type === 'json' || output.type === 'error-json') {
-    // Convert JSON to content (stringify)
-    content.value.push({
-        type: 'text',
-        text: JSON.stringify(output.value, null, 2),
-    });
-  }
+	if (output.type === "content") {
+		// Already content type - MUST preserve ALL part types (text, image, file, source, raw)
+		// BUGFIX: Previously only copied array reference, now properly spread to preserve all parts
+		content.value = [...output.value];
+	} else if (output.type === "text" || output.type === "error-text") {
+		content.value.push({
+			type: "text",
+			text: output.value,
+		});
+	} else if (output.type === "json" || output.type === "error-json") {
+		// Convert JSON to content (stringify)
+		content.value.push({
+			type: "text",
+			text: JSON.stringify(output.value, null, 2),
+		});
+	}
 
-  // Prepend system status as text part
-  const systemStatusString = buildSystemStatusFromMetadata(systemStatus);
+	// Prepend system status as text part
+	const systemStatusString = buildSystemStatusFromMetadata(systemStatus);
 
-  content.value.unshift({
-      type: 'text',
-      text: systemStatusString,
-  })
-  return content;
+	content.value.unshift({
+		type: "text",
+		text: systemStatusString,
+	});
+	return content;
 }
 
 /**
@@ -383,264 +380,264 @@ function injectSystemStatusToOutput(output: LanguageModelV2ToolResultOutput, sys
  * Converts legacy string content to Array<TextPart | ImagePart | FilePart | ... >
  */
 function normalizeMessage(message: ModelMessage): ModelMessage {
-  const content = message.content;
-  if (typeof content === 'string') {
-    // Legacy string format → convert to TextPart array
-    return {
-      ...message,
-      content: [
-        {
-          type: 'text' as const,
-          text: content,
-        },
-      ],
-    } as ModelMessage;
-  }
+	const content = message.content;
+	if (typeof content === "string") {
+		// Legacy string format → convert to TextPart array
+		return {
+			...message,
+			content: [
+				{
+					type: "text" as const,
+					text: content,
+				},
+			],
+		} as ModelMessage;
+	}
 
-  // Already array format (or other object)
-  return message;
+	// Already array format (or other object)
+	return message;
 }
 
 /**
  * Create AI stream with Sylphx tools pre-configured
  * Uses manual loop to control message history with timestamps
  */
-async function* createAIStream(
-  options: CreateAIStreamOptions
-): AsyncIterable<StreamChunk> {
-  const {
-    systemPrompt = getSystemPrompt(),
-    model,
-    messages: initialMessages,
-    providerInstance,
-    enableTools = true,
-    disableReasoning = false,
-    abortSignal,
-    onStepFinish,
-    onPrepareMessages,
-    onTransformToolResult,
-  } = options;
+async function* createAIStream(options: CreateAIStreamOptions): AsyncIterable<StreamChunk> {
+	const {
+		systemPrompt = getSystemPrompt(),
+		model,
+		messages: initialMessages,
+		providerInstance,
+		enableTools = true,
+		disableReasoning = false,
+		abortSignal,
+		onStepFinish,
+		onPrepareMessages,
+		onTransformToolResult,
+	} = options;
 
-  // Normalize all messages to array format
-  let messageHistory = initialMessages.map(normalizeMessage);
+	// Normalize all messages to array format
+	let messageHistory = initialMessages.map(normalizeMessage);
 
-  let stepNumber = 0;
-  const MAX_STEPS = 1000;
+	let stepNumber = 0;
+	const MAX_STEPS = 1000;
 
-  while (stepNumber < MAX_STEPS) {
-    // Emit step-start event
-    yield {
-      type: 'step-start' as any,
-      stepNumber,
-    };
+	while (stepNumber < MAX_STEPS) {
+		// Emit step-start event
+		yield {
+			type: "step-start" as any,
+			stepNumber,
+		};
 
-    // Prepare messages for this step (caller can inject context)
-    const preparedMessages = onPrepareMessages
-      ? await onPrepareMessages(messageHistory, stepNumber)
-      : messageHistory;
+		// Prepare messages for this step (caller can inject context)
+		const preparedMessages = onPrepareMessages
+			? await onPrepareMessages(messageHistory, stepNumber)
+			: messageHistory;
 
-    // Build provider-specific options (if provider instance provided)
-    let providerOptions: Record<string, Record<string, unknown>> | undefined;
-    if (providerInstance && (disableReasoning)) {
-      // Provider translates generic options to provider-specific format
-      const streamingOptions = { disableReasoning };
-      const providerSpecificOptions = providerInstance.buildProviderOptions?.(streamingOptions);
+		// Build provider-specific options (if provider instance provided)
+		let providerOptions: Record<string, Record<string, unknown>> | undefined;
+		if (providerInstance && disableReasoning) {
+			// Provider translates generic options to provider-specific format
+			const streamingOptions = { disableReasoning };
+			const providerSpecificOptions = providerInstance.buildProviderOptions?.(streamingOptions);
 
-      if (providerSpecificOptions) {
-        // Wrap in provider ID key for AI SDK's providerOptions format
-        providerOptions = {
-          [providerInstance.id]: providerSpecificOptions
-        };
-      }
-    }
+			if (providerSpecificOptions) {
+				// Wrap in provider ID key for AI SDK's providerOptions format
+				providerOptions = {
+					[providerInstance.id]: providerSpecificOptions,
+				};
+			}
+		}
 
-    // Get tools dynamically to avoid circular dependency during module initialization
-    const tools = enableTools ? await (async () => {
-      const { getAISDKTools } = await import('../tools/index.js');
-      return getAISDKTools({ interactive: hasUserInputHandler() });
-    })() : undefined;
+		// Get tools dynamically to avoid circular dependency during module initialization
+		const tools = enableTools
+			? await (async () => {
+					const { getAISDKTools } = await import("../tools/index.js");
+					return getAISDKTools({ interactive: hasUserInputHandler() });
+				})()
+			: undefined;
 
-    // Call AI SDK with single step
-    const { fullStream, response, finishReason, usage, content } = streamText({
-      model,
-      messages: preparedMessages,
-      system: systemPrompt,
-      // Only provide tools if enabled (saves tokens and improves performance for simple tasks)
-      ...(tools ? { tools } : {}),
-      // Only pass abortSignal if provided (exactOptionalPropertyTypes compliance)
-      ...(abortSignal ? { abortSignal } : {}),
-      // Provider-specific options (reasoning control, etc)
-      ...(providerOptions ? { providerOptions } : {}),
-      // Don't handle errors here - let them propagate to the caller
-      // onError callback is for non-fatal errors, fatal ones should throw
-    });
+		// Call AI SDK with single step
+		const { fullStream, response, finishReason, usage, content } = streamText({
+			model,
+			messages: preparedMessages,
+			system: systemPrompt,
+			// Only provide tools if enabled (saves tokens and improves performance for simple tasks)
+			...(tools ? { tools } : {}),
+			// Only pass abortSignal if provided (exactOptionalPropertyTypes compliance)
+			...(abortSignal ? { abortSignal } : {}),
+			// Provider-specific options (reasoning control, etc)
+			...(providerOptions ? { providerOptions } : {}),
+			// Don't handle errors here - let them propagate to the caller
+			// onError callback is for non-fatal errors, fatal ones should throw
+		});
 
-    // Stream all chunks to user
-    for await (const chunk of fullStream) {
-      switch (chunk.type) {
-        case 'text-start':
-          yield { type: 'text-start' };
-          break;
+		// Stream all chunks to user
+		for await (const chunk of fullStream) {
+			switch (chunk.type) {
+				case "text-start":
+					yield { type: "text-start" };
+					break;
 
-        case 'text-delta':
-          yield { type: 'text-delta', textDelta: chunk.text };
-          break;
+				case "text-delta":
+					yield { type: "text-delta", textDelta: chunk.text };
+					break;
 
-        case 'text-end':
-          yield { type: 'text-end' };
-          break;
+				case "text-end":
+					yield { type: "text-end" };
+					break;
 
-        case 'reasoning-start':
-          yield { type: 'reasoning-start' };
-          break;
+				case "reasoning-start":
+					yield { type: "reasoning-start" };
+					break;
 
-        case 'reasoning-delta':
-          yield { type: 'reasoning-delta', textDelta: chunk.text };
-          break;
+				case "reasoning-delta":
+					yield { type: "reasoning-delta", textDelta: chunk.text };
+					break;
 
-        case 'reasoning-end':
-          yield { type: 'reasoning-end' };
-          break;
+				case "reasoning-end":
+					yield { type: "reasoning-end" };
+					break;
 
-        case 'tool-call':
-          yield {
-            type: 'tool-call',
-            toolCallId: chunk.toolCallId,
-            toolName: chunk.toolName,
-            args: chunk.input,
-          };
-          break;
+				case "tool-call":
+					yield {
+						type: "tool-call",
+						toolCallId: chunk.toolCallId,
+						toolName: chunk.toolName,
+						args: chunk.input,
+					};
+					break;
 
-        case 'tool-input-start':
-          yield {
-            type: 'tool-input-start',
-            toolCallId: chunk.id,
-            toolName: chunk.toolName,
-          };
-          break;
+				case "tool-input-start":
+					yield {
+						type: "tool-input-start",
+						toolCallId: chunk.id,
+						toolName: chunk.toolName,
+					};
+					break;
 
-        case 'tool-input-delta':
-          yield {
-            type: 'tool-input-delta',
-            toolCallId: chunk.id,
-            argsTextDelta: chunk.delta,
-          };
-          break;
+				case "tool-input-delta":
+					yield {
+						type: "tool-input-delta",
+						toolCallId: chunk.id,
+						argsTextDelta: chunk.delta,
+					};
+					break;
 
-        case 'tool-input-end':
-          yield {
-            type: 'tool-input-end',
-            toolCallId: chunk.id,
-          };
-          break;
+				case "tool-input-end":
+					yield {
+						type: "tool-input-end",
+						toolCallId: chunk.id,
+					};
+					break;
 
-        case 'tool-result':
-          yield {
-            type: 'tool-result',
-            toolCallId: chunk.toolCallId,
-            toolName: chunk.toolName,
-            result: chunk.output,
-          };
-          break;
+				case "tool-result":
+					yield {
+						type: "tool-result",
+						toolCallId: chunk.toolCallId,
+						toolName: chunk.toolName,
+						result: chunk.output,
+					};
+					break;
 
-        case 'finish':
-          yield {
-            type: 'finish',
-            finishReason: chunk.finishReason,
-            usage: {
-              promptTokens: chunk.totalUsage.inputTokens ?? 0,
-              completionTokens: chunk.totalUsage.outputTokens ?? 0,
-              totalTokens: chunk.totalUsage.totalTokens ?? 0,
-            },
-          };
-          break;
+				case "finish":
+					yield {
+						type: "finish",
+						finishReason: chunk.finishReason,
+						usage: {
+							promptTokens: chunk.totalUsage.inputTokens ?? 0,
+							completionTokens: chunk.totalUsage.outputTokens ?? 0,
+							totalTokens: chunk.totalUsage.totalTokens ?? 0,
+						},
+					};
+					break;
 
-        case 'error':
-          yield {
-            type: 'error',
-            error: chunk.error instanceof Error ? chunk.error.message : String(chunk.error),
-          };
-          break;
+				case "error":
+					yield {
+						type: "error",
+						error: chunk.error instanceof Error ? chunk.error.message : String(chunk.error),
+					};
+					break;
 
-        case 'tool-error':
-          yield {
-            type: 'tool-error',
-            toolCallId: chunk.toolCallId,
-            toolName: chunk.toolName,
-            error: chunk.error instanceof Error ? chunk.error.message : String(chunk.error),
-          };
-          break;
+				case "tool-error":
+					yield {
+						type: "tool-error",
+						toolCallId: chunk.toolCallId,
+						toolName: chunk.toolName,
+						error: chunk.error instanceof Error ? chunk.error.message : String(chunk.error),
+					};
+					break;
 
-        case 'file':
-          // File/image generated by model
-          yield {
-            type: 'file',
-            mediaType: chunk.file.mediaType,
-            base64: chunk.file.base64,
-          };
-          break;
+				case "file":
+					// File/image generated by model
+					yield {
+						type: "file",
+						mediaType: chunk.file.mediaType,
+						base64: chunk.file.base64,
+					};
+					break;
 
-        case 'abort':
-          yield {
-            type: 'abort',
-          };
-          break;
+				case "abort":
+					yield {
+						type: "abort",
+					};
+					break;
 
-        default:
-          break;
-      }
-    }
+				default:
+					break;
+			}
+		}
 
-    // Call onStepFinish callback if provided
-    if (onStepFinish) {
-      const stepInfo: StepInfo = {
-        finishReason: await finishReason,
-        usage: {
-          promptTokens: (await usage).inputTokens ?? 0,
-          completionTokens: (await usage).outputTokens ?? 0,
-          totalTokens: (await usage).totalTokens ?? 0,
-        },
-        content: await content,
-      };
-      onStepFinish(stepInfo);
-    }
+		// Call onStepFinish callback if provided
+		if (onStepFinish) {
+			const stepInfo: StepInfo = {
+				finishReason: await finishReason,
+				usage: {
+					promptTokens: (await usage).inputTokens ?? 0,
+					completionTokens: (await usage).outputTokens ?? 0,
+					totalTokens: (await usage).totalTokens ?? 0,
+				},
+				content: await content,
+			};
+			onStepFinish(stepInfo);
+		}
 
-    // Save LLM response messages to history
-    const responseMessages = (await response).messages;
+		// Save LLM response messages to history
+		const responseMessages = (await response).messages;
 
-    // Push all messages to history (no transformation needed)
-    for (const msg of responseMessages) {
-      messageHistory.push(msg);
-    }
+		// Push all messages to history (no transformation needed)
+		for (const msg of responseMessages) {
+			messageHistory.push(msg);
+		}
 
-    const currentFinishReason = await finishReason;
+		const currentFinishReason = await finishReason;
 
-    // Emit step-end event with response messages
-    // These messages contain tool results in AI SDK's wrapped format
-    yield {
-      type: 'step-end' as any,
-      stepNumber,
-      finishReason: currentFinishReason,
-      responseMessages,  // Include AI SDK's processed messages
-    };
+		// Emit step-end event with response messages
+		// These messages contain tool results in AI SDK's wrapped format
+		yield {
+			type: "step-end" as any,
+			stepNumber,
+			finishReason: currentFinishReason,
+			responseMessages, // Include AI SDK's processed messages
+		};
 
-    // Check if we should continue the loop
-    if (currentFinishReason !== 'tool-calls') {
-      // No more tool calls, exit loop
-      break;
-    }
+		// Check if we should continue the loop
+		if (currentFinishReason !== "tool-calls") {
+			// No more tool calls, exit loop
+			break;
+		}
 
-    stepNumber++;
-  }
+		stepNumber++;
+	}
 }
 
 // Export value functions and constants
 // NOTE: index.ts uses wildcard re-export for this file to avoid explicit duplicate listings
 export {
-  getSystemPrompt,
-  SYSTEM_PROMPT,
-  getSystemStatus,
-  buildSystemStatusFromMetadata,
-  normalizeMessage,
-  createAIStream,
+	getSystemPrompt,
+	SYSTEM_PROMPT,
+	getSystemStatus,
+	buildSystemStatusFromMetadata,
+	normalizeMessage,
+	createAIStream,
 };

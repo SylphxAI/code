@@ -11,43 +11,43 @@
  */
 
 export class CLIError extends Error {
-  constructor(
-    message: string,
-    public code?: string
-  ) {
-    super(message);
-    this.name = 'CLIError';
-  }
+	constructor(
+		message: string,
+		public code?: string,
+	) {
+		super(message);
+		this.name = "CLIError";
+	}
 }
 
 /**
  * @deprecated Use exitWithError from core/functional/error-handler.ts
  */
 export function handleError(error: unknown, context?: string): never {
-  const message = error instanceof Error ? error.message : String(error);
-  const contextMsg = context ? ` (${context})` : '';
+	const message = error instanceof Error ? error.message : String(error);
+	const contextMsg = context ? ` (${context})` : "";
 
-  console.error(`✗ Error${contextMsg}: ${message}`);
+	console.error(`✗ Error${contextMsg}: ${message}`);
 
-  if (error instanceof CLIError && error.code) {
-    console.error(`   Code: ${error.code}`);
-  }
+	if (error instanceof CLIError && error.code) {
+		console.error(`   Code: ${error.code}`);
+	}
 
-  process.exit(1);
+	process.exit(1);
 }
 
 /**
  * @deprecated Use createAsyncHandler from core/functional/error-handler.ts
  */
 export function createAsyncHandler<T extends Record<string, any>>(
-  handler: (options: T) => Promise<void>,
-  context?: string
+	handler: (options: T) => Promise<void>,
+	context?: string,
 ) {
-  return async (options: T): Promise<void> => {
-    try {
-      await handler(options);
-    } catch (error) {
-      handleError(error, context);
-    }
-  };
+	return async (options: T): Promise<void> => {
+		try {
+			await handler(options);
+		} catch (error) {
+			handleError(error, context);
+		}
+	};
 }

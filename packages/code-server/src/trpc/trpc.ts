@@ -4,21 +4,21 @@
  * SECURITY: Implements OWASP API2 (Broken Authentication), API4 (Rate Limiting), and API5 (Function Level Authorization)
  */
 
-import { initTRPC, TRPCError } from '@trpc/server';
-import superjson from 'superjson';
-import type { Context, UserRole } from './context.js';
+import { initTRPC, TRPCError } from "@trpc/server";
+import superjson from "superjson";
+import type { Context, UserRole } from "./context.js";
 import {
-  strictRateLimiter,
-  moderateRateLimiter,
-  lenientRateLimiter,
-  streamingRateLimiter,
-  type RateLimiter,
-} from '../services/rate-limiter.service.js';
+	strictRateLimiter,
+	moderateRateLimiter,
+	lenientRateLimiter,
+	streamingRateLimiter,
+	type RateLimiter,
+} from "../services/rate-limiter.service.js";
 
 // Initialize tRPC with context, SSE support, and superjson transformer
 const t = initTRPC.context<Context>().create({
-  sse: true, // Enable Server-Sent Events for subscriptions over HTTP
-  transformer: superjson, // Support Set, Map, Date, etc.
+	sse: true, // Enable Server-Sent Events for subscriptions over HTTP
+	transformer: superjson, // Support Set, Map, Date, etc.
 });
 
 /**
@@ -37,25 +37,25 @@ export const publicProcedure = t.procedure;
  * Usage: Set SYLPHX_API_KEY environment variable for HTTP authentication
  */
 const isAuthenticated = t.middleware(async ({ ctx, next }) => {
-  if (!ctx.auth.isAuthenticated) {
-    throw new TRPCError({
-      code: 'UNAUTHORIZED',
-      message: 'Authentication required. Provide API key via Authorization header (Bearer <key>)',
-    });
-  }
+	if (!ctx.auth.isAuthenticated) {
+		throw new TRPCError({
+			code: "UNAUTHORIZED",
+			message: "Authentication required. Provide API key via Authorization header (Bearer <key>)",
+		});
+	}
 
-  return next({
-    ctx: {
-      ...ctx,
-      // Override auth to be definitely authenticated
-      auth: {
-        ...ctx.auth,
-        isAuthenticated: true as const,
-        userId: ctx.auth.userId!,
-        role: ctx.auth.role,
-      },
-    },
-  });
+	return next({
+		ctx: {
+			...ctx,
+			// Override auth to be definitely authenticated
+			auth: {
+				...ctx.auth,
+				isAuthenticated: true as const,
+				userId: ctx.auth.userId!,
+				role: ctx.auth.role,
+			},
+		},
+	});
 });
 
 /**
@@ -68,17 +68,17 @@ const isAuthenticated = t.middleware(async ({ ctx, next }) => {
  * - guest: Can only access public functions (HTTP without API key)
  */
 function requireRole(...allowedRoles: UserRole[]) {
-  return t.middleware(async ({ ctx, next }) => {
-    // Check if user's role is in allowed roles
-    if (!allowedRoles.includes(ctx.auth.role)) {
-      throw new TRPCError({
-        code: 'FORBIDDEN',
-        message: `Access denied. Required role: ${allowedRoles.join(' or ')}. Your role: ${ctx.auth.role}`,
-      });
-    }
+	return t.middleware(async ({ ctx, next }) => {
+		// Check if user's role is in allowed roles
+		if (!allowedRoles.includes(ctx.auth.role)) {
+			throw new TRPCError({
+				code: "FORBIDDEN",
+				message: `Access denied. Required role: ${allowedRoles.join(" or ")}. Your role: ${ctx.auth.role}`,
+			});
+		}
 
-    return next();
-  });
+		return next();
+	});
 }
 
 /**
@@ -95,14 +95,14 @@ export const protectedProcedure = t.procedure.use(isAuthenticated);
  * Requires admin role (in-process CLI only)
  * Use for system management operations
  */
-export const adminProcedure = protectedProcedure.use(requireRole('admin'));
+export const adminProcedure = protectedProcedure.use(requireRole("admin"));
 
 /**
  * SECURITY: User procedure (OWASP API5)
  * Requires user or admin role (authenticated access)
  * Use for standard read/write operations
  */
-export const userProcedure = protectedProcedure.use(requireRole('admin', 'user'));
+export const userProcedure = protectedProcedure.use(requireRole("admin", "user"));
 
 /**
  * SECURITY: Rate limiting middleware factory (OWASP API4)
@@ -114,34 +114,34 @@ export const userProcedure = protectedProcedure.use(requireRole('admin', 'user')
  * Returns 429 Too Many Requests when limit exceeded
  */
 function createRateLimitMiddleware(limiter: RateLimiter, endpointName: string) {
-  return t.middleware(async ({ ctx, next }) => {
-    // Skip rate limiting for in-process calls (trusted)
-    if (ctx.auth.source === 'in-process') {
-      return next();
-    }
+	return t.middleware(async ({ ctx, next }) => {
+		// Skip rate limiting for in-process calls (trusted)
+		if (ctx.auth.source === "in-process") {
+			return next();
+		}
 
-    // Rate limit HTTP calls
-    const identifier = ctx.auth.userId || ctx.req?.ip || 'unknown';
-    const result = limiter.check(identifier);
+		// Rate limit HTTP calls
+		const identifier = ctx.auth.userId || ctx.req?.ip || "unknown";
+		const result = limiter.check(identifier);
 
-    if (!result.allowed) {
-      const resetAtSeconds = Math.ceil((result.resetAt - Date.now()) / 1000);
+		if (!result.allowed) {
+			const resetAtSeconds = Math.ceil((result.resetAt - Date.now()) / 1000);
 
-      throw new TRPCError({
-        code: 'TOO_MANY_REQUESTS',
-        message: `Rate limit exceeded for ${endpointName}. Try again in ${resetAtSeconds} seconds.`,
-      });
-    }
+			throw new TRPCError({
+				code: "TOO_MANY_REQUESTS",
+				message: `Rate limit exceeded for ${endpointName}. Try again in ${resetAtSeconds} seconds.`,
+			});
+		}
 
-    // Add rate limit headers to response (for HTTP clients)
-    if (ctx.res) {
-      ctx.res.setHeader('X-RateLimit-Limit', String(limiter['config'].maxRequests));
-      ctx.res.setHeader('X-RateLimit-Remaining', String(result.remaining));
-      ctx.res.setHeader('X-RateLimit-Reset', String(Math.ceil(result.resetAt / 1000)));
-    }
+		// Add rate limit headers to response (for HTTP clients)
+		if (ctx.res) {
+			ctx.res.setHeader("X-RateLimit-Limit", String(limiter["config"].maxRequests));
+			ctx.res.setHeader("X-RateLimit-Remaining", String(result.remaining));
+			ctx.res.setHeader("X-RateLimit-Reset", String(Math.ceil(result.resetAt / 1000)));
+		}
 
-    return next();
-  });
+		return next();
+	});
 }
 
 /**
@@ -150,22 +150,22 @@ function createRateLimitMiddleware(limiter: RateLimiter, endpointName: string) {
 
 // Strict rate limiting: 10 req/min (create, delete operations)
 export const strictProcedure = protectedProcedure.use(
-  createRateLimitMiddleware(strictRateLimiter, 'strict endpoint')
+	createRateLimitMiddleware(strictRateLimiter, "strict endpoint"),
 );
 
 // Moderate rate limiting: 30 req/min (update operations)
 export const moderateProcedure = protectedProcedure.use(
-  createRateLimitMiddleware(moderateRateLimiter, 'moderate endpoint')
+	createRateLimitMiddleware(moderateRateLimiter, "moderate endpoint"),
 );
 
 // Lenient rate limiting: 100 req/min (queries)
 export const lenientProcedure = protectedProcedure.use(
-  createRateLimitMiddleware(lenientRateLimiter, 'lenient endpoint')
+	createRateLimitMiddleware(lenientRateLimiter, "lenient endpoint"),
 );
 
 // Streaming rate limiting: 5 streams/min (subscriptions)
 export const streamingProcedure = protectedProcedure.use(
-  createRateLimitMiddleware(streamingRateLimiter, 'streaming endpoint')
+	createRateLimitMiddleware(streamingRateLimiter, "streaming endpoint"),
 );
 
 /**
@@ -175,24 +175,24 @@ export const streamingProcedure = protectedProcedure.use(
 
 // Admin procedures with rate limiting
 export const adminStrictProcedure = adminProcedure.use(
-  createRateLimitMiddleware(strictRateLimiter, 'admin strict endpoint')
+	createRateLimitMiddleware(strictRateLimiter, "admin strict endpoint"),
 );
 
 export const adminModerateProcedure = adminProcedure.use(
-  createRateLimitMiddleware(moderateRateLimiter, 'admin moderate endpoint')
+	createRateLimitMiddleware(moderateRateLimiter, "admin moderate endpoint"),
 );
 
 // User procedures with rate limiting (most common)
 export const userStrictProcedure = userProcedure.use(
-  createRateLimitMiddleware(strictRateLimiter, 'user strict endpoint')
+	createRateLimitMiddleware(strictRateLimiter, "user strict endpoint"),
 );
 
 export const userModerateProcedure = userProcedure.use(
-  createRateLimitMiddleware(moderateRateLimiter, 'user moderate endpoint')
+	createRateLimitMiddleware(moderateRateLimiter, "user moderate endpoint"),
 );
 
 export const userStreamingProcedure = userProcedure.use(
-  createRateLimitMiddleware(streamingRateLimiter, 'user streaming endpoint')
+	createRateLimitMiddleware(streamingRateLimiter, "user streaming endpoint"),
 );
 
 /**

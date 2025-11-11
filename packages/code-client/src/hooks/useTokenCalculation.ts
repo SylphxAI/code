@@ -6,23 +6,23 @@
  * No need to call tokenizer - server already calculated tokens during streaming
  */
 
-import { useMemo } from 'react';
-import type { Session } from '@sylphx/code-core';
+import { useMemo } from "react";
+import type { Session } from "@sylphx/code-core";
 
 export function useTokenCalculation(currentSession: Session | null): number {
-  return useMemo(() => {
-    if (!currentSession) {
-      return 0;
-    }
+	return useMemo(() => {
+		if (!currentSession) {
+			return 0;
+		}
 
-    // Sum up totalTokens from all messages that have usage
-    let total = 0;
-    for (const message of currentSession.messages) {
-      if (message.usage) {
-        total += message.usage.totalTokens;
-      }
-    }
+		// Sum up totalTokens from all messages that have usage
+		let total = 0;
+		for (const message of currentSession.messages) {
+			if (message.usage) {
+				total += message.usage.totalTokens;
+			}
+		}
 
-    return total;
-  }, [currentSession?.id, currentSession?.messages.length]);
+		return total;
+	}, [currentSession?.id, currentSession?.messages.length]);
 }

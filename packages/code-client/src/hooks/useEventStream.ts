@@ -15,74 +15,88 @@
  * - Automatically resubscribes when session changes
  */
 
-import { useEffect, useRef } from 'react';
-import { useCurrentSessionId, $currentSession } from '../signals/domain/session/index.js';
-import { setError } from '../signals/domain/ui/index.js';
-import { getTRPCClient } from '../trpc-provider.js';
-import { get as getSignal, set as setSignal } from '@sylphx/zen';
+import { useEffect, useRef } from "react";
+import { useCurrentSessionId, $currentSession } from "../signals/domain/session/index.js";
+import { setError } from "../signals/domain/ui/index.js";
+import { getTRPCClient } from "../trpc-provider.js";
+import { get as getSignal, set as setSignal } from "@sylphx/zen";
 
 export interface EventStreamCallbacks {
-  // Session events
-  onSessionCreated?: (sessionId: string, provider: string, model: string) => void;
-  onSessionUpdated?: (sessionId: string) => void;
-  onSessionTitleStart?: (sessionId: string) => void;
-  onSessionTitleDelta?: (sessionId: string, text: string) => void;
-  onSessionTitleComplete?: (sessionId: string, title: string) => void;
+	// Session events
+	onSessionCreated?: (sessionId: string, provider: string, model: string) => void;
+	onSessionUpdated?: (sessionId: string) => void;
+	onSessionTitleStart?: (sessionId: string) => void;
+	onSessionTitleDelta?: (sessionId: string, text: string) => void;
+	onSessionTitleComplete?: (sessionId: string, title: string) => void;
 
-  // Message events
-  onAssistantMessageCreated?: (messageId: string) => void;
-  onSystemMessageCreated?: (messageId: string, content: string) => void;
-  onMessageStatusUpdated?: (messageId: string, status: 'active' | 'completed' | 'error' | 'abort', usage?: any, finishReason?: string) => void;
+	// Message events
+	onAssistantMessageCreated?: (messageId: string) => void;
+	onSystemMessageCreated?: (messageId: string, content: string) => void;
+	onMessageStatusUpdated?: (
+		messageId: string,
+		status: "active" | "completed" | "error" | "abort",
+		usage?: any,
+		finishReason?: string,
+	) => void;
 
-  // Step events
-  onStepStart?: (stepId: string, stepIndex: number, metadata: any, todoSnapshot: any[], systemMessages?: any[]) => void;
-  onStepComplete?: (stepId: string, usage: any, duration: number, finishReason: string) => void;
+	// Step events
+	onStepStart?: (
+		stepId: string,
+		stepIndex: number,
+		metadata: any,
+		todoSnapshot: any[],
+		systemMessages?: any[],
+	) => void;
+	onStepComplete?: (stepId: string, usage: any, duration: number, finishReason: string) => void;
 
-  // Text streaming
-  onTextStart?: () => void;
-  onTextDelta?: (text: string) => void;
-  onTextEnd?: () => void;
+	// Text streaming
+	onTextStart?: () => void;
+	onTextDelta?: (text: string) => void;
+	onTextEnd?: () => void;
 
-  // Reasoning streaming
-  onReasoningStart?: () => void;
-  onReasoningDelta?: (text: string) => void;
-  onReasoningEnd?: (duration: number) => void;
+	// Reasoning streaming
+	onReasoningStart?: () => void;
+	onReasoningDelta?: (text: string) => void;
+	onReasoningEnd?: (duration: number) => void;
 
-  // Tool streaming
-  onToolCall?: (toolCallId: string, toolName: string, args: unknown) => void;
-  onToolResult?: (toolCallId: string, toolName: string, result: unknown, duration: number) => void;
-  onToolError?: (toolCallId: string, toolName: string, error: string, duration: number) => void;
+	// Tool streaming
+	onToolCall?: (toolCallId: string, toolName: string, args: unknown) => void;
+	onToolResult?: (toolCallId: string, toolName: string, result: unknown, duration: number) => void;
+	onToolError?: (toolCallId: string, toolName: string, error: string, duration: number) => void;
 
-  // File streaming (images, PDFs, etc.)
-  onFile?: (mediaType: string, base64: string) => void;
+	// File streaming (images, PDFs, etc.)
+	onFile?: (mediaType: string, base64: string) => void;
 
-  // Ask tool
-  onAskQuestion?: (questionId: string, questions: Array<{
-    question: string;
-    header: string;
-    multiSelect: boolean;
-    options: Array<{
-      label: string;
-      description: string;
-    }>;
-  }>) => void;
+	// Ask tool
+	onAskQuestion?: (
+		questionId: string,
+		questions: Array<{
+			question: string;
+			header: string;
+			multiSelect: boolean;
+			options: Array<{
+				label: string;
+				description: string;
+			}>;
+		}>,
+	) => void;
 
-  // Error events
-  onError?: (error: string) => void;
+	// Error events
+	onError?: (error: string) => void;
 }
 
 export interface UseEventStreamOptions {
-  /**
-   * Number of events to replay when subscribing
-   * 0 = no replay, only new events
-   * N = replay last N events + new events
-   */
-  replayLast?: number;
+	/**
+	 * Number of events to replay when subscribing
+	 * 0 = no replay, only new events
+	 * N = replay last N events + new events
+	 */
+	replayLast?: number;
 
-  /**
-   * Event callbacks
-   */
-  callbacks?: EventStreamCallbacks;
+	/**
+	 * Event callbacks
+	 */
+	callbacks?: EventStreamCallbacks;
 }
 
 /**
@@ -90,192 +104,202 @@ export interface UseEventStreamOptions {
  * Automatically handles subscription lifecycle and session switching
  */
 export function useEventStream(options: UseEventStreamOptions = {}) {
-  const { replayLast = 0, callbacks = {} } = options;
-  const currentSessionId = useCurrentSessionId();
+	const { replayLast = 0, callbacks = {} } = options;
+	const currentSessionId = useCurrentSessionId();
 
-  // Ref to track subscription
-  const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+	// Ref to track subscription
+	const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
 
-  /**
-   * CRITICAL: Store callbacks in ref to avoid stale closures
-   *
-   * Problem: If callbacks are in dependency array, useEffect re-runs on every render
-   * (callbacks object is recreated each render). This causes infinite subscription loops.
-   *
-   * Solution: Store callbacks in ref, update ref on each render, use ref in subscription.
-   * This ensures callbacks always reference current state without triggering re-subscription.
-   */
-  const callbacksRef = useRef(callbacks);
-  useEffect(() => {
-    callbacksRef.current = callbacks;
-  }, [callbacks]);
+	/**
+	 * CRITICAL: Store callbacks in ref to avoid stale closures
+	 *
+	 * Problem: If callbacks are in dependency array, useEffect re-runs on every render
+	 * (callbacks object is recreated each render). This causes infinite subscription loops.
+	 *
+	 * Solution: Store callbacks in ref, update ref on each render, use ref in subscription.
+	 * This ensures callbacks always reference current state without triggering re-subscription.
+	 */
+	const callbacksRef = useRef(callbacks);
+	useEffect(() => {
+		callbacksRef.current = callbacks;
+	}, [callbacks]);
 
-  useEffect(() => {
-    // Cleanup previous subscription
-    if (subscriptionRef.current) {
-      subscriptionRef.current.unsubscribe();
-      subscriptionRef.current = null;
-    }
+	useEffect(() => {
+		// Cleanup previous subscription
+		if (subscriptionRef.current) {
+			subscriptionRef.current.unsubscribe();
+			subscriptionRef.current = null;
+		}
 
-    // Skip if no session
-    if (!currentSessionId) {
-      return;
-    }
+		// Skip if no session
+		if (!currentSessionId) {
+			return;
+		}
 
-    // Subscribe to strongly-typed session events
-    const client = getTRPCClient();
+		// Subscribe to strongly-typed session events
+		const client = getTRPCClient();
 
-    const subscription = client.message.subscribe.subscribe(
-      {
-        sessionId: currentSessionId,
-        replayLast,
-      },
-      {
-        onData: (event: any) => {
-          // Event is directly SessionEvent (no need to unwrap payload)
+		const subscription = client.message.subscribe.subscribe(
+			{
+				sessionId: currentSessionId,
+				replayLast,
+			},
+			{
+				onData: (event: any) => {
+					// Event is directly SessionEvent (no need to unwrap payload)
 
-          // Handle all event types
-          // Use callbacksRef.current to access latest callbacks (avoid stale closures)
-          switch (event.type) {
-            case 'session-created':
-              callbacksRef.current.onSessionCreated?.(event.sessionId, event.provider, event.model);
-              break;
+					// Handle all event types
+					// Use callbacksRef.current to access latest callbacks (avoid stale closures)
+					switch (event.type) {
+						case "session-created":
+							callbacksRef.current.onSessionCreated?.(event.sessionId, event.provider, event.model);
+							break;
 
-            case 'session-updated':
-              // Reload session data when updated (e.g., system messages inserted)
-              callbacksRef.current.onSessionUpdated?.(event.sessionId);
-              break;
+						case "session-updated":
+							// Reload session data when updated (e.g., system messages inserted)
+							callbacksRef.current.onSessionUpdated?.(event.sessionId);
+							break;
 
-            case 'session-title-updated-start':
-              callbacksRef.current.onSessionTitleStart?.(event.sessionId);
-              break;
+						case "session-title-updated-start":
+							callbacksRef.current.onSessionTitleStart?.(event.sessionId);
+							break;
 
-            case 'session-title-updated-delta':
-              callbacksRef.current.onSessionTitleDelta?.(event.sessionId, event.text);
-              break;
+						case "session-title-updated-delta":
+							callbacksRef.current.onSessionTitleDelta?.(event.sessionId, event.text);
+							break;
 
-            case 'session-title-updated-end':
-              // Update session title in local state ONLY (passive reaction to server event)
-              // DO NOT call updateSessionTitle() - that would trigger another API call → event loop!
-              // Just update local signals directly
-              if (event.sessionId === currentSessionId) {
-                const currentSession = getSignal($currentSession);
-                if (currentSession && currentSession.id === event.sessionId) {
-                  setSignal($currentSession, {
-                    ...currentSession,
-                    title: event.title,
-                  });
-                }
-              }
-              callbacksRef.current.onSessionTitleComplete?.(event.sessionId, event.title);
-              break;
+						case "session-title-updated-end":
+							// Update session title in local state ONLY (passive reaction to server event)
+							// DO NOT call updateSessionTitle() - that would trigger another API call → event loop!
+							// Just update local signals directly
+							if (event.sessionId === currentSessionId) {
+								const currentSession = getSignal($currentSession);
+								if (currentSession && currentSession.id === event.sessionId) {
+									setSignal($currentSession, {
+										...currentSession,
+										title: event.title,
+									});
+								}
+							}
+							callbacksRef.current.onSessionTitleComplete?.(event.sessionId, event.title);
+							break;
 
-            case 'assistant-message-created':
-              callbacksRef.current.onAssistantMessageCreated?.(event.messageId);
-              break;
+						case "assistant-message-created":
+							callbacksRef.current.onAssistantMessageCreated?.(event.messageId);
+							break;
 
-            case 'system-message-created':
-              callbacksRef.current.onSystemMessageCreated?.(event.messageId, event.content);
-              break;
+						case "system-message-created":
+							callbacksRef.current.onSystemMessageCreated?.(event.messageId, event.content);
+							break;
 
-            case 'message-status-updated':
-              callbacksRef.current.onMessageStatusUpdated?.(
-                event.messageId,
-                event.status,
-                event.usage,
-                event.finishReason
-              );
-              break;
+						case "message-status-updated":
+							callbacksRef.current.onMessageStatusUpdated?.(
+								event.messageId,
+								event.status,
+								event.usage,
+								event.finishReason,
+							);
+							break;
 
-            case 'step-start':
-              callbacksRef.current.onStepStart?.(
-                event.stepId,
-                event.stepIndex,
-                event.metadata,
-                event.todoSnapshot,
-                event.systemMessages
-              );
-              break;
+						case "step-start":
+							callbacksRef.current.onStepStart?.(
+								event.stepId,
+								event.stepIndex,
+								event.metadata,
+								event.todoSnapshot,
+								event.systemMessages,
+							);
+							break;
 
-            case 'step-complete':
-              callbacksRef.current.onStepComplete?.(
-                event.stepId,
-                event.usage,
-                event.duration,
-                event.finishReason
-              );
-              break;
+						case "step-complete":
+							callbacksRef.current.onStepComplete?.(
+								event.stepId,
+								event.usage,
+								event.duration,
+								event.finishReason,
+							);
+							break;
 
-            case 'text-start':
-              callbacksRef.current.onTextStart?.();
-              break;
+						case "text-start":
+							callbacksRef.current.onTextStart?.();
+							break;
 
-            case 'text-delta':
-              callbacksRef.current.onTextDelta?.(event.text);
-              break;
+						case "text-delta":
+							callbacksRef.current.onTextDelta?.(event.text);
+							break;
 
-            case 'text-end':
-              callbacksRef.current.onTextEnd?.();
-              break;
+						case "text-end":
+							callbacksRef.current.onTextEnd?.();
+							break;
 
-            case 'reasoning-start':
-              callbacksRef.current.onReasoningStart?.();
-              break;
+						case "reasoning-start":
+							callbacksRef.current.onReasoningStart?.();
+							break;
 
-            case 'reasoning-delta':
-              callbacksRef.current.onReasoningDelta?.(event.text);
-              break;
+						case "reasoning-delta":
+							callbacksRef.current.onReasoningDelta?.(event.text);
+							break;
 
-            case 'reasoning-end':
-              callbacksRef.current.onReasoningEnd?.(event.duration);
-              break;
+						case "reasoning-end":
+							callbacksRef.current.onReasoningEnd?.(event.duration);
+							break;
 
-            case 'tool-call':
-              callbacksRef.current.onToolCall?.(event.toolCallId, event.toolName, event.args);
-              break;
+						case "tool-call":
+							callbacksRef.current.onToolCall?.(event.toolCallId, event.toolName, event.args);
+							break;
 
-            case 'tool-result':
-              callbacksRef.current.onToolResult?.(event.toolCallId, event.toolName, event.result, event.duration);
-              break;
+						case "tool-result":
+							callbacksRef.current.onToolResult?.(
+								event.toolCallId,
+								event.toolName,
+								event.result,
+								event.duration,
+							);
+							break;
 
-            case 'tool-error':
-              callbacksRef.current.onToolError?.(event.toolCallId, event.toolName, event.error, event.duration);
-              break;
+						case "tool-error":
+							callbacksRef.current.onToolError?.(
+								event.toolCallId,
+								event.toolName,
+								event.error,
+								event.duration,
+							);
+							break;
 
-            case 'file':
-              callbacksRef.current.onFile?.(event.mediaType, event.base64);
-              break;
+						case "file":
+							callbacksRef.current.onFile?.(event.mediaType, event.base64);
+							break;
 
-            case 'ask-question':
-              callbacksRef.current.onAskQuestion?.(event.questionId, event.questions);
-              break;
+						case "ask-question":
+							callbacksRef.current.onAskQuestion?.(event.questionId, event.questions);
+							break;
 
-            case 'error':
-              callbacksRef.current.onError?.(event.error);
-              setError(event.error);
-              break;
-          }
-        },
-        onError: (error: any) => {
-          const errorMessage = error instanceof Error ? error.message : 'Event stream error';
-          callbacksRef.current.onError?.(errorMessage);
-          setError(errorMessage);
-        },
-        onComplete: () => {
-          // Stream completed
-        },
-      }
-    );
+						case "error":
+							callbacksRef.current.onError?.(event.error);
+							setError(event.error);
+							break;
+					}
+				},
+				onError: (error: any) => {
+					const errorMessage = error instanceof Error ? error.message : "Event stream error";
+					callbacksRef.current.onError?.(errorMessage);
+					setError(errorMessage);
+				},
+				onComplete: () => {
+					// Stream completed
+				},
+			},
+		);
 
-    subscriptionRef.current = subscription;
+		subscriptionRef.current = subscription;
 
-    // Cleanup on unmount or session change
-    return () => {
-      subscription.unsubscribe();
-      subscriptionRef.current = null;
-    };
-  }, [currentSessionId, replayLast]);
-  // NOTE: callbacks NOT in dependency array to avoid infinite loop
-  // callbacks object is recreated on every render, would trigger constant resubscription
-  // Only resubscribe when sessionId or replayLast changes
+		// Cleanup on unmount or session change
+		return () => {
+			subscription.unsubscribe();
+			subscriptionRef.current = null;
+		};
+	}, [currentSessionId, replayLast]);
+	// NOTE: callbacks NOT in dependency array to avoid infinite loop
+	// callbacks object is recreated on every render, would trigger constant resubscription
+	// Only resubscribe when sessionId or replayLast changes
 }

@@ -3,11 +3,11 @@
  * Centralized provider/model resolution logic
  */
 
-import type { AIConfig, ProviderId } from '@sylphx/code-core';
+import type { AIConfig, ProviderId } from "@sylphx/code-core";
 
 export interface ProviderModelResult {
-  provider: ProviderId;
-  model: string;
+	provider: ProviderId;
+	model: string;
 }
 
 /**
@@ -23,9 +23,9 @@ export interface ProviderModelResult {
  * @returns Provider ID and model name
  */
 export function resolveProviderAndModel(aiConfig: AIConfig | null): ProviderModelResult {
-  const provider = (aiConfig?.defaultProvider || 'openrouter') as ProviderId;
-  const providerConfig = aiConfig?.providers?.[provider];
-  const model = providerConfig?.defaultModel || 'anthropic/claude-3.5-sonnet';
+	const provider = (aiConfig?.defaultProvider || "openrouter") as ProviderId;
+	const providerConfig = aiConfig?.providers?.[provider];
+	const model = providerConfig?.defaultModel || "anthropic/claude-3.5-sonnet";
 
-  return { provider, model };
+	return { provider, model };
 }

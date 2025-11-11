@@ -6,4 +6,4 @@
 /**
  * Default agent ID (must match an agent in assets/agents/)
  */
-export const DEFAULT_AGENT_ID = 'coder';
+export const DEFAULT_AGENT_ID = "coder";

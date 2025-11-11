@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import type { Command, CommandContext, SelectOption } from '../../../commands/types.js';
+import { useEffect } from "react";
+import type { Command, CommandContext, SelectOption } from "../../../commands/types.js";
 
 /**
  * Hook to manage loading of command argument options with caching
@@ -22,71 +22,71 @@ import type { Command, CommandContext, SelectOption } from '../../../commands/ty
  * @param commands - List of available commands
  */
 export function useCommandOptionLoader(
-  input: string,
-  currentlyLoading: string | null,
-  cachedOptions: Map<string, SelectOption[]>,
-  setCachedOptions: React.Dispatch<React.SetStateAction<Map<string, SelectOption[]>>>,
-  setCurrentlyLoading: React.Dispatch<React.SetStateAction<string | null>>,
-  setLoadError: React.Dispatch<React.SetStateAction<string | null>>,
-  createCommandContext: (args: string[]) => CommandContext,
-  commands: Command[],
-  addLog: (message: string) => void
+	input: string,
+	currentlyLoading: string | null,
+	cachedOptions: Map<string, SelectOption[]>,
+	setCachedOptions: React.Dispatch<React.SetStateAction<Map<string, SelectOption[]>>>,
+	setCurrentlyLoading: React.Dispatch<React.SetStateAction<string | null>>,
+	setLoadError: React.Dispatch<React.SetStateAction<string | null>>,
+	createCommandContext: (args: string[]) => CommandContext,
+	commands: Command[],
+	addLog: (message: string) => void,
 ) {
-  useEffect(() => {
-    if (!input.startsWith('/')) return;
+	useEffect(() => {
+		if (!input.startsWith("/")) return;
 
-    const parts = input.split(' ');
-    const commandName = parts[0];
-    const matchedCommand = commands.find((cmd) => cmd.label === commandName);
+		const parts = input.split(" ");
+		const commandName = parts[0];
+		const matchedCommand = commands.find((cmd) => cmd.label === commandName);
 
-    // If command has args with loadOptions and user is typing args
-    if (matchedCommand && matchedCommand.args && parts.length > 1) {
-      // Determine which arg we're currently on
-      const args = parts.slice(1).filter((p) => p.trim() !== '');
-      const lastPart = parts[parts.length - 1];
-      const isTypingNewArg = lastPart === ''; // User just typed space
+		// If command has args with loadOptions and user is typing args
+		if (matchedCommand && matchedCommand.args && parts.length > 1) {
+			// Determine which arg we're currently on
+			const args = parts.slice(1).filter((p) => p.trim() !== "");
+			const lastPart = parts[parts.length - 1];
+			const isTypingNewArg = lastPart === ""; // User just typed space
 
-      // If typing new arg, load next arg's options
-      // If typing existing arg, load current arg's options
-      const currentArgIndex = isTypingNewArg ? args.length : Math.max(0, args.length - 1);
-      const arg = matchedCommand.args[currentArgIndex];
+			// If typing new arg, load next arg's options
+			// If typing existing arg, load current arg's options
+			const currentArgIndex = isTypingNewArg ? args.length : Math.max(0, args.length - 1);
+			const arg = matchedCommand.args[currentArgIndex];
 
-      if (arg && arg.loadOptions) {
-        // Include previous args in cache key to invalidate when args change
-        const cacheKey = `${matchedCommand.id}:${arg.name}:${args.join(',')}`;
+			if (arg && arg.loadOptions) {
+				// Include previous args in cache key to invalidate when args change
+				const cacheKey = `${matchedCommand.id}:${arg.name}:${args.join(",")}`;
 
-        // Trigger load if not cached and not loading
-        if (!cachedOptions.has(cacheKey) && currentlyLoading !== cacheKey) {
-          setCurrentlyLoading(cacheKey);
+				// Trigger load if not cached and not loading
+				if (!cachedOptions.has(cacheKey) && currentlyLoading !== cacheKey) {
+					setCurrentlyLoading(cacheKey);
 
-          // Create context for loadOptions
-          const context = createCommandContext([]);
+					// Create context for loadOptions
+					const context = createCommandContext([]);
 
-          arg
-            .loadOptions(args, context)
-            .then((options) => {
-              // Use functional update to avoid dependency on cachedOptions
-              setCachedOptions((prev) => new Map(prev).set(cacheKey, options));
-              setCurrentlyLoading(null);
-            })
-            .catch((error) => {
-              const errorMsg = error instanceof Error ? error.message : String(error);
-              addLog(`Error loading ${cacheKey}: ${errorMsg}`);
-              setLoadError(errorMsg);
-              setCurrentlyLoading(null);
-            });
-        }
-      }
-    }
-  }, [
-    input,
-    currentlyLoading,
-    cachedOptions,
-    setCachedOptions,
-    setCurrentlyLoading,
-    setLoadError,
-    createCommandContext,
-    commands,
-    addLog,
-  ]); // cachedOptions removed from deps to prevent loop, commands are stable
+					arg
+						.loadOptions(args, context)
+						.then((options) => {
+							// Use functional update to avoid dependency on cachedOptions
+							setCachedOptions((prev) => new Map(prev).set(cacheKey, options));
+							setCurrentlyLoading(null);
+						})
+						.catch((error) => {
+							const errorMsg = error instanceof Error ? error.message : String(error);
+							addLog(`Error loading ${cacheKey}: ${errorMsg}`);
+							setLoadError(errorMsg);
+							setCurrentlyLoading(null);
+						});
+				}
+			}
+		}
+	}, [
+		input,
+		currentlyLoading,
+		cachedOptions,
+		setCachedOptions,
+		setCurrentlyLoading,
+		setLoadError,
+		createCommandContext,
+		commands,
+		addLog,
+	]); // cachedOptions removed from deps to prevent loop, commands are stable
 }

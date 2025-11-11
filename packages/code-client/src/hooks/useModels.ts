@@ -3,15 +3,15 @@
  * Fetch available models for a provider
  */
 
-import { useEffect, useState } from 'react';
-import { useTRPCClient } from '../trpc-provider.js';
-import type { ModelCapabilities } from '@sylphx/code-core';
+import { useEffect, useState } from "react";
+import { useTRPCClient } from "../trpc-provider.js";
+import type { ModelCapabilities } from "@sylphx/code-core";
 
 interface ModelInfo {
-  id: string;
-  name: string;
-  contextLength?: number;
-  capabilities?: ModelCapabilities;
+	id: string;
+	name: string;
+	contextLength?: number;
+	capabilities?: ModelCapabilities;
 }
 
 /**
@@ -24,50 +24,50 @@ interface ModelInfo {
  * - Client shouldn't need updates when new providers are added
  */
 export function useModels(providerId: string | null) {
-  const trpc = useTRPCClient();
-  const [models, setModels] = useState<ModelInfo[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+	const trpc = useTRPCClient();
+	const [models, setModels] = useState<ModelInfo[]>([]);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!providerId) {
-      setModels([]);
-      setLoading(false);
-      setError(null);
-      return;
-    }
+	useEffect(() => {
+		if (!providerId) {
+			setModels([]);
+			setLoading(false);
+			setError(null);
+			return;
+		}
 
-    let mounted = true;
+		let mounted = true;
 
-    async function fetchModels() {
-      try {
-        setLoading(true);
-        setError(null);
-        const result = await trpc.config.fetchModels.query({ providerId });
-        if (mounted) {
-          if (result.success) {
-            setModels(result.models);
-          } else {
-            setError(result.error);
-          }
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(err instanceof Error ? err.message : 'Failed to load models');
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    }
+		async function fetchModels() {
+			try {
+				setLoading(true);
+				setError(null);
+				const result = await trpc.config.fetchModels.query({ providerId });
+				if (mounted) {
+					if (result.success) {
+						setModels(result.models);
+					} else {
+						setError(result.error);
+					}
+				}
+			} catch (err) {
+				if (mounted) {
+					setError(err instanceof Error ? err.message : "Failed to load models");
+				}
+			} finally {
+				if (mounted) {
+					setLoading(false);
+				}
+			}
+		}
 
-    fetchModels();
+		fetchModels();
 
-    return () => {
-      mounted = false;
-    };
-  }, [trpc, providerId]);
+		return () => {
+			mounted = false;
+		};
+	}, [trpc, providerId]);
 
-  return { models, loading, error };
+	return { models, loading, error };
 }

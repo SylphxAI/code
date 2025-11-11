@@ -16,5 +16,5 @@
  * normalizeQuery('') // ''
  */
 export function normalizeQuery(query: string): string {
-  return query.trim();
+	return query.trim();
 }

@@ -4,16 +4,16 @@
  * Provides consistent spacing, subtitle, and help text formatting
  */
 
-import { Box, Text } from 'ink';
-import type { ReactNode } from 'react';
+import { Box, Text } from "ink";
+import type { ReactNode } from "react";
 
 interface InputContentLayoutProps {
-  // Optional subtitle/description text below the header
-  subtitle?: string;
-  // Help text shown at the bottom (keyboard shortcuts, etc.)
-  helpText: string;
-  // Main content (options, form fields, etc.)
-  children: ReactNode;
+	// Optional subtitle/description text below the header
+	subtitle?: string;
+	// Help text shown at the bottom (keyboard shortcuts, etc.)
+	helpText: string;
+	// Main content (options, form fields, etc.)
+	children: ReactNode;
 }
 
 /**
@@ -34,27 +34,23 @@ interface InputContentLayoutProps {
  * </InputContentLayout>
  * ```
  */
-export function InputContentLayout({
-  subtitle,
-  helpText,
-  children,
-}: InputContentLayoutProps) {
-  return (
-    <Box flexDirection="column" paddingLeft={2}>
-      {/* Subtitle */}
-      {subtitle && (
-        <Box marginBottom={1}>
-          <Text dimColor>{subtitle}</Text>
-        </Box>
-      )}
+export function InputContentLayout({ subtitle, helpText, children }: InputContentLayoutProps) {
+	return (
+		<Box flexDirection="column" paddingLeft={2}>
+			{/* Subtitle */}
+			{subtitle && (
+				<Box marginBottom={1}>
+					<Text dimColor>{subtitle}</Text>
+				</Box>
+			)}
 
-      {/* Content */}
-      {children}
+			{/* Content */}
+			{children}
 
-      {/* Help */}
-      <Box marginTop={1}>
-        <Text dimColor>{helpText}</Text>
-      </Box>
-    </Box>
-  );
+			{/* Help */}
+			<Box marginTop={1}>
+				<Text dimColor>{helpText}</Text>
+			</Box>
+		</Box>
+	);
 }

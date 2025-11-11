@@ -3,11 +3,11 @@
  * Provides type-safe tRPC client to all React components via Context
  */
 
-import { createContext, useContext, type ReactNode } from 'react';
-import { createTRPCProxyClient } from '@trpc/client';
-import superjson from 'superjson';
-import { inProcessLink, type InProcessLinkOptions } from './trpc-links/index.js';
-import type { AppRouter } from '@sylphx/code-server';
+import { createContext, useContext, type ReactNode } from "react";
+import { createTRPCProxyClient } from "@trpc/client";
+import superjson from "superjson";
+import { inProcessLink, type InProcessLinkOptions } from "./trpc-links/index.js";
+import type { AppRouter } from "@sylphx/code-server";
 
 /**
  * tRPC Client type (typed with AppRouter)
@@ -23,8 +23,8 @@ const TRPCContext = createContext<TypedTRPCClient | null>(null);
  * Provider props
  */
 export interface TRPCProviderProps {
-  client: TypedTRPCClient;
-  children: ReactNode;
+	client: TypedTRPCClient;
+	children: ReactNode;
 }
 
 /**
@@ -32,10 +32,10 @@ export interface TRPCProviderProps {
  * Also initializes global client for Zustand stores
  */
 export function TRPCProvider({ client, children }: TRPCProviderProps) {
-  // Initialize global client for Zustand stores (cannot use React Context)
-  _initGlobalClient(client);
+	// Initialize global client for Zustand stores (cannot use React Context)
+	_initGlobalClient(client);
 
-  return <TRPCContext.Provider value={client}>{children}</TRPCContext.Provider>;
+	return <TRPCContext.Provider value={client}>{children}</TRPCContext.Provider>;
 }
 
 /**
@@ -43,29 +43,27 @@ export function TRPCProvider({ client, children }: TRPCProviderProps) {
  * Must be used within TRPCProvider
  */
 export function useTRPCClient(): TypedTRPCClient {
-  const client = useContext(TRPCContext);
+	const client = useContext(TRPCContext);
 
-  if (!client) {
-    throw new Error(
-      'useTRPCClient must be used within TRPCProvider. ' +
-      'Wrap your app with <TRPCProvider client={client}>...</TRPCProvider>'
-    );
-  }
+	if (!client) {
+		throw new Error(
+			"useTRPCClient must be used within TRPCProvider. " +
+				"Wrap your app with <TRPCProvider client={client}>...</TRPCProvider>",
+		);
+	}
 
-  return client;
+	return client;
 }
 
 /**
  * Helper: Create in-process tRPC client
  * Zero-overhead communication for embedded server
  */
-export function createInProcessClient(
-  options: InProcessLinkOptions<AppRouter>
-): TypedTRPCClient {
-  return createTRPCProxyClient<AppRouter>({
-    links: [inProcessLink(options)],
-    transformer: superjson,
-  });
+export function createInProcessClient(options: InProcessLinkOptions<AppRouter>): TypedTRPCClient {
+	return createTRPCProxyClient<AppRouter>({
+		links: [inProcessLink(options)],
+		transformer: superjson,
+	});
 }
 
 /**
@@ -73,27 +71,27 @@ export function createInProcessClient(
  * For remote server connections
  */
 export function createHTTPClient(serverUrl: string): TypedTRPCClient {
-  const { httpBatchLink, httpSubscriptionLink, splitLink } = require('@trpc/client');
-  const { EventSource } = require('eventsource');
+	const { httpBatchLink, httpSubscriptionLink, splitLink } = require("@trpc/client");
+	const { EventSource } = require("eventsource");
 
-  return createTRPCProxyClient<AppRouter>({
-    links: [
-      splitLink({
-        condition: (op: { type: string }) => op.type === 'subscription',
-        true: httpSubscriptionLink({
-          url: `${serverUrl}/trpc`,
-          EventSource: EventSource as any,
-        }),
-        false: httpBatchLink({
-          url: `${serverUrl}/trpc`,
-          headers: () => ({
-            'Content-Type': 'application/json',
-          }),
-        }),
-      }),
-    ],
-    transformer: superjson,
-  });
+	return createTRPCProxyClient<AppRouter>({
+		links: [
+			splitLink({
+				condition: (op: { type: string }) => op.type === "subscription",
+				true: httpSubscriptionLink({
+					url: `${serverUrl}/trpc`,
+					EventSource: EventSource as any,
+				}),
+				false: httpBatchLink({
+					url: `${serverUrl}/trpc`,
+					headers: () => ({
+						"Content-Type": "application/json",
+					}),
+				}),
+			}),
+		],
+		transformer: superjson,
+	});
 }
 
 // ============================================================================
@@ -114,7 +112,7 @@ let _globalClientForStores: TypedTRPCClient | null = null;
  * @internal
  */
 export function _initGlobalClient(client: TypedTRPCClient) {
-  _globalClientForStores = client;
+	_globalClientForStores = client;
 }
 
 /**
@@ -122,10 +120,8 @@ export function _initGlobalClient(client: TypedTRPCClient) {
  * @internal DO NOT USE in React components - use useTRPCClient() hook
  */
 export function getTRPCClient(): TypedTRPCClient {
-  if (!_globalClientForStores) {
-    throw new Error(
-      'tRPC client not initialized. Ensure TRPCProvider wraps your app.'
-    );
-  }
-  return _globalClientForStores;
+	if (!_globalClientForStores) {
+		throw new Error("tRPC client not initialized. Ensure TRPCProvider wraps your app.");
+	}
+	return _globalClientForStores;
 }

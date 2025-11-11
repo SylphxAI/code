@@ -5,15 +5,15 @@
  * Single Responsibility: Abort control during streaming and compacting
  */
 
-import { useInput } from 'ink';
-import type React from 'react';
-import { get } from '@sylphx/zen';
-import { $isCompacting, abortCompact } from '../../signals/domain/ui/index.js';
+import { useInput } from "ink";
+import type React from "react";
+import { get } from "@sylphx/zen";
+import { $isCompacting, abortCompact } from "../../signals/domain/ui/index.js";
 
 export interface UseAbortHandlerOptions {
-  isStreaming: boolean;
-  abortControllerRef: React.MutableRefObject<AbortController | null>;
-  addLog: (message: string) => void;
+	isStreaming: boolean;
+	abortControllerRef: React.MutableRefObject<AbortController | null>;
+	addLog: (message: string) => void;
 }
 
 /**
@@ -23,34 +23,34 @@ export interface UseAbortHandlerOptions {
  * - Takes priority over other ESC actions
  */
 export function useAbortHandler(options: UseAbortHandlerOptions) {
-  const { isStreaming, abortControllerRef, addLog } = options;
+	const { isStreaming, abortControllerRef, addLog } = options;
 
-  useInput(
-    (char, key) => {
-      if (!key.escape) {
-        return false;
-      }
+	useInput(
+		(char, key) => {
+			if (!key.escape) {
+				return false;
+			}
 
-      // Check if compacting (highest priority)
-      const isCompacting = get($isCompacting);
-      if (isCompacting) {
-        addLog('[abort] Cancelling session compaction...');
-        abortCompact();
-        return true; // Consumed
-      }
+			// Check if compacting (highest priority)
+			const isCompacting = get($isCompacting);
+			if (isCompacting) {
+				addLog("[abort] Cancelling session compaction...");
+				abortCompact();
+				return true; // Consumed
+			}
 
-      // ESC to abort streaming AI response
-      if (isStreaming) {
-        if (abortControllerRef.current) {
-          addLog('[abort] Cancelling AI response...');
-          abortControllerRef.current.abort();
-          abortControllerRef.current = null;
-        }
-        return true; // Consumed
-      }
+			// ESC to abort streaming AI response
+			if (isStreaming) {
+				if (abortControllerRef.current) {
+					addLog("[abort] Cancelling AI response...");
+					abortControllerRef.current.abort();
+					abortControllerRef.current = null;
+				}
+				return true; // Consumed
+			}
 
-      return false; // Not consumed, let other handlers process
-    },
-    { isActive: true }
-  );
+			return false; // Not consumed, let other handlers process
+		},
+		{ isActive: true },
+	);
 }

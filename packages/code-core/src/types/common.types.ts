@@ -14,13 +14,13 @@ export type Resolvable<T> = T | (() => Promise<T>) | (() => T);
  * Common options shared across commands and operations
  */
 export interface CommonOptions {
-  target?: string;
-  verbose?: boolean;
-  dryRun?: boolean;
-  clear?: boolean;
-  mcp?: string[] | null | boolean;
-  quiet?: boolean;
-  agent?: string;
+	target?: string;
+	verbose?: boolean;
+	dryRun?: boolean;
+	clear?: boolean;
+	mcp?: string[] | null | boolean;
+	quiet?: boolean;
+	agent?: string;
 }
 
 /**
@@ -28,8 +28,8 @@ export interface CommonOptions {
  * Used for consistent UI feedback across different setup operations
  */
 export interface SetupResult {
-  /** Number of items processed (servers, agents, files, etc.) */
-  count: number;
-  /** Optional detailed message */
-  message?: string;
+	/** Number of items processed (servers, agents, files, etc.) */
+	count: number;
+	/** Optional detailed message */
+	message?: string;
 }

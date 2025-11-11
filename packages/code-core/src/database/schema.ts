@@ -3,81 +3,81 @@
  * Type-safe database schema with migrations support
  */
 
-import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 // Memory table for persistent storage
 export const memory = sqliteTable(
-  'memory',
-  {
-    key: text('key').notNull(),
-    namespace: text('namespace').notNull().default('default'),
-    value: text('value').notNull(),
-    timestamp: integer('timestamp').notNull(),
-    created_at: text('created_at').notNull(),
-    updated_at: text('updated_at').notNull(),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.key, table.namespace] }),
-    namespaceIdx: index('idx_memory_namespace').on(table.namespace),
-    timestampIdx: index('idx_memory_timestamp').on(table.timestamp),
-    keyIdx: index('idx_memory_key').on(table.key),
-  })
+	"memory",
+	{
+		key: text("key").notNull(),
+		namespace: text("namespace").notNull().default("default"),
+		value: text("value").notNull(),
+		timestamp: integer("timestamp").notNull(),
+		created_at: text("created_at").notNull(),
+		updated_at: text("updated_at").notNull(),
+	},
+	(table) => ({
+		pk: primaryKey({ columns: [table.key, table.namespace] }),
+		namespaceIdx: index("idx_memory_namespace").on(table.namespace),
+		timestampIdx: index("idx_memory_timestamp").on(table.timestamp),
+		keyIdx: index("idx_memory_key").on(table.key),
+	}),
 );
 
 // Codebase files table
 export const codebaseFiles = sqliteTable(
-  'codebase_files',
-  {
-    path: text('path').primaryKey(),
-    mtime: integer('mtime').notNull(),
-    hash: text('hash').notNull(),
-    content: text('content'), // Optional full content
-    language: text('language'), // Detected programming language
-    size: integer('size'), // File size in bytes
-    indexedAt: text('indexed_at').notNull(),
-  },
-  (table) => ({
-    mtimeIdx: index('idx_codebase_files_mtime').on(table.mtime),
-    hashIdx: index('idx_codebase_files_hash').on(table.hash),
-  })
+	"codebase_files",
+	{
+		path: text("path").primaryKey(),
+		mtime: integer("mtime").notNull(),
+		hash: text("hash").notNull(),
+		content: text("content"), // Optional full content
+		language: text("language"), // Detected programming language
+		size: integer("size"), // File size in bytes
+		indexedAt: text("indexed_at").notNull(),
+	},
+	(table) => ({
+		mtimeIdx: index("idx_codebase_files_mtime").on(table.mtime),
+		hashIdx: index("idx_codebase_files_hash").on(table.hash),
+	}),
 );
 
 // TF-IDF terms table
 export const tfidfTerms = sqliteTable(
-  'tfidf_terms',
-  {
-    filePath: text('file_path')
-      .notNull()
-      .references(() => codebaseFiles.path, { onDelete: 'cascade' }),
-    term: text('term').notNull(),
-    frequency: real('frequency').notNull(),
-  },
-  (table) => ({
-    termIdx: index('idx_tfidf_terms_term').on(table.term),
-    fileIdx: index('idx_tfidf_terms_file').on(table.filePath),
-  })
+	"tfidf_terms",
+	{
+		filePath: text("file_path")
+			.notNull()
+			.references(() => codebaseFiles.path, { onDelete: "cascade" }),
+		term: text("term").notNull(),
+		frequency: real("frequency").notNull(),
+	},
+	(table) => ({
+		termIdx: index("idx_tfidf_terms_term").on(table.term),
+		fileIdx: index("idx_tfidf_terms_file").on(table.filePath),
+	}),
 );
 
 // TF-IDF documents table (document vectors)
-export const tfidfDocuments = sqliteTable('tfidf_documents', {
-  filePath: text('file_path')
-    .primaryKey()
-    .references(() => codebaseFiles.path, { onDelete: 'cascade' }),
-  magnitude: real('magnitude').notNull(),
-  termCount: integer('term_count').notNull(),
-  rawTerms: text('raw_terms').notNull(), // JSON string of Record<string, number>
+export const tfidfDocuments = sqliteTable("tfidf_documents", {
+	filePath: text("file_path")
+		.primaryKey()
+		.references(() => codebaseFiles.path, { onDelete: "cascade" }),
+	magnitude: real("magnitude").notNull(),
+	termCount: integer("term_count").notNull(),
+	rawTerms: text("raw_terms").notNull(), // JSON string of Record<string, number>
 });
 
 // IDF values table
-export const tfidfIdf = sqliteTable('tfidf_idf', {
-  term: text('term').primaryKey(),
-  idfValue: real('idf_value').notNull(),
+export const tfidfIdf = sqliteTable("tfidf_idf", {
+	term: text("term").primaryKey(),
+	idfValue: real("idf_value").notNull(),
 });
 
 // Codebase metadata table
-export const codebaseMetadata = sqliteTable('codebase_metadata', {
-  key: text('key').primaryKey(),
-  value: text('value').notNull(),
+export const codebaseMetadata = sqliteTable("codebase_metadata", {
+	key: text("key").primaryKey(),
+	value: text("value").notNull(),
 });
 
 // Export types for TypeScript
@@ -108,51 +108,54 @@ export type NewCodebaseMetadata = typeof codebaseMetadata.$inferInsert;
  * Stores session metadata and configuration
  */
 export const sessions = sqliteTable(
-  'sessions',
-  {
-    id: text('id').primaryKey(),
-    title: text('title'),
+	"sessions",
+	{
+		id: text("id").primaryKey(),
+		title: text("title"),
 
-    // NEW: Normalized model ID (references model registry)
-    // Examples: 'claude-sonnet-4', 'gpt-4o', 'openrouter/anthropic/claude-sonnet-3.5'
-    // Nullable to support migration from old provider+model format
-    modelId: text('model_id'),
+		// NEW: Normalized model ID (references model registry)
+		// Examples: 'claude-sonnet-4', 'gpt-4o', 'openrouter/anthropic/claude-sonnet-3.5'
+		// Nullable to support migration from old provider+model format
+		modelId: text("model_id"),
 
-    // DEPRECATED: Legacy provider/model columns kept for migration
-    // Will be removed in next major version
-    // Made nullable for forward compatibility when creating new sessions with modelId
-    provider: text('provider'), // Legacy: 'anthropic' | 'openai' | 'google' | 'openrouter'
-    model: text('model'),       // Legacy: model name string
+		// DEPRECATED: Legacy provider/model columns kept for migration
+		// Will be removed in next major version
+		// Made nullable for forward compatibility when creating new sessions with modelId
+		provider: text("provider"), // Legacy: 'anthropic' | 'openai' | 'google' | 'openrouter'
+		model: text("model"), // Legacy: model name string
 
-    agentId: text('agent_id').notNull().default('coder'), // Agent configuration per session
-    enabledRuleIds: text('enabled_rule_ids', { mode: 'json' }).notNull().default('[]').$type<string[]>(), // Enabled rules for this session
+		agentId: text("agent_id").notNull().default("coder"), // Agent configuration per session
+		enabledRuleIds: text("enabled_rule_ids", { mode: "json" })
+			.notNull()
+			.default("[]")
+			.$type<string[]>(), // Enabled rules for this session
 
-    // NEW: Normalized tool and MCP server IDs
-    enabledToolIds: text('enabled_tool_ids', { mode: 'json' }).$type<string[]>(), // References Tool.id[]
-    enabledMcpServerIds: text('enabled_mcp_server_ids', { mode: 'json' }).$type<string[]>(), // References MCPServer.id[]
+		// NEW: Normalized tool and MCP server IDs
+		enabledToolIds: text("enabled_tool_ids", { mode: "json" }).$type<string[]>(), // References Tool.id[]
+		enabledMcpServerIds: text("enabled_mcp_server_ids", { mode: "json" }).$type<string[]>(), // References MCPServer.id[]
 
-    nextTodoId: integer('next_todo_id').notNull().default(1),
+		nextTodoId: integer("next_todo_id").notNull().default(1),
 
-    // System message trigger flags
-    // Tracks which system messages have been shown or which states are active
-    // Examples: { cpuWarning: true, contextWarning80: true }
-    flags: text('flags', { mode: 'json' }).$type<Record<string, boolean>>(),
+		// System message trigger flags
+		// Tracks which system messages have been shown or which states are active
+		// Examples: { cpuWarning: true, contextWarning80: true }
+		flags: text("flags", { mode: "json" }).$type<Record<string, boolean>>(),
 
-    // Note: Streaming state moved to messages table (message-level, not session-level)
-    // Each message can be in streaming state with isStreaming flag
+		// Note: Streaming state moved to messages table (message-level, not session-level)
+		// Each message can be in streaming state with isStreaming flag
 
-    created: integer('created').notNull(), // Unix timestamp (ms)
-    updated: integer('updated').notNull(), // Unix timestamp (ms)
-  },
-  (table) => ({
-    updatedIdx: index('idx_sessions_updated').on(table.updated),
-    createdIdx: index('idx_sessions_created').on(table.created),
-    // NEW: Index on normalized modelId
-    modelIdIdx: index('idx_sessions_model_id').on(table.modelId),
-    // DEPRECATED: Legacy provider index (will be removed)
-    providerIdx: index('idx_sessions_provider').on(table.provider),
-    titleIdx: index('idx_sessions_title').on(table.title),
-  })
+		created: integer("created").notNull(), // Unix timestamp (ms)
+		updated: integer("updated").notNull(), // Unix timestamp (ms)
+	},
+	(table) => ({
+		updatedIdx: index("idx_sessions_updated").on(table.updated),
+		createdIdx: index("idx_sessions_created").on(table.created),
+		// NEW: Index on normalized modelId
+		modelIdIdx: index("idx_sessions_model_id").on(table.modelId),
+		// DEPRECATED: Legacy provider index (will be removed)
+		providerIdx: index("idx_sessions_provider").on(table.provider),
+		titleIdx: index("idx_sessions_title").on(table.title),
+	}),
 );
 
 /**
@@ -165,25 +168,25 @@ export const sessions = sqliteTable(
  * - metadata/todoSnapshot moved to steps table (per-request context)
  */
 export const messages = sqliteTable(
-  'messages',
-  {
-    id: text('id').primaryKey(),
-    sessionId: text('session_id')
-      .notNull()
-      .references(() => sessions.id, { onDelete: 'cascade' }),
-    role: text('role').notNull(), // 'system' | 'user' | 'assistant'
-    timestamp: integer('timestamp').notNull(), // Unix timestamp (ms)
-    ordering: integer('ordering').notNull(), // For display order
-    // Aggregated from steps (for UI convenience)
-    finishReason: text('finish_reason'), // Final finish reason from last step
-    status: text('status').notNull().default('completed'), // Overall status (derived from steps)
-  },
-  (table) => ({
-    sessionIdx: index('idx_messages_session').on(table.sessionId),
-    orderingIdx: index('idx_messages_ordering').on(table.sessionId, table.ordering),
-    timestampIdx: index('idx_messages_timestamp').on(table.timestamp),
-    statusIdx: index('idx_messages_status').on(table.status),
-  })
+	"messages",
+	{
+		id: text("id").primaryKey(),
+		sessionId: text("session_id")
+			.notNull()
+			.references(() => sessions.id, { onDelete: "cascade" }),
+		role: text("role").notNull(), // 'system' | 'user' | 'assistant'
+		timestamp: integer("timestamp").notNull(), // Unix timestamp (ms)
+		ordering: integer("ordering").notNull(), // For display order
+		// Aggregated from steps (for UI convenience)
+		finishReason: text("finish_reason"), // Final finish reason from last step
+		status: text("status").notNull().default("completed"), // Overall status (derived from steps)
+	},
+	(table) => ({
+		sessionIdx: index("idx_messages_session").on(table.sessionId),
+		orderingIdx: index("idx_messages_ordering").on(table.sessionId, table.ordering),
+		timestampIdx: index("idx_messages_timestamp").on(table.timestamp),
+		statusIdx: index("idx_messages_status").on(table.status),
+	}),
 );
 
 /**
@@ -197,51 +200,51 @@ export const messages = sqliteTable(
  * - Each step has its own todoSnapshot (todo state at step start time)
  */
 export const messageSteps = sqliteTable(
-  'message_steps',
-  {
-    id: text('id').primaryKey(), // e.g., "step-0", "step-1"
-    messageId: text('message_id')
-      .notNull()
-      .references(() => messages.id, { onDelete: 'cascade' }),
-    stepIndex: integer('step_index').notNull(), // 0, 1, 2, ... (order)
+	"message_steps",
+	{
+		id: text("id").primaryKey(), // e.g., "step-0", "step-1"
+		messageId: text("message_id")
+			.notNull()
+			.references(() => messages.id, { onDelete: "cascade" }),
+		stepIndex: integer("step_index").notNull(), // 0, 1, 2, ... (order)
 
-    // System messages to insert BEFORE this step (for LLM context)
-    // Stored as JSON array: [{ type: 'context-warning-80', content: '...', timestamp: 123 }, ...]
-    // When building model messages, these become 'user' role messages inserted before step content
-    systemMessages: text('system_messages'), // JSON array of SystemMessage[]
+		// System messages to insert BEFORE this step (for LLM context)
+		// Stored as JSON array: [{ type: 'context-warning-80', content: '...', timestamp: 123 }, ...]
+		// When building model messages, these become 'user' role messages inserted before step content
+		systemMessages: text("system_messages"), // JSON array of SystemMessage[]
 
-    // Per-step execution metadata
-    provider: text('provider'), // May route different steps to different providers
-    model: text('model'), // May use different models per step
-    duration: integer('duration'), // Step execution time (ms)
-    finishReason: text('finish_reason'), // 'stop' | 'tool-calls' | 'length' | 'error'
-    status: text('status').notNull().default('completed'), // 'active' | 'completed' | 'error' | 'abort'
+		// Per-step execution metadata
+		provider: text("provider"), // May route different steps to different providers
+		model: text("model"), // May use different models per step
+		duration: integer("duration"), // Step execution time (ms)
+		finishReason: text("finish_reason"), // 'stop' | 'tool-calls' | 'length' | 'error'
+		status: text("status").notNull().default("completed"), // 'active' | 'completed' | 'error' | 'abort'
 
-    // Per-step context (captured at step start time)
-    metadata: text('metadata'), // JSON: { cpu?: string, memory?: string }
+		// Per-step context (captured at step start time)
+		metadata: text("metadata"), // JSON: { cpu?: string, memory?: string }
 
-    // Timestamps
-    startTime: integer('start_time'), // Unix timestamp (ms)
-    endTime: integer('end_time'), // Unix timestamp (ms)
-  },
-  (table) => ({
-    messageIdx: index('idx_message_steps_message').on(table.messageId),
-    stepIndexIdx: index('idx_message_steps_step_index').on(table.messageId, table.stepIndex),
-    statusIdx: index('idx_message_steps_status').on(table.status),
-  })
+		// Timestamps
+		startTime: integer("start_time"), // Unix timestamp (ms)
+		endTime: integer("end_time"), // Unix timestamp (ms)
+	},
+	(table) => ({
+		messageIdx: index("idx_message_steps_message").on(table.messageId),
+		stepIndexIdx: index("idx_message_steps_step_index").on(table.messageId, table.stepIndex),
+		statusIdx: index("idx_message_steps_status").on(table.status),
+	}),
 );
 
 /**
  * Step usage table - Token usage for steps
  * 1:1 relationship with steps (only assistant steps have usage)
  */
-export const stepUsage = sqliteTable('step_usage', {
-  stepId: text('step_id')
-    .primaryKey()
-    .references(() => messageSteps.id, { onDelete: 'cascade' }),
-  promptTokens: integer('prompt_tokens').notNull(),
-  completionTokens: integer('completion_tokens').notNull(),
-  totalTokens: integer('total_tokens').notNull(),
+export const stepUsage = sqliteTable("step_usage", {
+	stepId: text("step_id")
+		.primaryKey()
+		.references(() => messageSteps.id, { onDelete: "cascade" }),
+	promptTokens: integer("prompt_tokens").notNull(),
+	completionTokens: integer("completion_tokens").notNull(),
+	totalTokens: integer("total_tokens").notNull(),
 });
 
 /**
@@ -272,26 +275,26 @@ export const stepUsage = sqliteTable('step_usage', {
  * ALL parts have unified status field: 'active' | 'completed' | 'error' | 'abort'
  */
 export const stepParts = sqliteTable(
-  'step_parts',
-  {
-    id: text('id').primaryKey(),
-    stepId: text('step_id')
-      .notNull()
-      .references(() => messageSteps.id, { onDelete: 'cascade' }),
-    ordering: integer('ordering').notNull(), // Order within step
-    type: text('type').notNull(), // 'text' | 'reasoning' | 'tool' | 'error'
-    // Content structure (JSON) - ALL parts include status field:
-    // - text: { type: 'text', content: string, status: 'active' | 'completed' | ... }
-    // - reasoning: { type: 'reasoning', content: string, status: ..., duration?: number }
-    // - tool: { type: 'tool', toolId: string, name: string, status: ..., duration?: number, args?: any, result?: any, error?: string }
-    // - error: { type: 'error', error: string, status: 'completed' }
-    content: text('content').notNull(), // JSON string
-  },
-  (table) => ({
-    stepIdx: index('idx_step_parts_step').on(table.stepId),
-    orderingIdx: index('idx_step_parts_ordering').on(table.stepId, table.ordering),
-    typeIdx: index('idx_step_parts_type').on(table.type),
-  })
+	"step_parts",
+	{
+		id: text("id").primaryKey(),
+		stepId: text("step_id")
+			.notNull()
+			.references(() => messageSteps.id, { onDelete: "cascade" }),
+		ordering: integer("ordering").notNull(), // Order within step
+		type: text("type").notNull(), // 'text' | 'reasoning' | 'tool' | 'error'
+		// Content structure (JSON) - ALL parts include status field:
+		// - text: { type: 'text', content: string, status: 'active' | 'completed' | ... }
+		// - reasoning: { type: 'reasoning', content: string, status: ..., duration?: number }
+		// - tool: { type: 'tool', toolId: string, name: string, status: ..., duration?: number, args?: any, result?: any, error?: string }
+		// - error: { type: 'error', error: string, status: 'completed' }
+		content: text("content").notNull(), // JSON string
+	},
+	(table) => ({
+		stepIdx: index("idx_step_parts_step").on(table.stepId),
+		orderingIdx: index("idx_step_parts_ordering").on(table.stepId, table.ordering),
+		typeIdx: index("idx_step_parts_type").on(table.type),
+	}),
 );
 
 /**
@@ -306,20 +309,20 @@ export const stepParts = sqliteTable(
  * - Future: Drop table after migration tool created
  */
 export const messageAttachments = sqliteTable(
-  'message_attachments',
-  {
-    id: text('id').primaryKey(),
-    messageId: text('message_id')
-      .notNull()
-      .references(() => messages.id, { onDelete: 'cascade' }),
-    path: text('path').notNull(),
-    relativePath: text('relative_path').notNull(),
-    size: integer('size'),
-  },
-  (table) => ({
-    messageIdx: index('idx_message_attachments_message').on(table.messageId),
-    pathIdx: index('idx_message_attachments_path').on(table.path),
-  })
+	"message_attachments",
+	{
+		id: text("id").primaryKey(),
+		messageId: text("message_id")
+			.notNull()
+			.references(() => messages.id, { onDelete: "cascade" }),
+		path: text("path").notNull(),
+		relativePath: text("relative_path").notNull(),
+		size: integer("size"),
+	},
+	(table) => ({
+		messageIdx: index("idx_message_attachments_message").on(table.messageId),
+		pathIdx: index("idx_message_attachments_path").on(table.path),
+	}),
 );
 
 /**
@@ -344,35 +347,35 @@ export const messageAttachments = sqliteTable(
  * Todos table - Per-session todo lists
  */
 export const todos = sqliteTable(
-  'todos',
-  {
-    id: integer('id').notNull(), // Per-session ID (not globally unique!)
-    sessionId: text('session_id')
-      .notNull()
-      .references(() => sessions.id, { onDelete: 'cascade' }),
-    content: text('content').notNull(),
-    activeForm: text('active_form').notNull(),
-    status: text('status').notNull(), // 'pending' | 'in_progress' | 'completed'
-    ordering: integer('ordering').notNull(),
+	"todos",
+	{
+		id: integer("id").notNull(), // Per-session ID (not globally unique!)
+		sessionId: text("session_id")
+			.notNull()
+			.references(() => sessions.id, { onDelete: "cascade" }),
+		content: text("content").notNull(),
+		activeForm: text("active_form").notNull(),
+		status: text("status").notNull(), // 'pending' | 'in_progress' | 'completed'
+		ordering: integer("ordering").notNull(),
 
-    // NEW: Entity relationships (normalized)
-    createdByToolId: text('created_by_tool_id'), // References Tool.id or MCP tool ID
-    createdByStepId: text('created_by_step_id'), // References MessageStep.id
-    relatedFiles: text('related_files', { mode: 'json' }).$type<string[]>(), // Related file paths
-    metadata: text('metadata', { mode: 'json' }).$type<{
-      tags?: string[];
-      priority?: 'low' | 'medium' | 'high';
-      estimatedMinutes?: number;
-      dependencies?: number[];
-    }>(), // Additional metadata
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.sessionId, table.id] }),
-    sessionIdx: index('idx_todos_session').on(table.sessionId),
-    statusIdx: index('idx_todos_status').on(table.status),
-    orderingIdx: index('idx_todos_ordering').on(table.sessionId, table.ordering),
-    createdByStepIdx: index('idx_todos_created_by_step').on(table.createdByStepId),
-  })
+		// NEW: Entity relationships (normalized)
+		createdByToolId: text("created_by_tool_id"), // References Tool.id or MCP tool ID
+		createdByStepId: text("created_by_step_id"), // References MessageStep.id
+		relatedFiles: text("related_files", { mode: "json" }).$type<string[]>(), // Related file paths
+		metadata: text("metadata", { mode: "json" }).$type<{
+			tags?: string[];
+			priority?: "low" | "medium" | "high";
+			estimatedMinutes?: number;
+			dependencies?: number[];
+		}>(), // Additional metadata
+	},
+	(table) => ({
+		pk: primaryKey({ columns: [table.sessionId, table.id] }),
+		sessionIdx: index("idx_todos_session").on(table.sessionId),
+		statusIdx: index("idx_todos_status").on(table.status),
+		orderingIdx: index("idx_todos_ordering").on(table.sessionId, table.ordering),
+		createdByStepIdx: index("idx_todos_created_by_step").on(table.createdByStepId),
+	}),
 );
 
 /**
@@ -386,30 +389,29 @@ export const todos = sqliteTable(
  * - Channels for routing (session:*, config:*, app:*, etc.)
  */
 export const events = sqliteTable(
-  'events',
-  {
-    id: text('id').primaryKey(),                                        // evt_1234567890_0
-    channel: text('channel').notNull(),                                 // 'session:abc', 'config:ai'
-    type: text('type').notNull(),                                       // 'title-updated', 'text-delta'
-    timestamp: integer('timestamp').notNull(),                          // Unix ms (part of cursor)
-    sequence: integer('sequence').notNull(),                            // Sequence within timestamp (part of cursor)
-    payload: text('payload', { mode: 'json' }).$type<any>().notNull(), // Event data as JSON
-    createdAt: integer('created_at').notNull(),                         // When saved to DB
-  },
-  (table) => ({
-    // Composite index for cursor-based queries (channel + cursor)
-    channelCursorIdx: index('idx_events_channel_cursor').on(
-      table.channel,
-      table.timestamp,
-      table.sequence
-    ),
-    // Index for cleanup queries
-    timestampIdx: index('idx_events_timestamp').on(table.timestamp),
-    // Index for channel queries
-    channelIdx: index('idx_events_channel').on(table.channel),
-  })
+	"events",
+	{
+		id: text("id").primaryKey(), // evt_1234567890_0
+		channel: text("channel").notNull(), // 'session:abc', 'config:ai'
+		type: text("type").notNull(), // 'title-updated', 'text-delta'
+		timestamp: integer("timestamp").notNull(), // Unix ms (part of cursor)
+		sequence: integer("sequence").notNull(), // Sequence within timestamp (part of cursor)
+		payload: text("payload", { mode: "json" }).$type<any>().notNull(), // Event data as JSON
+		createdAt: integer("created_at").notNull(), // When saved to DB
+	},
+	(table) => ({
+		// Composite index for cursor-based queries (channel + cursor)
+		channelCursorIdx: index("idx_events_channel_cursor").on(
+			table.channel,
+			table.timestamp,
+			table.sequence,
+		),
+		// Index for cleanup queries
+		timestampIdx: index("idx_events_timestamp").on(table.timestamp),
+		// Index for channel queries
+		channelIdx: index("idx_events_channel").on(table.channel),
+	}),
 );
-
 
 /**
  * File contents table - Frozen file storage for conversation history
@@ -439,37 +441,37 @@ export const events = sqliteTable(
  *       + file_contents row with BLOB
  */
 export const fileContents = sqliteTable(
-  'file_contents',
-  {
-    id: text('id').primaryKey(),
-    stepId: text('step_id')
-      .notNull()
-      .references(() => messageSteps.id, { onDelete: 'cascade' }),
-    ordering: integer('ordering').notNull(), // Position within step (preserves text-to-file order)
+	"file_contents",
+	{
+		id: text("id").primaryKey(),
+		stepId: text("step_id")
+			.notNull()
+			.references(() => messageSteps.id, { onDelete: "cascade" }),
+		ordering: integer("ordering").notNull(), // Position within step (preserves text-to-file order)
 
-    // File metadata
-    relativePath: text('relative_path').notNull(),
-    mediaType: text('media_type').notNull(),
-    size: integer('size').notNull(),
+		// File metadata
+		relativePath: text("relative_path").notNull(),
+		mediaType: text("media_type").notNull(),
+		size: integer("size").notNull(),
 
-    // Frozen content (immutable for prompt cache + rewind)
-    content: text('content', { mode: 'blob' }).notNull(), // Binary BLOB (no base64!)
+		// Frozen content (immutable for prompt cache + rewind)
+		content: text("content", { mode: "blob" }).notNull(), // Binary BLOB (no base64!)
 
-    // Search support
-    isText: integer('is_text').notNull(), // 1 for text files, 0 for binary
-    textContent: text('text_content'), // Decoded UTF-8 for FTS5 index (text files only)
+		// Search support
+		isText: integer("is_text").notNull(), // 1 for text files, 0 for binary
+		textContent: text("text_content"), // Decoded UTF-8 for FTS5 index (text files only)
 
-    // Deduplication (future optimization)
-    sha256: text('sha256'), // Share identical files across checkpoints
+		// Deduplication (future optimization)
+		sha256: text("sha256"), // Share identical files across checkpoints
 
-    createdAt: integer('created_at').notNull(),
-  },
-  (table) => ({
-    stepOrderingIdx: index('idx_file_contents_step_ordering').on(table.stepId, table.ordering),
-    typeIdx: index('idx_file_contents_type').on(table.mediaType),
-    pathIdx: index('idx_file_contents_path').on(table.relativePath),
-    sha256Idx: index('idx_file_contents_sha256').on(table.sha256), // For deduplication queries
-  })
+		createdAt: integer("created_at").notNull(),
+	},
+	(table) => ({
+		stepOrderingIdx: index("idx_file_contents_step_ordering").on(table.stepId, table.ordering),
+		typeIdx: index("idx_file_contents_type").on(table.mediaType),
+		pathIdx: index("idx_file_contents_path").on(table.relativePath),
+		sha256Idx: index("idx_file_contents_sha256").on(table.sha256), // For deduplication queries
+	}),
 );
 
 // TEMPORARY ALIASES for backward compatibility during transition

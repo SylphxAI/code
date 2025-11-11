@@ -4,10 +4,10 @@
  * @returns {string} - The generated session title.
  */
 export function generateSessionTitle(firstMessage) {
-  if (!firstMessage.trim()) {
-    return "New Session";
-  }
-  // Truncate to first 50 characters and remove newlines
-  const title = firstMessage.slice(0, 50).replace(/\n/g, " ");
-  return title;
+	if (!firstMessage.trim()) {
+		return "New Session";
+	}
+	// Truncate to first 50 characters and remove newlines
+	const title = firstMessage.slice(0, 50).replace(/\n/g, " ");
+	return title;
 }

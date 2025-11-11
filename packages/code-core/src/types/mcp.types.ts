@@ -3,17 +3,17 @@
  * Types for configuring and managing MCP servers
  */
 
-import type { Resolvable } from './common.types.js';
+import type { Resolvable } from "./common.types.js";
 
 /**
  * MCP server configuration for stdio-based servers
  * Communicates via standard input/output
  */
 export interface MCPServerConfig {
-  type: 'stdio';
-  command: Resolvable<string>;
-  args?: Resolvable<string[]>;
-  env?: Record<string, string>;
+	type: "stdio";
+	command: Resolvable<string>;
+	args?: Resolvable<string[]>;
+	env?: Record<string, string>;
 }
 
 /**
@@ -21,9 +21,9 @@ export interface MCPServerConfig {
  * Communicates via HTTP requests
  */
 export interface MCPServerConfigHTTP {
-  type: 'http';
-  url: Resolvable<string>;
-  headers?: Record<string, string>;
+	type: "http";
+	url: Resolvable<string>;
+	headers?: Record<string, string>;
 }
 
 /**
@@ -36,34 +36,34 @@ export type MCPServerConfigUnion = MCPServerConfig | MCPServerConfigHTTP;
  * Used to disable specific server features per target
  */
 export type MCPServerConfigFlags = {
-  disableTime?: boolean;
-  disableKnowledge?: boolean;
-  disableCodebase?: boolean;
+	disableTime?: boolean;
+	disableKnowledge?: boolean;
+	disableCodebase?: boolean;
 };
 
 /**
  * OpenCode-specific configuration format
  */
 export interface OpenCodeConfig {
-  $schema?: string;
-  mcp?: Record<string, MCPServerConfigUnion>;
+	$schema?: string;
+	mcp?: Record<string, MCPServerConfigUnion>;
 }
 
 /**
  * Type guard: Check if config is stdio-based
  */
 export const isStdioConfig = (config: MCPServerConfigUnion): config is MCPServerConfig =>
-  config.type === 'stdio';
+	config.type === "stdio";
 
 /**
  * Type guard: Check if config is HTTP-based
  */
 export const isHttpConfig = (config: MCPServerConfigUnion): config is MCPServerConfigHTTP =>
-  config.type === 'http';
+	config.type === "http";
 
 /**
  * Type guard: Check if config is CLI command-based (stdio)
  * Alias for isStdioConfig for backward compatibility
  */
 export const isCLICommandConfig = (config: MCPServerConfigUnion): config is MCPServerConfig =>
-  isStdioConfig(config);
+	isStdioConfig(config);

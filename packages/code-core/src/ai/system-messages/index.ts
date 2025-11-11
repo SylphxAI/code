@@ -18,22 +18,22 @@
  * System message types
  */
 export type SystemMessageType =
-  | 'context-warning-80'
-  | 'context-warning-90'
-  | 'session-start-todos'
-  | 'resource-warning-cpu'
-  | 'resource-warning-memory';
+	| "context-warning-80"
+	| "context-warning-90"
+	| "session-start-todos"
+	| "resource-warning-cpu"
+	| "resource-warning-memory";
 
 /**
  * System message content builders
  */
 export const SystemMessages = {
-  /**
-   * Context usage warning at 80%
-   * Triggered once when context usage exceeds 80%
-   */
-  contextWarning80(): string {
-    return `<system_message type="context-warning">
+	/**
+	 * Context usage warning at 80%
+	 * Triggered once when context usage exceeds 80%
+	 */
+	contextWarning80(): string {
+		return `<system_message type="context-warning">
 ⚠️ Context Usage Warning
 
 Current context usage: >80% (less than 20% remaining)
@@ -45,14 +45,14 @@ The conversation context is approaching the limit. Please be aware that:
 
 When context reaches 90%, the conversation will be automatically summarized and moved to a new session.
 </system_message>`;
-  },
+	},
 
-  /**
-   * Context usage critical at 90%
-   * Triggered once when context usage exceeds 90%
-   */
-  contextWarning90(): string {
-    return `<system_message type="context-critical">
+	/**
+	 * Context usage critical at 90%
+	 * Triggered once when context usage exceeds 90%
+	 */
+	contextWarning90(): string {
+		return `<system_message type="context-critical">
 🚨 Context Usage Critical
 
 Current context usage: >90% (less than 10% remaining)
@@ -68,18 +68,18 @@ The summary will preserve:
 - Key decisions and outcomes
 - Important context for continuation
 </system_message>`;
-  },
+	},
 
-  /**
-   * Session start with existing todos
-   * Triggered at first user message in new session
-   */
-  sessionStartWithTodos(todos: Array<{ content: string; status: string }>): string {
-    const todoList = todos
-      .map((todo, idx) => `${idx + 1}. [${todo.status}] ${todo.content}`)
-      .join('\n');
+	/**
+	 * Session start with existing todos
+	 * Triggered at first user message in new session
+	 */
+	sessionStartWithTodos(todos: Array<{ content: string; status: string }>): string {
+		const todoList = todos
+			.map((todo, idx) => `${idx + 1}. [${todo.status}] ${todo.content}`)
+			.join("\n");
 
-    return `<system_message type="session-start-todos">
+		return `<system_message type="session-start-todos">
 📋 Session Started - Active Tasks
 
 You have ${todos.length} active todo(s):
@@ -88,14 +88,14 @@ ${todoList}
 
 Please continue working on these tasks. Use the TodoWrite tool to update task status as you make progress.
 </system_message>`;
-  },
+	},
 
-  /**
-   * Session start without todos (reminder)
-   * Triggered at first user message in new session with no todos
-   */
-  sessionStartNoTodos(): string {
-    return `<system_message type="session-start-reminder">
+	/**
+	 * Session start without todos (reminder)
+	 * Triggered at first user message in new session with no todos
+	 */
+	sessionStartNoTodos(): string {
+		return `<system_message type="session-start-reminder">
 📋 Session Started
 
 No active todos found.
@@ -116,14 +116,14 @@ TodoWrite({
 })
 \`\`\`
 </system_message>`;
-  },
+	},
 
-  /**
-   * CPU usage warning
-   * Triggered when CPU usage exceeds 80%
-   */
-  resourceWarningCPU(usage: string): string {
-    return `<system_message type="resource-warning-cpu">
+	/**
+	 * CPU usage warning
+	 * Triggered when CPU usage exceeds 80%
+	 */
+	resourceWarningCPU(usage: string): string {
+		return `<system_message type="resource-warning-cpu">
 ⚠️ System Resource Warning - CPU
 
 Current CPU usage: ${usage}
@@ -136,14 +136,14 @@ CPU resources are constrained. Please:
 
 This is a temporary condition and should resolve as background tasks complete.
 </system_message>`;
-  },
+	},
 
-  /**
-   * Memory usage warning
-   * Triggered when memory usage exceeds 80%
-   */
-  resourceWarningMemory(usage: string): string {
-    return `<system_message type="resource-warning-memory">
+	/**
+	 * Memory usage warning
+	 * Triggered when memory usage exceeds 80%
+	 */
+	resourceWarningMemory(usage: string): string {
+		return `<system_message type="resource-warning-memory">
 ⚠️ System Resource Warning - Memory
 
 Current memory usage: ${usage}
@@ -156,7 +156,7 @@ Memory resources are constrained. Please:
 
 This is a temporary condition and should resolve as tasks complete.
 </system_message>`;
-  },
+	},
 };
 
 /**
@@ -166,7 +166,7 @@ This is a temporary condition and should resolve as tasks complete.
  * @deprecated Use SystemMessages builders instead
  */
 export function createSystemMessage(type: string, content: string): string {
-  return `<system_message type="${type}">\n${content}\n</system_message>`;
+	return `<system_message type="${type}">\n${content}\n</system_message>`;
 }
 
 /**
@@ -174,13 +174,13 @@ export function createSystemMessage(type: string, content: string): string {
  * Used for deduplication (ensure each type only appears once)
  */
 export function parseSystemMessageType(content: string): string | null {
-  const match = content.match(/<system_message type="([^"]+)">/);
-  return match ? match[1] : null;
+	const match = content.match(/<system_message type="([^"]+)">/);
+	return match ? match[1] : null;
 }
 
 /**
  * Check if message is a system message
  */
 export function isSystemMessage(content: string): boolean {
-  return content.includes('<system_message');
+	return content.includes("<system_message");
 }

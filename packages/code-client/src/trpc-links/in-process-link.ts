@@ -22,149 +22,150 @@
  * ```
  */
 
-import type { TRPCLink, TRPCClientError } from '@trpc/client';
-import type { AnyRouter } from '@trpc/server';
-import { observable } from '@trpc/server/observable';
-import { createLogger } from '@sylphx/code-core';
+import type { TRPCLink, TRPCClientError } from "@trpc/client";
+import type { AnyRouter } from "@trpc/server";
+import { observable } from "@trpc/server/observable";
+import { createLogger } from "@sylphx/code-core";
 
-const log = createLogger('trpc:link');
+const log = createLogger("trpc:link");
 
 // Support both explicit router+createContext and convenience appContext
 export type InProcessLinkOptions<TRouter extends AnyRouter> =
-  | {
-      /**
-       * tRPC router instance from CodeServer
-       */
-      router: TRouter;
-      /**
-       * Context factory from CodeServer
-       */
-      createContext: () => Promise<any> | any;
-    }
-  | {
-      /**
-       * AppContext from code-server (convenience wrapper)
-       * Will use appRouter and create context factory automatically
-       */
-      appContext: any;
-    };
+	| {
+			/**
+			 * tRPC router instance from CodeServer
+			 */
+			router: TRouter;
+			/**
+			 * Context factory from CodeServer
+			 */
+			createContext: () => Promise<any> | any;
+	  }
+	| {
+			/**
+			 * AppContext from code-server (convenience wrapper)
+			 * Will use appRouter and create context factory automatically
+			 */
+			appContext: any;
+	  };
 
 /**
  * Create in-process tRPC link for zero-overhead communication
  * Uses tRPC server-side caller API for proper procedure invocation
  */
 export function inProcessLink<TRouter extends AnyRouter>(
-  options: InProcessLinkOptions<TRouter>
+	options: InProcessLinkOptions<TRouter>,
 ): TRPCLink<TRouter> {
-  // Extract router and createContext based on options shape
-  const { router, createContext } = 'appContext' in options
-    ? {
-        router: (async () => {
-          const { appRouter } = await import('@sylphx/code-server');
-          return appRouter as TRouter;
-        })() as any,
-        createContext: async () => {
-          const { createContext: createTRPCContext } = await import('@sylphx/code-server');
-          return createTRPCContext({ appContext: options.appContext });
-        },
-      }
-    : {
-        router: options.router,
-        createContext: options.createContext,
-      };
+	// Extract router and createContext based on options shape
+	const { router, createContext } =
+		"appContext" in options
+			? {
+					router: (async () => {
+						const { appRouter } = await import("@sylphx/code-server");
+						return appRouter as TRouter;
+					})() as any,
+					createContext: async () => {
+						const { createContext: createTRPCContext } = await import("@sylphx/code-server");
+						return createTRPCContext({ appContext: options.appContext });
+					},
+				}
+			: {
+					router: options.router,
+					createContext: options.createContext,
+				};
 
-  return () => {
-    return ({ op, next }) => {
-      return observable((observer) => {
-        const { type, path, input } = op;
+	return () => {
+		return ({ op, next }) => {
+			return observable((observer) => {
+				const { type, path, input } = op;
 
-        // Execute procedure via server-side caller
-        (async () => {
-          try {
-            // Create context for this request
-            const ctx = await createContext();
+				// Execute procedure via server-side caller
+				(async () => {
+					try {
+						// Create context for this request
+						const ctx = await createContext();
 
-            // Resolve router if it's a promise
-            const resolvedRouter = await Promise.resolve(router);
+						// Resolve router if it's a promise
+						const resolvedRouter = await Promise.resolve(router);
 
-            // Create server-side caller with context
-            const caller = resolvedRouter.createCaller(ctx);
+						// Create server-side caller with context
+						const caller = resolvedRouter.createCaller(ctx);
 
-            // Navigate to the procedure using path (e.g., 'session.getLast')
-            const procedureFn = getProcedureFunction(caller, path);
+						// Navigate to the procedure using path (e.g., 'session.getLast')
+						const procedureFn = getProcedureFunction(caller, path);
 
-            if (!procedureFn) {
-              throw new Error(`Procedure not found: ${path}`);
-            }
+						if (!procedureFn) {
+							throw new Error(`Procedure not found: ${path}`);
+						}
 
-            // Execute procedure based on type
-            if (type === 'query' || type === 'mutation') {
-              // Regular query/mutation
-              const result = await procedureFn(input);
-              observer.next({ result: { type: 'data', data: result } });
-              observer.complete();
-            } else if (type === 'subscription') {
-              // Subscription - stream results
-              log('Executing subscription:', path);
-              log('Calling procedure with input keys:', Object.keys(input || {}));
-              const subscription = await procedureFn(input);
-              log('Subscription returned:', typeof subscription);
+						// Execute procedure based on type
+						if (type === "query" || type === "mutation") {
+							// Regular query/mutation
+							const result = await procedureFn(input);
+							observer.next({ result: { type: "data", data: result } });
+							observer.complete();
+						} else if (type === "subscription") {
+							// Subscription - stream results
+							log("Executing subscription:", path);
+							log("Calling procedure with input keys:", Object.keys(input || {}));
+							const subscription = await procedureFn(input);
+							log("Subscription returned:", typeof subscription);
 
-              // Check for observable first (has .subscribe method)
-              // tRPC observables implement both .subscribe() and Symbol.asyncIterator
-              // We must use .subscribe() for proper completion handling
-              if (typeof subscription?.subscribe === 'function') {
-                log('Observable subscription detected');
-                // Observable subscription
-                const sub = subscription.subscribe({
-                  next: (data: any) => {
-                    log('Observable next:', data?.type || typeof data);
-                    // Use setImmediate to yield control back to event loop
-                    // This allows multiple subscriptions to execute concurrently
-                    // Mimics HTTP link behavior (async I/O)
-                    setImmediate(() => {
-                      observer.next({ result: { type: 'data', data } });
-                    });
-                  },
-                  error: (err: any) => {
-                    log('Observable error:', err instanceof Error ? err.message : String(err));
-                    setImmediate(() => {
-                      observer.error(err);
-                    });
-                  },
-                  complete: () => {
-                    log('Observable complete');
-                    setImmediate(() => {
-                      observer.complete();
-                    });
-                  },
-                });
+							// Check for observable first (has .subscribe method)
+							// tRPC observables implement both .subscribe() and Symbol.asyncIterator
+							// We must use .subscribe() for proper completion handling
+							if (typeof subscription?.subscribe === "function") {
+								log("Observable subscription detected");
+								// Observable subscription
+								const sub = subscription.subscribe({
+									next: (data: any) => {
+										log("Observable next:", data?.type || typeof data);
+										// Use setImmediate to yield control back to event loop
+										// This allows multiple subscriptions to execute concurrently
+										// Mimics HTTP link behavior (async I/O)
+										setImmediate(() => {
+											observer.next({ result: { type: "data", data } });
+										});
+									},
+									error: (err: any) => {
+										log("Observable error:", err instanceof Error ? err.message : String(err));
+										setImmediate(() => {
+											observer.error(err);
+										});
+									},
+									complete: () => {
+										log("Observable complete");
+										setImmediate(() => {
+											observer.complete();
+										});
+									},
+								});
 
-                // Return unsubscribe function
-                return () => {
-                  log('Unsubscribing from observable');
-                  sub.unsubscribe();
-                };
-              } else if (Symbol.asyncIterator in subscription) {
-                log('Async iterable subscription detected');
-                // Async iterable subscription (fallback)
-                for await (const data of subscription as AsyncIterable<any>) {
-                  log('Received data from async iterator');
-                  observer.next({ result: { type: 'data', data } });
-                }
-                log('Async iterator completed');
-                observer.complete();
-              } else {
-                throw new Error(`Invalid subscription type for ${path}`);
-              }
-            }
-          } catch (error) {
-            observer.error(error as TRPCClientError<TRouter>);
-          }
-        })();
-      });
-    };
-  };
+								// Return unsubscribe function
+								return () => {
+									log("Unsubscribing from observable");
+									sub.unsubscribe();
+								};
+							} else if (Symbol.asyncIterator in subscription) {
+								log("Async iterable subscription detected");
+								// Async iterable subscription (fallback)
+								for await (const data of subscription as AsyncIterable<any>) {
+									log("Received data from async iterator");
+									observer.next({ result: { type: "data", data } });
+								}
+								log("Async iterator completed");
+								observer.complete();
+							} else {
+								throw new Error(`Invalid subscription type for ${path}`);
+							}
+						}
+					} catch (error) {
+						observer.error(error as TRPCClientError<TRouter>);
+					}
+				})();
+			});
+		};
+	};
 }
 
 /**
@@ -175,15 +176,15 @@ export function inProcessLink<TRouter extends AnyRouter>(
  * 'message.streamResponse' -> caller.message.streamResponse
  */
 function getProcedureFunction(caller: any, path: string): any {
-  const parts = path.split('.');
-  let current = caller;
+	const parts = path.split(".");
+	let current = caller;
 
-  for (const part of parts) {
-    if (!current[part]) {
-      return null;
-    }
-    current = current[part];
-  }
+	for (const part of parts) {
+		if (!current[part]) {
+			return null;
+		}
+		current = current[part];
+	}
 
-  return current;
+	return current;
 }

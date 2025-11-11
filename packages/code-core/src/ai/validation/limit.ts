@@ -3,10 +3,10 @@
  * Shared validation for limit parameters across features
  */
 
-import type { Result } from '../result.js';
-import { success, failure } from '../result.js';
-import type { AppError } from '../functional/error-types.js';
-import { validationError } from '../functional/error-types.js';
+import type { Result } from "../result.js";
+import { success, failure } from "../result.js";
+import type { AppError } from "../functional/error-types.js";
+import { validationError } from "../functional/error-types.js";
 
 /**
  * Validate limit parameter with configurable defaults and max
@@ -24,23 +24,23 @@ import { validationError } from '../functional/error-types.js';
  * validateLimit('invalid', 10, 100) // failure("Limit must be a positive number")
  */
 export function validateLimit(
-  limit: string | number | undefined,
-  defaultLimit: number = 50,
-  maxLimit: number = 1000
+	limit: string | number | undefined,
+	defaultLimit: number = 50,
+	maxLimit: number = 1000,
 ): Result<number, AppError> {
-  if (limit === undefined) {
-    return success(defaultLimit);
-  }
+	if (limit === undefined) {
+		return success(defaultLimit);
+	}
 
-  const numLimit = typeof limit === 'string' ? Number.parseInt(limit, 10) : limit;
+	const numLimit = typeof limit === "string" ? Number.parseInt(limit, 10) : limit;
 
-  if (Number.isNaN(numLimit) || numLimit < 1) {
-    return failure(validationError('Limit must be a positive number', 'limit', limit));
-  }
+	if (Number.isNaN(numLimit) || numLimit < 1) {
+		return failure(validationError("Limit must be a positive number", "limit", limit));
+	}
 
-  if (numLimit > maxLimit) {
-    return failure(validationError(`Limit cannot exceed ${maxLimit}`, 'limit', limit));
-  }
+	if (numLimit > maxLimit) {
+		return failure(validationError(`Limit cannot exceed ${maxLimit}`, "limit", limit));
+	}
 
-  return success(numLimit);
+	return success(numLimit);
 }

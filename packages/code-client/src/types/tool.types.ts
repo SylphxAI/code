@@ -6,19 +6,19 @@
  * allowing it to be safely imported from anywhere.
  */
 
-import type { FC } from 'react';
+import type { FC } from "react";
 
 /**
  * Tool display props (for custom components)
  */
 export interface ToolDisplayProps {
-  name: string;
-  status: 'running' | 'completed' | 'failed';
-  duration?: number;
-  startTime?: number;
-  args?: unknown;
-  result?: unknown;
-  error?: string;
+	name: string;
+	status: "running" | "completed" | "failed";
+	duration?: number;
+	startTime?: number;
+	args?: unknown;
+	result?: unknown;
+	error?: string;
 }
 
 /**

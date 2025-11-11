@@ -4,38 +4,38 @@
  * Based on: https://github.com/vadimdemedes/ink/issues/263
  */
 
-import { Box, type BoxProps, useStdout } from 'ink';
-import React, { type PropsWithChildren, useEffect, useState } from 'react';
+import { Box, type BoxProps, useStdout } from "ink";
+import React, { type PropsWithChildren, useEffect, useState } from "react";
 
-const enterAltScreenCommand = '\x1b[?1049h';
-const leaveAltScreenCommand = '\x1b[?1049l';
+const enterAltScreenCommand = "\x1b[?1049h";
+const leaveAltScreenCommand = "\x1b[?1049l";
 
 /**
  * Hook to get terminal dimensions and track resize
  */
 function useStdoutDimensions(): [number, number] {
-  const { stdout } = useStdout();
-  const [size, setSize] = useState({
-    columns: stdout.columns || 100,
-    rows: stdout.rows || 30,
-  });
+	const { stdout } = useStdout();
+	const [size, setSize] = useState({
+		columns: stdout.columns || 100,
+		rows: stdout.rows || 30,
+	});
 
-  useEffect(() => {
-    // Force update size on mount in case initial values were wrong
-    setSize({ columns: stdout.columns || 100, rows: stdout.rows || 30 });
+	useEffect(() => {
+		// Force update size on mount in case initial values were wrong
+		setSize({ columns: stdout.columns || 100, rows: stdout.rows || 30 });
 
-    function onResize() {
-      const { columns, rows } = stdout;
-      setSize({ columns: columns || 100, rows: rows || 30 });
-    }
+		function onResize() {
+			const { columns, rows } = stdout;
+			setSize({ columns: columns || 100, rows: rows || 30 });
+		}
 
-    stdout.on('resize', onResize);
-    return () => {
-      stdout.off('resize', onResize);
-    };
-  }, [stdout]);
+		stdout.on("resize", onResize);
+		return () => {
+			stdout.off("resize", onResize);
+		};
+	}, [stdout]);
 
-  return [size.columns, size.rows];
+	return [size.columns, size.rows];
 }
 
 /**
@@ -43,25 +43,25 @@ function useStdoutDimensions(): [number, number] {
  * Enters alternate screen buffer and fills terminal dimensions
  */
 export function FullScreen({ children, ...props }: PropsWithChildren<BoxProps>) {
-  const [columns, rows] = useStdoutDimensions();
+	const [columns, rows] = useStdoutDimensions();
 
-  useEffect(() => {
-    // Enter alternate screen buffer
-    process.stdout.write(enterAltScreenCommand);
-    // Clear screen
-    process.stdout.write('\x1b[2J');
-    // Move cursor to home position
-    process.stdout.write('\x1b[H');
+	useEffect(() => {
+		// Enter alternate screen buffer
+		process.stdout.write(enterAltScreenCommand);
+		// Clear screen
+		process.stdout.write("\x1b[2J");
+		// Move cursor to home position
+		process.stdout.write("\x1b[H");
 
-    // Exit alternate screen buffer on unmount
-    return () => {
-      process.stdout.write(leaveAltScreenCommand);
-    };
-  }, []);
+		// Exit alternate screen buffer on unmount
+		return () => {
+			process.stdout.write(leaveAltScreenCommand);
+		};
+	}, []);
 
-  return (
-    <Box width={columns} height={rows} flexDirection="column" {...props}>
-      {children}
-    </Box>
-  );
+	return (
+		<Box width={columns} height={rows} flexDirection="column" {...props}>
+			{children}
+		</Box>
+	);
 }

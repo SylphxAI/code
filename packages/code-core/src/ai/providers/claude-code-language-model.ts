@@ -91,239 +91,245 @@
  */
 
 import type {
-  LanguageModelV2,
-  LanguageModelV2CallOptions,
-  LanguageModelV2StreamPart,
-} from '@ai-sdk/provider';
-import { query } from '@anthropic-ai/claude-agent-sdk';
-import { parseContentBlocks } from './text-based-tools.js';
-import { convertMessagesToString } from './message-converter.js';
-import { convertTools, buildQueryOptions } from './query-builder.js';
-import { extractUsage, handleResultError } from './usage-handler.js';
-import { processStream } from './stream-processor.js';
+	LanguageModelV2,
+	LanguageModelV2CallOptions,
+	LanguageModelV2StreamPart,
+} from "@ai-sdk/provider";
+import { query } from "@anthropic-ai/claude-agent-sdk";
+import { parseContentBlocks } from "./text-based-tools.js";
+import { convertMessagesToString } from "./message-converter.js";
+import { convertTools, buildQueryOptions } from "./query-builder.js";
+import { extractUsage, handleResultError } from "./usage-handler.js";
+import { processStream } from "./stream-processor.js";
 
 export interface ClaudeCodeLanguageModelConfig {
-  modelId: string;
+	modelId: string;
 }
 
 export class ClaudeCodeLanguageModel implements LanguageModelV2 {
-  readonly specificationVersion = 'v2' as const;
-  readonly provider = 'claude-code' as const;
-  readonly modelId: string;
+	readonly specificationVersion = "v2" as const;
+	readonly provider = "claude-code" as const;
+	readonly modelId: string;
 
-  constructor(config: ClaudeCodeLanguageModelConfig) {
-    this.modelId = config.modelId;
-  }
+	constructor(config: ClaudeCodeLanguageModelConfig) {
+		this.modelId = config.modelId;
+	}
 
-  get supportedUrls(): Record<string, RegExp[]> {
-    // Claude supports various image formats
-    return {
-      'image/*': [/.*/],
-    };
-  }
+	get supportedUrls(): Record<string, RegExp[]> {
+		// Claude supports various image formats
+		return {
+			"image/*": [/.*/],
+		};
+	}
 
-  async doGenerate(
-    options: LanguageModelV2CallOptions
-  ): Promise<Awaited<ReturnType<LanguageModelV2['doGenerate']>>> {
-    try {
-      // Convert tools and build query options
-      const tools = convertTools(options.tools || []);
-      const { queryOptions } = buildQueryOptions(this.modelId, options, tools);
+	async doGenerate(
+		options: LanguageModelV2CallOptions,
+	): Promise<Awaited<ReturnType<LanguageModelV2["doGenerate"]>>> {
+		try {
+			// Convert tools and build query options
+			const tools = convertTools(options.tools || []);
+			const { queryOptions } = buildQueryOptions(this.modelId, options, tools);
 
-      // Check if resuming existing session
-      const isResuming = !!queryOptions.resume;
+			// Check if resuming existing session
+			const isResuming = !!queryOptions.resume;
 
-      // Convert messages - will skip already processed messages if resuming
-      // Also detects message inconsistencies (rewind/edit)
-      const { prompt: promptString, shouldForceNewSession, messageFingerprints } =
-        convertMessagesToString(options, isResuming);
+			// Convert messages - will skip already processed messages if resuming
+			// Also detects message inconsistencies (rewind/edit)
+			const {
+				prompt: promptString,
+				shouldForceNewSession,
+				messageFingerprints,
+			} = convertMessagesToString(options, isResuming);
 
-      // If inconsistency detected, clear resume to create new session
-      if (shouldForceNewSession) {
-        delete queryOptions.resume;
-      }
+			// If inconsistency detected, clear resume to create new session
+			if (shouldForceNewSession) {
+				delete queryOptions.resume;
+			}
 
-      // Execute query
-      const queryResult = query({
-        prompt: promptString,
-        options: queryOptions,
-      });
+			// Execute query
+			const queryResult = query({
+				prompt: promptString,
+				options: queryOptions,
+			});
 
-      // Collect results
-      const contentParts: any[] = [];
-      let inputTokens = 0;
-      let outputTokens = 0;
-      let finishReason: 'stop' | 'length' | 'tool-calls' = 'stop';
-      let sessionId: string | undefined;
+			// Collect results
+			const contentParts: any[] = [];
+			let inputTokens = 0;
+			let outputTokens = 0;
+			let finishReason: "stop" | "length" | "tool-calls" = "stop";
+			let sessionId: string | undefined;
 
-      for await (const event of queryResult) {
-        // Extract session ID from any event (all events have session_id)
-        if ('session_id' in event && typeof event.session_id === 'string') {
-          sessionId = event.session_id;
-        }
+			for await (const event of queryResult) {
+				// Extract session ID from any event (all events have session_id)
+				if ("session_id" in event && typeof event.session_id === "string") {
+					sessionId = event.session_id;
+				}
 
-        if (event.type === 'assistant') {
-          // Extract content from assistant message
-          const content = event.message.content;
-          for (const block of content) {
-            if (block.type === 'thinking') {
-              // Handle thinking/reasoning blocks
-              contentParts.push({
-                type: 'reasoning',
-                reasoning: block.thinking,
-              });
-            } else if (block.type === 'text') {
-              // Parse text for tool calls if tools are available
-              if (tools && Object.keys(tools).length > 0) {
-                const parsedBlocks = parseContentBlocks(block.text);
-                for (const parsedBlock of parsedBlocks) {
-                  if (parsedBlock.type === 'text') {
-                    contentParts.push({
-                      type: 'text',
-                      text: parsedBlock.text,
-                    });
-                  } else if (parsedBlock.type === 'tool_use') {
-                    contentParts.push({
-                      type: 'tool-call',
-                      toolCallId: parsedBlock.toolCallId,
-                      toolName: parsedBlock.toolName,
-                      input: JSON.stringify(parsedBlock.arguments),
-                    });
-                    finishReason = 'tool-calls';
-                  }
-                }
-              } else {
-                // No tools, just add text
-                contentParts.push({
-                  type: 'text',
-                  text: block.text,
-                });
-              }
-            }
-          }
+				if (event.type === "assistant") {
+					// Extract content from assistant message
+					const content = event.message.content;
+					for (const block of content) {
+						if (block.type === "thinking") {
+							// Handle thinking/reasoning blocks
+							contentParts.push({
+								type: "reasoning",
+								reasoning: block.thinking,
+							});
+						} else if (block.type === "text") {
+							// Parse text for tool calls if tools are available
+							if (tools && Object.keys(tools).length > 0) {
+								const parsedBlocks = parseContentBlocks(block.text);
+								for (const parsedBlock of parsedBlocks) {
+									if (parsedBlock.type === "text") {
+										contentParts.push({
+											type: "text",
+											text: parsedBlock.text,
+										});
+									} else if (parsedBlock.type === "tool_use") {
+										contentParts.push({
+											type: "tool-call",
+											toolCallId: parsedBlock.toolCallId,
+											toolName: parsedBlock.toolName,
+											input: JSON.stringify(parsedBlock.arguments),
+										});
+										finishReason = "tool-calls";
+									}
+								}
+							} else {
+								// No tools, just add text
+								contentParts.push({
+									type: "text",
+									text: block.text,
+								});
+							}
+						}
+					}
 
-          // Check stop reason
-          if (event.message.stop_reason === 'end_turn') {
-            // Keep tool-calls finish reason if we detected tool calls
-            if (finishReason !== 'tool-calls') {
-              finishReason = 'stop';
-            }
-          } else if (event.message.stop_reason === 'max_tokens') {
-            finishReason = 'length';
-          }
-        } else if (event.type === 'result') {
-          handleResultError(event);
-          const usage = extractUsage(event);
-          inputTokens = usage.inputTokens;
-          outputTokens = usage.outputTokens;
-        }
-      }
+					// Check stop reason
+					if (event.message.stop_reason === "end_turn") {
+						// Keep tool-calls finish reason if we detected tool calls
+						if (finishReason !== "tool-calls") {
+							finishReason = "stop";
+						}
+					} else if (event.message.stop_reason === "max_tokens") {
+						finishReason = "length";
+					}
+				} else if (event.type === "result") {
+					handleResultError(event);
+					const usage = extractUsage(event);
+					inputTokens = usage.inputTokens;
+					outputTokens = usage.outputTokens;
+				}
+			}
 
-      // Calculate total message count for next call
-      const totalMessageCount = options.prompt.length;
+			// Calculate total message count for next call
+			const totalMessageCount = options.prompt.length;
 
-      // Build response headers with session tracking info
-      const headers: Record<string, string> = {};
-      if (sessionId) {
-        headers['x-claude-code-session-id'] = sessionId;
-        headers['x-claude-code-message-count'] = String(totalMessageCount);
-        // Include fingerprints for next call's consistency check
-        headers['x-claude-code-message-fingerprints'] = JSON.stringify(messageFingerprints);
-      }
-      // Add warning if session was force-created due to inconsistency
-      if (shouldForceNewSession) {
-        headers['x-claude-code-session-forced-new'] = 'true';
-      }
+			// Build response headers with session tracking info
+			const headers: Record<string, string> = {};
+			if (sessionId) {
+				headers["x-claude-code-session-id"] = sessionId;
+				headers["x-claude-code-message-count"] = String(totalMessageCount);
+				// Include fingerprints for next call's consistency check
+				headers["x-claude-code-message-fingerprints"] = JSON.stringify(messageFingerprints);
+			}
+			// Add warning if session was force-created due to inconsistency
+			if (shouldForceNewSession) {
+				headers["x-claude-code-session-forced-new"] = "true";
+			}
 
-      return {
-        content: contentParts,
-        finishReason,
-        usage: {
-          inputTokens: inputTokens,
-          outputTokens: outputTokens,
-          totalTokens: inputTokens + outputTokens,
-        },
-        warnings: shouldForceNewSession
-          ? [
-              'Message history inconsistency detected (rewind or edit). Created new Claude Code session.',
-            ]
-          : [],
-        response: {
-          headers,
-        },
-      };
-    } catch (error) {
-      // Log detailed error information
-      console.error('Claude Code error details:', {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        modelId: this.modelId,
-      });
-      throw new Error(
-        `Claude Code execution failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
+			return {
+				content: contentParts,
+				finishReason,
+				usage: {
+					inputTokens: inputTokens,
+					outputTokens: outputTokens,
+					totalTokens: inputTokens + outputTokens,
+				},
+				warnings: shouldForceNewSession
+					? [
+							"Message history inconsistency detected (rewind or edit). Created new Claude Code session.",
+						]
+					: [],
+				response: {
+					headers,
+				},
+			};
+		} catch (error) {
+			// Log detailed error information
+			console.error("Claude Code error details:", {
+				message: error instanceof Error ? error.message : String(error),
+				stack: error instanceof Error ? error.stack : undefined,
+				modelId: this.modelId,
+			});
+			throw new Error(
+				`Claude Code execution failed: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+	}
 
-  doStream(
-    options: LanguageModelV2CallOptions
-  ): Promise<Awaited<ReturnType<LanguageModelV2['doStream']>>> {
-    try {
-      // Convert tools and build query options
-      const tools = convertTools(options.tools || []);
-      const { queryOptions } = buildQueryOptions(this.modelId, options, tools, true);
+	doStream(
+		options: LanguageModelV2CallOptions,
+	): Promise<Awaited<ReturnType<LanguageModelV2["doStream"]>>> {
+		try {
+			// Convert tools and build query options
+			const tools = convertTools(options.tools || []);
+			const { queryOptions } = buildQueryOptions(this.modelId, options, tools, true);
 
-      // Check if resuming existing session
-      const isResuming = !!queryOptions.resume;
+			// Check if resuming existing session
+			const isResuming = !!queryOptions.resume;
 
-      // Convert messages - will skip already processed messages if resuming
-      // Also detects message inconsistencies (rewind/edit)
-      const { prompt: promptString, shouldForceNewSession, messageFingerprints } =
-        convertMessagesToString(options, isResuming);
+			// Convert messages - will skip already processed messages if resuming
+			// Also detects message inconsistencies (rewind/edit)
+			const {
+				prompt: promptString,
+				shouldForceNewSession,
+				messageFingerprints,
+			} = convertMessagesToString(options, isResuming);
 
-      // If inconsistency detected, clear resume to create new session
-      if (shouldForceNewSession) {
-        delete queryOptions.resume;
-      }
+			// If inconsistency detected, clear resume to create new session
+			if (shouldForceNewSession) {
+				delete queryOptions.resume;
+			}
 
-      // Calculate total message count for metadata
-      const totalMessageCount = options.prompt.length;
+			// Calculate total message count for metadata
+			const totalMessageCount = options.prompt.length;
 
-      // Execute query
-      const queryResult = query({
-        prompt: promptString,
-        options: queryOptions,
-      });
+			// Execute query
+			const queryResult = query({
+				prompt: promptString,
+				options: queryOptions,
+			});
 
-      // Create streaming response using stream processor
-      const stream = new ReadableStream<LanguageModelV2StreamPart>({
-        async start(controller) {
-          try {
-            for await (const part of processStream({
-              queryResult,
-              tools,
-              totalMessageCount,
-              messageFingerprints,
-              shouldForceNewSession,
-            })) {
-              controller.enqueue(part);
-            }
-            controller.close();
-          } catch (error) {
-            controller.error(error);
-          }
-        },
-      });
+			// Create streaming response using stream processor
+			const stream = new ReadableStream<LanguageModelV2StreamPart>({
+				async start(controller) {
+					try {
+						for await (const part of processStream({
+							queryResult,
+							tools,
+							totalMessageCount,
+							messageFingerprints,
+							shouldForceNewSession,
+						})) {
+							controller.enqueue(part);
+						}
+						controller.close();
+					} catch (error) {
+						controller.error(error);
+					}
+				},
+			});
 
-      return {
-        stream,
-        response: { headers: {} },
-        warnings: [],
-      };
-    } catch (error) {
-      throw new Error(
-        `Claude Code streaming failed: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
+			return {
+				stream,
+				response: { headers: {} },
+				warnings: [],
+			};
+		} catch (error) {
+			throw new Error(
+				`Claude Code streaming failed: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+	}
 }

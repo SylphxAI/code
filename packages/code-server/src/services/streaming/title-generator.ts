@@ -3,17 +3,17 @@
  * Handles parallel title generation with real-time streaming
  */
 
-import type { SessionRepository, AIConfig, Session } from '@sylphx/code-core';
-import type { AppContext } from '../../context.js';
-import { publishTitleUpdate } from '../event-publisher.js';
+import type { SessionRepository, AIConfig, Session } from "@sylphx/code-core";
+import type { AppContext } from "../../context.js";
+import { publishTitleUpdate } from "../event-publisher.js";
 
 /**
  * Title streaming callbacks for real-time updates
  */
 export interface TitleStreamCallbacks {
-  onStart: () => void;
-  onDelta: (text: string) => void;
-  onEnd: (title: string) => void;
+	onStart: () => void;
+	onDelta: (text: string) => void;
+	onEnd: (title: string) => void;
 }
 
 /**
@@ -21,36 +21,36 @@ export interface TitleStreamCallbacks {
  * Returns a promise that resolves when title generation is complete
  */
 export async function generateSessionTitle(
-  appContext: AppContext,
-  sessionRepository: SessionRepository,
-  aiConfig: AIConfig,
-  session: Session,
-  userMessage: string,
-  callbacks?: TitleStreamCallbacks
+	appContext: AppContext,
+	sessionRepository: SessionRepository,
+	aiConfig: AIConfig,
+	session: Session,
+	userMessage: string,
+	callbacks?: TitleStreamCallbacks,
 ): Promise<string | null> {
-  try {
-    const { createAIStream, cleanAITitle, getProvider } = await import('@sylphx/code-core');
+	try {
+		const { createAIStream, cleanAITitle, getProvider } = await import("@sylphx/code-core");
 
-    const provider = session.provider;
-    const modelName = session.model;
-    const providerConfig = aiConfig?.providers?.[provider];
+		const provider = session.provider;
+		const modelName = session.model;
+		const providerConfig = aiConfig?.providers?.[provider];
 
-    if (!providerConfig) {
-      return null;
-    }
+		if (!providerConfig) {
+			return null;
+		}
 
-    const providerInstance = getProvider(provider);
-    if (!providerInstance.isConfigured(providerConfig)) {
-      return null;
-    }
+		const providerInstance = getProvider(provider);
+		if (!providerInstance.isConfigured(providerConfig)) {
+			return null;
+		}
 
-    const model = providerInstance.createClient(providerConfig, modelName);
+		const model = providerInstance.createClient(providerConfig, modelName);
 
-    // Create AI stream for title generation (no tools, no reasoning - fastest possible)
-    const titleStream = createAIStream({
-      model,
-      providerInstance, // Pass provider for reasoning control
-      systemPrompt: `Generate a concise title for this conversation.
+		// Create AI stream for title generation (no tools, no reasoning - fastest possible)
+		const titleStream = createAIStream({
+			model,
+			providerInstance, // Pass provider for reasoning control
+			systemPrompt: `Generate a concise title for this conversation.
 
 Requirements:
 - 2-6 words maximum
@@ -66,98 +66,101 @@ Examples:
 - User: "Write a function to sort arrays" → Title: "Array sorting function"
 
 Output only the title, nothing else.`,
-      messages: [
-        {
-          role: 'user',
-          content: userMessage,
-        },
-      ],
-      enableTools: false, // Title generation doesn't need tools
-      disableReasoning: true, // Disable extended thinking to prevent 3+ second delays
-    });
+			messages: [
+				{
+					role: "user",
+					content: userMessage,
+				},
+			],
+			enableTools: false, // Title generation doesn't need tools
+			disableReasoning: true, // Disable extended thinking to prevent 3+ second delays
+		});
 
-    let fullTitle = '';
+		let fullTitle = "";
 
-    // Emit start event
-    if (callbacks) {
-      callbacks.onStart();
-    } else {
-      const startEvent = { type: 'session-title-updated-start' as const, sessionId: session.id };
-      // Fire-and-forget publish (non-blocking, same as message streaming)
-      appContext.eventStream.publish(`session:${session.id}`, startEvent).catch(err => {
-        console.error('[TitleGen] Failed to publish START event:', err);
-      });
-    }
+		// Emit start event
+		if (callbacks) {
+			callbacks.onStart();
+		} else {
+			const startEvent = {
+				type: "session-title-updated-start" as const,
+				sessionId: session.id,
+			};
+			// Fire-and-forget publish (non-blocking, same as message streaming)
+			appContext.eventStream.publish(`session:${session.id}`, startEvent).catch((err) => {
+				console.error("[TitleGen] Failed to publish START event:", err);
+			});
+		}
 
-    // Stream title chunks
-    try {
-      for await (const chunk of titleStream) {
-        if (chunk.type === 'text-delta' && chunk.textDelta) {
-          fullTitle += chunk.textDelta;
+		// Stream title chunks
+		try {
+			for await (const chunk of titleStream) {
+				if (chunk.type === "text-delta" && chunk.textDelta) {
+					fullTitle += chunk.textDelta;
 
-          // Emit delta
-          if (callbacks) {
-            callbacks.onDelta(chunk.textDelta);
-          } else {
-            const deltaEvent = {
-              type: 'session-title-updated-delta' as const,
-              sessionId: session.id,
-              text: chunk.textDelta,
-            };
-            // Fire-and-forget publish (non-blocking, same as message streaming)
-            appContext.eventStream.publish(`session:${session.id}`, deltaEvent).catch(err => {
-              console.error('[TitleGen] Failed to publish DELTA event:', err);
-            });
-          }
-        }
-      }
-    } catch (streamError) {
-      // Catch NoOutputGeneratedError and other stream errors
-      console.error('[Title Generation] Stream error:', streamError);
-      // If stream failed, use a default title based on first message
-      if (fullTitle.length === 0) {
-        fullTitle = userMessage.slice(0, 50);
-      }
-    }
+					// Emit delta
+					if (callbacks) {
+						callbacks.onDelta(chunk.textDelta);
+					} else {
+						const deltaEvent = {
+							type: "session-title-updated-delta" as const,
+							sessionId: session.id,
+							text: chunk.textDelta,
+						};
+						// Fire-and-forget publish (non-blocking, same as message streaming)
+						appContext.eventStream.publish(`session:${session.id}`, deltaEvent).catch((err) => {
+							console.error("[TitleGen] Failed to publish DELTA event:", err);
+						});
+					}
+				}
+			}
+		} catch (streamError) {
+			// Catch NoOutputGeneratedError and other stream errors
+			console.error("[Title Generation] Stream error:", streamError);
+			// If stream failed, use a default title based on first message
+			if (fullTitle.length === 0) {
+				fullTitle = userMessage.slice(0, 50);
+			}
+		}
 
-    // Clean up and update database (only if we got some title)
-    if (fullTitle.length > 0) {
-      const cleaned = cleanAITitle(fullTitle, 50);
+		// Clean up and update database (only if we got some title)
+		if (fullTitle.length > 0) {
+			const cleaned = cleanAITitle(fullTitle, 50);
 
-      try {
-        await sessionRepository.updateSession(session.id, { title: cleaned });
+			try {
+				await sessionRepository.updateSession(session.id, { title: cleaned });
 
-        // Emit end event
-        if (callbacks) {
-          callbacks.onEnd(cleaned);
-        } else {
-          // Publish to both channels for UC5: Selective Event Delivery
-          publishTitleUpdate(appContext.eventStream, session.id, cleaned).catch(err => {
-            console.error('[TitleGen] Failed to publish title update:', err);
-          });
-        }
-        return cleaned;
-      } catch (dbError) {
-        console.error('[Title Generation] Failed to save title:', dbError);
-        return cleaned; // Return title even if DB save failed
-      }
-    }
+				// Emit end event
+				if (callbacks) {
+					callbacks.onEnd(cleaned);
+				} else {
+					// Publish to both channels for UC5: Selective Event Delivery
+					publishTitleUpdate(appContext.eventStream, session.id, cleaned).catch((err) => {
+						console.error("[TitleGen] Failed to publish title update:", err);
+					});
+				}
+				return cleaned;
+			} catch (dbError) {
+				console.error("[Title Generation] Failed to save title:", dbError);
+				return cleaned; // Return title even if DB save failed
+			}
+		}
 
-    return null;
-  } catch (error) {
-    console.error('[Title Generation] Error:', error);
-    return null;
-  }
+		return null;
+	} catch (error) {
+		console.error("[Title Generation] Error:", error);
+		return null;
+	}
 }
 
 /**
  * Check if session needs title generation
  */
 export function needsTitleGeneration(
-  session: Session,
-  isNewSession: boolean,
-  isFirstMessage: boolean
+	session: Session,
+	isNewSession: boolean,
+	isFirstMessage: boolean,
 ): boolean {
-  const needsTitle = isNewSession || !session.title || session.title === 'New Chat';
-  return needsTitle && isFirstMessage;
+	const needsTitle = isNewSession || !session.title || session.title === "New Chat";
+	return needsTitle && isFirstMessage;
 }

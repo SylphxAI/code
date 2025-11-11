@@ -4,10 +4,10 @@
  */
 
 export interface ByteFormatOptions {
-  /** Decimal places to round to (default: 2) */
-  decimals?: number;
-  /** Use short unit names like 'B', 'KB' instead of 'Bytes', 'KB' (default: false) */
-  shortUnits?: boolean;
+	/** Decimal places to round to (default: 2) */
+	decimals?: number;
+	/** Use short unit names like 'B', 'KB' instead of 'Bytes', 'KB' (default: false) */
+	shortUnits?: boolean;
 }
 
 /**
@@ -26,26 +26,24 @@ export interface ByteFormatOptions {
  * formatBytes(0, { shortUnits: true }) // '0 B'
  */
 export function formatBytes(bytes: number, options: ByteFormatOptions = {}): string {
-  const { decimals = 2, shortUnits = false } = options;
+	const { decimals = 2, shortUnits = false } = options;
 
-  const units = shortUnits
-    ? ['B', 'KB', 'MB', 'GB', 'TB']
-    : ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+	const units = shortUnits ? ["B", "KB", "MB", "GB", "TB"] : ["Bytes", "KB", "MB", "GB", "TB"];
 
-  if (bytes === 0) {
-    return `0 ${units[0]}`;
-  }
+	if (bytes === 0) {
+		return `0 ${units[0]}`;
+	}
 
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  const value = bytes / Math.pow(1024, i);
+	const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+	const value = bytes / Math.pow(1024, i);
 
-  // Format with specified decimal places
-  const formatted = value.toFixed(decimals);
+	// Format with specified decimal places
+	const formatted = value.toFixed(decimals);
 
-  // Remove trailing zeros and decimal point if not needed
-  const trimmed = decimals > 0 ? formatted.replace(/\.?0+$/, '') : formatted;
+	// Remove trailing zeros and decimal point if not needed
+	const trimmed = decimals > 0 ? formatted.replace(/\.?0+$/, "") : formatted;
 
-  return `${trimmed} ${units[i]}`;
+	return `${trimmed} ${units[i]}`;
 }
 
 /**
@@ -60,5 +58,5 @@ export function formatBytes(bytes: number, options: ByteFormatOptions = {}): str
  * formatFileSize(1048576) // '1.0 MB'
  */
 export function formatFileSize(bytes: number): string {
-  return formatBytes(bytes, { decimals: 1, shortUnits: true });
+	return formatBytes(bytes, { decimals: 1, shortUnits: true });
 }

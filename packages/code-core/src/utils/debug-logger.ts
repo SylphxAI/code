@@ -23,7 +23,7 @@
  *   - Industry standard (used by Express, Socket.io, etc.)
  */
 
-import debug from 'debug';
+import debug from "debug";
 
 /**
  * Create a logger for a specific namespace
@@ -37,7 +37,7 @@ import debug from 'debug';
  * // DEBUG=sylphx:subscription:session bun ./packages/code/src/index.ts
  */
 export function createLogger(namespace: string) {
-  return debug(`sylphx:${namespace}`);
+	return debug(`sylphx:${namespace}`);
 }
 
 /**
@@ -45,6 +45,6 @@ export function createLogger(namespace: string) {
  * @deprecated Use createLogger instead
  */
 export function debugLog(namespace: string, ...args: any[]) {
-  const log = debug(`sylphx:${namespace}`);
-  log(...args);
+	const log = debug(`sylphx:${namespace}`);
+	log(...args);
 }

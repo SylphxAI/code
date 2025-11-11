@@ -6,4 +6,4 @@
  * since it's used by both streaming service and compact service.
  */
 
-export { buildModelMessages } from '@sylphx/code-core';
+export { buildModelMessages } from "@sylphx/code-core";

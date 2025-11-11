@@ -8,18 +8,17 @@
  * Utility functions
  */
 export const truncateString = (str: string, maxLength: number = 60): string =>
-  str.length <= maxLength ? str : str.slice(0, maxLength) + '...';
+	str.length <= maxLength ? str : str.slice(0, maxLength) + "...";
 
 export const getRelativePath = (filePath: string): string => {
-  const cwd = process.cwd();
-  return filePath.startsWith(cwd) ? '.' + filePath.slice(cwd.length) : filePath;
+	const cwd = process.cwd();
+	return filePath.startsWith(cwd) ? "." + filePath.slice(cwd.length) : filePath;
 };
 
-export const isDefaultCwd = (dir: string | undefined): boolean =>
-  !dir || dir === process.cwd();
+export const isDefaultCwd = (dir: string | undefined): boolean => !dir || dir === process.cwd();
 
 export const pluralize = (count: number, singular: string, plural?: string): string =>
-  count === 1 ? singular : (plural || `${singular}s`);
+	count === 1 ? singular : plural || `${singular}s`;
 
 /**
  * Tool formatter types

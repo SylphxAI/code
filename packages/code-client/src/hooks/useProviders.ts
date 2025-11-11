@@ -3,12 +3,12 @@
  * Get all available AI providers from server
  */
 
-import { useEffect, useState } from 'react';
-import { useTRPCClient } from '../trpc-provider.js';
+import { useEffect, useState } from "react";
+import { useTRPCClient } from "../trpc-provider.js";
 
 interface Provider {
-  id: string;
-  name: string;
+	id: string;
+	name: string;
 }
 
 /**
@@ -16,39 +16,39 @@ interface Provider {
  * Returns provider metadata (id, name) from server
  */
 export function useProviders() {
-  const trpc = useTRPCClient();
-  const [providers, setProviders] = useState<Record<string, Provider>>({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+	const trpc = useTRPCClient();
+	const [providers, setProviders] = useState<Record<string, Provider>>({});
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
+	useEffect(() => {
+		let mounted = true;
 
-    async function fetchProviders() {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await trpc.config.getProviders.query();
-        if (mounted) {
-          setProviders(data);
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(err instanceof Error ? err.message : 'Failed to load providers');
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    }
+		async function fetchProviders() {
+			try {
+				setLoading(true);
+				setError(null);
+				const data = await trpc.config.getProviders.query();
+				if (mounted) {
+					setProviders(data);
+				}
+			} catch (err) {
+				if (mounted) {
+					setError(err instanceof Error ? err.message : "Failed to load providers");
+				}
+			} finally {
+				if (mounted) {
+					setLoading(false);
+				}
+			}
+		}
 
-    fetchProviders();
+		fetchProviders();
 
-    return () => {
-      mounted = false;
-    };
-  }, [trpc]);
+		return () => {
+			mounted = false;
+		};
+	}, [trpc]);
 
-  return { providers, loading, error };
+	return { providers, loading, error };
 }

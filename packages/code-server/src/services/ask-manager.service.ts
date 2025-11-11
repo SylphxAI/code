@@ -11,21 +11,21 @@
  */
 
 interface PendingAsk {
-  questionId: string;
-  sessionId: string;
-  questions: Array<{
-    question: string;
-    header: string;
-    multiSelect: boolean;
-    options: Array<{
-      label: string;
-      description: string;
-    }>;
-  }>;
-  resolve: (answers: Record<string, string | string[]>) => void;
-  reject: (error: Error) => void;
-  timeout: NodeJS.Timeout;
-  createdAt: number;
+	questionId: string;
+	sessionId: string;
+	questions: Array<{
+		question: string;
+		header: string;
+		multiSelect: boolean;
+		options: Array<{
+			label: string;
+			description: string;
+		}>;
+	}>;
+	resolve: (answers: Record<string, string | string[]>) => void;
+	reject: (error: Error) => void;
+	timeout: NodeJS.Timeout;
+	createdAt: number;
 }
 
 /**
@@ -47,36 +47,36 @@ const CLEANUP_INTERVAL_MS = 60 * 1000; // 1 minute
  * @returns Promise that resolves when user answers
  */
 export async function createPendingAsk(
-  sessionId: string,
-  questionId: string,
-  questions: Array<{
-    question: string;
-    header: string;
-    multiSelect: boolean;
-    options: Array<{
-      label: string;
-      description: string;
-    }>;
-  }>
+	sessionId: string,
+	questionId: string,
+	questions: Array<{
+		question: string;
+		header: string;
+		multiSelect: boolean;
+		options: Array<{
+			label: string;
+			description: string;
+		}>;
+	}>,
 ): Promise<Record<string, string | string[]>> {
-  return new Promise((resolve, reject) => {
-    // Create timeout
-    const timeout = setTimeout(() => {
-      pendingAsks.delete(questionId);
-      reject(new Error(`Ask tool timeout: No answer received within ${ASK_TIMEOUT_MS / 1000}s`));
-    }, ASK_TIMEOUT_MS);
+	return new Promise((resolve, reject) => {
+		// Create timeout
+		const timeout = setTimeout(() => {
+			pendingAsks.delete(questionId);
+			reject(new Error(`Ask tool timeout: No answer received within ${ASK_TIMEOUT_MS / 1000}s`));
+		}, ASK_TIMEOUT_MS);
 
-    // Store pending ask
-    pendingAsks.set(questionId, {
-      questionId,
-      sessionId,
-      questions,
-      resolve,
-      reject,
-      timeout,
-      createdAt: Date.now(),
-    });
-  });
+		// Store pending ask
+		pendingAsks.set(questionId, {
+			questionId,
+			sessionId,
+			questions,
+			resolve,
+			reject,
+			timeout,
+			createdAt: Date.now(),
+		});
+	});
 }
 
 /**
@@ -86,51 +86,48 @@ export async function createPendingAsk(
  * @returns true if resolved, false if not found
  */
 export async function resolvePendingAsk(
-  questionId: string,
-  answers: Record<string, string | string[]>
+	questionId: string,
+	answers: Record<string, string | string[]>,
 ): Promise<boolean> {
-  const pending = pendingAsks.get(questionId);
+	const pending = pendingAsks.get(questionId);
 
-  if (!pending) {
-    return false;
-  }
+	if (!pending) {
+		return false;
+	}
 
-  // Clear timeout
-  clearTimeout(pending.timeout);
+	// Clear timeout
+	clearTimeout(pending.timeout);
 
-  // Resolve Promise
-  pending.resolve(answers);
+	// Resolve Promise
+	pending.resolve(answers);
 
-  // Remove from map
-  pendingAsks.delete(questionId);
+	// Remove from map
+	pendingAsks.delete(questionId);
 
-  return true;
+	return true;
 }
 
 /**
  * Reject pending Ask
  * Called when session aborts or errors
  */
-export async function rejectPendingAsk(
-  questionId: string,
-  error: Error
-): Promise<boolean> {
-  const pending = pendingAsks.get(questionId);
+export async function rejectPendingAsk(questionId: string, error: Error): Promise<boolean> {
+	const pending = pendingAsks.get(questionId);
 
-  if (!pending) {
-    return false;
-  }
+	if (!pending) {
+		return false;
+	}
 
-  // Clear timeout
-  clearTimeout(pending.timeout);
+	// Clear timeout
+	clearTimeout(pending.timeout);
 
-  // Reject Promise
-  pending.reject(error);
+	// Reject Promise
+	pending.reject(error);
 
-  // Remove from map
-  pendingAsks.delete(questionId);
+	// Remove from map
+	pendingAsks.delete(questionId);
 
-  return true;
+	return true;
 }
 
 /**
@@ -138,15 +135,15 @@ export async function rejectPendingAsk(
  * Useful for cleanup when session aborts
  */
 export function getPendingAsksForSession(sessionId: string): string[] {
-  const questionIds: string[] = [];
+	const questionIds: string[] = [];
 
-  for (const [questionId, pending] of pendingAsks.entries()) {
-    if (pending.sessionId === sessionId) {
-      questionIds.push(questionId);
-    }
-  }
+	for (const [questionId, pending] of pendingAsks.entries()) {
+		if (pending.sessionId === sessionId) {
+			questionIds.push(questionId);
+		}
+	}
 
-  return questionIds;
+	return questionIds;
 }
 
 /**
@@ -154,16 +151,16 @@ export function getPendingAsksForSession(sessionId: string): string[] {
  * Called periodically to prevent memory leaks
  */
 function cleanupStalePendingAsks() {
-  const now = Date.now();
-  const staleThreshold = ASK_TIMEOUT_MS + 60000; // Timeout + 1 min buffer
+	const now = Date.now();
+	const staleThreshold = ASK_TIMEOUT_MS + 60000; // Timeout + 1 min buffer
 
-  for (const [questionId, pending] of pendingAsks.entries()) {
-    if (now - pending.createdAt > staleThreshold) {
-      clearTimeout(pending.timeout);
-      pending.reject(new Error('Ask tool stale - cleaned up'));
-      pendingAsks.delete(questionId);
-    }
-  }
+	for (const [questionId, pending] of pendingAsks.entries()) {
+		if (now - pending.createdAt > staleThreshold) {
+			clearTimeout(pending.timeout);
+			pending.reject(new Error("Ask tool stale - cleaned up"));
+			pendingAsks.delete(questionId);
+		}
+	}
 }
 
 // Start cleanup interval
@@ -173,5 +170,5 @@ setInterval(cleanupStalePendingAsks, CLEANUP_INTERVAL_MS);
  * Get pending asks count (for debugging/monitoring)
  */
 export function getPendingAsksCount(): number {
-  return pendingAsks.size;
+	return pendingAsks.size;
 }

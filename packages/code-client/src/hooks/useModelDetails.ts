@@ -3,19 +3,19 @@
  * Get model details including context length, capabilities, and tokenizer info
  */
 
-import { useEffect, useState } from 'react';
-import { useTRPCClient } from '../trpc-provider.js';
-import type { ModelCapabilities } from '@sylphx/code-core';
+import { useEffect, useState } from "react";
+import { useTRPCClient } from "../trpc-provider.js";
+import type { ModelCapabilities } from "@sylphx/code-core";
 
 interface ModelDetails {
-  contextLength: number | null;
-  capabilities: ModelCapabilities | null;
-  tokenizerInfo: {
-    modelName: string;
-    tokenizerName: string;
-    loaded: boolean;
-    failed: boolean;
-  } | null;
+	contextLength: number | null;
+	capabilities: ModelCapabilities | null;
+	tokenizerInfo: {
+		modelName: string;
+		tokenizerName: string;
+		loaded: boolean;
+		failed: boolean;
+	} | null;
 }
 
 /**
@@ -28,70 +28,74 @@ interface ModelDetails {
  * - Client shouldn't need updates when new providers are added
  */
 export function useModelDetails(providerId: string | null, modelId: string | null) {
-  const trpc = useTRPCClient();
-  const [details, setDetails] = useState<ModelDetails>({
-    contextLength: null,
-    capabilities: null,
-    tokenizerInfo: null,
-  });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+	const trpc = useTRPCClient();
+	const [details, setDetails] = useState<ModelDetails>({
+		contextLength: null,
+		capabilities: null,
+		tokenizerInfo: null,
+	});
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!providerId || !modelId) {
-      setDetails({ contextLength: null, capabilities: null, tokenizerInfo: null });
-      setLoading(false);
-      setError(null);
-      return;
-    }
+	useEffect(() => {
+		if (!providerId || !modelId) {
+			setDetails({
+				contextLength: null,
+				capabilities: null,
+				tokenizerInfo: null,
+			});
+			setLoading(false);
+			setError(null);
+			return;
+		}
 
-    let mounted = true;
+		let mounted = true;
 
-    async function fetchDetails() {
-      try {
-        setLoading(true);
-        setError(null);
+		async function fetchDetails() {
+			try {
+				setLoading(true);
+				setError(null);
 
-        // Fetch model details and tokenizer info in parallel
-        const [detailsResult, tokInfo] = await Promise.all([
-          trpc.config.getModelDetails.query({ providerId, modelId }),
-          trpc.config.getTokenizerInfo.query({ model: modelId }),
-        ]);
+				// Fetch model details and tokenizer info in parallel
+				const [detailsResult, tokInfo] = await Promise.all([
+					trpc.config.getModelDetails.query({ providerId, modelId }),
+					trpc.config.getTokenizerInfo.query({ model: modelId }),
+				]);
 
-        if (mounted) {
-          const contextLength =
-            detailsResult.success && detailsResult.details
-              ? detailsResult.details.contextLength || null
-              : null;
+				if (mounted) {
+					const contextLength =
+						detailsResult.success && detailsResult.details
+							? detailsResult.details.contextLength || null
+							: null;
 
-          const capabilities =
-            detailsResult.success && detailsResult.details
-              ? detailsResult.details.capabilities || null
-              : null;
+					const capabilities =
+						detailsResult.success && detailsResult.details
+							? detailsResult.details.capabilities || null
+							: null;
 
-          setDetails({
-            contextLength,
-            capabilities,
-            tokenizerInfo: tokInfo,
-          });
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(err instanceof Error ? err.message : 'Failed to load model details');
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    }
+					setDetails({
+						contextLength,
+						capabilities,
+						tokenizerInfo: tokInfo,
+					});
+				}
+			} catch (err) {
+				if (mounted) {
+					setError(err instanceof Error ? err.message : "Failed to load model details");
+				}
+			} finally {
+				if (mounted) {
+					setLoading(false);
+				}
+			}
+		}
 
-    fetchDetails();
+		fetchDetails();
 
-    return () => {
-      mounted = false;
-    };
-  }, [trpc, providerId, modelId]);
+		return () => {
+			mounted = false;
+		};
+	}, [trpc, providerId, modelId]);
 
-  return { details, loading, error };
+	return { details, loading, error };
 }

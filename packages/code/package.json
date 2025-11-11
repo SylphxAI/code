@@ -1,62 +1,62 @@
 {
-  "name": "@sylphx/code",
-  "version": "1.0.0",
-  "description": "Sylphx Code - Unified CLI tool (TUI and headless modes)",
-  "type": "module",
-  "bin": {
-    "sylphx-code": "./dist/index.js"
-  },
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "scripts": {
-    "build": "bunup",
-    "dev": "bun src/index.ts",
-    "dev:headless": "bun src/index.ts headless",
-    "start": "bun dist/index.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "@jescalan/ink-markdown": "^2.0.0",
-    "@sylphx/code-client": "workspace:*",
-    "@sylphx/code-core": "workspace:*",
-    "@sylphx/code-server": "workspace:*",
-    "@trpc/client": "^11.7.1",
-    "chalk": "^5.6.2",
-    "commander": "^14.0.2",
-    "eventsource": "^4.0.0",
-    "ink": "^6.4.0",
-    "ink-select-input": "^6.2.0",
-    "ink-text-input": "^6.0.0",
-    "open": "^10.1.0",
-    "ora": "^9.0.0",
-    "react": "^19.2.0"
-  },
-  "devDependencies": {
-    "@types/node": "^24.9.2",
-    "@types/react": "^19.0.0",
-    "ink-testing-library": "^4.0.0",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.6"
-  },
-  "keywords": [
-    "ai",
-    "code-assistant",
-    "cli",
-    "tui",
-    "terminal",
-    "ink",
-    "typescript"
-  ],
-  "author": "SylphxAI",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/SylphxAI/code.git",
-    "directory": "packages/code"
-  }
+	"name": "@sylphx/code",
+	"version": "1.0.0",
+	"description": "Sylphx Code - Unified CLI tool (TUI and headless modes)",
+	"type": "module",
+	"bin": {
+		"sylphx-code": "./dist/index.js"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"scripts": {
+		"build": "bunup",
+		"dev": "bun src/index.ts",
+		"dev:headless": "bun src/index.ts headless",
+		"start": "bun dist/index.js",
+		"test": "vitest run",
+		"test:watch": "vitest",
+		"type-check": "tsc --noEmit",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@jescalan/ink-markdown": "^2.0.0",
+		"@sylphx/code-client": "workspace:*",
+		"@sylphx/code-core": "workspace:*",
+		"@sylphx/code-server": "workspace:*",
+		"@trpc/client": "^11.7.1",
+		"chalk": "^5.6.2",
+		"commander": "^14.0.2",
+		"eventsource": "^4.0.0",
+		"ink": "^6.4.0",
+		"ink-select-input": "^6.2.0",
+		"ink-text-input": "^6.0.0",
+		"open": "^10.1.0",
+		"ora": "^9.0.0",
+		"react": "^19.2.0"
+	},
+	"devDependencies": {
+		"@types/node": "^24.9.2",
+		"@types/react": "^19.0.0",
+		"ink-testing-library": "^4.0.0",
+		"typescript": "^5.9.3",
+		"vitest": "^4.0.6"
+	},
+	"keywords": [
+		"ai",
+		"code-assistant",
+		"cli",
+		"tui",
+		"terminal",
+		"ink",
+		"typescript"
+	],
+	"author": "SylphxAI",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/SylphxAI/code.git",
+		"directory": "packages/code"
+	}
 }

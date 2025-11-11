@@ -3,94 +3,96 @@
  * Formatting and display logic for headless mode (non-TUI)
  */
 
-import chalk from 'chalk';
+import chalk from "chalk";
 
 /**
  * Format tool arguments for display
  */
 function formatArgs(args: unknown): string {
-  if (!args || typeof args !== 'object') {
-    return '';
-  }
+	if (!args || typeof args !== "object") {
+		return "";
+	}
 
-  const argsStr = Object.keys(args).length === 0
-    ? ''
-    : JSON.stringify(args, null, 2);
+	const argsStr = Object.keys(args).length === 0 ? "" : JSON.stringify(args, null, 2);
 
-  if (!argsStr) {
-    return '';
-  }
+	if (!argsStr) {
+		return "";
+	}
 
-  const lines = argsStr.split('\n');
-  const truncated = lines.length > 5
-    ? lines.slice(0, 5).join('\n') + chalk.dim('\n     … +' + (lines.length - 5) + ' lines')
-    : argsStr;
+	const lines = argsStr.split("\n");
+	const truncated =
+		lines.length > 5
+			? lines.slice(0, 5).join("\n") + chalk.dim("\n     … +" + (lines.length - 5) + " lines")
+			: argsStr;
 
-  return truncated;
+	return truncated;
 }
 
 /**
  * Format tool result for display
  */
 function formatResult(result: unknown): string {
-  const resultStr = JSON.stringify(result, null, 2);
-  const lines = resultStr.split('\n');
-  const truncated = lines.length > 5
-    ? lines.slice(0, 5).join('\n') + chalk.dim('\n     … +' + (lines.length - 5) + ' lines')
-    : resultStr;
+	const resultStr = JSON.stringify(result, null, 2);
+	const lines = resultStr.split("\n");
+	const truncated =
+		lines.length > 5
+			? lines.slice(0, 5).join("\n") + chalk.dim("\n     … +" + (lines.length - 5) + " lines")
+			: resultStr;
 
-  return truncated;
+	return truncated;
 }
 
 /**
  * Display callbacks for headless mode
  */
 export function createHeadlessDisplay(quiet: boolean) {
-  let hasOutput = false;
+	let hasOutput = false;
 
-  return {
-    onToolCall: (toolName: string, args: unknown) => {
-      if (quiet) return;
+	return {
+		onToolCall: (toolName: string, args: unknown) => {
+			if (quiet) return;
 
-      // Flush stdout to ensure proper ordering
-      if (hasOutput) {
-        process.stdout.write('\n');
-      }
+			// Flush stdout to ensure proper ordering
+			if (hasOutput) {
+				process.stdout.write("\n");
+			}
 
-      const argsStr = formatArgs(args);
-      if (argsStr) {
-        process.stderr.write(`\n${chalk.green('⏺')} ${chalk.bold(toolName)}\n`);
-        process.stderr.write(chalk.dim(`  ⎿ ${argsStr.split('\n').join('\n     ')}\n`));
-      } else {
-        process.stderr.write(`\n${chalk.green('⏺')} ${chalk.bold(toolName)}\n`);
-      }
-    },
+			const argsStr = formatArgs(args);
+			if (argsStr) {
+				process.stderr.write(`\n${chalk.green("⏺")} ${chalk.bold(toolName)}\n`);
+				process.stderr.write(chalk.dim(`  ⎿ ${argsStr.split("\n").join("\n     ")}\n`));
+			} else {
+				process.stderr.write(`\n${chalk.green("⏺")} ${chalk.bold(toolName)}\n`);
+			}
+		},
 
-    onToolResult: (toolName: string, result: unknown, duration: number) => {
-      if (quiet) return;
+		onToolResult: (toolName: string, result: unknown, duration: number) => {
+			if (quiet) return;
 
-      const resultStr = formatResult(result);
-      process.stderr.write(`${chalk.green('●')} ${chalk.bold(toolName)} ${chalk.dim(`(${duration}ms)`)}\n`);
-      process.stderr.write(chalk.dim(`  ⎿ ${resultStr.split('\n').join('\n     ')}\n\n`));
-    },
+			const resultStr = formatResult(result);
+			process.stderr.write(
+				`${chalk.green("●")} ${chalk.bold(toolName)} ${chalk.dim(`(${duration}ms)`)}\n`,
+			);
+			process.stderr.write(chalk.dim(`  ⎿ ${resultStr.split("\n").join("\n     ")}\n\n`));
+		},
 
-    onTextDelta: (text: string) => {
-      if (!hasOutput) {
-        hasOutput = true;
-        // Add newline before first text output if we're not in quiet mode
-        if (!quiet) {
-          process.stdout.write('\n');
-        }
-      }
-      process.stdout.write(text);
-    },
+		onTextDelta: (text: string) => {
+			if (!hasOutput) {
+				hasOutput = true;
+				// Add newline before first text output if we're not in quiet mode
+				if (!quiet) {
+					process.stdout.write("\n");
+				}
+			}
+			process.stdout.write(text);
+		},
 
-    onComplete: () => {
-      if (hasOutput) {
-        process.stdout.write('\n\n');
-      }
-    },
+		onComplete: () => {
+			if (hasOutput) {
+				process.stdout.write("\n\n");
+			}
+		},
 
-    hasOutput: () => hasOutput,
-  };
+		hasOutput: () => hasOutput,
+	};
 }

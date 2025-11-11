@@ -3,11 +3,11 @@
  * Pure functions operating on immutable data
  */
 
-import type { Option } from '../ai/functional/option.js';
-import { none, some } from '../ai/functional/option.js';
-import { claudeCodeTarget } from '../targets/claude-code.js';
-import { opencodeTarget } from '../targets/opencode.js';
-import type { Target } from '../types.js';
+import type { Option } from "../ai/functional/option.js";
+import { none, some } from "../ai/functional/option.js";
+import { claudeCodeTarget } from "../targets/claude-code.js";
+import { opencodeTarget } from "../targets/opencode.js";
+import type { Target } from "../types.js";
 
 /**
  * All available targets
@@ -16,13 +16,13 @@ import type { Target } from '../types.js';
 let cachedTargets: readonly Target[] | null = null;
 
 const initializeTargets = (): readonly Target[] => {
-  if (cachedTargets) {
-    return cachedTargets;
-  }
+	if (cachedTargets) {
+		return cachedTargets;
+	}
 
-  cachedTargets = Object.freeze([opencodeTarget, claudeCodeTarget]);
+	cachedTargets = Object.freeze([opencodeTarget, claudeCodeTarget]);
 
-  return cachedTargets;
+	return cachedTargets;
 };
 
 /**
@@ -34,7 +34,7 @@ export const getAllTargets = (): readonly Target[] => initializeTargets();
  * Get implemented targets only
  */
 export const getImplementedTargets = (): readonly Target[] =>
-  getAllTargets().filter((target) => target.isImplemented);
+	getAllTargets().filter((target) => target.isImplemented);
 
 /**
  * Get all target IDs
@@ -45,15 +45,15 @@ export const getAllTargetIDs = (): readonly string[] => getAllTargets().map((tar
  * Get implemented target IDs
  */
 export const getImplementedTargetIDs = (): readonly string[] =>
-  getImplementedTargets().map((target) => target.id);
+	getImplementedTargets().map((target) => target.id);
 
 /**
  * Get target by ID
  * Returns Option type for explicit null handling
  */
 export const getTarget = (id: string): Option<Target> => {
-  const target = getAllTargets().find((t) => t.id === id);
-  return target ? some(target) : none;
+	const target = getAllTargets().find((t) => t.id === id);
+	return target ? some(target) : none;
 };
 
 /**
@@ -61,11 +61,11 @@ export const getTarget = (id: string): Option<Target> => {
  * Use getTarget() for safer alternative with Option type
  */
 export const getTargetUnsafe = (id: string): Target => {
-  const target = getAllTargets().find((t) => t.id === id);
-  if (!target) {
-    throw new Error(`Target not found: ${id}`);
-  }
-  return target;
+	const target = getAllTargets().find((t) => t.id === id);
+	if (!target) {
+		throw new Error(`Target not found: ${id}`);
+	}
+	return target;
 };
 
 /**
@@ -73,8 +73,8 @@ export const getTargetUnsafe = (id: string): Target => {
  * Returns Option type for explicit null handling
  */
 export const getDefaultTarget = (): Option<Target> => {
-  const target = getAllTargets().find((t) => t.isDefault);
-  return target ? some(target) : none;
+	const target = getAllTargets().find((t) => t.isDefault);
+	return target ? some(target) : none;
 };
 
 /**
@@ -82,25 +82,25 @@ export const getDefaultTarget = (): Option<Target> => {
  * Use getDefaultTarget() for safer alternative with Option type
  */
 export const getDefaultTargetUnsafe = (): Target => {
-  const target = getAllTargets().find((t) => t.isDefault);
-  if (!target) {
-    throw new Error('No default target configured');
-  }
-  return target;
+	const target = getAllTargets().find((t) => t.isDefault);
+	if (!target) {
+		throw new Error("No default target configured");
+	}
+	return target;
 };
 
 /**
  * Get targets that support MCP servers
  */
 export const getTargetsWithMCPSupport = (): readonly Target[] =>
-  getImplementedTargets().filter((target) => !!target.setupMCP);
+	getImplementedTargets().filter((target) => !!target.setupMCP);
 
 /**
  * Check if target is implemented
  */
 export const isTargetImplemented = (id: string): boolean => {
-  const target = getAllTargets().find((t) => t.id === id);
-  return target?.isImplemented ?? false;
+	const target = getAllTargets().find((t) => t.id === id);
+	return target?.isImplemented ?? false;
 };
 
 /**

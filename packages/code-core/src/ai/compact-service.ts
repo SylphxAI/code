@@ -9,26 +9,26 @@
  * - Detailed progress tracking
  */
 
-import { getProvider } from './providers/index.js';
-import type { ProviderId } from '../types/provider.types.js';
-import type { Session, Message } from '../types/session.types.js';
-import type { SessionRepository } from '../database/session-repository.js';
-import { createLogger } from '../utils/logger.js';
-import { createAIStream } from './ai-sdk.js';
+import { getProvider } from "./providers/index.js";
+import type { ProviderId } from "../types/provider.types.js";
+import type { Session, Message } from "../types/session.types.js";
+import type { SessionRepository } from "../database/session-repository.js";
+import { createLogger } from "../utils/logger.js";
+import { createAIStream } from "./ai-sdk.js";
 
-const logger = createLogger('CompactService');
+const logger = createLogger("CompactService");
 
 /**
  * Compact result with detailed information
  */
 export interface CompactResult {
-  success: boolean;
-  newSessionId?: string;
-  summary?: string;
-  oldSessionId?: string;
-  oldSessionTitle?: string;
-  messageCount?: number;
-  error?: string;
+	success: boolean;
+	newSessionId?: string;
+	summary?: string;
+	oldSessionId?: string;
+	oldSessionTitle?: string;
+	messageCount?: number;
+	error?: string;
 }
 
 /**
@@ -41,7 +41,7 @@ export type ProgressCallback = (status: string, detail?: string) => void;
  * No longer takes conversation as string - will be provided as structured messages
  */
 function createSummaryPrompt(): string {
-  return `You are a conversation summarizer for a coding assistant. Create a concise summary of the conversation above that allows seamless continuation of work.
+	return `You are a conversation summarizer for a coding assistant. Create a concise summary of the conversation above that allows seamless continuation of work.
 
 FORMATTING RULES:
 
@@ -102,193 +102,192 @@ Please provide the summary now:`;
  * 5. Rollback on any failure
  */
 export async function compactSession(
-  sessionRepository: SessionRepository,
-  sessionId: string,
-  providerConfig: Record<string, any>,
-  onProgress?: ProgressCallback
+	sessionRepository: SessionRepository,
+	sessionId: string,
+	providerConfig: Record<string, any>,
+	onProgress?: ProgressCallback,
 ): Promise<CompactResult> {
-  try {
-    onProgress?.('validating', 'Checking session...');
+	try {
+		onProgress?.("validating", "Checking session...");
 
-    // 1. Validate session
-    const session = await sessionRepository.getSessionById(sessionId);
-    if (!session) {
-      return { success: false, error: 'Session not found' };
-    }
+		// 1. Validate session
+		const session = await sessionRepository.getSessionById(sessionId);
+		if (!session) {
+			return { success: false, error: "Session not found" };
+		}
 
-    if (session.messages.length === 0) {
-      return { success: false, error: 'Session has no messages to compact' };
-    }
+		if (session.messages.length === 0) {
+			return { success: false, error: "Session has no messages to compact" };
+		}
 
-    // 2. Check provider configuration
-    const provider = getProvider(session.provider as ProviderId);
-    if (!provider.isConfigured(providerConfig)) {
-      return {
-        success: false,
-        error: `Provider ${session.provider} is not properly configured`,
-      };
-    }
+		// 2. Check provider configuration
+		const provider = getProvider(session.provider as ProviderId);
+		if (!provider.isConfigured(providerConfig)) {
+			return {
+				success: false,
+				error: `Provider ${session.provider} is not properly configured`,
+			};
+		}
 
-    onProgress?.('analyzing', 'Preparing conversation for summarization...');
+		onProgress?.("analyzing", "Preparing conversation for summarization...");
 
-    // 3. Convert session messages to AI SDK format (preserves ALL content types)
-    // This uses the same buildModelMessages function as normal AI responses
-    // Ensures AI sees complete conversation: text, images, files, reasoning, tools, etc.
-    const { buildModelMessages } = await import('./message-builder/index.js');
-    const conversationMessages = await buildModelMessages(session.messages);
+		// 3. Convert session messages to AI SDK format (preserves ALL content types)
+		// This uses the same buildModelMessages function as normal AI responses
+		// Ensures AI sees complete conversation: text, images, files, reasoning, tools, etc.
+		const { buildModelMessages } = await import("./message-builder/index.js");
+		const conversationMessages = await buildModelMessages(session.messages);
 
-    logger.info('Converted session messages for summarization', {
-      sessionMessages: session.messages.length,
-      modelMessages: conversationMessages.length,
-      messageTypes: conversationMessages.map(m => `${m.role}(${Array.isArray(m.content) ? m.content.length : 1} parts)`).join(', '),
-    });
+		logger.info("Converted session messages for summarization", {
+			sessionMessages: session.messages.length,
+			modelMessages: conversationMessages.length,
+			messageTypes: conversationMessages
+				.map((m) => `${m.role}(${Array.isArray(m.content) ? m.content.length : 1} parts)`)
+				.join(", "),
+		});
 
-    onProgress?.('summarizing', 'Generating AI summary (this may take a moment)...');
+		onProgress?.("summarizing", "Generating AI summary (this may take a moment)...");
 
-    // 4. Generate summary with AI (no token limit!)
-    logger.info('Creating model client', {
-      provider: session.provider,
-      model: session.model,
-      hasProviderConfig: !!providerConfig,
-    });
+		// 4. Generate summary with AI (no token limit!)
+		logger.info("Creating model client", {
+			provider: session.provider,
+			model: session.model,
+			hasProviderConfig: !!providerConfig,
+		});
 
-    const summaryPrompt = createSummaryPrompt();
+		const summaryPrompt = createSummaryPrompt();
 
-    logger.info('Starting AI streaming for summarization', {
-      conversationMessages: conversationMessages.length,
-    });
+		logger.info("Starting AI streaming for summarization", {
+			conversationMessages: conversationMessages.length,
+		});
 
-    // Use createAIStream (our wrapper) for consistency
-    // Disable tools since summarization doesn't need them
-    const stream = createAIStream({
-      model: provider.createClient(providerConfig, session.model),
-      messages: [
-        ...conversationMessages, // Full conversation with all content types
-        {
-          role: 'user',
-          content: summaryPrompt, // Instruction to summarize
-        },
-      ],
-      enableTools: false, // No tools needed for summarization
-      disableReasoning: false, // Allow reasoning if model wants to think through summary
-    });
+		// Use createAIStream (our wrapper) for consistency
+		// Disable tools since summarization doesn't need them
+		const stream = createAIStream({
+			model: provider.createClient(providerConfig, session.model),
+			messages: [
+				...conversationMessages, // Full conversation with all content types
+				{
+					role: "user",
+					content: summaryPrompt, // Instruction to summarize
+				},
+			],
+			enableTools: false, // No tools needed for summarization
+			disableReasoning: false, // Allow reasoning if model wants to think through summary
+		});
 
-    // Collect full summary with progress updates
-    let summary = '';
-    let chunkCount = 0;
+		// Collect full summary with progress updates
+		let summary = "";
+		let chunkCount = 0;
 
-    for await (const chunk of stream) {
-      // Extract text from our wrapper's chunk format
-      if (chunk.type === 'text-delta') {
-        summary += chunk.textDelta;
-        chunkCount++;
+		for await (const chunk of stream) {
+			// Extract text from our wrapper's chunk format
+			if (chunk.type === "text-delta") {
+				summary += chunk.textDelta;
+				chunkCount++;
 
-        if (chunkCount % 10 === 0) {
-          // Update progress every 10 chunks
-          onProgress?.(
-            'summarizing',
-            `Generating summary... (${summary.length} characters)`
-          );
-        }
-      }
-    }
+				if (chunkCount % 10 === 0) {
+					// Update progress every 10 chunks
+					onProgress?.("summarizing", `Generating summary... (${summary.length} characters)`);
+				}
+			}
+		}
 
-    if (!summary || summary.trim().length === 0) {
-      return { success: false, error: 'AI failed to generate summary' };
-    }
+		if (!summary || summary.trim().length === 0) {
+			return { success: false, error: "AI failed to generate summary" };
+		}
 
-    logger.info('Summary generated', {
-      sessionId,
-      summaryLength: summary.length,
-      messageCount: session.messages.length,
-    });
+		logger.info("Summary generated", {
+			sessionId,
+			summaryLength: summary.length,
+			messageCount: session.messages.length,
+		});
 
-    onProgress?.('creating', 'Creating new session...');
+		onProgress?.("creating", "Creating new session...");
 
-    // 4. Create new session (atomic operation)
-    const newSessionTitle = `${session.title || 'Untitled'} (continued)`;
-    const newSession = await sessionRepository.createSession(
-      session.provider,
-      session.model,
-      session.agentId || 'coder',
-      session.enabledRuleIds || []
-    );
+		// 4. Create new session (atomic operation)
+		const newSessionTitle = `${session.title || "Untitled"} (continued)`;
+		const newSession = await sessionRepository.createSession(
+			session.provider,
+			session.model,
+			session.agentId || "coder",
+			session.enabledRuleIds || [],
+		);
 
-    // Update session with title and metadata
-    await sessionRepository.updateSession(newSession.id, {
-      title: newSessionTitle,
-      metadata: {
-        compactedFrom: sessionId,
-        originalTitle: session.title,
-        originalMessageCount: session.messages.length,
-      },
-    });
+		// Update session with title and metadata
+		await sessionRepository.updateSession(newSession.id, {
+			title: newSessionTitle,
+			metadata: {
+				compactedFrom: sessionId,
+				originalTitle: session.title,
+				originalMessageCount: session.messages.length,
+			},
+		});
 
-    // 4.5. Add summary as system message in new session
-    // ARCHITECTURE: Summary uses 'system' role (session-level)
-    // - Session layer: role='system' (semantic clarity, UI can filter)
-    // - Model layer: converts to role='user' for attention decay
-    // - UI behavior: Skip in history navigation, show with special styling
-    const summaryMessage = `[Previous Conversation Summary]
+		// 4.5. Add summary as system message in new session
+		// ARCHITECTURE: Summary uses 'system' role (session-level)
+		// - Session layer: role='system' (semantic clarity, UI can filter)
+		// - Model layer: converts to role='user' for attention decay
+		// - UI behavior: Skip in history navigation, show with special styling
+		const summaryMessage = `[Previous Conversation Summary]
 
 ${summary}
 
 ---
 *You are now in a new session. Continue the conversation naturally based on the context above.*`;
 
-    // Import message repository to add message
-    const { MessageRepository } = await import('../database/message-repository.js');
-    // Access the db property from sessionRepository (private, but we need it)
-    // @ts-ignore - accessing private property
-    const messageRepo = new MessageRepository(sessionRepository.db);
+		// Import message repository to add message
+		const { MessageRepository } = await import("../database/message-repository.js");
+		// Access the db property from sessionRepository (private, but we need it)
+		// @ts-ignore - accessing private property
+		const messageRepo = new MessageRepository(sessionRepository.db);
 
-    await messageRepo.addMessage({
-      sessionId: newSession.id,
-      role: 'system',
-      content: [{ type: 'text', content: summaryMessage }],
-      attachments: [],
-    });
+		await messageRepo.addMessage({
+			sessionId: newSession.id,
+			role: "system",
+			content: [{ type: "text", content: summaryMessage }],
+			attachments: [],
+		});
 
-    // 5. Mark old session as compacted
-    await sessionRepository.updateSession(sessionId, {
-      metadata: {
-        ...session.metadata,
-        compacted: true,
-        compactedTo: newSession.id,
-        compactedAt: new Date().toISOString(),
-      },
-    });
+		// 5. Mark old session as compacted
+		await sessionRepository.updateSession(sessionId, {
+			metadata: {
+				...session.metadata,
+				compacted: true,
+				compactedTo: newSession.id,
+				compactedAt: new Date().toISOString(),
+			},
+		});
 
-    onProgress?.('completed', 'Compact completed successfully');
+		onProgress?.("completed", "Compact completed successfully");
 
-    logger.info('Session compacted successfully', {
-      oldSessionId: sessionId,
-      newSessionId: newSession.id,
-      messageCount: session.messages.length,
-    });
+		logger.info("Session compacted successfully", {
+			oldSessionId: sessionId,
+			newSessionId: newSession.id,
+			messageCount: session.messages.length,
+		});
 
-    return {
-      success: true,
-      newSessionId: newSession.id,
-      summary,
-      oldSessionId: sessionId,
-      oldSessionTitle: session.title,
-      messageCount: session.messages.length,
-    };
-  } catch (error) {
-    logger.error('Failed to compact session', {
-      sessionId,
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+		return {
+			success: true,
+			newSessionId: newSession.id,
+			summary,
+			oldSessionId: sessionId,
+			oldSessionTitle: session.title,
+			messageCount: session.messages.length,
+		};
+	} catch (error) {
+		logger.error("Failed to compact session", {
+			sessionId,
+			error: error instanceof Error ? error.message : String(error),
+			stack: error instanceof Error ? error.stack : undefined,
+		});
 
-    console.error('[Compact] Full error:', error);
+		console.error("[Compact] Full error:", error);
 
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : "Unknown error occurred",
+		};
+	}
 }
 
 /**
@@ -300,23 +299,23 @@ ${summary}
  * @returns Whether session should be compacted
  */
 export function shouldCompactSession(
-  session: Session,
-  thresholds: {
-    minMessages?: number;
-    maxMessages?: number;
-  } = {}
+	session: Session,
+	thresholds: {
+		minMessages?: number;
+		maxMessages?: number;
+	} = {},
 ): boolean {
-  const { minMessages = 10, maxMessages = 100 } = thresholds;
+	const { minMessages = 10, maxMessages = 100 } = thresholds;
 
-  // Need minimum number of messages to be worth compacting
-  if (session.messages.length < minMessages) {
-    return false;
-  }
+	// Need minimum number of messages to be worth compacting
+	if (session.messages.length < minMessages) {
+		return false;
+	}
 
-  // Auto-compact if too many messages
-  if (session.messages.length >= maxMessages) {
-    return true;
-  }
+	// Auto-compact if too many messages
+	if (session.messages.length >= maxMessages) {
+		return true;
+	}
 
-  return false;
+	return false;
 }

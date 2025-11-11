@@ -11,7 +11,7 @@
  * All clients share same data source in real-time
  */
 
-import { CodeServer } from './server.js';
+import { CodeServer } from "./server.js";
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
 
@@ -20,18 +20,18 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
  * Used for remote connections or Web GUI
  */
 async function main() {
-  const server = new CodeServer({ port: PORT });
+	const server = new CodeServer({ port: PORT });
 
-  try {
-    // Initialize server resources
-    await server.initialize();
+	try {
+		// Initialize server resources
+		await server.initialize();
 
-    // Start HTTP server
-    await server.startHTTP();
-  } catch (error) {
-    console.error('Failed to start server:', error);
-    process.exit(1);
-  }
+		// Start HTTP server
+		await server.startHTTP();
+	} catch (error) {
+		console.error("Failed to start server:", error);
+		process.exit(1);
+	}
 }
 
 // Start server when run as script

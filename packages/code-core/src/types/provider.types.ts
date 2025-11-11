@@ -10,19 +10,13 @@
  * Provider IDs
  * All supported AI providers
  */
-export type ProviderId =
-  | 'anthropic'
-  | 'openai'
-  | 'google'
-  | 'openrouter'
-  | 'claude-code'
-  | 'zai';
+export type ProviderId = "anthropic" | "openai" | "google" | "openrouter" | "claude-code" | "zai";
 
 /**
  * Provider configuration value
  * Generic provider config interface
  */
 export interface ProviderConfigValue {
-  defaultModel?: string;
-  [key: string]: string | number | boolean | undefined;
+	defaultModel?: string;
+	[key: string]: string | number | boolean | undefined;
 }

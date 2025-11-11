@@ -9,25 +9,25 @@
  * - Bidirectional notifications (enter + exit states)
  */
 
-import type { Session } from '../../types/session.types.js';
-import type { MessageRepository } from '../../database/message-repository.js';
+import type { Session } from "../../types/session.types.js";
+import type { MessageRepository } from "../../database/message-repository.js";
 
 /**
  * Trigger result - message to insert and flag updates
  */
 export interface TriggerResult {
-  messageType: string; // Trigger type (e.g., 'context-warning-80', 'resource-warning-memory')
-  message: string;     // Full message content
-  flagUpdates: Record<string, boolean>;
+	messageType: string; // Trigger type (e.g., 'context-warning-80', 'resource-warning-memory')
+	message: string; // Full message content
+	flagUpdates: Record<string, boolean>;
 }
 
 /**
  * Trigger context - all data available to triggers
  */
 export interface TriggerContext {
-  session: Session;
-  messageRepository: MessageRepository;
-  contextTokens?: { current: number; max: number };
+	session: Session;
+	messageRepository: MessageRepository;
+	contextTokens?: { current: number; max: number };
 }
 
 /**
@@ -40,12 +40,12 @@ export type TriggerHook = (context: TriggerContext) => Promise<TriggerResult | n
  * Trigger registration
  */
 export interface TriggerRegistration {
-  id: string;
-  name: string;
-  description: string;
-  priority: number; // Lower = higher priority (0 = highest)
-  enabled: boolean;
-  hook: TriggerHook;
+	id: string;
+	name: string;
+	description: string;
+	priority: number; // Lower = higher priority (0 = highest)
+	enabled: boolean;
+	hook: TriggerHook;
 }
 
 /**
@@ -53,70 +53,70 @@ export interface TriggerRegistration {
  * Manages all registered triggers
  */
 class TriggerRegistry {
-  private triggers = new Map<string, TriggerRegistration>();
+	private triggers = new Map<string, TriggerRegistration>();
 
-  /**
-   * Register a trigger
-   */
-  register(trigger: TriggerRegistration): void {
-    this.triggers.set(trigger.id, trigger);
-  }
+	/**
+	 * Register a trigger
+	 */
+	register(trigger: TriggerRegistration): void {
+		this.triggers.set(trigger.id, trigger);
+	}
 
-  /**
-   * Unregister a trigger
-   */
-  unregister(triggerId: string): void {
-    this.triggers.delete(triggerId);
-  }
+	/**
+	 * Unregister a trigger
+	 */
+	unregister(triggerId: string): void {
+		this.triggers.delete(triggerId);
+	}
 
-  /**
-   * Enable/disable a trigger
-   */
-  setEnabled(triggerId: string, enabled: boolean): void {
-    const trigger = this.triggers.get(triggerId);
-    if (trigger) {
-      trigger.enabled = enabled;
-    }
-  }
+	/**
+	 * Enable/disable a trigger
+	 */
+	setEnabled(triggerId: string, enabled: boolean): void {
+		const trigger = this.triggers.get(triggerId);
+		if (trigger) {
+			trigger.enabled = enabled;
+		}
+	}
 
-  /**
-   * Get all registered triggers
-   */
-  getAll(): TriggerRegistration[] {
-    return Array.from(this.triggers.values());
-  }
+	/**
+	 * Get all registered triggers
+	 */
+	getAll(): TriggerRegistration[] {
+		return Array.from(this.triggers.values());
+	}
 
-  /**
-   * Get enabled triggers sorted by priority
-   */
-  getEnabled(): TriggerRegistration[] {
-    return Array.from(this.triggers.values())
-      .filter(t => t.enabled)
-      .sort((a, b) => a.priority - b.priority);
-  }
+	/**
+	 * Get enabled triggers sorted by priority
+	 */
+	getEnabled(): TriggerRegistration[] {
+		return Array.from(this.triggers.values())
+			.filter((t) => t.enabled)
+			.sort((a, b) => a.priority - b.priority);
+	}
 
-  /**
-   * Check all enabled triggers
-   * Returns ALL triggers that need to fire (sorted by priority)
-   */
-  async checkAll(context: TriggerContext): Promise<TriggerResult[]> {
-    const enabledTriggers = this.getEnabled();
-    const firedTriggers: TriggerResult[] = [];
+	/**
+	 * Check all enabled triggers
+	 * Returns ALL triggers that need to fire (sorted by priority)
+	 */
+	async checkAll(context: TriggerContext): Promise<TriggerResult[]> {
+		const enabledTriggers = this.getEnabled();
+		const firedTriggers: TriggerResult[] = [];
 
-    for (const trigger of enabledTriggers) {
-      try {
-        const result = await trigger.hook(context);
-        if (result) {
-          firedTriggers.push(result);
-        }
-      } catch (error) {
-        console.error(`[TriggerRegistry] Trigger ${trigger.id} failed:`, error);
-        // Continue checking other triggers
-      }
-    }
+		for (const trigger of enabledTriggers) {
+			try {
+				const result = await trigger.hook(context);
+				if (result) {
+					firedTriggers.push(result);
+				}
+			} catch (error) {
+				console.error(`[TriggerRegistry] Trigger ${trigger.id} failed:`, error);
+				// Continue checking other triggers
+			}
+		}
 
-    return firedTriggers;
-  }
+		return firedTriggers;
+	}
 }
 
 /**
@@ -128,13 +128,13 @@ export const triggerRegistry = new TriggerRegistry();
  * Helper to get session flags safely
  */
 export function getSessionFlags(session: Session): Record<string, boolean> {
-  return session.flags || {};
+	return session.flags || {};
 }
 
 /**
  * Helper to check if flag is set
  */
 export function isFlagSet(session: Session, flagName: string): boolean {
-  const flags = getSessionFlags(session);
-  return flags[flagName] === true;
+	const flags = getSessionFlags(session);
+	return flags[flagName] === true;
 }

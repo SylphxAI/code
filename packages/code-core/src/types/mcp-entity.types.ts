@@ -5,39 +5,39 @@
  * This file defines the normalized entity structure for MCP servers and their capabilities.
  */
 
-import type { MCPServerConfig, MCPServerConfigHTTP } from './mcp.types.js';
+import type { MCPServerConfig, MCPServerConfigHTTP } from "./mcp.types.js";
 
 /**
  * MCP Server status
  */
 export type MCPServerStatus =
-  | 'active'      // Running and available
-  | 'inactive'    // Configured but not started
-  | 'error'       // Failed to start or crashed
-  | 'loading';    // Currently initializing
+	| "active" // Running and available
+	| "inactive" // Configured but not started
+	| "error" // Failed to start or crashed
+	| "loading"; // Currently initializing
 
 /**
  * MCP Tool provided by a server
  * Represents a callable tool exposed via MCP protocol
  */
 export interface MCPTool {
-  /** Unique tool ID (format: serverId:toolName) */
-  id: string;
+	/** Unique tool ID (format: serverId:toolName) */
+	id: string;
 
-  /** Server that provides this tool */
-  serverId: string;
+	/** Server that provides this tool */
+	serverId: string;
 
-  /** Tool name as defined by the server */
-  name: string;
+	/** Tool name as defined by the server */
+	name: string;
 
-  /** Tool description from server */
-  description: string;
+	/** Tool description from server */
+	description: string;
 
-  /** Input schema (JSON Schema format from MCP) */
-  inputSchema: Record<string, unknown>;
+	/** Input schema (JSON Schema format from MCP) */
+	inputSchema: Record<string, unknown>;
 
-  /** Whether this tool is currently available */
-  isAvailable: boolean;
+	/** Whether this tool is currently available */
+	isAvailable: boolean;
 }
 
 /**
@@ -45,53 +45,53 @@ export interface MCPTool {
  * Represents a readable resource (file, data, etc.)
  */
 export interface MCPResource {
-  /** Unique resource ID (format: serverId:resourceUri) */
-  id: string;
+	/** Unique resource ID (format: serverId:resourceUri) */
+	id: string;
 
-  /** Server that provides this resource */
-  serverId: string;
+	/** Server that provides this resource */
+	serverId: string;
 
-  /** Resource URI as defined by the server */
-  uri: string;
+	/** Resource URI as defined by the server */
+	uri: string;
 
-  /** Resource name/title */
-  name: string;
+	/** Resource name/title */
+	name: string;
 
-  /** Resource description */
-  description?: string;
+	/** Resource description */
+	description?: string;
 
-  /** MIME type of the resource */
-  mimeType?: string;
+	/** MIME type of the resource */
+	mimeType?: string;
 
-  /** Whether this resource is currently available */
-  isAvailable: boolean;
+	/** Whether this resource is currently available */
+	isAvailable: boolean;
 }
 
 /**
  * MCP Prompt template provided by a server
  */
 export interface MCPPrompt {
-  /** Unique prompt ID (format: serverId:promptName) */
-  id: string;
+	/** Unique prompt ID (format: serverId:promptName) */
+	id: string;
 
-  /** Server that provides this prompt */
-  serverId: string;
+	/** Server that provides this prompt */
+	serverId: string;
 
-  /** Prompt name as defined by the server */
-  name: string;
+	/** Prompt name as defined by the server */
+	name: string;
 
-  /** Prompt description */
-  description?: string;
+	/** Prompt description */
+	description?: string;
 
-  /** Arguments the prompt accepts */
-  arguments?: Array<{
-    name: string;
-    description?: string;
-    required?: boolean;
-  }>;
+	/** Arguments the prompt accepts */
+	arguments?: Array<{
+		name: string;
+		description?: string;
+		required?: boolean;
+	}>;
 
-  /** Whether this prompt is currently available */
-  isAvailable: boolean;
+	/** Whether this prompt is currently available */
+	isAvailable: boolean;
 }
 
 /**
@@ -99,17 +99,17 @@ export interface MCPPrompt {
  * What features the server supports
  */
 export interface MCPServerCapabilities {
-  /** Server provides callable tools */
-  tools?: boolean;
+	/** Server provides callable tools */
+	tools?: boolean;
 
-  /** Server provides readable resources */
-  resources?: boolean;
+	/** Server provides readable resources */
+	resources?: boolean;
 
-  /** Server provides prompt templates */
-  prompts?: boolean;
+	/** Server provides prompt templates */
+	prompts?: boolean;
 
-  /** Server supports subscriptions */
-  subscriptions?: boolean;
+	/** Server supports subscriptions */
+	subscriptions?: boolean;
 }
 
 /**
@@ -117,48 +117,48 @@ export interface MCPServerCapabilities {
  * Represents a running or configured MCP server
  */
 export interface MCPServer {
-  /** Unique server ID (user-defined) */
-  id: string;
+	/** Unique server ID (user-defined) */
+	id: string;
 
-  /** Display name */
-  name: string;
+	/** Display name */
+	name: string;
 
-  /** Server description */
-  description?: string;
+	/** Server description */
+	description?: string;
 
-  /** Server configuration (stdio or http) */
-  config: MCPServerConfig | MCPServerConfigHTTP;
+	/** Server configuration (stdio or http) */
+	config: MCPServerConfig | MCPServerConfigHTTP;
 
-  /** Current server status */
-  status: MCPServerStatus;
+	/** Current server status */
+	status: MCPServerStatus;
 
-  /** Server capabilities (discovered on connection) */
-  capabilities: MCPServerCapabilities;
+	/** Server capabilities (discovered on connection) */
+	capabilities: MCPServerCapabilities;
 
-  /** Tools provided by this server */
-  tools: MCPTool[];
+	/** Tools provided by this server */
+	tools: MCPTool[];
 
-  /** Resources provided by this server */
-  resources: MCPResource[];
+	/** Resources provided by this server */
+	resources: MCPResource[];
 
-  /** Prompts provided by this server */
-  prompts: MCPPrompt[];
+	/** Prompts provided by this server */
+	prompts: MCPPrompt[];
 
-  /** Server metadata (version, vendor, etc.) */
-  metadata?: {
-    version?: string;
-    vendor?: string;
-    homepage?: string;
-  };
+	/** Server metadata (version, vendor, etc.) */
+	metadata?: {
+		version?: string;
+		vendor?: string;
+		homepage?: string;
+	};
 
-  /** Whether server is enabled */
-  isEnabled: boolean;
+	/** Whether server is enabled */
+	isEnabled: boolean;
 
-  /** Error message if status is 'error' */
-  error?: string;
+	/** Error message if status is 'error' */
+	error?: string;
 
-  /** Last update timestamp */
-  lastUpdated?: number;
+	/** Last update timestamp */
+	lastUpdated?: number;
 }
 
 /**
@@ -166,23 +166,23 @@ export interface MCPServer {
  * Information returned when discovering MCP servers
  */
 export interface MCPServerDiscovery {
-  /** Server ID */
-  serverId: string;
+	/** Server ID */
+	serverId: string;
 
-  /** Discovered capabilities */
-  capabilities: MCPServerCapabilities;
+	/** Discovered capabilities */
+	capabilities: MCPServerCapabilities;
 
-  /** Number of tools found */
-  toolCount: number;
+	/** Number of tools found */
+	toolCount: number;
 
-  /** Number of resources found */
-  resourceCount: number;
+	/** Number of resources found */
+	resourceCount: number;
 
-  /** Number of prompts found */
-  promptCount: number;
+	/** Number of prompts found */
+	promptCount: number;
 
-  /** Discovery timestamp */
-  discoveredAt: number;
+	/** Discovery timestamp */
+	discoveredAt: number;
 }
 
 /**
@@ -190,22 +190,22 @@ export interface MCPServerDiscovery {
  * Runtime connection details
  */
 export interface MCPServerConnection {
-  /** Server ID */
-  serverId: string;
+	/** Server ID */
+	serverId: string;
 
-  /** Connection status */
-  status: 'connected' | 'disconnected' | 'connecting' | 'error';
+	/** Connection status */
+	status: "connected" | "disconnected" | "connecting" | "error";
 
-  /** Connection established timestamp */
-  connectedAt?: number;
+	/** Connection established timestamp */
+	connectedAt?: number;
 
-  /** Last activity timestamp */
-  lastActivity?: number;
+	/** Last activity timestamp */
+	lastActivity?: number;
 
-  /** Error details if status is 'error' */
-  error?: {
-    message: string;
-    code?: string;
-    timestamp: number;
-  };
+	/** Error details if status is 'error' */
+	error?: {
+		message: string;
+		code?: string;
+		timestamp: number;
+	};
 }

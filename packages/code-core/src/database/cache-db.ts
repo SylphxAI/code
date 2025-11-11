@@ -3,50 +3,50 @@
  * 負責管理可以重新生成的緩存數據（代碼索引、搜索詞彙等）
  */
 
-import * as path from 'node:path';
-import type { drizzle } from 'drizzle-orm/libsql';
-import { DatabaseError } from '../utils/database-errors.js';
-import { BaseDatabaseClient } from './base-database-client.js';
-import * as schema from './cache-schema.js';
+import * as path from "node:path";
+import type { drizzle } from "drizzle-orm/libsql";
+import { DatabaseError } from "../utils/database-errors.js";
+import { BaseDatabaseClient } from "./base-database-client.js";
+import * as schema from "./cache-schema.js";
 
 export type CacheDatabase = ReturnType<typeof drizzle<typeof schema>>;
 
 export class CacheDatabaseClient extends BaseDatabaseClient<typeof schema> {
-  constructor() {
-    super('cache', schema);
-  }
+	constructor() {
+		super("cache", schema);
+	}
 
-  /**
-   * Initialize cache database schema
-   */
-  async initialize(): Promise<void> {
-    try {
-      // Check if tables already exist
-      const migrationStatus = await this.getMigrationStatus();
+	/**
+	 * Initialize cache database schema
+	 */
+	async initialize(): Promise<void> {
+		try {
+			// Check if tables already exist
+			const migrationStatus = await this.getMigrationStatus();
 
-      if (migrationStatus.isMigrated) {
-        // Tables already exist, skip logging to reduce noise
-        return;
-      }
+			if (migrationStatus.isMigrated) {
+				// Tables already exist, skip logging to reduce noise
+				return;
+			}
 
-      // For now, create tables directly since we don't have migration files yet
-      await this.createTables();
-      console.error('[INFO] Cache database tables created');
-    } catch (error) {
-      throw new DatabaseError(
-        'Failed to initialize cache database',
-        'cache.initialize',
-        error as Error
-      );
-    }
-  }
+			// For now, create tables directly since we don't have migration files yet
+			await this.createTables();
+			console.error("[INFO] Cache database tables created");
+		} catch (error) {
+			throw new DatabaseError(
+				"Failed to initialize cache database",
+				"cache.initialize",
+				error as Error,
+			);
+		}
+	}
 
-  /**
-   * Create tables directly (fallback)
-   */
-  private async createTables(): Promise<void> {
-    // Create codebase_files table
-    await this.createTable(`
+	/**
+	 * Create tables directly (fallback)
+	 */
+	private async createTables(): Promise<void> {
+		// Create codebase_files table
+		await this.createTable(`
       CREATE TABLE IF NOT EXISTS codebase_files_table (
         path TEXT PRIMARY KEY,
         mtime INTEGER NOT NULL,
@@ -58,16 +58,16 @@ export class CacheDatabaseClient extends BaseDatabaseClient<typeof schema> {
       )
     `);
 
-    // Create codebase_metadata table
-    await this.createTable(`
+		// Create codebase_metadata table
+		await this.createTable(`
       CREATE TABLE IF NOT EXISTS codebase_metadata_table (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
       )
     `);
 
-    // Create tfidf_documents table
-    await this.createTable(`
+		// Create tfidf_documents table
+		await this.createTable(`
       CREATE TABLE IF NOT EXISTS tfidf_documents_table (
         file_path TEXT PRIMARY KEY,
         magnitude REAL NOT NULL,
@@ -77,16 +77,16 @@ export class CacheDatabaseClient extends BaseDatabaseClient<typeof schema> {
       )
     `);
 
-    // Create tfidf_idf table
-    await this.createTable(`
+		// Create tfidf_idf table
+		await this.createTable(`
       CREATE TABLE IF NOT EXISTS tfidf_idf_table (
         term TEXT PRIMARY KEY,
         idf_value REAL NOT NULL
       )
     `);
 
-    // Create tfidf_terms table
-    await this.createTable(`
+		// Create tfidf_terms table
+		await this.createTable(`
       CREATE TABLE IF NOT EXISTS tfidf_terms_table (
         file_path TEXT NOT NULL,
         term TEXT NOT NULL,
@@ -96,123 +96,123 @@ export class CacheDatabaseClient extends BaseDatabaseClient<typeof schema> {
       )
     `);
 
-    // Create indexes
-    await this.createIndex(`
+		// Create indexes
+		await this.createIndex(`
       CREATE INDEX IF NOT EXISTS idx_codebase_files_mtime ON codebase_files_table (mtime)
     `);
 
-    await this.createIndex(`
+		await this.createIndex(`
       CREATE INDEX IF NOT EXISTS idx_codebase_files_hash ON codebase_files_table (hash)
     `);
 
-    await this.createIndex(`
+		await this.createIndex(`
       CREATE INDEX IF NOT EXISTS idx_tfidf_terms_term ON tfidf_terms_table (term)
     `);
 
-    await this.createIndex(`
+		await this.createIndex(`
       CREATE INDEX IF NOT EXISTS idx_tfidf_terms_file ON tfidf_terms_table (file_path)
     `);
-  }
+	}
 
-  /**
-   * Get migration status
-   */
-  async getMigrationStatus(): Promise<{
-    isMigrated: boolean;
-    migrationCount: number;
-  }> {
-    try {
-      const tables = ['codebase_files_table', 'tfidf_terms_table', 'tfidf_documents_table'];
-      let existingCount = 0;
+	/**
+	 * Get migration status
+	 */
+	async getMigrationStatus(): Promise<{
+		isMigrated: boolean;
+		migrationCount: number;
+	}> {
+		try {
+			const tables = ["codebase_files_table", "tfidf_terms_table", "tfidf_documents_table"];
+			let existingCount = 0;
 
-      for (const table of tables) {
-        if (await this.tableExists(table)) {
-          existingCount++;
-        }
-      }
+			for (const table of tables) {
+				if (await this.tableExists(table)) {
+					existingCount++;
+				}
+			}
 
-      return {
-        isMigrated: existingCount >= 2, // At least codebase_files and tfidf_terms
-        migrationCount: existingCount,
-      };
-    } catch (error) {
-      throw new DatabaseError(
-        'Failed to check cache database migration status',
-        'cache.getMigrationStatus',
-        error as Error
-      );
-    }
-  }
+			return {
+				isMigrated: existingCount >= 2, // At least codebase_files and tfidf_terms
+				migrationCount: existingCount,
+			};
+		} catch (error) {
+			throw new DatabaseError(
+				"Failed to check cache database migration status",
+				"cache.getMigrationStatus",
+				error as Error,
+			);
+		}
+	}
 
-  /**
-   * Clear all cache data (useful for rebuilding)
-   */
-  async clearCache(): Promise<void> {
-    try {
-      await this.client.execute('DELETE FROM tfidf_terms_table');
-      await this.client.execute('DELETE FROM tfidf_documents_table');
-      await this.client.execute('DELETE FROM tfidf_idf_table');
-      await this.client.execute('DELETE FROM codebase_files_table');
-      await this.client.execute('DELETE FROM codebase_metadata_table');
+	/**
+	 * Clear all cache data (useful for rebuilding)
+	 */
+	async clearCache(): Promise<void> {
+		try {
+			await this.client.execute("DELETE FROM tfidf_terms_table");
+			await this.client.execute("DELETE FROM tfidf_documents_table");
+			await this.client.execute("DELETE FROM tfidf_idf_table");
+			await this.client.execute("DELETE FROM codebase_files_table");
+			await this.client.execute("DELETE FROM codebase_metadata_table");
 
-      console.error('[INFO] Cache database cleared');
-    } catch (error) {
-      throw new DatabaseError('Failed to clear cache database', 'cache.clearCache', error as Error);
-    }
-  }
+			console.error("[INFO] Cache database cleared");
+		} catch (error) {
+			throw new DatabaseError("Failed to clear cache database", "cache.clearCache", error as Error);
+		}
+	}
 
-  /**
-   * Perform database health check
-   */
-  async healthCheck(): Promise<{
-    healthy: boolean;
-    error?: string;
-    details?: Record<string, unknown>;
-  }> {
-    try {
-      // Test basic connectivity
-      await this.client.execute('SELECT 1');
+	/**
+	 * Perform database health check
+	 */
+	async healthCheck(): Promise<{
+		healthy: boolean;
+		error?: string;
+		details?: Record<string, unknown>;
+	}> {
+		try {
+			// Test basic connectivity
+			await this.client.execute("SELECT 1");
 
-      // Check if cache tables exist
-      const migrationStatus = await this.getMigrationStatus();
+			// Check if cache tables exist
+			const migrationStatus = await this.getMigrationStatus();
 
-      // Test basic read/write operation
-      const testResult = await this.client.execute(`
+			// Test basic read/write operation
+			const testResult = await this.client.execute(`
         SELECT count(*) as count FROM codebase_files_table
       `);
 
-      return {
-        healthy: true,
-        details: {
-          tablesExist: migrationStatus.isMigrated,
-          tableCount: migrationStatus.migrationCount,
-          cachedFiles: testResult.rows[0]?.count || 0,
-        },
-      };
-    } catch (error) {
-      return {
-        healthy: false,
-        error: (error as Error).message,
-      };
-    }
-  }
+			return {
+				healthy: true,
+				details: {
+					tablesExist: migrationStatus.isMigrated,
+					tableCount: migrationStatus.migrationCount,
+					cachedFiles: testResult.rows[0]?.count || 0,
+				},
+			};
+		} catch (error) {
+			return {
+				healthy: false,
+				error: (error as Error).message,
+			};
+		}
+	}
 
-  /**
-   * Close database connection
-   */
-  async close(): Promise<void> {
-    // libSQL client doesn't have explicit close for file-based databases
-  }
+	/**
+	 * Close database connection
+	 */
+	async close(): Promise<void> {
+		// libSQL client doesn't have explicit close for file-based databases
+	}
 
-  /**
-   * Get database path for debugging
-   */
-  getDatabasePath(): string {
-    const cacheDir = path.join(process.cwd(), '.sylphx-code');
-    return path.join(cacheDir, 'cache.db');
-  }
+	/**
+	 * Get database path for debugging
+	 */
+	getDatabasePath(): string {
+		const cacheDir = path.join(process.cwd(), ".sylphx-code");
+		return path.join(cacheDir, "cache.db");
+	}
 }
 
 // Export schema and types
-export * from './cache-schema.js';
+export * from "./cache-schema.js";
 export { schema };

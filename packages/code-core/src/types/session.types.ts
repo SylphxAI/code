@@ -3,9 +3,9 @@
  * Unified session and message types used across TUI and headless modes
  */
 
-import type { ProviderId } from '../config/ai-config.js';
-import type { Todo } from './todo.types.js';
-import type { Model } from './model.types.js';
+import type { ProviderId } from "../config/ai-config.js";
+import type { Todo } from "./todo.types.js";
+import type { Model } from "./model.types.js";
 
 /**
  * Message Part - unified type for all content parts
@@ -24,58 +24,58 @@ import type { Model } from './model.types.js';
  * Multiple parts can be active simultaneously (parallel tool calls).
  */
 export type MessagePart =
-  | {
-      type: 'text';
-      content: string;
-      status: 'active' | 'completed' | 'error' | 'abort';
-    }
-  | {
-      type: 'reasoning';
-      content: string;
-      status: 'active' | 'completed' | 'error' | 'abort';
-      duration?: number;
-      startTime?: number;
-    }
-  | {
-      type: 'tool';
-      toolId: string;       // Normalized: references Tool.id for builtin, or 'serverId:toolName' for MCP
-      name: string;          // Preserved for historical messages (even if tool is removed from registry)
-      mcpServerId?: string;  // NEW: If this is an MCP tool, references MCPServer.id
-      status: 'active' | 'completed' | 'error' | 'abort';
-      args?: unknown;
-      result?: unknown;
-      error?: string;
-      duration?: number;
-      startTime?: number;
-    }
-  | {
-      type: 'file';
-      relativePath: string;  // Display path (e.g., "src/app.ts")
-      size: number;          // File size in bytes
-      mediaType: string;     // MIME type (e.g., "text/plain", "image/png")
-      base64: string;        // LEGACY: Frozen content - never re-read from disk
-      status: 'completed';   // Files are immediately completed when received
-    }
-  | {
-      type: 'file-ref';
-      fileContentId: string; // Reference to file_contents table
-      relativePath: string;  // Denormalized for display (avoid JOIN for lists)
-      size: number;          // Denormalized for display
-      mediaType: string;     // Denormalized for display
-      status: 'completed';   // Files are immediately completed when received
-    }
-  | {
-      type: 'system-message';
-      content: string;       // Full XML content with <system_message> tags
-      messageType: string;   // Type identifier (e.g., 'resource-warning-memory')
-      timestamp: number;     // When the message was generated
-      status: 'completed';   // System messages are immediately completed
-    }
-  | {
-      type: 'error';
-      error: string;
-      status: 'completed';  // Errors are immediately completed
-    };
+	| {
+			type: "text";
+			content: string;
+			status: "active" | "completed" | "error" | "abort";
+	  }
+	| {
+			type: "reasoning";
+			content: string;
+			status: "active" | "completed" | "error" | "abort";
+			duration?: number;
+			startTime?: number;
+	  }
+	| {
+			type: "tool";
+			toolId: string; // Normalized: references Tool.id for builtin, or 'serverId:toolName' for MCP
+			name: string; // Preserved for historical messages (even if tool is removed from registry)
+			mcpServerId?: string; // NEW: If this is an MCP tool, references MCPServer.id
+			status: "active" | "completed" | "error" | "abort";
+			args?: unknown;
+			result?: unknown;
+			error?: string;
+			duration?: number;
+			startTime?: number;
+	  }
+	| {
+			type: "file";
+			relativePath: string; // Display path (e.g., "src/app.ts")
+			size: number; // File size in bytes
+			mediaType: string; // MIME type (e.g., "text/plain", "image/png")
+			base64: string; // LEGACY: Frozen content - never re-read from disk
+			status: "completed"; // Files are immediately completed when received
+	  }
+	| {
+			type: "file-ref";
+			fileContentId: string; // Reference to file_contents table
+			relativePath: string; // Denormalized for display (avoid JOIN for lists)
+			size: number; // Denormalized for display
+			mediaType: string; // Denormalized for display
+			status: "completed"; // Files are immediately completed when received
+	  }
+	| {
+			type: "system-message";
+			content: string; // Full XML content with <system_message> tags
+			messageType: string; // Type identifier (e.g., 'resource-warning-memory')
+			timestamp: number; // When the message was generated
+			status: "completed"; // System messages are immediately completed
+	  }
+	| {
+			type: "error";
+			error: string;
+			status: "completed"; // Errors are immediately completed
+	  };
 
 /**
  * Legacy type alias for backwards compatibility
@@ -121,45 +121,45 @@ export type StreamingPart = MessagePart;
  * - finishReason === 'length' → token limit, may continue in new step
  */
 export interface MessageStep {
-  id: string;              // Step ID (e.g., "step-0", "step-1")
-  stepIndex: number;       // 0, 1, 2, ... (order)
-  parts: MessagePart[];    // Content parts for this step
+	id: string; // Step ID (e.g., "step-0", "step-1")
+	stepIndex: number; // 0, 1, 2, ... (order)
+	parts: MessagePart[]; // Content parts for this step
 
-  // System messages to insert BEFORE this step (for LLM context)
-  // When building model messages, these become 'user' role messages inserted before step content
-  // Multiple messages can fire simultaneously (e.g., context + memory warnings)
-  systemMessages?: SystemMessage[];
+	// System messages to insert BEFORE this step (for LLM context)
+	// When building model messages, these become 'user' role messages inserted before step content
+	// Multiple messages can fire simultaneously (e.g., context + memory warnings)
+	systemMessages?: SystemMessage[];
 
-  // Per-step context (captured at step start time)
-  metadata?: MessageMetadata;  // System status at THIS step's start time
+	// Per-step context (captured at step start time)
+	metadata?: MessageMetadata; // System status at THIS step's start time
 
-  /**
-   * @deprecated No longer stored per-step (REMOVED for performance)
-   *
-   * Rationale:
-   * - User reported 100+ steps per message being common
-   * - Storing todos on every step is excessive and wasteful
-   * - Todos are managed at session level (session.todos)
-   *
-   * Current Status:
-   * - NOT stored in database (no column exists)
-   * - MAY appear in runtime events (step-start event)
-   * - NOT injected into LLM context (buildUserMessage check never executes)
-   *
-   * See: TODOSNAPSHOT-REALITY.md for complete analysis
-   */
-  todoSnapshot?: Todo[];       // ❌ DEPRECATED - Not stored, not used
+	/**
+	 * @deprecated No longer stored per-step (REMOVED for performance)
+	 *
+	 * Rationale:
+	 * - User reported 100+ steps per message being common
+	 * - Storing todos on every step is excessive and wasteful
+	 * - Todos are managed at session level (session.todos)
+	 *
+	 * Current Status:
+	 * - NOT stored in database (no column exists)
+	 * - MAY appear in runtime events (step-start event)
+	 * - NOT injected into LLM context (buildUserMessage check never executes)
+	 *
+	 * See: TODOSNAPSHOT-REALITY.md for complete analysis
+	 */
+	todoSnapshot?: Todo[]; // ❌ DEPRECATED - Not stored, not used
 
-  // Per-step execution metadata
-  usage?: TokenUsage;
-  provider?: string;       // Future: may route different steps to different providers
-  model?: string;          // Future: may use different models per step
-  duration?: number;       // Step execution time (ms)
-  finishReason?: 'stop' | 'tool-calls' | 'length' | 'error';
-  status: 'active' | 'completed' | 'error' | 'abort';
+	// Per-step execution metadata
+	usage?: TokenUsage;
+	provider?: string; // Future: may route different steps to different providers
+	model?: string; // Future: may use different models per step
+	duration?: number; // Step execution time (ms)
+	finishReason?: "stop" | "tool-calls" | "length" | "error";
+	status: "active" | "completed" | "error" | "abort";
 
-  startTime?: number;      // Timestamp when step started
-  endTime?: number;        // Timestamp when step ended
+	startTime?: number; // Timestamp when step started
+	endTime?: number; // Timestamp when step ended
 }
 
 /**
@@ -167,10 +167,10 @@ export interface MessageStep {
  * Used during message creation to tag files that will be read and frozen
  */
 export interface FileAttachmentInput {
-  path: string;          // Absolute path (for reading file content)
-  relativePath: string;  // Display path (e.g., "src/app.ts")
-  size?: number;         // File size in bytes (optional)
-  mimeType?: string;     // MIME type (optional, will be detected if not provided)
+	path: string; // Absolute path (for reading file content)
+	relativePath: string; // Display path (e.g., "src/app.ts")
+	size?: number; // File size in bytes (optional)
+	mimeType?: string; // MIME type (optional, will be detected if not provided)
 }
 
 /**
@@ -184,18 +184,18 @@ export type FileAttachment = FileAttachmentInput;
  * Used for mid-execution alerts (context warnings, resource warnings, etc.)
  */
 export interface SystemMessage {
-  type: string;      // Message type (e.g., 'context-warning-80', 'resource-warning-memory')
-  content: string;   // Full message content (for LLM context)
-  timestamp?: number; // When this message was triggered (Unix timestamp)
+	type: string; // Message type (e.g., 'context-warning-80', 'resource-warning-memory')
+	content: string; // Full message content (for LLM context)
+	timestamp?: number; // When this message was triggered (Unix timestamp)
 }
 
 /**
  * Token usage statistics
  */
 export interface TokenUsage {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
+	promptTokens: number;
+	completionTokens: number;
+	totalTokens: number;
 }
 
 /**
@@ -216,9 +216,9 @@ export interface TokenUsage {
  * - content: Shown in UI AND sent to LLM
  */
 export interface MessageMetadata {
-  cpu?: string;         // CPU usage at creation time (e.g., "45.3% (8 cores)")
-  memory?: string;      // Memory usage at creation time (e.g., "4.2GB/16.0GB")
-  // Future: add more fields as needed (sessionId, requestId, modelVersion, etc.)
+	cpu?: string; // CPU usage at creation time (e.g., "45.3% (8 cores)")
+	memory?: string; // Memory usage at creation time (e.g., "4.2GB/16.0GB")
+	// Future: add more fields as needed (sessionId, requestId, modelVersion, etc.)
 }
 
 /**
@@ -256,21 +256,21 @@ export interface MessageMetadata {
  * - Steps after first only get tool results context
  */
 export interface SessionMessage {
-  id: string;              // Unique message ID from database
-  role: 'system' | 'user' | 'assistant';  // Session-level roles
-  steps: MessageStep[];    // Steps representing AI call(s) for this message
+	id: string; // Unique message ID from database
+	role: "system" | "user" | "assistant"; // Session-level roles
+	steps: MessageStep[]; // Steps representing AI call(s) for this message
 
-  // Message-level metadata
-  timestamp: number;       // When message was created
-  status?: 'active' | 'completed' | 'error' | 'abort';  // Overall status (derived from steps)
+	// Message-level metadata
+	timestamp: number; // When message was created
+	status?: "active" | "completed" | "error" | "abort"; // Overall status (derived from steps)
 
-  // REMOVED: attachments field - files are now stored as frozen content in message steps
-  // File content is captured at creation time and stored as base64 in step.parts
-  // This ensures immutable history and preserves order with text content
+	// REMOVED: attachments field - files are now stored as frozen content in message steps
+	// File content is captured at creation time and stored as base64 in step.parts
+	// This ensures immutable history and preserves order with text content
 
-  // Aggregated from steps (for UI convenience)
-  usage?: TokenUsage;      // Total usage (sum of all steps)
-  finishReason?: string;   // Final finish reason (from last step)
+	// Aggregated from steps (for UI convenience)
+	usage?: TokenUsage; // Total usage (sum of all steps)
+	finishReason?: string; // Final finish reason (from last step)
 }
 
 /**
@@ -295,7 +295,7 @@ export type Message = SessionMessage;
  * Model availability status
  * Used to indicate if a session's configured model is still available
  */
-export type ModelStatus = 'available' | 'unavailable' | 'unknown';
+export type ModelStatus = "available" | "unavailable" | "unknown";
 
 /**
  * Session metadata (lightweight)
@@ -312,32 +312,32 @@ export type ModelStatus = 'available' | 'unavailable' | 'unknown';
  * - Clear API contracts (metadata vs full session)
  */
 export interface SessionMetadata {
-  id: string;
-  title?: string;
+	id: string;
+	title?: string;
 
-  /**
-   * Model ID (normalized)
-   * References Model.id in model registry
-   * @example 'claude-sonnet-4', 'gpt-4o', 'openrouter/anthropic/claude-sonnet-3.5'
-   */
-  modelId: string;
+	/**
+	 * Model ID (normalized)
+	 * References Model.id in model registry
+	 * @example 'claude-sonnet-4', 'gpt-4o', 'openrouter/anthropic/claude-sonnet-3.5'
+	 */
+	modelId: string;
 
-  modelStatus?: ModelStatus; // Optional: validated against model registry
-  agentId: string;
-  enabledRuleIds?: string[]; // Enabled rules for this session
-  enabledToolIds?: string[]; // NEW: Enabled tools (references Tool.id[])
-  enabledMcpServerIds?: string[]; // NEW: Enabled MCP servers (references MCPServer.id[])
+	modelStatus?: ModelStatus; // Optional: validated against model registry
+	agentId: string;
+	enabledRuleIds?: string[]; // Enabled rules for this session
+	enabledToolIds?: string[]; // NEW: Enabled tools (references Tool.id[])
+	enabledMcpServerIds?: string[]; // NEW: Enabled MCP servers (references MCPServer.id[])
 
-  created: number;
-  updated: number;
-  messageCount: number;
+	created: number;
+	updated: number;
+	messageCount: number;
 
-  // DEPRECATED: Legacy fields kept for backward compatibility during migration
-  // These will be removed in next major version
-  /** @deprecated Use modelId instead */
-  provider?: ProviderId;
-  /** @deprecated Use modelId instead */
-  model?: string;
+	// DEPRECATED: Legacy fields kept for backward compatibility during migration
+	// These will be removed in next major version
+	/** @deprecated Use modelId instead */
+	provider?: ProviderId;
+	/** @deprecated Use modelId instead */
+	model?: string;
 }
 
 /**
@@ -392,52 +392,52 @@ export interface SessionMetadata {
  * - Archives naturally (status='archived')
  */
 export interface Session {
-  id: string;
-  title?: string; // Auto-generated from first user message
+	id: string;
+	title?: string; // Auto-generated from first user message
 
-  /**
-   * Model ID (normalized)
-   * References Model.id in model registry
-   * @example 'claude-sonnet-4', 'gpt-4o', 'openrouter/anthropic/claude-sonnet-3.5'
-   */
-  modelId: string;
+	/**
+	 * Model ID (normalized)
+	 * References Model.id in model registry
+	 * @example 'claude-sonnet-4', 'gpt-4o', 'openrouter/anthropic/claude-sonnet-3.5'
+	 */
+	modelId: string;
 
-  modelStatus?: ModelStatus; // Optional: validated against model registry (server-side)
-  agentId: string;         // Agent configuration for this session
-  enabledRuleIds: string[]; // Enabled rules for this session (persisted to DB)
+	modelStatus?: ModelStatus; // Optional: validated against model registry (server-side)
+	agentId: string; // Agent configuration for this session
+	enabledRuleIds: string[]; // Enabled rules for this session (persisted to DB)
 
-  /**
-   * Enabled tools for this session (normalized)
-   * References Tool.id[] from tool registry
-   * If undefined/empty, all tools enabled by default
-   */
-  enabledToolIds?: string[];
+	/**
+	 * Enabled tools for this session (normalized)
+	 * References Tool.id[] from tool registry
+	 * If undefined/empty, all tools enabled by default
+	 */
+	enabledToolIds?: string[];
 
-  /**
-   * Enabled MCP servers for this session (normalized)
-   * References MCPServer.id[] from MCP server registry
-   * If undefined/empty, all enabled MCP servers are used
-   */
-  enabledMcpServerIds?: string[];
+	/**
+	 * Enabled MCP servers for this session (normalized)
+	 * References MCPServer.id[] from MCP server registry
+	 * If undefined/empty, all enabled MCP servers are used
+	 */
+	enabledMcpServerIds?: string[];
 
-  messages: SessionMessage[];
-  todos: Todo[];           // Per-session todo list (not global!)
-  nextTodoId: number;      // Next todo ID for this session (starts at 1)
+	messages: SessionMessage[];
+	todos: Todo[]; // Per-session todo list (not global!)
+	nextTodoId: number; // Next todo ID for this session (starts at 1)
 
-  // System message trigger flags (state tracking)
-  // Used to prevent duplicate system messages (e.g., memoryWarning, cpuWarning)
-  flags?: Record<string, boolean>;
+	// System message trigger flags (state tracking)
+	// Used to prevent duplicate system messages (e.g., memoryWarning, cpuWarning)
+	flags?: Record<string, boolean>;
 
-  // Note: Streaming state derived from message.status, not stored here
-  // To check if streaming: messages.some(m => m.status === 'active')
+	// Note: Streaming state derived from message.status, not stored here
+	// To check if streaming: messages.some(m => m.status === 'active')
 
-  created: number;
-  updated: number;
+	created: number;
+	updated: number;
 
-  // DEPRECATED: Legacy fields kept for backward compatibility during migration
-  // These will be removed in next major version
-  /** @deprecated Use modelId instead */
-  provider?: ProviderId;
-  /** @deprecated Use modelId instead */
-  model?: string;
+	// DEPRECATED: Legacy fields kept for backward compatibility during migration
+	// These will be removed in next major version
+	/** @deprecated Use modelId instead */
+	provider?: ProviderId;
+	/** @deprecated Use modelId instead */
+	model?: string;
 }

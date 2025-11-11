@@ -8,29 +8,29 @@
  * - Prevents awkward line wrapping in narrow containers
  */
 
-import Markdown from '@jescalan/ink-markdown';
-import { Box, Text } from 'ink';
-import React from 'react';
+import Markdown from "@jescalan/ink-markdown";
+import { Box, Text } from "ink";
+import React from "react";
 
 interface MarkdownTextProps {
-  children: string;
-  prefix?: string;
-  prefixColor?: string;
+	children: string;
+	prefix?: string;
+	prefixColor?: string;
 }
 
 // HR patterns to detect (markdown horizontal rules)
 const HR_PATTERNS = [
-  /^-{3,}\s*$/, // --- (3 or more dashes)
-  /^\*{3,}\s*$/, // *** (3 or more asterisks)
-  /^_{3,}\s*$/, // ___ (3 or more underscores)
+	/^-{3,}\s*$/, // --- (3 or more dashes)
+	/^\*{3,}\s*$/, // *** (3 or more asterisks)
+	/^_{3,}\s*$/, // ___ (3 or more underscores)
 ];
 
 /**
  * Check if a line is a horizontal rule
  */
 function isHorizontalRule(line: string): boolean {
-  const trimmed = line.trim();
-  return HR_PATTERNS.some((pattern) => pattern.test(trimmed));
+	const trimmed = line.trim();
+	return HR_PATTERNS.some((pattern) => pattern.test(trimmed));
 }
 
 /**
@@ -42,64 +42,64 @@ function isHorizontalRule(line: string): boolean {
  * PERFORMANCE: Memoized to prevent re-rendering when content hasn't changed
  */
 const MarkdownText = React.memo(function MarkdownText({
-  children,
-  prefix,
-  prefixColor,
+	children,
+	prefix,
+	prefixColor,
 }: MarkdownTextProps) {
-  // Generate a stable but unique prefix for this component instance (must be before any returns)
-  const instanceId = React.useId();
+	// Generate a stable but unique prefix for this component instance (must be before any returns)
+	const instanceId = React.useId();
 
-  // Guard against undefined children
-  if (!children || typeof children !== 'string') {
-    return null;
-  }
+	// Guard against undefined children
+	if (!children || typeof children !== "string") {
+		return null;
+	}
 
-  // Split content into lines for HR detection
-  const lines = children.split('\n');
+	// Split content into lines for HR detection
+	const lines = children.split("\n");
 
-  // Check if we have any HRs that need custom rendering
-  const hasHR = lines.some(isHorizontalRule);
+	// Check if we have any HRs that need custom rendering
+	const hasHR = lines.some(isHorizontalRule);
 
-  if (!hasHR && !prefix) {
-    // No HR and no prefix - use default rendering
-    return <Markdown>{children}</Markdown>;
-  }
+	if (!hasHR && !prefix) {
+		// No HR and no prefix - use default rendering
+		return <Markdown>{children}</Markdown>;
+	}
 
-  // Process line by line for HR detection and/or prefix
+	// Process line by line for HR detection and/or prefix
 
-  return (
-    <Box flexDirection="column">
-      {lines.map((line, idx) => {
-        const isHR = isHorizontalRule(line);
-        // Use unique key with component instance ID to avoid duplicate keys across different instances
-        const key = `${instanceId}-line-${idx}`;
+	return (
+		<Box flexDirection="column">
+			{lines.map((line, idx) => {
+				const isHR = isHorizontalRule(line);
+				// Use unique key with component instance ID to avoid duplicate keys across different instances
+				const key = `${instanceId}-line-${idx}`;
 
-        if (isHR) {
-          // Custom HR: fixed width (48 chars), centered with dashes
-          return (
-            <Box key={key}>
-              {prefix && <Text color={prefixColor}>{prefix}</Text>}
-              <Text dimColor>{'─'.repeat(48)}</Text>
-            </Box>
-          );
-        }
+				if (isHR) {
+					// Custom HR: fixed width (48 chars), centered with dashes
+					return (
+						<Box key={key}>
+							{prefix && <Text color={prefixColor}>{prefix}</Text>}
+							<Text dimColor>{"─".repeat(48)}</Text>
+						</Box>
+					);
+				}
 
-        if (prefix) {
-          // Regular line with prefix
-          return (
-            <Box key={key}>
-              <Text color={prefixColor}>{prefix}</Text>
-              <Markdown>{line}</Markdown>
-            </Box>
-          );
-        }
+				if (prefix) {
+					// Regular line with prefix
+					return (
+						<Box key={key}>
+							<Text color={prefixColor}>{prefix}</Text>
+							<Markdown>{line}</Markdown>
+						</Box>
+					);
+				}
 
-        // Regular line without prefix
-        // Return each line individually to maintain proper spacing
-        return <Markdown key={key}>{line}</Markdown>;
-      })}
-    </Box>
-  );
+				// Regular line without prefix
+				// Return each line individually to maintain proper spacing
+				return <Markdown key={key}>{line}</Markdown>;
+			})}
+		</Box>
+	);
 });
 
 export default MarkdownText;

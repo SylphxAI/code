@@ -11,12 +11,12 @@
 
 // Re-export commonly used types from existing interfaces
 export type {
-  CoreService,
-  FileProcessor,
-  IDatabaseConnection,
-  ILogger,
-  InitializationOptions,
-  TargetManager,
-} from '../interfaces.js';
-export * from './repository.interface.js';
-export * from './service.interface.js';
+	CoreService,
+	FileProcessor,
+	IDatabaseConnection,
+	ILogger,
+	InitializationOptions,
+	TargetManager,
+} from "../interfaces.js";
+export * from "./repository.interface.js";
+export * from "./service.interface.js";
