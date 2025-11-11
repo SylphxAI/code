@@ -41,7 +41,7 @@ export function StatusIndicator({ isStreaming, streamParts }: StatusIndicatorPro
       return 'Thinking...';
     } else if (streamParts.some((p) => p.type === 'tool' && p.status === 'active')) {
       return 'Working...';
-    } else if (streamParts.some((p) => p.type === 'reasoning')) {
+    } else if (streamParts.some((p) => p.type === 'reasoning' && p.status === 'active')) {
       return 'Thinking...';
     } else {
       return 'Typing...';
