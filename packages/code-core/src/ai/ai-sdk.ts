@@ -435,7 +435,7 @@ export async function* createAIStream(
 
     // Prepare messages for this step (caller can inject context)
     const preparedMessages = onPrepareMessages
-      ? onPrepareMessages(messageHistory, stepNumber)
+      ? await onPrepareMessages(messageHistory, stepNumber)
       : messageHistory;
 
     // Build provider-specific options (if provider instance provided)

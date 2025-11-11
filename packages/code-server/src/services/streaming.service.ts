@@ -583,6 +583,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
         // 11. Complete step-0 and save final message to database
         const stepEndTime = Date.now();
 
+        // Compute stepId from assistantMessageId and currentStepNumber
+        const stepId = `${assistantMessageId}-step-${currentStepNumber}`;
+
         // 11.1. Update step parts (with error handling - don't let DB errors crash the stream)
         try {
           await updateStepParts(sessionRepository.db, stepId, result.messageParts);
