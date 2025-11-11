@@ -203,6 +203,27 @@ private persistence?: EventPersistence,
 
 ## 🔄 Process Notes
 
+### Type Inference > Explicit Casts
+**Prefer changing source types over using type casts**
+
+✅ **Good** - Change the source type:
+```typescript
+// Change Map type to enable inference
+const handlers: Map<NodeJS.Signals, Handler> = new Map();
+for (const [signal, handler] of handlers) {
+  process.removeListener(signal, handler); // ✅ Inferred correctly
+}
+```
+
+❌ **Avoid** - Using explicit casts:
+```typescript
+// Wrong type forces cast at usage site
+const handlers: Map<string, Handler> = new Map();
+for (const [signal, handler] of handlers) {
+  process.removeListener(signal as NodeJS.Signals, handler); // ❌ Cast needed
+}
+```
+
 ### When to Accept `as any`
 1. **Node.js API limitations**: When @types/node is insufficient
 2. **Third-party library gaps**: When external libraries lack proper types
@@ -233,6 +254,14 @@ private persistence?: EventPersistence,
 - Fixed session-manager.ts (1 → 0)
 - All code compiles with improved type safety
 - **Commit**: af9feb1
+
+### Phase 2.5: Type Inference Improvements ✅
+- Replaced explicit type casts with proper source typing
+- process-manager.ts: `Map<string, ...>` → `Map<NodeJS.Signals, ...>`
+- session-manager.ts: `provider?: string` → `provider?: ProviderId`
+- streaming.service.ts: Updated interface for type consistency
+- Result: TypeScript infers types automatically, no casts needed
+- **Commit**: f507085
 
 ## 🔄 Next Steps
 
