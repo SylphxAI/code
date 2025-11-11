@@ -14,10 +14,13 @@ export interface CreateSessionOptions {
 	agentId?: string;
 }
 
-export interface SessionResult {
-	sessionId: string;
-	isNewSession: boolean;
-}
+/**
+ * Session result as discriminated union
+ * Prevents illegal states where sessionId exists but isNewSession=true
+ */
+export type SessionResult =
+	| { type: 'existing'; sessionId: string }
+	| { type: 'new'; sessionId: string; provider: ProviderId; model: string };
 
 /**
  * Create new session if sessionId is null, otherwise return existing sessionId
@@ -32,7 +35,7 @@ export async function ensureSession(
 ): Promise<SessionResult> {
 	// Return existing session
 	if (sessionId) {
-		return { sessionId, isNewSession: false };
+		return { type: 'existing', sessionId };
 	}
 
 	// Create new session
@@ -54,7 +57,9 @@ export async function ensureSession(
 	);
 
 	return {
+		type: 'new',
 		sessionId: newSession.id,
-		isNewSession: true,
+		provider,
+		model,
 	};
 }

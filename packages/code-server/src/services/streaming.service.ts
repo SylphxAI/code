@@ -195,7 +195,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 				// 1. Ensure session exists (create if needed)
 				let sessionId: string;
-				let isNewSession: boolean;
 
 				try {
 					const result = await ensureSession(
@@ -207,15 +206,14 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 						inputAgentId,
 					);
 					sessionId = result.sessionId;
-					isNewSession = result.isNewSession;
 
 					// Emit session-created event if new
-					if (isNewSession && inputProvider && inputModel) {
+					if (result.type === 'new') {
 						observer.next({
 							type: "session-created",
-							sessionId: sessionId,
-							provider: inputProvider,
-							model: inputModel,
+							sessionId: result.sessionId,
+							provider: result.provider,
+							model: result.model,
 						});
 					}
 				} catch (error) {
