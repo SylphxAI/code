@@ -22,8 +22,6 @@ import type {
 } from '@sylphx/code-core';
 import {
   createAIStream,
-  getSystemStatus,
-  injectSystemStatusToOutput,
   buildSystemPrompt,
   createMessageStep,
   updateStepParts,
@@ -314,16 +312,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           messageRepository.getFileRepository()
         );
 
-        console.log('[streamAIResponse] Built model messages:', JSON.stringify(messages.map(m => ({
-          role: m.role,
-          contentLength: Array.isArray(m.content) ? m.content.length : 'string',
-          content: Array.isArray(m.content) ? m.content.map(c => {
-            if (c.type === 'text') return { type: 'text', text: c.text.substring(0, 100) };
-            if (c.type === 'tool-call') return { type: 'tool-call', toolName: (c as any).toolName };
-            if (c.type === 'tool-result') return { type: 'tool-result', toolName: (c as any).toolName };
-            return { type: c.type };
-          }) : 'N/A'
-        })), null, 2));
+        console.log('[streamAIResponse] Built model messages:', JSON.stringify(messages, null, 2));
 
         // 7. Determine agentId and build system prompt
         // STATELESS: Use explicit parameters from AppContext
@@ -359,10 +348,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           system: systemPrompt,
           enableTools, // Conditional tool usage based on model capabilities
           ...(abortSignal ? { abortSignal } : {}),
-          onTransformToolResult: (output, toolName) => {
-            const systemStatus = getSystemStatus();
-            return injectSystemStatusToOutput(output, systemStatus);
-          },
+          // REMOVED: onTransformToolResult - system status now injected via system-message mechanism
           // ⭐ NEW: Prepare messages before each step (allows injecting system messages mid-stream)
           onPrepareMessages: async (messages, stepNumber) => {
             // Update current step number
