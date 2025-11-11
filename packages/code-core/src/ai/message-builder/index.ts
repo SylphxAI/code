@@ -239,83 +239,90 @@ async function buildAssistantMessage(
   const steps = stepsOverride || msg.steps || [];
 
   if (steps.length > 0) {
-    // Step-based structure: aggregate content from steps
-    for (const step of steps) {
-      for (const part of step.parts) {
-        switch (part.type) {
-          case 'text':
-            assistantContent.push({ type: 'text', text: part.content });
-            break;
+    // CRITICAL BUG FIX: Do NOT aggregate multiple steps into one message!
+    // Each step should create its own assistant message
+    // If stepsOverride has multiple steps (shouldn't happen), warn and process only first
+    if (steps.length > 1) {
+      console.warn(`[buildAssistantMessage] WARNING: Received ${steps.length} steps, but should only process one step at a time. Processing first step only.`);
+    }
 
-          case 'reasoning':
-            assistantContent.push({ type: 'reasoning', text: part.content });
-            break;
+    // Process ONLY the first step (should be the only step if called correctly)
+    const step = steps[0];
 
-          case 'tool':
-            // Tool-call goes in assistant message
-            assistantContent.push({
-              type: 'tool-call',
+    for (const part of step.parts) {
+      switch (part.type) {
+        case 'text':
+          assistantContent.push({ type: 'text', text: part.content });
+          break;
+
+        case 'reasoning':
+          assistantContent.push({ type: 'reasoning', text: part.content });
+          break;
+
+        case 'tool':
+          // Tool-call goes in assistant message
+          assistantContent.push({
+            type: 'tool-call',
+            toolCallId: part.toolId,
+            toolName: part.name,
+            args: part.args || {},
+          } as ToolCallPart);
+
+          // Tool-result goes in separate tool message (if present)
+          if (part.result !== undefined) {
+            toolResults.push({
+              type: 'tool-result',
               toolCallId: part.toolId,
               toolName: part.name,
-              args: part.args || {},
-            } as ToolCallPart);
+              result: part.result,
+            } as ToolResultPart);
+          }
+          break;
 
-            // Tool-result goes in separate tool message (if present)
-            if (part.result !== undefined) {
-              toolResults.push({
-                type: 'tool-result',
-                toolCallId: part.toolId,
-                toolName: part.name,
-                result: part.result,
-              } as ToolResultPart);
-            }
-            break;
-
-          case 'file':
-            // Handle file parts - use AI SDK's FilePart type
-            if (part.mediaType.startsWith('image/')) {
-              if (supportsImageInput) {
-                assistantContent.push({
-                  type: 'file',
-                  data: part.base64,
-                  mediaType: part.mediaType,
-                });
-              } else {
-                // Save to temp and provide path
-                try {
-                  const ext = part.mediaType.split('/')[1] || 'png';
-                  const filename = `sylphx-${randomBytes(8).toString('hex')}.${ext}`;
-                  const filepath = join(tmpdir(), filename);
-                  const buffer = Buffer.from(part.base64, 'base64');
-                  writeFileSync(filepath, buffer);
-                  assistantContent.push({
-                    type: 'text',
-                    text: `[I generated an image and saved it to: ${filepath}]`,
-                  });
-                } catch (err) {
-                  assistantContent.push({
-                    type: 'text',
-                    text: `[I generated an image but failed to save it]`,
-                  });
-                }
-              }
-            } else {
+        case 'file':
+          // Handle file parts - use AI SDK's FilePart type
+          if (part.mediaType.startsWith('image/')) {
+            if (supportsImageInput) {
               assistantContent.push({
                 type: 'file',
                 data: part.base64,
                 mediaType: part.mediaType,
               });
+            } else {
+              // Save to temp and provide path
+              try {
+                const ext = part.mediaType.split('/')[1] || 'png';
+                const filename = `sylphx-${randomBytes(8).toString('hex')}.${ext}`;
+                const filepath = join(tmpdir(), filename);
+                const buffer = Buffer.from(part.base64, 'base64');
+                writeFileSync(filepath, buffer);
+                assistantContent.push({
+                  type: 'text',
+                  text: `[I generated an image and saved it to: ${filepath}]`,
+                });
+              } catch (err) {
+                assistantContent.push({
+                  type: 'text',
+                  text: `[I generated an image but failed to save it]`,
+                });
+              }
             }
-            break;
+          } else {
+            assistantContent.push({
+              type: 'file',
+              data: part.base64,
+              mediaType: part.mediaType,
+            });
+          }
+          break;
 
-          case 'error':
-            assistantContent.push({ type: 'text', text: `[Error: ${part.error}]` });
-            break;
+        case 'error':
+          assistantContent.push({ type: 'text', text: `[Error: ${part.error}]` });
+          break;
 
-          case 'system-message':
-            // Skip - already handled at step level
-            break;
-        }
+        case 'system-message':
+          // Skip - already handled at step level
+          break;
       }
     }
   } else if (msg.content) {
