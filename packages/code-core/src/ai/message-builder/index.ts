@@ -274,7 +274,7 @@ async function buildAssistantMessage(
               type: 'tool-result',
               toolCallId: part.toolId,
               toolName: part.name,
-              result: part.result,
+              output: part.result, // Database stores as 'result', AI SDK expects 'output'
             } as ToolResultPart);
           }
           break;
@@ -290,80 +290,6 @@ async function buildAssistantMessage(
               });
             } else {
               // Save to temp and provide path
-              try {
-                const ext = part.mediaType.split('/')[1] || 'png';
-                const filename = `sylphx-${randomBytes(8).toString('hex')}.${ext}`;
-                const filepath = join(tmpdir(), filename);
-                const buffer = Buffer.from(part.base64, 'base64');
-                writeFileSync(filepath, buffer);
-                assistantContent.push({
-                  type: 'text',
-                  text: `[I generated an image and saved it to: ${filepath}]`,
-                });
-              } catch (err) {
-                assistantContent.push({
-                  type: 'text',
-                  text: `[I generated an image but failed to save it]`,
-                });
-              }
-            }
-          } else {
-            assistantContent.push({
-              type: 'file',
-              data: part.base64,
-              mediaType: part.mediaType,
-            });
-          }
-          break;
-
-        case 'error':
-          assistantContent.push({ type: 'text', text: `[Error: ${part.error}]` });
-          break;
-
-        case 'system-message':
-          // Skip - already handled at step level
-          break;
-      }
-    }
-  } else if (msg.content) {
-    // LEGACY: Direct content array (for backward compatibility)
-    for (const part of msg.content) {
-      switch (part.type) {
-        case 'text':
-          assistantContent.push({ type: 'text', text: part.content });
-          break;
-
-        case 'reasoning':
-          assistantContent.push({ type: 'reasoning', text: part.content });
-          break;
-
-        case 'tool':
-          assistantContent.push({
-            type: 'tool-call',
-            toolCallId: part.toolId,
-            toolName: part.name,
-            args: part.args || {},
-          } as ToolCallPart);
-
-          if (part.result !== undefined) {
-            toolResults.push({
-              type: 'tool-result',
-              toolCallId: part.toolId,
-              toolName: part.name,
-              result: part.result,
-            } as ToolResultPart);
-          }
-          break;
-
-        case 'file':
-          if (part.mediaType.startsWith('image/')) {
-            if (supportsImageInput) {
-              assistantContent.push({
-                type: 'file',
-                data: part.base64,
-                mediaType: part.mediaType,
-              });
-            } else {
               try {
                 const ext = part.mediaType.split('/')[1] || 'png';
                 const filename = `sylphx-${randomBytes(8).toString('hex')}.${ext}`;
