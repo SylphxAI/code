@@ -31,7 +31,10 @@ export type { ProviderId } from "../types/provider.types.js";
  * Contains basic info (id, name) for UI components
  * Config schemas are defined in each provider's getConfigSchema()
  */
-export const AI_PROVIDERS = getAllProviders();
+export const AI_PROVIDERS: Record<
+	ProviderId,
+	{ id: ProviderId; name: string; description: string }
+> = getAllProviders();
 
 /**
  * Provider configuration
@@ -60,7 +63,7 @@ export type ProviderConfigValue = ProviderConfigValueType;
  * - apiKey: Direct API key (legacy, backward compatible)
  * - Priority: credentialId > apiKey
  */
-const aiConfigSchema = z.object({
+const aiConfigSchema: z.AnyZodObject = z.object({
 	defaultProvider: z
 		.enum(["anthropic", "openai", "google", "openrouter", "claude-code", "zai"])
 		.optional(),

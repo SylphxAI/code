@@ -163,7 +163,16 @@ export function isMCPServerActive(serverId: string): boolean {
 /**
  * Get statistics about MCP servers
  */
-export function getMCPStats() {
+export function getMCPStats(): {
+	total: number;
+	active: number;
+	inactive: number;
+	error: number;
+	enabled: number;
+	totalTools: number;
+	totalResources: number;
+	totalPrompts: number;
+} {
 	const servers = Array.from(mcpServers.values());
 
 	return {
