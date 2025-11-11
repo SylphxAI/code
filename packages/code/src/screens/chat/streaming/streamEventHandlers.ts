@@ -634,10 +634,20 @@ function handleMessageStatusUpdated(
   // If this is the currently streaming message, clean up streaming state
   if (context.streamingMessageIdRef.current === event.messageId) {
     // Mark all active parts with the final status
+    // For reasoning parts without duration, calculate elapsed time
     updateActiveMessageContent(currentSessionId, event.messageId, (prev) =>
-      prev.map((part) =>
-        part.status === 'active' ? { ...part, status: event.status } : part
-      )
+      prev.map((part) => {
+        if (part.status !== 'active') return part;
+
+        const updatedPart = { ...part, status: event.status };
+
+        // If reasoning part without duration, calculate elapsed time
+        if (part.type === 'reasoning' && !part.duration && part.startTime) {
+          updatedPart.duration = Date.now() - part.startTime;
+        }
+
+        return updatedPart;
+      })
     );
 
     // Clear streaming state
