@@ -694,9 +694,25 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
               }
 
               case 'tool-call': {
+                // Save any pending text content
                 if (currentTextContent) {
                   currentStepParts.push({ type: 'text', content: currentTextContent, status: 'completed' });
                   currentTextContent = '';
+                }
+
+                // CRITICAL: Save pending reasoning content BEFORE tool-call
+                // LLM may start reasoning, then decide to call tool during reasoning
+                // reasoning-end event comes AFTER tool-call, but we need reasoning BEFORE tool-call in parts array
+                if (currentReasoningContent || reasoningStartTime) {
+                  const duration = reasoningStartTime ? Date.now() - reasoningStartTime : 0;
+                  currentStepParts.push({
+                    type: 'reasoning',
+                    content: currentReasoningContent,
+                    status: 'completed',
+                    duration
+                  });
+                  currentReasoningContent = '';
+                  reasoningStartTime = null;
                 }
 
                 currentStepParts.push({
