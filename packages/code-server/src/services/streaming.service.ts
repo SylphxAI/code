@@ -808,10 +808,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
           if (isAbortError) {
             // This is an abort, not an error - don't log as error
             aborted = true;
-            // Emit abort event
-            console.log('[streamAIResponse] Emitting abort event to observer');
-            observer.next({ type: 'abort' });
-            console.log('[streamAIResponse] Abort event emitted');
+            // Emit abort event (only if not already emitted by onAbort callback)
+            // Note: onAbort callback should have already emitted, but emit again as safety net
+            console.log('[streamAIResponse] Abort detected in catch, aborted flag:', aborted);
           } else {
             // Real error - log it
             console.error('[streamAIResponse] Stream processing error:', error);
