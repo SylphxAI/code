@@ -2,9 +2,9 @@
 
 This guide shows how to test the system message functionality.
 
-## Method 1: TEST_MODE Environment Variable (Easiest)
+## Method 1: TEST_MODE with Mock Context (Recommended)
 
-Lowers all thresholds to 10-20% so warnings trigger easily.
+Enables automatic testing with simulated context growth.
 
 ```bash
 # Start app in test mode
@@ -16,15 +16,42 @@ TEST_MODE=1 npm start
 ```
 
 **What happens:**
-- Context warning triggers at 10% instead of 80%
-- Resource warnings trigger at 10% instead of 80%
-- Test trigger is enabled (see Method 2)
+- Context warning triggers at 50% instead of 80% (more realistic)
+- Resource warnings trigger at 50% instead of 80%
+- Test trigger enabled - fires at steps 3, 7, 12, 18, 25, 33
+- Mock context starts at 30%, increases 8% per message
+
+**Enable mocking for a session:**
+```bash
+# Find your session ID
+sqlite3 ~/.sylphx-code/code.db "SELECT id, title FROM sessions ORDER BY updated DESC LIMIT 1;"
+
+# Enable mocking
+sqlite3 ~/.sylphx-code/code.db "
+  UPDATE sessions
+  SET flags = json_set(COALESCE(flags, '{}'), '$.__mockContext', 1)
+  WHERE id = 'YOUR_SESSION_ID';
+"
+```
 
 **To test:**
 1. Start app with `TEST_MODE=1`
-2. Send a message: "understand this project"
-3. After a few tool calls, context will reach 10%
-4. You should see system messages appear between steps
+2. Enable mocking for your session (see above)
+3. Send messages that trigger tool calls
+4. Watch context grow: 30% → 38% → 46% → **54% (warning!)**
+5. System messages appear at step 3, 7, 12, etc.
+6. Context warnings trigger when reaching 50%/70%
+
+**Expected progression:**
+```
+Message 1: Context 30%
+Message 2: Context 38%
+Message 3: Context 46% + 🧪 Test trigger fires
+Message 4: Context 54% + ⚠️ Real context warning!
+Message 5: Context 62%
+Message 7: Context 78% + 🧪 Test trigger fires
+Message 9: Context 94% + ⚠️ Critical warning!
+```
 
 ---
 

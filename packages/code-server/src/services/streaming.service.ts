@@ -441,21 +441,32 @@ export function streamAIResponse(opts: StreamAIResponseOptions) {
               // Calculate context token usage
               let contextTokens: { current: number; max: number } | undefined;
               try {
-                let totalTokens = 0;
-                for (const message of currentSession.messages) {
-                  if (message.usage) {
-                    totalTokens += message.usage.totalTokens;
+                // TEST_MODE: Mock context tokens for testing
+                if (process.env.TEST_MODE && currentSession.flags?.__mockContext) {
+                  const { mockContextTokens } = await import('@sylphx/code-core/src/ai/system-messages/test-helpers.js');
+                  contextTokens = mockContextTokens(currentSession, {
+                    baseUsage: 0.3,        // Start at 30%
+                    increasePerMessage: 0.08, // Increase 8% per message
+                    randomVariation: 0.05,    // ±5% random
+                  });
+                } else {
+                  // Production: Calculate real usage
+                  let totalTokens = 0;
+                  for (const message of currentSession.messages) {
+                    if (message.usage) {
+                      totalTokens += message.usage.totalTokens;
+                    }
                   }
-                }
 
-                const modelDetails = await providerInstance.getModelDetails(modelName, providerConfig);
-                const maxContextLength = modelDetails?.contextLength;
+                  const modelDetails = await providerInstance.getModelDetails(modelName, providerConfig);
+                  const maxContextLength = modelDetails?.contextLength;
 
-                if (maxContextLength && totalTokens > 0) {
-                  contextTokens = {
-                    current: totalTokens,
-                    max: maxContextLength,
-                  };
+                  if (maxContextLength && totalTokens > 0) {
+                    contextTokens = {
+                      current: totalTokens,
+                      max: maxContextLength,
+                    };
+                  }
                 }
               } catch (error) {
                 console.error('[onPrepareMessages] Failed to calculate context tokens:', error);

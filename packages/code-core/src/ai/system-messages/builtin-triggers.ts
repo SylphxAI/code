@@ -9,16 +9,16 @@ import type { TriggerHook } from './registry.js';
 
 /**
  * Context Warning Thresholds
- * Set to low values for testing, restore to 0.8/0.9 for production
+ * In TEST_MODE: 50% threshold allows gradual buildup testing
  */
-const CONTEXT_WARNING_80 = process.env.TEST_MODE ? 0.1 : 0.8;
-const CONTEXT_WARNING_90 = process.env.TEST_MODE ? 0.2 : 0.9;
+const CONTEXT_WARNING_80 = process.env.TEST_MODE ? 0.5 : 0.8;
+const CONTEXT_WARNING_90 = process.env.TEST_MODE ? 0.7 : 0.9;
 
 /**
  * Resource Warning Threshold
- * Set to low value for testing, restore to 0.8 for production
+ * In TEST_MODE: 50% threshold allows realistic testing
  */
-const RESOURCE_WARNING_THRESHOLD = process.env.TEST_MODE ? 0.1 : 0.8;
+const RESOURCE_WARNING_THRESHOLD = process.env.TEST_MODE ? 0.5 : 0.8;
 
 /**
  * CPU Resource Trigger
@@ -210,34 +210,77 @@ const sessionStartTodoTrigger: TriggerHook = async (context) => {
 };
 
 /**
- * Test Trigger - Manually trigger system messages for testing
+ * Test Trigger - Randomly trigger system messages for testing
  * Only enabled in TEST_MODE
+ *
+ * Triggers every N steps to simulate real conditions
  */
 const testTrigger: TriggerHook = async (context) => {
   const { session } = context;
 
-  // Check if test flag is set
-  const shouldTest = isFlagSet(session, 'testSystemMessage');
-  if (!shouldTest) {
+  // Count assistant messages to determine step
+  const assistantMessages = session.messages.filter(m => m.role === 'assistant');
+  const currentStep = assistantMessages.length;
+
+  // Trigger on steps 3, 7, 12, 18... (increasing intervals)
+  // This simulates warnings appearing at different points
+  const shouldTriggerSteps = [3, 7, 12, 18, 25, 33];
+
+  if (!shouldTriggerSteps.includes(currentStep)) {
     return null;
   }
 
-  // Return test messages
-  return {
-    messageType: 'test-message',
-    message: `<system_message type="test-message">
-🧪 Test System Message
+  // Check if already shown at this step
+  const testFlagKey = `testMessage_step${currentStep}`;
+  if (isFlagSet(session, testFlagKey)) {
+    return null;
+  }
 
-This is a test system message to verify the display and functionality.
+  // Randomly choose message type for variety
+  const messageTypes = [
+    {
+      type: 'test-context-warning',
+      message: `<system_message type="test-context-warning">
+🧪 Test: Context Warning (Step ${currentStep})
 
-Multiple messages can appear simultaneously:
-- This is message 1
-- More messages can be added
-- Each with its own type
+Simulated context usage: ${Math.floor(Math.random() * 30 + 50)}%
 
-Current timestamp: ${Date.now()}
+This is a test message to verify system message display.
+In production, this would be a real context warning.
 </system_message>`,
-    flagUpdates: { testSystemMessage: false }, // Reset flag after showing once
+    },
+    {
+      type: 'test-memory-warning',
+      message: `<system_message type="test-memory-warning">
+🧪 Test: Memory Warning (Step ${currentStep})
+
+Simulated memory usage: ${(Math.random() * 4 + 10).toFixed(1)}GB / 16.0GB
+
+This is a test message to verify system message display.
+In production, this would be a real resource warning.
+</system_message>`,
+    },
+    {
+      type: 'test-multiple-warnings',
+      message: `<system_message type="test-multiple-warnings">
+🧪 Test: Multiple Warnings (Step ${currentStep})
+
+Testing multiple simultaneous warnings:
+- Context: ${Math.floor(Math.random() * 20 + 60)}%
+- Memory: ${(Math.random() * 3 + 11).toFixed(1)}GB / 16.0GB
+- CPU: ${Math.floor(Math.random() * 30 + 40)}%
+
+This tests how UI handles multiple warnings at once.
+</system_message>`,
+    },
+  ];
+
+  const selected = messageTypes[Math.floor(Math.random() * messageTypes.length)];
+
+  return {
+    messageType: selected.type,
+    message: selected.message,
+    flagUpdates: { [testFlagKey]: true },
   };
 };
 
