@@ -174,17 +174,20 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
     abortControllerRef.current.signal.addEventListener('abort', async () => {
       try {
+        console.log('[subscriptionAdapter] Abort signal received');
         logSession('Stream aborted by user');
         addLog('[Mutation] Aborted by user');
 
         // Use sessionId from mutation result (available after mutation completes)
         // Or fall back to currentSessionId if mutation hasn't completed yet
         const abortSessionId = mutationSessionId || currentSessionId;
+        console.log('[subscriptionAdapter] Notifying server, sessionId:', abortSessionId);
 
         if (abortSessionId) {
           try {
             const caller = await getTRPCClient();
             await caller.message.abortStream.mutate({ sessionId: abortSessionId });
+            console.log('[subscriptionAdapter] Server notified successfully');
             logSession('Server notified of abort');
           } catch (abortError) {
             console.error('[subscriptionAdapter] Failed to notify server of abort:', abortError);
@@ -193,13 +196,16 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
         }
 
         // Mark active parts as aborted
-        updateActiveMessageContent(sessionId, streamingMessageIdRef.current, (prev) =>
-          prev.map((part) =>
+        console.log('[subscriptionAdapter] Marking parts as aborted, streamingMessageId:', streamingMessageIdRef.current);
+        updateActiveMessageContent(sessionId, streamingMessageIdRef.current, (prev) => {
+          console.log('[subscriptionAdapter] Updating', prev.length, 'parts');
+          return prev.map((part) =>
             part.status === 'active' ? { ...part, status: 'abort' as const } : part
-          )
-        );
+          );
+        });
 
         // Reset streaming state
+        console.log('[subscriptionAdapter] Setting isStreaming to false');
         setIsStreaming(false);
         streamingMessageIdRef.current = null;
       } catch (handlerError) {

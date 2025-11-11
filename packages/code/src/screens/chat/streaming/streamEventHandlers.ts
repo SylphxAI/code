@@ -621,9 +621,24 @@ function handleError(event: Extract<StreamEvent, { type: 'error' }>, context: Ev
 }
 
 function handleAbort(event: Extract<StreamEvent, { type: 'abort' }>, context: EventHandlerContext) {
+  const currentSessionId = getCurrentSessionId();
+
+  console.log('[handleAbort] Abort event received, streamingMessageId:', context.streamingMessageIdRef.current);
   context.addLog('[StreamEvent] Stream aborted');
 
+  // Mark all active parts as aborted
+  updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
+    console.log('[handleAbort] Marking', prev.length, 'parts as aborted');
+    return prev.map((part) =>
+      part.status === 'active' ? { ...part, status: 'abort' as const } : part
+    );
+  });
+
+  // Clear streaming message ID
+  context.streamingMessageIdRef.current = null;
+
   // Stop streaming UI indicator on abort
+  console.log('[handleAbort] Setting isStreaming to false');
   context.setIsStreaming(false);
 }
 
