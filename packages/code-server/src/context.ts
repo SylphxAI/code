@@ -43,6 +43,7 @@ export interface AppConfig {
 // ============================================================================
 
 export interface DatabaseService {
+	initialize(): Promise<void>;
 	getRepository(): SessionRepository;
 	getMessageRepository(): MessageRepository;
 	getTodoRepository(): TodoRepository;
@@ -100,7 +101,7 @@ function createDatabaseService(config: DatabaseConfig): DatabaseService {
 		getMessageRepository,
 		getTodoRepository,
 		getDB,
-	} as any;
+	};
 }
 
 // ============================================================================
@@ -118,6 +119,7 @@ const FALLBACK_AGENT: Agent = {
 };
 
 export interface AgentManagerService {
+	initialize(): Promise<void>;
 	getAll(): Agent[];
 	getById(id: string): Agent | null;
 	reload(): Promise<void>;
@@ -156,7 +158,7 @@ function createAgentManagerService(cwd: string): AgentManagerService {
 		getAll,
 		getById,
 		reload,
-	} as any;
+	};
 }
 
 // ============================================================================
@@ -164,6 +166,7 @@ function createAgentManagerService(cwd: string): AgentManagerService {
 // ============================================================================
 
 export interface RuleManagerService {
+	initialize(): Promise<void>;
 	getAll(): Rule[];
 	getById(id: string): Rule | null;
 	getEnabled(enabledIds: string[]): Rule[];
@@ -207,7 +210,7 @@ function createRuleManagerService(cwd: string): RuleManagerService {
 		getById,
 		getEnabled,
 		reload,
-	} as any;
+	};
 }
 
 // ============================================================================
@@ -233,20 +236,23 @@ export function createAppContext(config: AppConfig): AppContext {
 
 	// Event stream will be initialized in initializeAppContext
 	// after database is ready (needs DB for persistence)
-	let eventStream: AppEventStream = null as any;
+	let eventStream: AppEventStream | undefined = undefined;
 
 	return {
 		database,
 		agentManager,
 		ruleManager,
-		get eventStream() {
+		get eventStream(): AppEventStream {
+			if (!eventStream) {
+				throw new Error("EventStream not initialized. Call initializeAppContext() first.");
+			}
 			return eventStream;
 		},
-		set eventStream(value) {
+		set eventStream(value: AppEventStream) {
 			eventStream = value;
 		},
 		config,
-	} as any;
+	};
 }
 
 /**

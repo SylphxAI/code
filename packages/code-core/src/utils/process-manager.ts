@@ -6,6 +6,7 @@ export interface ProcessManager {
 	killAllProcesses(): Promise<void>;
 	// Internal for testing - exposed for tests to access state
 	readonly _state?: ProcessManagerState;
+	readonly _cleanup?: () => void;
 }
 
 /**
@@ -33,7 +34,7 @@ export function createProcessManager(): ProcessManager {
 	const cleanup = (): void => {
 		// Remove signal handlers
 		for (const [signal, handler] of state.signalHandlers.entries()) {
-			process.removeListener(signal as any, handler);
+			process.removeListener(signal as NodeJS.Signals, handler);
 		}
 		state.signalHandlers.clear();
 
@@ -111,17 +112,12 @@ export function createProcessManager(): ProcessManager {
 	// Setup signal handlers when instance is created
 	setupSignalHandlers();
 
-	const manager: ProcessManager & {
-		_cleanup?: () => void;
-		_state?: ProcessManagerState;
-	} = {
+	const manager: ProcessManager = {
 		trackChildProcess,
 		killAllProcesses,
 		_state: state, // Expose state for testing
+		_cleanup: cleanup, // Expose cleanup for testing
 	};
-
-	// Expose cleanup for testing
-	(manager as any)._cleanup = cleanup;
 
 	return manager;
 }
@@ -146,13 +142,9 @@ export class ProcessManager {
 	 * @internal
 	 */
 	static resetInstance(): void {
-		if (_processManagerInstance) {
-			// Call cleanup if available
-			const cleanup = (_processManagerInstance as any)._cleanup;
-			if (cleanup) {
-				cleanup();
-			}
-			_processManagerInstance = null;
+		if (_processManagerInstance?._cleanup) {
+			_processManagerInstance._cleanup();
 		}
+		_processManagerInstance = null;
 	}
 }

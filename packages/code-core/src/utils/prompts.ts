@@ -32,21 +32,9 @@ export async function askSecret(question: string): Promise<string> {
 	const prompt = `${chalk.cyan("❯")} ${question}: `;
 
 	return new Promise((resolve) => {
-		// Hide input for secrets
-		const stdin = process.stdin;
-		const _onData = (char: Buffer) => {
-			const str = char.toString("utf8");
-			if (str === "\n" || str === "\r" || str === "\r\n") {
-				(stdin as any).removeListener("data", _onData);
-				process.stdout.write("\n");
-				rl.close();
-			} else {
-				process.stdout.write("•");
-			}
-		};
-
 		process.stdout.write(prompt);
 		let input = "";
+		const stdin = process.stdin;
 		stdin.on("data", (char) => {
 			const str = char.toString("utf8");
 			if (str === "\n" || str === "\r" || str === "\r\n") {

@@ -3,7 +3,7 @@
  * Handles session creation and loading
  */
 
-import type { SessionRepository, AIConfig } from "@sylphx/code-core";
+import type { SessionRepository, AIConfig, ProviderId } from "@sylphx/code-core";
 import { DEFAULT_AGENT_ID } from "@sylphx/code-core";
 
 export interface CreateSessionOptions {
@@ -48,7 +48,7 @@ export async function ensureSession(
 	// Create session in database
 	const effectiveAgentId = agentId || DEFAULT_AGENT_ID;
 	const newSession = await sessionRepository.createSession(
-		provider as any,
+		provider as ProviderId,
 		model,
 		effectiveAgentId,
 	);
