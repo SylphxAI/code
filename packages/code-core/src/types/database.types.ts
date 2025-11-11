@@ -449,26 +449,37 @@ export function isDatabaseMigration(value: unknown): value is DatabaseMigration 
 // ============================================================================
 
 /**
- * Generic database result wrapper
+ * Generic database result wrapper (discriminated union)
  */
-export interface DatabaseResult<T = unknown> {
-	/** Success status */
-	success: boolean;
-	/** Result data */
-	data?: T;
-	/** Error information */
-	error?: {
-		code: string;
-		message: string;
-		details?: Record<string, unknown>;
-	};
-	/** Result metadata */
-	metadata?: {
-		executionTime: number;
-		timestamp: string;
-		affectedRows?: number;
-	};
-}
+export type DatabaseResult<T = unknown> =
+	| {
+			/** Success status */
+			success: true;
+			/** Result data */
+			data: T;
+			/** Result metadata */
+			metadata?: {
+				executionTime: number;
+				timestamp: string;
+				affectedRows?: number;
+			};
+	  }
+	| {
+			/** Success status */
+			success: false;
+			/** Error information */
+			error: {
+				code: string;
+				message: string;
+				details?: Record<string, unknown>;
+			};
+			/** Result metadata */
+			metadata?: {
+				executionTime: number;
+				timestamp: string;
+				affectedRows?: number;
+			};
+	  };
 
 /**
  * Type for database event listeners
@@ -490,8 +501,28 @@ export interface DatabaseEvent<T = unknown> {
 }
 
 /**
- * Create a safe database result
+ * Create a safe database result (overloaded for discriminated union)
  */
+export function createDatabaseResult<T>(
+	success: true,
+	data: T,
+	error?: never,
+	metadata?: {
+		executionTime: number;
+		timestamp: string;
+		affectedRows?: number;
+	},
+): DatabaseResult<T>;
+export function createDatabaseResult<T>(
+	success: false,
+	data: undefined,
+	error: { code: string; message: string; details?: Record<string, unknown> },
+	metadata?: {
+		executionTime: number;
+		timestamp: string;
+		affectedRows?: number;
+	},
+): DatabaseResult<T>;
 export function createDatabaseResult<T>(
 	success: boolean,
 	data?: T,
@@ -502,13 +533,22 @@ export function createDatabaseResult<T>(
 		affectedRows?: number;
 	},
 ): DatabaseResult<T> {
-	return {
-		success,
-		data,
-		error,
-		metadata: metadata || {
-			executionTime: 0,
-			timestamp: new Date().toISOString(),
-		},
+	const defaultMetadata = {
+		executionTime: 0,
+		timestamp: new Date().toISOString(),
 	};
+
+	if (success) {
+		return {
+			success: true,
+			data: data as T,
+			metadata: metadata || defaultMetadata,
+		};
+	} else {
+		return {
+			success: false,
+			error: error!,
+			metadata: metadata || defaultMetadata,
+		};
+	}
 }
