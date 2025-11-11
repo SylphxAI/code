@@ -737,6 +737,8 @@ export default function Chat(_props: ChatProps) {
             setPendingCommand={setPendingCommand}
             inputComponent={inputComponent}
             inputComponentTitle={inputComponentTitle}
+            isStreaming={isStreaming}
+            abortControllerRef={abortControllerRef}
           />
         </Box>
 

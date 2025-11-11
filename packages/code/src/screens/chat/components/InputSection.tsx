@@ -89,6 +89,10 @@ interface InputSectionProps {
   // Custom input component (replaces input area)
   inputComponent: React.ReactNode | null;
   inputComponentTitle: string | null;
+
+  // Abort streaming
+  isStreaming: boolean;
+  abortControllerRef: React.MutableRefObject<AbortController | null>;
 }
 
 export function InputSection({
@@ -136,6 +140,8 @@ export function InputSection({
   showEscHint,
   inputComponent,
   inputComponentTitle,
+  isStreaming,
+  abortControllerRef,
 }: InputSectionProps) {
   // Determine header title based on context
   const getHeaderTitle = (): string => {
@@ -299,6 +305,15 @@ export function InputSection({
                   : // When command autocomplete is active, handle Down Arrow via callback
                   input.startsWith('/') && filteredCommands.length > 0
                   ? onCommandAutocompleteDownArrow
+                  : undefined
+              }
+              onEscape={
+                // ESC to abort streaming
+                isStreaming && abortControllerRef.current
+                  ? () => {
+                      console.log('[InputSection] ESC pressed, aborting stream');
+                      abortControllerRef.current?.abort();
+                    }
                   : undefined
               }
             />

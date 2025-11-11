@@ -31,6 +31,7 @@ export interface ControlledTextInputProps {
   onEnter?: () => void; // Callback when Enter is pressed (for autocomplete)
   onUpArrow?: () => void; // Callback when Up Arrow is pressed (for autocomplete)
   onDownArrow?: () => void; // Callback when Down Arrow is pressed (for autocomplete)
+  onEscape?: () => void; // Callback when ESC is pressed (for abort/cancel)
 }
 
 function ControlledTextInput({
@@ -49,6 +50,7 @@ function ControlledTextInput({
   onEnter,
   onUpArrow,
   onDownArrow,
+  onEscape,
 }: ControlledTextInputProps) {
   // Kill buffer for Ctrl+K, Ctrl+U, Ctrl+W → Ctrl+Y
   const killBufferRef = useRef('');
@@ -69,6 +71,17 @@ function ControlledTextInput({
           value: JSON.stringify(value),
           cursor,
         });
+      }
+
+      // ===========================================
+      // Special Keys (ESC, Tab, Enter)
+      // ===========================================
+
+      // ESC - abort/cancel (highest priority)
+      if (key.escape && onEscape) {
+        console.log('[ControlledTextInput] ESC key pressed, calling onEscape');
+        onEscape();
+        return;
       }
 
       // ===========================================
@@ -278,7 +291,7 @@ function ControlledTextInput({
         onCursorChange(result.cursor);
       }
     },
-    [value, cursor, onChange, onCursorChange, onSubmit, availableWidth, disableUpDownArrows]
+    [value, cursor, onChange, onCursorChange, onSubmit, availableWidth, disableUpDownArrows, onEscape]
   );
 
   useInput(handleInput, { isActive: focus });
