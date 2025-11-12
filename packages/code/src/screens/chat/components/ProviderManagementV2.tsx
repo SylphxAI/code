@@ -68,9 +68,7 @@ export function ProviderManagement({
 	useEffect(() => {
 		async function loadProviderMetadata() {
 			try {
-				const result = await trpc.config.getProviders.query({
-					cwd: process.cwd(),
-				});
+				const result = await trpc.config.getProviders.query();
 				// Store full provider info including isConfigured status
 				const metadata: Record<
 					string,
@@ -206,7 +204,25 @@ export function ProviderManagement({
 				if (key.return) {
 					// Last item is "Save" button
 					if (currentFieldIndex === configSchema.length) {
-						Promise.resolve(onConfigureProvider(selectedProvider!, formValues)).then(() => {
+						Promise.resolve(onConfigureProvider(selectedProvider!, formValues)).then(async () => {
+							// Refresh provider metadata to update isConfigured status
+							try {
+								const result = await trpc.config.getProviders.query();
+								const metadata: Record<
+									string,
+									{ name: string; description: string; isConfigured: boolean }
+								> = {};
+								for (const [id, info] of Object.entries(result)) {
+									metadata[id] = {
+										name: info.name,
+										description: info.description,
+										isConfigured: info.isConfigured,
+									};
+								}
+								setProviderMetadata(metadata);
+							} catch (error) {
+								console.error("Failed to refresh provider metadata:", error);
+							}
 							onComplete();
 						});
 					} else {
