@@ -70,7 +70,6 @@ export type {
 // ============================================================================
 // React Hooks
 // ============================================================================
-export { useAbortHandler } from "./hooks/keyboard/useAbortHandler.js";
 export { useAIConfig as useAIConfigActions } from "./hooks/useAIConfig.js";
 export { useAskToolHandler } from "./hooks/useAskToolHandler.js";
 export { useChat } from "./hooks/useChat.js";
@@ -83,7 +82,6 @@ export {
 } from "./hooks/useEventStream.js";
 export { useFileAttachments } from "./hooks/useFileAttachments.js";
 export { useKeyboard } from "./hooks/useKeyboard.js";
-export { useKeyboardNavigation } from "./hooks/useKeyboardNavigation.js";
 export { useModelDetails } from "./hooks/useModelDetails.js";
 export { useModels } from "./hooks/useModels.js";
 export { useMouse } from "./hooks/useMouse.js";
