@@ -110,6 +110,13 @@ function handleSessionCreated(
 	// Get current session state to preserve optimistic messages
 	const currentSession = getSignal($currentSession);
 
+	// RACE CONDITION FIX: If the session was already transitioned by subscriptionAdapter
+	// (mutation completed before event arrived), just skip - messages already preserved
+	if (currentSession?.id === event.sessionId && currentSession.messages.length > 0) {
+		logSession("Session already transitioned with messages, skipping event handler");
+		return;
+	}
+
 	// Check if there's a temporary session with optimistic messages
 	const optimisticMessages = currentSession?.id === "temp-session" ? currentSession.messages : [];
 

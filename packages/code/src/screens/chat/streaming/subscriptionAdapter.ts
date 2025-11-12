@@ -394,7 +394,29 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			// This ensures useEventStream subscribes to the correct session
 			if (result.sessionId && result.sessionId !== sessionId) {
 				logSession("Lazy session created, updating currentSessionId:", result.sessionId);
-				setCurrentSessionId(result.sessionId);
+
+				// RACE CONDITION FIX: Preserve optimistic messages when transitioning session ID
+				// The session-created event will arrive later, but we need to update now
+				// to ensure useEventStream subscribes to the correct session
+				const currentSession = getSignal($currentSession);
+				logSession("Before session transition:", {
+					currentId: currentSession?.id,
+					messageCount: currentSession?.messages?.length || 0,
+					newId: result.sessionId,
+				});
+
+				if (currentSession && currentSession.id === "temp-session") {
+					// Transition temp-session → real session while preserving messages
+					logSession("Transitioning temp-session to real session, preserving messages");
+					setSignal($currentSession, {
+						...currentSession,
+						id: result.sessionId,
+					});
+					setCurrentSessionId(result.sessionId);
+				} else {
+					// Just update the ID (existing session case)
+					setCurrentSessionId(result.sessionId);
+				}
 			}
 
 			// Set streaming flag immediately after mutation triggers
