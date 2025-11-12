@@ -112,20 +112,10 @@ export function useSelectionMode(options: UseSelectionModeOptions) {
 
 	useInput(
 		async (char, key) => {
-			console.log("[useSelectionMode] useInput callback fired - key:", Object.keys(key).filter(k => key[k]), "char:", char);
-			console.log("[useSelectionMode] State:", {
-				hasPendingInput: !!pendingInput,
-				type: pendingInput?.type,
-				hasResolver: !!inputResolver.current
-			});
-
 			// Only handle when pendingInput is selection mode
 			if (!pendingInput || pendingInput.type !== "selection" || !inputResolver.current) {
-				console.log("[useSelectionMode] Guard check failed, returning false");
 				return false;
 			}
-
-			console.log("[useSelectionMode] Processing key event");
 
 			const questions = pendingInput.questions;
 			const isSingleQuestion = questions.length === 1;
