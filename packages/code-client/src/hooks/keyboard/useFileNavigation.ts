@@ -79,17 +79,20 @@ export function useFileNavigation(options: UseFileNavigationOptions) {
 					});
 
 					// Calculate token count for this file using model-aware BPE tokenizer
+					// ARCHITECTURE: Server reads file and counts tokens
 					(async () => {
 						try {
-							const { readFile } = await import("node:fs/promises");
 							const { getTRPCClient } = await import("../../trpc-provider.js");
-							const content = await readFile(selected.path, "utf8");
 							const client = getTRPCClient();
-							const result = await client.config.countTokens.query({
-								text: content,
+							const result = await client.config.countFileTokens.query({
+								filePath: selected.path,
 								model: currentSession?.model,
 							});
-							setAttachmentTokenCount(selected.path, result.count);
+							if (result.success) {
+								setAttachmentTokenCount(selected.path, result.count);
+							} else {
+								console.error("Failed to count tokens:", result.error);
+							}
 						} catch (error) {
 							console.error("Failed to count tokens:", error);
 						}

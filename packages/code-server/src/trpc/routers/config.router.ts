@@ -549,6 +549,32 @@ export const configRouter = router({
 		}),
 
 	/**
+	 * Count tokens for file
+	 * Reads file from disk and counts tokens using model-specific tokenizer
+	 * ARCHITECTURE: Server reads file, client should never read files directly
+	 */
+	countFileTokens: publicProcedure
+		.input(
+			z.object({
+				filePath: z.string(),
+				model: z.string().optional(),
+			}),
+		)
+		.query(async ({ input }) => {
+			const { readFile } = await import("node:fs/promises");
+			try {
+				const content = await readFile(input.filePath, "utf8");
+				const count = await countTokens(content, input.model);
+				return { success: true as const, count };
+			} catch (error) {
+				return {
+					success: false as const,
+					error: error instanceof Error ? error.message : "Failed to read file",
+				};
+			}
+		}),
+
+	/**
 	 * Scan project files
 	 * Returns filtered file list
 	 */
