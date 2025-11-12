@@ -24,7 +24,7 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 					{/* Message Header */}
 					<Box paddingTop={1} paddingX={1}>
 						{msg.role === "user" ? (
-							<Text color="#00D9FF">▌ YOU</Text>
+							<Text color="cyan">▌ YOU</Text>
 						) : msg.role === "system" ? (
 							(() => {
 								// Extract system message type from <system_message type="..."> tag
@@ -34,8 +34,8 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 
 								return (
 									<Box flexDirection="row">
-										<Text color="#FFD700">▌ SYSTEM</Text>
-										<Text color="#FFD700" dimColor>
+										<Text color="yellow">▌ SYSTEM</Text>
+										<Text color="yellow" dimColor>
 											{" "}
 											· {messageType}
 										</Text>
@@ -43,7 +43,7 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 								);
 							})()
 						) : (
-							<Text color="#00FF88">▌ SYLPHX</Text>
+							<Text color="green">▌ SYLPHX</Text>
 						)}
 					</Box>
 
@@ -131,13 +131,13 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 														<Text
 															key={`line-${lineIdx}-seg-${segIdx}`}
 															backgroundColor="#1a472a"
-															color="#00FF88"
+															color="green"
 														>
 															{seg.text}
 														</Text>
 													) : msg.role === "system" ? (
 														// System messages: render plain text (no markdown to avoid Box nesting)
-														<Text key={`line-${lineIdx}-seg-${segIdx}`} color="#FFD700">
+														<Text key={`line-${lineIdx}-seg-${segIdx}`} color="yellow">
 															{seg.text}
 														</Text>
 													) : (
@@ -225,13 +225,13 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 														<Text
 															key={`legacy-line-${lineIdx}-seg-${segIdx}`}
 															backgroundColor="#1a472a"
-															color="#00FF88"
+															color="green"
 														>
 															{seg.text}
 														</Text>
 													) : msg.role === "system" ? (
 														// System messages: render plain text (no markdown to avoid Box nesting)
-														<Text key={`legacy-line-${lineIdx}-seg-${segIdx}`} color="#FFD700">
+														<Text key={`legacy-line-${lineIdx}-seg-${segIdx}`} color="yellow">
 															{seg.text}
 														</Text>
 													) : (
@@ -281,7 +281,7 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 
 							return fileParts.map((filePart, idx) => (
 								<Box key={`${msg.id}-file-${idx}`} marginLeft={2} marginBottom={1}>
-									<Text color="#00FF88">✓ </Text>
+									<Text color="green">✓ </Text>
 									<Text bold>Read {filePart.relativePath}</Text>
 								</Box>
 							));
@@ -294,12 +294,12 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 							<Box flexDirection="column">
 								{msg.status === "abort" && (
 									<Box marginLeft={2} marginBottom={1}>
-										<Text color="#FFD700">[Aborted]</Text>
+										<Text color="yellow">[Aborted]</Text>
 									</Box>
 								)}
 								{msg.status === "error" && (
 									<Box marginLeft={2} marginBottom={1}>
-										<Text color="#FF3366">[Error]</Text>
+										<Text color="red">[Error]</Text>
 									</Box>
 								)}
 								{msg.usage && (

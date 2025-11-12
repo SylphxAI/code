@@ -57,15 +57,15 @@ export function SelectionUI({
 			{/* Queue status */}
 			{askQueueLength > 0 && (
 				<Box marginBottom={1}>
-					<Text color="#FFD700">[+{askQueueLength} pending]</Text>
+					<Text color="yellow">[+{askQueueLength} pending]</Text>
 				</Box>
 			)}
 
 			{/* Progress header (only for multi-question) */}
 			{!isSingleQuestion && (
 				<Box marginBottom={1}>
-					<Text color="#00D9FF">Progress: </Text>
-					<Text color="#00FF88" bold>
+					<Text color="cyan">Progress: </Text>
+					<Text color="green" bold>
 						{answeredCount}/{totalQuestions}
 					</Text>
 					<Text dimColor> completed</Text>
@@ -84,11 +84,11 @@ export function SelectionUI({
 					<Box key={q.id} marginBottom={1} flexDirection="column">
 						{/* Question header */}
 						<Box>
-							{!isSingleQuestion && <Text color="#00D9FF">Q{qIdx + 1}. </Text>}
+							{!isSingleQuestion && <Text color="cyan">Q{qIdx + 1}. </Text>}
 							<Text bold={isCurrentQuestion} color={isCurrentQuestion ? "#00D9FF" : "gray"}>
 								{q.question}
 							</Text>
-							{isCurrentQuestion && !isSingleQuestion && <Text color="#00FF88"> ← </Text>}
+							{isCurrentQuestion && !isSingleQuestion && <Text color="green"> ← </Text>}
 						</Box>
 
 						{/* Answer or expanded options */}
@@ -99,8 +99,8 @@ export function SelectionUI({
 								{isFreeTextMode ? (
 									<Box marginBottom={1}>
 										<Text dimColor>✏️ </Text>
-										<Text color="#00FF88">{freeTextInput}</Text>
-										<Text color="#00FF88">▊</Text>
+										<Text color="green">{freeTextInput}</Text>
+										<Text color="green">▊</Text>
 										<Text dimColor> (Enter to submit, Esc to cancel)</Text>
 									</Box>
 								) : (
@@ -109,13 +109,13 @@ export function SelectionUI({
 										<Text dimColor>🔍 </Text>
 										{isFilterMode ? (
 											<>
-												<Text color="#00FF88">{selectionFilter}</Text>
-												<Text color="#00FF88">▊</Text>
+												<Text color="green">{selectionFilter}</Text>
+												<Text color="green">▊</Text>
 												<Text dimColor> (Esc to exit, type to continue)</Text>
 											</>
 										) : selectionFilter ? (
 											<>
-												<Text color="#00D9FF">{selectionFilter}</Text>
+												<Text color="cyan">{selectionFilter}</Text>
 												<Text dimColor> (/ to edit, Esc to clear)</Text>
 											</>
 										) : (
@@ -192,8 +192,8 @@ export function SelectionUI({
 							<Box marginLeft={4}>
 								{answer ? (
 									<>
-										<Text color="#00FF88">✓ </Text>
-										<Text color="#00FF88">
+										<Text color="green">✓ </Text>
+										<Text color="green">
 											{Array.isArray(answer) ? answer.join(", ") : answerOption?.label || answer}
 										</Text>
 									</>
@@ -212,37 +212,37 @@ export function SelectionUI({
 					{!isSingleQuestion && !isFilterMode && (
 						<>
 							<Text dimColor>Tab: </Text>
-							<Text color="#00D9FF">Next</Text>
+							<Text color="cyan">Next</Text>
 							<Text dimColor> · Shift+Tab: </Text>
-							<Text color="#00D9FF">Previous</Text>
+							<Text color="cyan">Previous</Text>
 							<Text dimColor> · </Text>
 						</>
 					)}
 					<Text dimColor>↑↓: </Text>
-					<Text color="#00D9FF">Navigate</Text>
+					<Text color="cyan">Navigate</Text>
 					{!isFilterMode && questions[multiSelectionPage]?.multiSelect ? (
 						<>
 							<Text dimColor> · Space: </Text>
-							<Text color="#00FF88">Toggle</Text>
+							<Text color="green">Toggle</Text>
 							<Text dimColor> · Enter: </Text>
 							<Text color={multiSelectChoices.size > 0 ? "#00FF88" : "gray"}>
 								Confirm
 								{multiSelectChoices.size === 0 && " (select at least one)"}
 							</Text>
 							<Text dimColor> · /: </Text>
-							<Text color="#00D9FF">Filter</Text>
+							<Text color="cyan">Filter</Text>
 						</>
 					) : isFilterMode ? (
 						<>
 							<Text dimColor> · Enter: </Text>
-							<Text color="#00FF88">Select</Text>
+							<Text color="green">Select</Text>
 						</>
 					) : (
 						<>
 							<Text dimColor> · Enter: </Text>
-							<Text color="#00FF88">Select</Text>
+							<Text color="green">Select</Text>
 							<Text dimColor> · /: </Text>
-							<Text color="#00D9FF">Filter</Text>
+							<Text color="cyan">Filter</Text>
 						</>
 					)}
 					{!isSingleQuestion && !isFilterMode && (
@@ -255,7 +255,7 @@ export function SelectionUI({
 						</>
 					)}
 					<Text dimColor> · Esc: </Text>
-					<Text color="#FF3366">
+					<Text color="red">
 						{isFilterMode ? "Exit filter" : selectionFilter ? "Clear filter" : "Cancel"}
 					</Text>
 				</Box>

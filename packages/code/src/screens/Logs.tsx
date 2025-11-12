@@ -26,7 +26,7 @@ export default function Logs() {
 		<Box flexDirection="column" flexGrow={1}>
 			{/* Header */}
 			<Box flexShrink={0} paddingBottom={1}>
-				<Text color="#00D9FF">▌ DEBUG LOGS</Text>
+				<Text color="cyan">▌ DEBUG LOGS</Text>
 				<Text dimColor> · {debugLogs.length} entries</Text>
 			</Box>
 

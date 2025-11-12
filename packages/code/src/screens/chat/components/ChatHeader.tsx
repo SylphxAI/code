@@ -23,7 +23,7 @@ export function ChatHeader({
 		<Box flexDirection="column">
 			{/* App Header */}
 			<Box paddingX={1} paddingY={1}>
-				<Text bold color="#00D9FF">
+				<Text bold color="cyan">
 					SYLPHX FLOW
 				</Text>
 				<Text dimColor> │ </Text>
@@ -33,8 +33,8 @@ export function ChatHeader({
 			{/* Chat Title - shows streaming or current title */}
 			{shouldShowChatTitle && (
 				<Box paddingX={1} paddingBottom={1}>
-					<Text color="#00D9FF">▌ CHAT</Text>
-					<Text color="#00D9FF"> · </Text>
+					<Text color="cyan">▌ CHAT</Text>
+					<Text color="cyan"> · </Text>
 					<Text color="white">
 						{isTitleStreaming
 							? streamingTitle || currentSessionTitle || "New Chat"

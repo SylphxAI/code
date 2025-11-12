@@ -58,7 +58,7 @@ export default function ProviderManagement() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="#00D9FF">▌ PROVIDER MANAGEMENT</Text>
+					<Text color="cyan">▌ PROVIDER MANAGEMENT</Text>
 				</Box>
 
 				<Box flexGrow={1} paddingY={1}>
@@ -77,13 +77,13 @@ export default function ProviderManagement() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="#00D9FF">▌ CONFIGURED PROVIDERS</Text>
+					<Text color="cyan">▌ CONFIGURED PROVIDERS</Text>
 				</Box>
 
 				<Box flexGrow={1} paddingY={1}>
 					{configuredProviders.length === 0 ? (
 						<Box>
-							<Text color="#FFD700">▌</Text>
+							<Text color="yellow">▌</Text>
 							<Text dimColor> No providers configured yet</Text>
 						</Box>
 					) : (
@@ -120,7 +120,7 @@ export default function ProviderManagement() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="#00D9FF">▌ SELECT PROVIDER</Text>
+					<Text color="cyan">▌ SELECT PROVIDER</Text>
 				</Box>
 
 				<Box flexGrow={1} paddingY={1}>
@@ -151,7 +151,7 @@ export default function ProviderManagement() {
 			return (
 				<Box flexDirection="column" flexGrow={1}>
 					<Box flexShrink={0} paddingBottom={1}>
-						<Text color="#00D9FF">▌ CONFIGURE {provider.name.toUpperCase()}</Text>
+						<Text color="cyan">▌ CONFIGURE {provider.name.toUpperCase()}</Text>
 					</Box>
 
 					<Box flexShrink={0} paddingBottom={2}>
@@ -160,7 +160,7 @@ export default function ProviderManagement() {
 
 					<Box flexShrink={0} paddingLeft={2} flexDirection="column">
 						<Box paddingBottom={1}>
-							<Text color="#00FF88">1.</Text>
+							<Text color="green">1.</Text>
 							<Text dimColor> Install the Claude Code CLI globally:</Text>
 						</Box>
 						<Box paddingBottom={1} paddingLeft={3}>
@@ -168,7 +168,7 @@ export default function ProviderManagement() {
 						</Box>
 
 						<Box paddingBottom={1}>
-							<Text color="#00FF88">2.</Text>
+							<Text color="green">2.</Text>
 							<Text dimColor> Login to Claude:</Text>
 						</Box>
 						<Box paddingBottom={1} paddingLeft={3}>
@@ -176,7 +176,7 @@ export default function ProviderManagement() {
 						</Box>
 
 						<Box paddingBottom={1}>
-							<Text color="#00FF88">3.</Text>
+							<Text color="green">3.</Text>
 							<Text dimColor> You can now use Claude Code models (opus, sonnet, haiku)</Text>
 						</Box>
 					</Box>
@@ -206,7 +206,7 @@ export default function ProviderManagement() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="#00D9FF">▌ CONFIGURE {provider.name.toUpperCase()}</Text>
+					<Text color="cyan">▌ CONFIGURE {provider.name.toUpperCase()}</Text>
 				</Box>
 
 				<Box flexShrink={0} paddingBottom={1}>
@@ -253,7 +253,7 @@ export default function ProviderManagement() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="#FF3366">▌ REMOVE PROVIDER</Text>
+					<Text color="red">▌ REMOVE PROVIDER</Text>
 				</Box>
 
 				<Box flexGrow={1} paddingY={1}>

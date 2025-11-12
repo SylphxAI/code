@@ -63,8 +63,8 @@ export default function TodoList() {
 		<Box flexDirection="column" paddingTop={1}>
 			{/* Header with simple progress */}
 			<Box>
-				<Text color="#FFD700">▌ TASKS</Text>
-				<Text color="#FFD700"> · </Text>
+				<Text color="yellow">▌ TASKS</Text>
+				<Text color="yellow"> · </Text>
 				<Text dimColor>
 					{completedCount}/{totalCount}
 				</Text>

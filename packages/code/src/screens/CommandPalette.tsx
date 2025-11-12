@@ -73,7 +73,7 @@ export default function CommandPalette({ onCommand }: CommandPaletteProps) {
 		<Box flexDirection="column" flexGrow={1}>
 			{/* Header */}
 			<Box flexShrink={0} paddingBottom={1}>
-				<Text color="#00D9FF">▌ COMMAND PALETTE</Text>
+				<Text color="cyan">▌ COMMAND PALETTE</Text>
 			</Box>
 
 			{/* Search Input */}
@@ -93,7 +93,7 @@ export default function CommandPalette({ onCommand }: CommandPaletteProps) {
 			<Box flexGrow={1} paddingY={1} flexDirection="column">
 				{filteredCommands.length === 0 ? (
 					<Box>
-						<Text color="#FFD700">▌</Text>
+						<Text color="yellow">▌</Text>
 						<Text dimColor> No commands found</Text>
 					</Box>
 				) : (

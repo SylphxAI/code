@@ -26,12 +26,12 @@ function FallbackToolDisplay(props: ToolDisplayProps) {
 			<Box>
 				{status === "running" && (
 					<>
-						<Spinner color="#FFD700" />
+						<Spinner color="yellow" />
 						<Text> </Text>
 					</>
 				)}
-				{status === "completed" && <Text color="#00FF88">✓ </Text>}
-				{status === "failed" && <Text color="#FF3366">✗ </Text>}
+				{status === "completed" && <Text color="green">✓ </Text>}
+				{status === "failed" && <Text color="red">✗ </Text>}
 				<Text bold>{name}</Text>
 				{durationDisplay && (status === "completed" || status === "running") && (
 					<Text dimColor> {durationDisplay}</Text>
@@ -39,7 +39,7 @@ function FallbackToolDisplay(props: ToolDisplayProps) {
 			</Box>
 			{status === "failed" && error && (
 				<Box marginLeft={2}>
-					<Text color="#FF3366">{error}</Text>
+					<Text color="red">{error}</Text>
 				</Box>
 			)}
 		</Box>

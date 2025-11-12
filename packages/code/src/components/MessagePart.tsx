@@ -77,7 +77,7 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
 			return (
 				<Box flexDirection="column" marginLeft={2} marginBottom={1}>
 					<Box>
-						<Spinner color="#FFD700" />
+						<Spinner color="yellow" />
 						<Text dimColor> Thinking... {durationDisplay}</Text>
 					</Box>
 				</Box>

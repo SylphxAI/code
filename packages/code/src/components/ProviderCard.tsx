@@ -41,7 +41,7 @@ export default function ProviderCard({
 				{isDefault && (
 					<>
 						<Text dimColor> · </Text>
-						<Text color="#FFD700">DEFAULT</Text>
+						<Text color="yellow">DEFAULT</Text>
 					</>
 				)}
 			</Box>
@@ -51,13 +51,13 @@ export default function ProviderCard({
 				{/* Claude Code doesn't need API key, it uses CLI auth */}
 				{providerId === "claude-code" ? (
 					<>
-						<Text color="#00FF88">✓</Text>
+						<Text color="green">✓</Text>
 						<Text dimColor> CLI Auth</Text>
 					</>
 				) : apiKey ? (
-					<Text color="#00FF88">✓</Text>
+					<Text color="green">✓</Text>
 				) : (
-					<Text color="#FF3366">✗</Text>
+					<Text color="red">✗</Text>
 				)}
 				<Text dimColor> │ </Text>
 				{defaultModel && (

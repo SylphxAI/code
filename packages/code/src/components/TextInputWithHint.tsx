@@ -102,7 +102,7 @@ function TextInputWithHint({
 				onEscape={onEscape}
 				maxLines={maxLines}
 			/>
-			{hint && value.length > 0 ? <Text color="#444444">{hint}</Text> : null}
+			{hint && value.length > 0 ? <Text color="gray">{hint}</Text> : null}
 		</Box>
 	);
 }

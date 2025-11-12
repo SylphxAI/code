@@ -19,13 +19,13 @@ const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status }) => {
 	if (status === "running") {
 		return (
 			<>
-				<Spinner color="#FFD700" />
+				<Spinner color="yellow" />
 				<Text> </Text>
 			</>
 		);
 	}
 
-	return status === "completed" ? <Text color="#00FF88">✓ </Text> : <Text color="#FF3366">✗ </Text>;
+	return status === "completed" ? <Text color="green">✓ </Text> : <Text color="red">✗ </Text>;
 };
 
 interface ToolHeaderProps {
@@ -74,7 +74,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ status, formattedResult, 
 	if (status === "failed") {
 		return (
 			<Box marginLeft={2}>
-				<Text color="#FF3366">{error || "Failed"}</Text>
+				<Text color="red">{error || "Failed"}</Text>
 			</Box>
 		);
 	}

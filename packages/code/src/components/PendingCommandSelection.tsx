@@ -35,7 +35,7 @@ export function PendingCommandSelection({
 			{/* Loading state */}
 			{currentlyLoading ? (
 				<Box>
-					<Spinner color="#FFD700" />
+					<Spinner color="yellow" />
 					<Text color="gray"> Loading options...</Text>
 				</Box>
 			) : loadError ? (

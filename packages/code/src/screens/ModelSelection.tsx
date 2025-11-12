@@ -153,7 +153,7 @@ export default function ModelSelection() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="#00D9FF">▌ SELECT PROVIDER</Text>
+					<Text color="cyan">▌ SELECT PROVIDER</Text>
 				</Box>
 
 				<Box flexGrow={1} paddingY={1}>
@@ -237,7 +237,7 @@ export default function ModelSelection() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="#00D9FF">▌ SELECT MODEL</Text>
+					<Text color="cyan">▌ SELECT MODEL</Text>
 					<Text dimColor>
 						{" "}
 						· {selectedProvider && (aiProviders[selectedProvider]?.name || selectedProvider)}
@@ -261,7 +261,7 @@ export default function ModelSelection() {
 				<Box flexGrow={1} paddingY={1} flexDirection="column">
 					{filteredModels.length === 0 ? (
 						<Box>
-							<Text color="#FFD700">▌</Text>
+							<Text color="yellow">▌</Text>
 							<Text dimColor> No models found</Text>
 						</Box>
 					) : (

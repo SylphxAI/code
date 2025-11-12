@@ -74,7 +74,7 @@ function AppContent() {
 		<Box flexDirection="column" width="100%" height="100%" paddingX={1}>
 			{/* Header */}
 			<Box paddingY={1}>
-				<Text bold color="#00D9FF">
+				<Text bold color="cyan">
 					SYLPHX FLOW
 				</Text>
 				<Text dimColor> │ </Text>
@@ -84,8 +84,8 @@ function AppContent() {
 			{/* Error Display */}
 			{error && (
 				<Box paddingY={1}>
-					<Text color="#FF3366">▌</Text>
-					<Text color="#FF3366" bold>
+					<Text color="red">▌</Text>
+					<Text color="red" bold>
 						{" "}
 						ERROR{" "}
 					</Text>
@@ -96,8 +96,8 @@ function AppContent() {
 			{/* Loading Indicator */}
 			{isLoading && (
 				<Box paddingY={1}>
-					<Text color="#FFD700">▌</Text>
-					<Text color="#FFD700" bold>
+					<Text color="yellow">▌</Text>
+					<Text color="yellow" bold>
 						{" "}
 						LOADING
 					</Text>

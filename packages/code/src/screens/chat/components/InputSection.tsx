@@ -175,7 +175,7 @@ export function InputSection({
 		<Box flexDirection="column" flexShrink={0}>
 			{/* Dynamic Header */}
 			<Box>
-				<Text color="#00D9FF">▌ {headerTitle}</Text>
+				<Text color="cyan">▌ {headerTitle}</Text>
 			</Box>
 
 			{/* Custom Input Component */}
@@ -233,7 +233,7 @@ export function InputSection({
 									</Box>
 									{pendingAttachments.map((att) => (
 										<Box key={`pending-att-${att.path}`} marginLeft={2}>
-											<Text color="#00D9FF">{att.relativePath}</Text>
+											<Text color="cyan">{att.relativePath}</Text>
 											<Text dimColor> (</Text>
 											{att.size ? (
 												<>

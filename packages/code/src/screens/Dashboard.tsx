@@ -236,7 +236,7 @@ export default function Dashboard() {
 		return (
 			<Box flexDirection="column" paddingX={2} paddingTop={1}>
 				<Box marginBottom={2}>
-					<Text color="#00D9FF">AGENTS</Text>
+					<Text color="cyan">AGENTS</Text>
 					<Box flexGrow={1} />
 					<Text dimColor>{agents.length} available</Text>
 				</Box>
@@ -258,13 +258,13 @@ export default function Dashboard() {
 								{isSelected && (
 									<>
 										<Text dimColor> </Text>
-										<Text color="#00FF88">●</Text>
+										<Text color="green">●</Text>
 									</>
 								)}
 								{isHighlighted && mode === "edit" && (
 									<>
 										<Text dimColor> </Text>
-										<Text color="#00D9FF">◄</Text>
+										<Text color="cyan">◄</Text>
 									</>
 								)}
 							</Box>
@@ -287,7 +287,7 @@ export default function Dashboard() {
 		return (
 			<Box flexDirection="column" paddingX={2} paddingTop={1}>
 				<Box marginBottom={2}>
-					<Text color="#00D9FF">RULES</Text>
+					<Text color="cyan">RULES</Text>
 					<Box flexGrow={1} />
 					<Text dimColor>
 						{enabledRuleIds.length}/{rules.length} enabled
@@ -313,7 +313,7 @@ export default function Dashboard() {
 								{isSelected && mode === "edit" && (
 									<>
 										<Text dimColor> </Text>
-										<Text color="#00D9FF">◄</Text>
+										<Text color="cyan">◄</Text>
 									</>
 								)}
 							</Box>
@@ -336,7 +336,7 @@ export default function Dashboard() {
 		return (
 			<Box flexDirection="column" paddingX={2} paddingTop={1}>
 				<Box marginBottom={2}>
-					<Text color="#00D9FF">SESSIONS</Text>
+					<Text color="cyan">SESSIONS</Text>
 					<Box flexGrow={1} />
 					<Text dimColor>{sessions.length} total</Text>
 				</Box>
@@ -346,7 +346,7 @@ export default function Dashboard() {
 						return (
 							<Box key={session.id} marginBottom={1}>
 								<Text dimColor>{idx + 1} </Text>
-								<Text color="#00FF88">{session.title || "New Chat"}</Text>
+								<Text color="green">{session.title || "New Chat"}</Text>
 								<Text dimColor> {session.messages.length} msg</Text>
 							</Box>
 						);
@@ -362,7 +362,7 @@ export default function Dashboard() {
 		return (
 			<Box flexDirection="column" paddingX={2} paddingTop={1}>
 				<Box marginBottom={2}>
-					<Text color="#00D9FF">PROVIDERS</Text>
+					<Text color="cyan">PROVIDERS</Text>
 					<Box flexGrow={1} />
 					<Text dimColor>{providers.length} configured</Text>
 				</Box>
@@ -373,7 +373,7 @@ export default function Dashboard() {
 							<Box key={providerId} marginBottom={1} flexDirection="column">
 								<Box>
 									<Text dimColor>{idx + 1} </Text>
-									<Text bold color="#00FF88">
+									<Text bold color="green">
 										{providerId}
 									</Text>
 								</Box>
@@ -413,7 +413,7 @@ export default function Dashboard() {
 		return (
 			<Box flexDirection="column" paddingX={2} paddingTop={1}>
 				<Box marginBottom={2}>
-					<Text color="#00D9FF">NOTIFICATIONS</Text>
+					<Text color="cyan">NOTIFICATIONS</Text>
 					<Box flexGrow={1} />
 					<Text dimColor>{settings.filter((s) => s.value).length}/4 enabled</Text>
 				</Box>
@@ -435,7 +435,7 @@ export default function Dashboard() {
 								{isSelected && mode === "edit" && (
 									<>
 										<Text dimColor> </Text>
-										<Text color="#00D9FF">◄</Text>
+										<Text color="cyan">◄</Text>
 									</>
 								)}
 							</Box>
@@ -467,14 +467,14 @@ export default function Dashboard() {
 		return (
 			<Box flexDirection="column" paddingX={2} paddingTop={1}>
 				<Box marginBottom={2}>
-					<Text color="#00D9FF">KEYBOARD SHORTCUTS</Text>
+					<Text color="cyan">KEYBOARD SHORTCUTS</Text>
 				</Box>
 
 				<Box flexDirection="column">
 					{keybindings.map((kb, idx) => {
 						return (
 							<Box key={idx} marginBottom={1}>
-								<Text color="#00FF88">{kb.keys}</Text>
+								<Text color="green">{kb.keys}</Text>
 								<Text dimColor> → </Text>
 								<Text dimColor>{kb.action}</Text>
 							</Box>
@@ -517,12 +517,12 @@ export default function Dashboard() {
 		<FullScreen flexDirection="column">
 			{/* Header */}
 			<Box flexShrink={0} paddingX={2} paddingY={1}>
-				<Text bold color="#00D9FF">
+				<Text bold color="cyan">
 					SYLPHX FLOW
 				</Text>
 				<Text dimColor> Control Panel</Text>
 				<Box flexGrow={1} />
-				{mode === "edit" && <Text color="#FFD700">EDIT MODE</Text>}
+				{mode === "edit" && <Text color="yellow">EDIT MODE</Text>}
 			</Box>
 
 			{/* Main content */}
@@ -541,7 +541,7 @@ export default function Dashboard() {
 								{isSelected && (
 									<>
 										<Text dimColor> </Text>
-										<Text color="#00FF88">●</Text>
+										<Text color="green">●</Text>
 									</>
 								)}
 							</Box>

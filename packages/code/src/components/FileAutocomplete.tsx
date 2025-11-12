@@ -21,7 +21,7 @@ export function FileAutocomplete({
 	if (filesLoading) {
 		return (
 			<Box marginTop={1}>
-				<Spinner color="#FFD700" />
+				<Spinner color="yellow" />
 				<Text color="gray"> Loading files...</Text>
 			</Box>
 		);

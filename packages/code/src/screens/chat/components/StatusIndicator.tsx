@@ -20,8 +20,8 @@ export function StatusIndicator({ isStreaming, streamParts }: StatusIndicatorPro
 	if (isCompacting) {
 		return (
 			<Box paddingY={1}>
-				<Spinner color="#FFD700" />
-				<Text color="#FFD700"> Compacting session...</Text>
+				<Spinner color="yellow" />
+				<Text color="yellow"> Compacting session...</Text>
 				<Text dimColor> (ESC to cancel)</Text>
 			</Box>
 		);
@@ -50,8 +50,8 @@ export function StatusIndicator({ isStreaming, streamParts }: StatusIndicatorPro
 
 	return (
 		<Box paddingY={1}>
-			<Spinner color="#FFD700" />
-			<Text color="#FFD700"> {getStatusText()}</Text>
+			<Spinner color="yellow" />
+			<Text color="yellow"> {getStatusText()}</Text>
 			<Text dimColor> (ESC to cancel)</Text>
 		</Box>
 	);
