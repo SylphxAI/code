@@ -62,6 +62,8 @@ export const providerCommand: Command = {
 		const key = context.args[3];
 		const value = context.args[4];
 
+		console.log("[provider.command] Execute called:", { action, providerId, subaction, key });
+
 		// Validate action
 		if (action && action !== "use" && action !== "configure") {
 			await context.sendMessage(
@@ -217,16 +219,19 @@ export const providerCommand: Command = {
 		}
 
 		// Show UI for interactive selection
+		console.log("[provider.command] Rendering ProviderManagement UI:", { action, providerId });
 		context.setInputComponent(
 			<ProviderManagement
 				initialAction={action}
 				initialProviderId={providerId}
 				aiConfig={aiConfig}
 				onComplete={() => {
+					console.log("[provider.command] onComplete called");
 					context.setInputComponent(null);
 					context.addLog("[provider] Provider management closed");
 				}}
 				onSelectProvider={async (providerId) => {
+					console.log("[provider.command] onSelectProvider called:", providerId);
 					// Get fresh zen signal values
 					const { get } = await import("@sylphx/code-client");
 					const { $aiConfig, updateProvider, setAIConfig } = await import("@sylphx/code-client");
