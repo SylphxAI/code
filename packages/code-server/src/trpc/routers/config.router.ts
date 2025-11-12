@@ -472,7 +472,7 @@ export const configRouter = router({
 	getProviderSchema: publicProcedure
 		.input(
 			z.object({
-				providerId: z.enum(["anthropic", "openai", "google", "openrouter", "claude-code", "zai"]),
+				providerId: z.enum(["anthropic", "openai", "google", "openrouter", "claude-code", "zai", "kimi"]),
 			}),
 		)
 		.query(({ input }) => {
@@ -495,7 +495,7 @@ export const configRouter = router({
 	fetchModels: publicProcedure
 		.input(
 			z.object({
-				providerId: z.enum(["anthropic", "openai", "google", "openrouter", "claude-code", "zai"]),
+				providerId: z.enum(["anthropic", "openai", "google", "openrouter", "claude-code", "zai", "kimi"]),
 				cwd: z.string().default(process.cwd()),
 			}),
 		)
@@ -640,7 +640,7 @@ export const configRouter = router({
 	getModelDetails: publicProcedure
 		.input(
 			z.object({
-				providerId: z.enum(["anthropic", "openai", "google", "openrouter", "claude-code", "zai"]),
+				providerId: z.enum(["anthropic", "openai", "google", "openrouter", "claude-code", "zai", "kimi"]),
 				modelId: z.string(),
 				cwd: z.string().default(process.cwd()),
 			}),
