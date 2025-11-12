@@ -88,11 +88,9 @@ export function useMessageHistoryNavigation(options: UseMessageHistoryNavigation
 	// Message history navigation (like bash)
 	// IMPORTANT: Only handle up/down arrows here, let ControlledTextInput handle Enter
 	const isActive = !isStreaming && !pendingInput && !pendingCommand;
-	console.log("[useMessageHistoryNavigation] isActive:", isActive, "pendingInput:", !!pendingInput, "pendingCommand:", !!pendingCommand);
 
 	useInput(
 		(char, key) => {
-			console.log("[useMessageHistoryNavigation] useInput callback fired - key:", Object.keys(key).filter(k => key[k]));
 
 			// inputComponent has its own keyboard handling (e.g. ProviderManagement)
 			// Don't interfere with it

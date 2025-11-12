@@ -8,7 +8,7 @@
 
 import type { CodeServer } from "@sylphx/code-server";
 import type { Agent, Rule } from "@sylphx/code-core";
-import { $enabledRuleIds, get } from "@sylphx/code-client";
+import { $enabledRuleIds, get, getCurrentSessionId } from "@sylphx/code-client";
 
 let embeddedServerInstance: CodeServer | null = null;
 
@@ -75,7 +75,8 @@ export function getEnabledRuleIds(): string[] {
  */
 export async function setEnabledRules(ruleIds: string[]): Promise<boolean> {
 	const { setEnabledRuleIds } = require("@sylphx/code-client");
-	await setEnabledRuleIds(ruleIds);
+	const currentSessionId = getCurrentSessionId();
+	await setEnabledRuleIds(ruleIds, currentSessionId);
 	return true;
 }
 
@@ -89,15 +90,16 @@ export async function toggleRule(ruleId: string): Promise<boolean> {
 		return false;
 	}
 
-	const { useEnabledRuleIds, setEnabledRuleIds } = require("@sylphx/code-client");
-	const currentEnabled = useEnabledRuleIds();
+	const { setEnabledRuleIds } = require("@sylphx/code-client");
+	const currentEnabled = getEnabledRuleIds();
+	const currentSessionId = getCurrentSessionId();
 
 	if (currentEnabled.includes(ruleId)) {
 		// Disable: remove from list
-		await setEnabledRuleIds(currentEnabled.filter((id) => id !== ruleId));
+		await setEnabledRuleIds(currentEnabled.filter((id) => id !== ruleId), currentSessionId);
 	} else {
 		// Enable: add to list
-		await setEnabledRuleIds([...currentEnabled, ruleId]);
+		await setEnabledRuleIds([...currentEnabled, ruleId], currentSessionId);
 	}
 
 	return true;

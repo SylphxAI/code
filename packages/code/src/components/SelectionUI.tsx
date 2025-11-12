@@ -33,8 +33,6 @@ export function SelectionUI({
 	selectedCommandIndex,
 	askQueueLength,
 }: SelectionUIProps) {
-	console.log("[SelectionUI] Rendered - type:", pendingInput.type, "questions:", pendingInput.questions?.length);
-
 	if (pendingInput.type !== "selection") {
 		return null;
 	}

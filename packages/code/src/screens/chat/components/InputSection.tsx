@@ -171,8 +171,6 @@ export function InputSection({
 
 	const headerTitle = getHeaderTitle();
 
-	console.log("[InputSection] Rendering - pendingInput:", !!pendingInput, "type:", pendingInput?.type, "inputComponent:", !!inputComponent);
-
 	return (
 		<Box flexDirection="column" flexShrink={0}>
 			{/* Dynamic Header */}
