@@ -34,6 +34,7 @@ export function useCurrentSession() {
 
 	// Fetch session data from server when currentSessionId changes
 	useEffect(() => {
+		console.log("[useCurrentSession] Effect triggered, currentSessionId:", currentSessionId);
 		if (!currentSessionId) {
 			setServerSession(null);
 			setIsLoading(false);
@@ -50,16 +51,19 @@ export function useCurrentSession() {
 		setIsLoading(true);
 		setError(null);
 
+		console.log("[useCurrentSession] Fetching session from server:", currentSessionId);
 		const client = getTRPCClient();
 		client.session.getById
 			.query({ sessionId: currentSessionId })
 			.then((session) => {
+				console.log("[useCurrentSession] Got session from server, messages count:", session?.messages?.length);
 				setServerSession(session);
 				setIsLoading(false);
 
 				// Only update store and emit events if not streaming
 				// During streaming, optimistic data is authoritative
 				if (!get($isStreaming)) {
+					console.log("[useCurrentSession] Not streaming, updating store...");
 					// IMPORTANT: Merge with existing optimistic messages (don't overwrite)
 					// System messages may have been added by events after this query started
 					const currentOptimistic = get($currentSession);
@@ -79,16 +83,19 @@ export function useCurrentSession() {
 						);
 
 						if (optimisticOnlyMessages.length > 0) {
+							console.log("[useCurrentSession] Merging optimistic messages, server:", session.messages.length, "optimistic:", optimisticOnlyMessages.length);
 							setCurrentSession({
 								...session,
 								messages: [...session.messages, ...optimisticOnlyMessages],
 							});
 						} else {
 							// No extra messages to merge
+							console.log("[useCurrentSession] No optimistic messages to merge, using server data directly");
 							setCurrentSession(session);
 						}
 					} else {
 						// No optimistic data to merge
+						console.log("[useCurrentSession] No optimistic data, using server data directly");
 						setCurrentSession(session);
 					}
 
