@@ -252,19 +252,24 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					});
 
 					// Create step with error content
+					const db = sessionRepository.getDatabase();
 					const stepId = await createMessageStep(
-						messageRepository,
+						db,
 						assistantMessageId,
 						0,
-						[
-							{
-								type: "error",
-								error: validationError.message,
-								status: "completed",
-							},
-						],
-						"error",
 					);
+
+					// Add error content to step
+					await updateStepParts(db, stepId, [
+						{
+							type: "error",
+							error: validationError.message,
+							status: "completed",
+						},
+					]);
+
+					// Complete the step
+					await completeMessageStep(db, stepId, "error");
 
 					// Emit error event
 					observer.next({
