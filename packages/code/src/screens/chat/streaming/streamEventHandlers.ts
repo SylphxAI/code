@@ -666,7 +666,7 @@ function handleToolInputDelta(
 		if (toolPart && toolPart.type === "tool") {
 			// Accumulate input as JSON text string
 			const currentInput = typeof toolPart.input === "string" ? toolPart.input : "";
-			toolPart.input = currentInput + event.argsTextDelta;
+			toolPart.input = currentInput + event.inputTextDelta;
 		}
 
 		return newParts;

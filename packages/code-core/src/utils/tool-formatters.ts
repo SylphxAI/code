@@ -23,6 +23,6 @@ export const pluralize = (count: number, singular: string, plural?: string): str
 /**
  * Tool formatter types
  */
-export type ArgsFormatter = (args: Record<string, unknown>) => string;
+export type InputFormatter = (input: Record<string, unknown>) => string;
 export type FormattedResult = { lines: string[]; summary?: string };
 export type ResultFormatter = (result: unknown) => FormattedResult;

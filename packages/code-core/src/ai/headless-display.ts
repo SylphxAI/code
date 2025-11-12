@@ -6,24 +6,24 @@
 import chalk from "chalk";
 
 /**
- * Format tool arguments for display
+ * Format tool input for display
  */
-function formatArgs(args: unknown): string {
-	if (!args || typeof args !== "object") {
+function formatInput(input: unknown): string {
+	if (!input || typeof input !== "object") {
 		return "";
 	}
 
-	const argsStr = Object.keys(args).length === 0 ? "" : JSON.stringify(args, null, 2);
+	const inputStr = Object.keys(input).length === 0 ? "" : JSON.stringify(input, null, 2);
 
-	if (!argsStr) {
+	if (!inputStr) {
 		return "";
 	}
 
-	const lines = argsStr.split("\n");
+	const lines = inputStr.split("\n");
 	const truncated =
 		lines.length > 5
 			? lines.slice(0, 5).join("\n") + chalk.dim("\n     … +" + (lines.length - 5) + " lines")
-			: argsStr;
+			: inputStr;
 
 	return truncated;
 }
@@ -46,7 +46,7 @@ function formatResult(result: unknown): string {
  * Headless display interface
  */
 export interface HeadlessDisplay {
-	onToolCall: (toolName: string, args: unknown) => void;
+	onToolCall: (toolName: string, input: unknown) => void;
 	onToolResult: (toolName: string, result: unknown, duration: number) => void;
 	onTextDelta: (text: string) => void;
 	onComplete: () => void;
@@ -60,7 +60,7 @@ export function createHeadlessDisplay(quiet: boolean): HeadlessDisplay {
 	let hasOutput = false;
 
 	return {
-		onToolCall: (toolName: string, args: unknown): void => {
+		onToolCall: (toolName: string, input: unknown): void => {
 			if (quiet) return;
 
 			// Flush stdout to ensure proper ordering
@@ -68,10 +68,10 @@ export function createHeadlessDisplay(quiet: boolean): HeadlessDisplay {
 				process.stdout.write("\n");
 			}
 
-			const argsStr = formatArgs(args);
-			if (argsStr) {
+			const inputStr = formatInput(input);
+			if (inputStr) {
 				process.stderr.write(`\n${chalk.green("⏺")} ${chalk.bold(toolName)}\n`);
-				process.stderr.write(chalk.dim(`  ⎿ ${argsStr.split("\n").join("\n     ")}\n`));
+				process.stderr.write(chalk.dim(`  ⎿ ${inputStr.split("\n").join("\n     ")}\n`));
 			} else {
 				process.stderr.write(`\n${chalk.green("⏺")} ${chalk.bold(toolName)}\n`);
 			}

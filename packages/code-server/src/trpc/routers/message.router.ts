@@ -149,7 +149,7 @@ const StreamEventSchema = z.discriminatedUnion("type", [
 		type: z.literal("tool-call"),
 		toolCallId: z.string(),
 		toolName: z.string(),
-		args: z.unknown(), // Tool arguments are dynamic JSON
+		input: z.unknown(), // Tool input are dynamic JSON
 	}),
 	z.object({
 		type: z.literal("tool-result"),

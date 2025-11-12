@@ -27,7 +27,7 @@ export interface SendMessageOptions {
 	onFinish?: (usage?: TokenUsage, finishReason?: string) => void;
 
 	// Tool streaming callbacks
-	onToolCall?: (toolCallId: string, toolName: string, args: unknown) => void;
+	onToolCall?: (toolCallId: string, toolName: string, input: unknown) => void;
 	onToolResult?: (toolCallId: string, toolName: string, result: unknown, duration: number) => void;
 	onToolError?: (toolCallId: string, toolName: string, error: string, duration: number) => void;
 
@@ -158,7 +158,7 @@ export function useChat() {
 									break;
 
 								case "tool-call":
-									onToolCall?.(event.toolCallId, event.toolName, event.args);
+									onToolCall?.(event.toolCallId, event.toolName, event.input);
 									break;
 
 								case "tool-result":

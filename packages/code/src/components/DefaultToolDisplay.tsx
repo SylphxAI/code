@@ -6,7 +6,7 @@
 
 import type { ToolDisplayProps } from "@sylphx/code-client";
 import { useElapsedTime } from "@sylphx/code-client";
-import type { ArgsFormatter, ResultFormatter } from "@sylphx/code-core";
+import type { InputFormatter, ResultFormatter } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import type React from "react";
 import Spinner from "./Spinner.js";
@@ -122,7 +122,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ status, formattedResult, 
  */
 export function createDefaultToolDisplay(
 	displayName: string,
-	formatArgs: ArgsFormatter,
+	formatArgs: InputFormatter,
 	formatResult: ResultFormatter,
 ): React.FC<ToolDisplayProps> {
 	return function DefaultToolDisplay(props: ToolDisplayProps) {

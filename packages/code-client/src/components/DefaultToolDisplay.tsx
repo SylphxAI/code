@@ -8,7 +8,7 @@ import React from "react";
 import { Box, Text } from "ink";
 import Spinner from "./Spinner.js";
 import { useElapsedTime } from "@sylphx/code-client";
-import type { ArgsFormatter, ResultFormatter } from "@sylphx/code-core";
+import type { InputFormatter, ResultFormatter } from "@sylphx/code-core";
 import type { ToolDisplayProps } from "@sylphx/code-client";
 import dJSON from "dirty-json";
 
@@ -122,7 +122,7 @@ const ResultDisplay: React.FC<ResultDisplayProps> = ({ status, formattedResult, 
  */
 export function createDefaultToolDisplay(
 	displayName: string,
-	formatArgs: ArgsFormatter,
+	formatArgs: InputFormatter,
 	formatResult: ResultFormatter,
 ): React.FC<ToolDisplayProps> {
 	return function DefaultToolDisplay(props: ToolDisplayProps) {

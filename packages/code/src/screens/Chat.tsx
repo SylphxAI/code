@@ -344,8 +344,8 @@ export default function Chat(_props: ChatProps) {
 			},
 
 			// Tool streaming
-			onToolCall: (toolCallId: string, toolName: string, args: unknown) => {
-				handleStreamEvent({ type: "tool-call", toolCallId, toolName, args }, eventContextParams);
+			onToolCall: (toolCallId: string, toolName: string, input: unknown) => {
+				handleStreamEvent({ type: "tool-call", toolCallId, toolName, input }, eventContextParams);
 			},
 			onToolResult: (toolCallId: string, toolName: string, result: unknown, duration: number) => {
 				handleStreamEvent(

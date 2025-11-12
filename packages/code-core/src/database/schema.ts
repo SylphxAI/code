@@ -286,7 +286,7 @@ export const stepParts = sqliteTable(
 		// Content structure (JSON) - ALL parts include status field:
 		// - text: { type: 'text', content: string, status: 'active' | 'completed' | ... }
 		// - reasoning: { type: 'reasoning', content: string, status: ..., duration?: number }
-		// - tool: { type: 'tool', toolId: string, name: string, status: ..., duration?: number, args?: any, result?: any, error?: string }
+		// - tool: { type: 'tool', toolId: string, name: string, status: ..., duration?: number, input?: any, result?: any, error?: string }
 		// - error: { type: 'error', error: string, status: 'completed' }
 		content: text("content").notNull(), // JSON string
 	},

@@ -303,7 +303,7 @@ useEventStream({
   replayLast: 0,  // No replay
   callbacks: {
     onTextDelta: (text) => { ... },
-    onToolCall: (id, name, args) => { ... },
+    onToolCall: (id, name, input) => { ... },
     onComplete: (usage, reason) => { ... },
   }
 })
@@ -488,7 +488,7 @@ compact: moderateProcedure
 'reasoning-end'             // { duration }
 
 // Tool execution
-'tool-call'                 // { toolCallId, toolName, args }
+'tool-call'                 // { toolCallId, toolName, input }
 'tool-result'               // { toolCallId, toolName, result, duration }
 'tool-error'                // { toolCallId, toolName, error, duration }
 

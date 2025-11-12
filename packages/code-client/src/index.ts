@@ -119,7 +119,7 @@ export {
 	pluralize,
 	type LinePosition,
 	type ScrollViewportResult,
-	type ArgsFormatter,
+	type InputFormatter,
 	type ResultFormatter,
 	type FormattedResult,
 } from "@sylphx/code-core";

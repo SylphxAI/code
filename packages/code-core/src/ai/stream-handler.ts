@@ -16,10 +16,10 @@ export interface StreamCallbacks {
 	onReasoningStart?: () => void;
 	onReasoningDelta?: (text: string) => void;
 	onReasoningEnd?: (duration: number) => void;
-	onToolCall?: (toolCallId: string, toolName: string, args: unknown) => void;
+	onToolCall?: (toolCallId: string, toolName: string, input: unknown) => void;
 	onToolInputStart?: (toolCallId: string, toolName: string) => void;
-	onToolInputDelta?: (toolCallId: string, toolName: string, argsTextDelta: string) => void;
-	onToolInputEnd?: (toolCallId: string, toolName: string, args: unknown) => void;
+	onToolInputDelta?: (toolCallId: string, toolName: string, inputTextDelta: string) => void;
+	onToolInputEnd?: (toolCallId: string, toolName: string, input: unknown) => void;
 	onToolResult?: (toolCallId: string, toolName: string, result: unknown, duration: number) => void;
 	onToolError?: (toolCallId: string, toolName: string, error: string, duration: number) => void;
 	onFile?: (mediaType: string, base64: string) => void;
@@ -68,7 +68,7 @@ export async function processStream(
 
 	let fullResponse = "";
 	const messageParts: MessagePart[] = [];
-	const activeTools = new Map<string, { name: string; startTime: number; args: unknown }>();
+	const activeTools = new Map<string, { name: string; startTime: number; input: unknown }>();
 	let currentTextContent = "";
 	let currentReasoningContent = "";
 	let reasoningStartTime: number | null = null;
@@ -191,11 +191,11 @@ export async function processStream(
 					if (toolPart && toolPart.type === "tool") {
 						// Append input delta (input is streaming as JSON text)
 						const currentInputText = typeof toolPart.input === "string" ? toolPart.input : "";
-						toolPart.input = currentInputText + chunk.argsTextDelta;
+						toolPart.input = currentInputText + chunk.inputTextDelta;
 					}
 
 					// Notify callback for real-time UI update
-					onToolInputDelta?.(chunk.toolCallId, chunk.toolName, chunk.argsTextDelta);
+					onToolInputDelta?.(chunk.toolCallId, chunk.toolName, chunk.inputTextDelta);
 					break;
 				}
 

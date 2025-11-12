@@ -111,7 +111,7 @@ export type StreamEvent =
 	| { type: "reasoning-end"; duration: number }
 	| { type: "tool-call"; toolCallId: string; toolName: string; input: any }
 	| { type: "tool-input-start"; toolCallId: string }
-	| { type: "tool-input-delta"; toolCallId: string; argsTextDelta: string }
+	| { type: "tool-input-delta"; toolCallId: string; inputTextDelta: string }
 	| { type: "tool-input-end"; toolCallId: string }
 	| {
 			type: "tool-result";
@@ -634,9 +634,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 						hasEmittedAnyEvent = true;
 						observer.next({ type: "reasoning-end", duration });
 					},
-					onToolCall: (toolCallId, toolName, args) => {
+					onToolCall: (toolCallId, toolName, input) => {
 						hasEmittedAnyEvent = true;
-						observer.next({ type: "tool-call", toolCallId, toolName, input: args });
+						observer.next({ type: "tool-call", toolCallId, toolName, input });
 					},
 					onToolResult: (toolCallId, toolName, result, duration) => {
 						hasEmittedAnyEvent = true;
@@ -674,7 +674,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 				// 12. Initialize stream processing state
 				// Track active parts by index (for updating on delta/end events)
-				const activeTools = new Map<string, { name: string; startTime: number; args: unknown }>();
+				const activeTools = new Map<string, { name: string; startTime: number; input: unknown }>();
 				let currentTextPartIndex: number | null = null;
 				let currentReasoningPartIndex: number | null = null;
 
@@ -835,7 +835,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 								if (tool) {
 									// Accumulate input as JSON text
 									const currentInput = typeof tool.input === "string" ? tool.input : "";
-									tool.input = currentInput + chunk.argsTextDelta;
+									tool.input = currentInput + chunk.inputTextDelta;
 								}
 
 								// Update tool part
@@ -846,14 +846,14 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 									// Keep as string during streaming, will be parsed at end
 									const currentInput =
 										typeof toolPart.input === "string" ? toolPart.input : "";
-									toolPart.input = currentInput + chunk.argsTextDelta;
+									toolPart.input = currentInput + chunk.inputTextDelta;
 								}
 
 								// Emit tool-input-delta event
 								observer.next({
 									type: "tool-input-delta",
 									toolCallId: chunk.toolCallId,
-									argsTextDelta: chunk.argsTextDelta,
+									inputTextDelta: chunk.inputTextDelta,
 								});
 								break;
 							}

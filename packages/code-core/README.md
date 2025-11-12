@@ -87,7 +87,7 @@ for await (const event of stream) {
   }
 
   if (event.type === 'tool-call') {
-    console.log('Tool:', event.toolName, event.args);
+    console.log('Tool:', event.toolName, event.input);
   }
 }
 ```
