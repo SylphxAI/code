@@ -13,16 +13,16 @@
  *
  * When enabled:
  * - Uses InputModeManager with explicit modes
- * - SelectionModeHandler replaces useSelectionMode
+ * - All input handlers unified under single system
  * - Better conflict prevention and debugging
  *
  * When disabled:
  * - Uses legacy individual hooks (useSelectionMode, etc.)
  * - Existing behavior maintained
  *
- * Set to false for production until fully tested.
+ * All handlers implemented: Selection, CommandAutocomplete, PendingCommand, FileNavigation
  */
-export const USE_NEW_INPUT_MANAGER = false;
+export const USE_NEW_INPUT_MANAGER = true;
 
 /**
  * Debug mode for input management
