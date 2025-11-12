@@ -22,14 +22,12 @@ import {
 import type { AIConfig, ProviderId } from "@sylphx/code-core";
 
 /**
- * Provider ID schema - derived from PROVIDER_REGISTRY
- * Automatically updates when new providers are added to PROVIDER_REGISTRY
+ * Provider ID schema - use flexible string instead of strict enum
+ * Reason: Provider registry can be extended dynamically, and hardcoded enums
+ * cause validation failures when new providers are added to config files
  */
-const PROVIDER_IDS = Object.keys(PROVIDER_REGISTRY) as [ProviderId, ...ProviderId[]];
-const providerIdSchema = z.enum(PROVIDER_IDS);
-
 const AIConfigSchema = z.object({
-	defaultProvider: providerIdSchema.optional(),
+	defaultProvider: z.string().optional(), // Any provider ID (validated at runtime by getProvider)
 	defaultEnabledRuleIds: z.array(z.string()).optional(), // Global default rules
 	defaultAgentId: z.string().optional(), // Remember last selected agent
 	providers: z
@@ -133,7 +131,7 @@ export const configRouter = router({
 	updateDefaultProvider: moderateProcedure
 		.input(
 			z.object({
-				provider: z.enum(["anthropic", "openai", "google", "openrouter", "claude-code", "zai"]),
+				provider: z.string(), // Any provider ID (validated at runtime)
 				cwd: z.string().default(process.cwd()),
 			}),
 		)
@@ -494,7 +492,7 @@ export const configRouter = router({
 	getProviderSchema: publicProcedure
 		.input(
 			z.object({
-				providerId: providerIdSchema,
+				providerId: z.string(),
 			}),
 		)
 		.query(({ input }) => {
@@ -517,7 +515,7 @@ export const configRouter = router({
 	fetchModels: publicProcedure
 		.input(
 			z.object({
-				providerId: providerIdSchema,
+				providerId: z.string(),
 				cwd: z.string().default(process.cwd()),
 			}),
 		)
@@ -662,7 +660,7 @@ export const configRouter = router({
 	getModelDetails: publicProcedure
 		.input(
 			z.object({
-				providerId: providerIdSchema,
+				providerId: z.string(),
 				modelId: z.string(),
 				cwd: z.string().default(process.cwd()),
 			}),
