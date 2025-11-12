@@ -51,6 +51,17 @@ export const setAIConfig = (config: AIConfig | null) => {
 				set($selectedModel, providerConfig.defaultModel);
 			}
 		}
+
+		// Load default agent and rules from global config
+		if (config.defaultAgentId) {
+			const { $selectedAgentId } = require("../settings/index.js");
+			set($selectedAgentId, config.defaultAgentId);
+		}
+
+		if (config.defaultEnabledRuleIds) {
+			const { $enabledRuleIds } = require("../settings/index.js");
+			set($enabledRuleIds, config.defaultEnabledRuleIds);
+		}
 	}
 };
 
