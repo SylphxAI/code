@@ -16,7 +16,7 @@ export function useAIConfig() {
 		async () => {
 			setLoading(true);
 			try {
-				const result = await client.config.load.query();
+				const result = await client.config.load.query({});
 
 				if (result.success) {
 					// Use setAIConfig to trigger logic for loading defaultEnabledRuleIds and defaultAgentId
