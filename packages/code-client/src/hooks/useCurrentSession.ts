@@ -48,6 +48,21 @@ export function useCurrentSession() {
 			return;
 		}
 
+		// RACE CONDITION FIX: If we just transitioned from temp-session and have optimistic data,
+		// don't fetch from server immediately (would overwrite optimistic messages with empty array)
+		// The session-created event handler already set up the session. Let the streaming flow complete first.
+		const currentOptimistic = get($currentSession);
+		if (
+			currentOptimistic &&
+			currentOptimistic.id === currentSessionId &&
+			currentOptimistic.messages &&
+			currentOptimistic.messages.length > 0
+		) {
+			console.log("[useCurrentSession] Skipping server fetch, using optimistic data:", currentOptimistic.messages.length, "messages");
+			setIsLoading(false);
+			return;
+		}
+
 		setIsLoading(true);
 		setError(null);
 
@@ -67,6 +82,7 @@ export function useCurrentSession() {
 					// IMPORTANT: Merge with existing optimistic messages (don't overwrite)
 					// System messages may have been added by events after this query started
 					const currentOptimistic = get($currentSession);
+					console.log("[useCurrentSession] Current optimistic session:", currentOptimistic?.id, "messages:", currentOptimistic?.messages?.length);
 
 					// Always merge if we have optimistic data (even if session IDs don't match)
 					// This handles the case where temp-session → real session transition
@@ -76,10 +92,11 @@ export function useCurrentSession() {
 						currentOptimistic.messages.length > 0
 					) {
 						// Merge: keep messages that exist in optimistic but not in server response
-						// ONLY merge system/assistant messages (user messages handled by user-message-created event)
+						// Include: system/assistant messages + temp user messages (id starts with "temp-")
+						// Exclude: real user messages (handled by user-message-created event)
 						const serverMessageIds = new Set(session.messages.map((m) => m.id));
 						const optimisticOnlyMessages = currentOptimistic.messages.filter(
-							(m) => !serverMessageIds.has(m.id) && m.role !== "user",
+							(m) => !serverMessageIds.has(m.id) && (m.role !== "user" || m.id.startsWith("temp-")),
 						);
 
 						if (optimisticOnlyMessages.length > 0) {
