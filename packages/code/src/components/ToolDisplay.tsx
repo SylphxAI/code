@@ -12,7 +12,7 @@ import Spinner from "./Spinner.js";
  * Fallback display for unregistered tools
  */
 function FallbackToolDisplay(props: ToolDisplayProps) {
-	const { name, status, duration, startTime, args, error } = props;
+	const { name, status, duration, startTime, input, error } = props;
 
 	// Calculate real-time elapsed time for running tools
 	const { display: durationDisplay } = useElapsedTime({

@@ -183,7 +183,7 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
 			status: "running" | "completed" | "failed";
 			duration?: number;
 			startTime?: number;
-			args?: unknown;
+			input?: unknown;
 			result?: unknown;
 			error?: string;
 		} = { name: part.name, status: toolStatus };

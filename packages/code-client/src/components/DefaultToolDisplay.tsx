@@ -10,6 +10,27 @@ import Spinner from "./Spinner.js";
 import { useElapsedTime } from "@sylphx/code-client";
 import type { ArgsFormatter, ResultFormatter } from "@sylphx/code-core";
 import type { ToolDisplayProps } from "@sylphx/code-client";
+import dJSON from "dirty-json";
+
+/**
+ * Parse partial/dirty JSON into an object with best-effort parsing
+ * Handles incomplete JSON during streaming like `{"file_path": "/User` or `{"pattern":"test`
+ */
+function parsePartialJSON(jsonString: string): Record<string, unknown> {
+	// Try standard JSON.parse first (fastest)
+	try {
+		return JSON.parse(jsonString);
+	} catch {
+		// Use dirty-json for partial/malformed JSON
+		try {
+			const parsed = dJSON.parse(jsonString);
+			return typeof parsed === "object" && parsed !== null ? parsed : {};
+		} catch {
+			// Even dirty-json failed, return empty object
+			return {};
+		}
+	}
+}
 
 interface StatusIndicatorProps {
 	status: "running" | "completed" | "failed";
@@ -114,7 +135,20 @@ export function createDefaultToolDisplay(
 			isRunning: status === "running",
 		});
 
-		const formattedArgs = formatArgs(input as Record<string, unknown>);
+		// Handle streaming case: input might be a partial JSON string during streaming
+		// Parse dirty JSON progressively to show partial input as it streams
+		const formattedArgs = (() => {
+			if (!input) return "";
+
+			if (typeof input === "string") {
+				// Dirty JSON - extract what we can and format it
+				const partial = parsePartialJSON(input);
+				return formatArgs(partial);
+			}
+
+			// Valid object
+			return formatArgs(input as Record<string, unknown>);
+		})();
 		const formattedResult = formatResult(result);
 
 		return (

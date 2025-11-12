@@ -43,7 +43,7 @@ export const toolConfigs: Record<string, ToolConfig> = {
 	// Ask tool
 	ask: createDefaultToolDisplay(
 		"Ask",
-		(args) => (args.question ? truncateString(String(args.question), 80) : ""),
+		(args) => (args?.question ? truncateString(String(args.question), 80) : ""),
 		(result) => ({
 			lines: resultToLines(result),
 			summary: undefined,
@@ -53,7 +53,7 @@ export const toolConfigs: Record<string, ToolConfig> = {
 	// Read tool
 	read: createDefaultToolDisplay(
 		"Read",
-		(input) => (input.file_path ? getRelativePath(String(input.file_path)) : ""),
+		(input) => (input?.file_path ? getRelativePath(String(input.file_path)) : ""),
 		(result) => {
 			// Handle undefined/null results
 			if (result === null || result === undefined) {
@@ -81,7 +81,7 @@ export const toolConfigs: Record<string, ToolConfig> = {
 	// Write tool
 	write: createDefaultToolDisplay(
 		"Write",
-		(input) => (input.file_path ? getRelativePath(String(input.file_path)) : ""),
+		(input) => (input?.file_path ? getRelativePath(String(input.file_path)) : ""),
 		(result) => {
 			if (typeof result !== "object" || result === null || !("preview" in result)) {
 				return { lines: resultToLines(result) };
@@ -98,7 +98,7 @@ export const toolConfigs: Record<string, ToolConfig> = {
 	// Edit tool
 	edit: createDefaultToolDisplay(
 		"Update",
-		(input) => (input.file_path ? getRelativePath(String(input.file_path)) : ""),
+		(input) => (input?.file_path ? getRelativePath(String(input.file_path)) : ""),
 		(result) => {
 			if (typeof result !== "object" || result === null || !("diff" in result)) {
 				return { lines: resultToLines(result) };
@@ -120,9 +120,9 @@ export const toolConfigs: Record<string, ToolConfig> = {
 	bash: createDefaultToolDisplay(
 		"Bash",
 		(input) => {
-			const command = input.command ? String(input.command) : "";
-			const cwd = input.cwd ? String(input.cwd) : "";
-			const runInBackground = input.run_in_background;
+			const command = input?.command ? String(input.command) : "";
+			const cwd = input?.cwd ? String(input.cwd) : "";
+			const runInBackground = input?.run_in_background;
 
 			let display = truncateString(command, 80);
 
@@ -173,7 +173,7 @@ export const toolConfigs: Record<string, ToolConfig> = {
 	// Bash output tool
 	"bash-output": createDefaultToolDisplay(
 		"BashOutput",
-		(input) => (input.bash_id ? String(input.bash_id) : ""),
+		(input) => (input?.bash_id ? String(input.bash_id) : ""),
 		(result) => {
 			if (typeof result === "object" && result !== null && "bash_id" in result) {
 				const { stdout, stderr, exitCode, isRunning, duration } = result as any;
@@ -196,7 +196,7 @@ export const toolConfigs: Record<string, ToolConfig> = {
 	// Kill bash tool
 	"kill-bash": createDefaultToolDisplay(
 		"KillBash",
-		(input) => (input.bash_id ? String(input.bash_id) : ""),
+		(input) => (input?.bash_id ? String(input.bash_id) : ""),
 		(result) => {
 			if (typeof result === "object" && result !== null && "message" in result) {
 				const { message } = result as any;
@@ -214,10 +214,10 @@ export const toolConfigs: Record<string, ToolConfig> = {
 	grep: createDefaultToolDisplay(
 		"Search",
 		(input) => {
-			const pattern = input.pattern ? String(input.pattern) : "";
-			const globPattern = input.glob ? String(input.glob) : "";
-			const type = input.type ? String(input.type) : "";
-			const path = input.path ? String(input.path) : "";
+			const pattern = input?.pattern ? String(input.pattern) : "";
+			const globPattern = input?.glob ? String(input.glob) : "";
+			const type = input?.type ? String(input.type) : "";
+			const path = input?.path ? String(input.path) : "";
 
 			let display = `"${truncateString(pattern, 40)}"`;
 
@@ -305,7 +305,7 @@ export const toolConfigs: Record<string, ToolConfig> = {
 	updateTodos: createDefaultToolDisplay(
 		"Tasks",
 		(input) => {
-			const todos = input.todos as any[] | undefined;
+			const todos = input?.todos as any[] | undefined;
 			if (!todos || todos.length === 0) return "";
 
 			const adding = todos.filter((t) => !t.id).length;
