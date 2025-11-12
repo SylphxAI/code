@@ -14,8 +14,6 @@ interface ChatMessagesProps {
 }
 
 export function ChatMessages({ hasSession, messages = [], attachmentTokens }: ChatMessagesProps) {
-	console.log("[ChatMessages] hasSession:", hasSession, "messages:", messages?.length, JSON.stringify(messages?.slice(0, 2)));
-
 	if (!hasSession) {
 		return (
 			<Box paddingY={1} flexDirection="column">

@@ -26,7 +26,7 @@ export function validateProvider(
 		return {
 			type: "not-configured",
 			message:
-				"[ERROR] Provider not configured\\n\\nPlease configure your provider using the /provider command.",
+				"[ERROR] Provider not configured\n\nPlease configure your provider using the /provider command.",
 		};
 	}
 
@@ -34,7 +34,7 @@ export function validateProvider(
 	if (!providerInstance.isConfigured(providerConfig)) {
 		return {
 			type: "invalid-credentials",
-			message: `[ERROR] ${providerInstance.name} is not properly configured\\n\\nPlease check your settings with the /provider command.`,
+			message: `[ERROR] ${providerInstance.name} is not properly configured\n\nPlease check your settings with the /provider command.`,
 		};
 	}
 

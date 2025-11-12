@@ -125,23 +125,18 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 	}, [callbacks]);
 
 	useEffect(() => {
-		console.log("[useEventStream] Effect triggered, sessionId:", currentSessionId, "replayLast:", replayLast);
-
 		// Cleanup previous subscription
 		if (subscriptionRef.current) {
-			console.log("[useEventStream] Cleaning up previous subscription");
 			subscriptionRef.current.unsubscribe();
 			subscriptionRef.current = null;
 		}
 
 		// Skip if no session
 		if (!currentSessionId) {
-			console.log("[useEventStream] No sessionId, skipping subscription");
 			return;
 		}
 
 		// Subscribe to strongly-typed session events
-		console.log("[useEventStream] Creating subscription for session:", currentSessionId);
 		const client = getTRPCClient();
 
 		const subscription = client.message.subscribe.subscribe(
@@ -151,10 +146,6 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 			},
 			{
 				onData: (event: any) => {
-					console.log("[useEventStream] Received event:", event.type);
-					if (event.type === "error") {
-						console.error("[useEventStream] Error details:", event.error);
-					}
 					// Event is directly SessionEvent (no need to unwrap payload)
 
 					// Handle all event types
@@ -290,24 +281,20 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 					}
 				},
 				onError: (error: any) => {
-					console.error("[useEventStream] Subscription error:", error);
 					const errorMessage = error instanceof Error ? error.message : "Event stream error";
 					callbacksRef.current.onError?.(errorMessage);
 					setError(errorMessage);
 				},
 				onComplete: () => {
-					console.log("[useEventStream] Subscription completed");
 					// Stream completed
 				},
 			},
 		);
 
-		console.log("[useEventStream] Subscription created successfully");
 		subscriptionRef.current = subscription;
 
 		// Cleanup on unmount or session change
 		return () => {
-			console.log("[useEventStream] Cleaning up subscription");
 			subscription.unsubscribe();
 			subscriptionRef.current = null;
 		};
