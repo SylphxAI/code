@@ -5,7 +5,7 @@
 
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import { tool, type CoreTool } from "ai";
+import { tool, type Tool } from "ai";
 import { z } from "zod";
 import { bashManager } from "./bash-manager.js";
 
@@ -14,7 +14,7 @@ const execAsync = promisify(exec);
 /**
  * Execute bash command tool
  */
-export const executeBashTool: CoreTool<any, any> = tool({
+export const executeBashTool = tool({
 	description: "Execute a bash command and return its output",
 	inputSchema: z.object({
 		command: z.string().describe("Bash command to execute"),

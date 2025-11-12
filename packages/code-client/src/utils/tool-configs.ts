@@ -72,7 +72,7 @@ export const toolConfigs: Record<string, ToolConfig> = {
 
 			const lines = content.split("\n").filter((line) => line.trim());
 			return {
-				lines: [],
+				lines,
 				summary: `Read ${lines.length} ${pluralize(lines.length, "line")}`,
 			};
 		},
