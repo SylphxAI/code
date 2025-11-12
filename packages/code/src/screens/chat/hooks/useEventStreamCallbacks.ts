@@ -60,9 +60,10 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 	} = deps;
 
 	// Event context parameters (memoized separately for better performance)
+	// Note: currentSessionId is set to null - handlers call getCurrentSessionId() directly
 	const eventContextParams = useMemo<EventHandlerContext>(
 		() => ({
-			currentSessionId: getCurrentSessionId(),
+			currentSessionId: null, // Handlers call getCurrentSessionId() directly
 			updateSessionTitle,
 			setIsStreaming,
 			setIsTitleStreaming,
