@@ -92,13 +92,27 @@ export const writeFileTool = tool({
 		const fileName = file_path.split("/").pop() || "";
 		const lines = content.split("\n");
 
-		return {
-			path: file_path,
-			bytes: Buffer.byteLength(content, "utf8"),
-			fileName,
-			lineCount: lines.length,
-			preview: lines.slice(0, 5), // First 5 lines for preview
-		};
+		// Smart preview: show ~10 lines, or first/last 5 if too long
+		if (lines.length <= 10) {
+			// Short file, return all lines
+			return {
+				path: file_path,
+				bytes: Buffer.byteLength(content, "utf8"),
+				fileName,
+				lineCount: lines.length,
+				preview: lines,
+			};
+		} else {
+			// Long file, return first 5 and last 5 for truncated display
+			return {
+				path: file_path,
+				bytes: Buffer.byteLength(content, "utf8"),
+				fileName,
+				lineCount: lines.length,
+				previewFirst: lines.slice(0, 5),
+				previewLast: lines.slice(-5),
+			};
+		}
 	},
 });
 

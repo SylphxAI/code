@@ -83,13 +83,33 @@ export const toolConfigs = {
 		"Write",
 		(input) => (input?.file_path ? getRelativePath(String(input.file_path)) : ""),
 		(result) => {
-			if (typeof result !== "object" || result === null || !("preview" in result)) {
+			if (typeof result !== "object" || result === null) {
 				return { lines: resultToLines(result) };
 			}
 
-			const { fileName, lineCount, preview } = result as any;
+			const res = result as any;
+			const { fileName, lineCount } = res;
+
+			let displayLines: string[];
+
+			if ("preview" in res) {
+				// Short file (<= 10 lines), show all
+				displayLines = res.preview;
+			} else if ("previewFirst" in res && "previewLast" in res) {
+				// Long file (> 10 lines), show first 5, omitted message, last 5
+				const omittedCount = lineCount - 10;
+				displayLines = [
+					...res.previewFirst,
+					`... ${omittedCount} ${pluralize(omittedCount, "line")} omitted ...`,
+					...res.previewLast,
+				];
+			} else {
+				// Fallback to default
+				return { lines: resultToLines(result) };
+			}
+
 			return {
-				lines: preview,
+				lines: displayLines,
 				summary: `Wrote ${fileName} (${lineCount} ${pluralize(lineCount, "line")})`,
 			};
 		},
