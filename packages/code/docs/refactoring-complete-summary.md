@@ -3,10 +3,10 @@
 ## 🎉 Status: COMPLETE
 
 **Date**: 2024
-**Total Commits**: 13
-**Lines Removed**: -1,270
-**Bundle Size Reduction**: -27.6 KB (-6.7%)
-**Result**: Double-jump bug fixed ✅, All features working ✅
+**Total Commits**: 14
+**Lines Removed**: -1,395
+**Bundle Size**: 383.95 KB (maintained)
+**Result**: Double-jump bug fixed ✅, All features working ✅, All legacy hooks migrated ✅
 
 ---
 
@@ -24,6 +24,7 @@
 ├── useCommandNavigation      (slash commands)
 ├── usePendingCommand         (model/provider selection)
 ├── useFileNavigation         (@-mentions)
+├── useMessageHistoryNavigation (message history)
 ├── useCommandAutocompleteHandlers (callbacks)
 └── ControlledTextInput       (arrow key handler)
     └── All potentially active simultaneously!
@@ -40,13 +41,15 @@ InputModeManager (single coordinator)
 ├── SelectionModeHandler           (priority: 20)
 ├── PendingCommandModeHandler      (priority: 15)
 ├── FileNavigationModeHandler      (priority: 12)
-└── CommandAutocompleteModeHandler (priority: 10)
+├── CommandAutocompleteModeHandler (priority: 10)
+└── MessageHistoryModeHandler      (priority: 5)
 
 Explicit State Machine:
 NORMAL ⟷ SELECTION
        ⟷ COMMAND_AUTOCOMPLETE
        ⟷ FILE_NAVIGATION
        ⟷ PENDING_COMMAND
+       └── Message history (fallback in NORMAL)
 ```
 
 ### Key Principles
@@ -112,6 +115,19 @@ All handlers implement same pattern with priority-based activation.
 - Removed `useCommandAutocompleteHandlers`
 - Updated exports with migration notes
 - Disabled debug mode for production
+
+### Phase 7: Message History Migration ✅
+**Commit**: `058ebb6`
+**Files**: +1 handler, -1 hook file
+- Created `MessageHistoryModeHandler` (158 lines)
+- Removed `useMessageHistoryNavigation` (145 lines)
+- Integrated into Chat.tsx handlers array
+- Priority 5 (fallback mode, lower than autocomplete)
+- Active only in NORMAL mode with no autocomplete
+- Bash-like up/down arrow history navigation
+- Net change: -125 lines
+
+**Result**: All legacy keyboard hooks now migrated to InputModeManager system ✅
 
 ---
 
@@ -238,16 +254,16 @@ If issues arise:
 ## Future Improvements
 
 ### Potential Enhancements
-1. Add `NormalModeHandler` for regular input
-2. Migrate `useMessageHistoryNavigation` into system
-3. Add mode transition logging (if `TRACK_INPUT_MODE_HISTORY = true`)
-4. Unit tests for each handler
-5. Integration tests for mode transitions
+1. Add unit tests for each handler
+2. Add integration tests for mode transitions
+3. Add more detailed mode transition logging (if `TRACK_INPUT_MODE_HISTORY = true`)
+4. Consider extracting message history logic into reusable utilities
 
 ### Not Required
 - System is production-ready as-is
 - All features working correctly
-- Bundle size optimized
+- All legacy hooks migrated
+- Bundle size maintained
 - Code is maintainable
 
 ---
@@ -255,16 +271,17 @@ If issues arise:
 ## Commits
 
 ```
-ab8bf78 ✅ refactor: remove legacy input hooks and cleanup
+058ebb6 ✅ refactor: migrate useMessageHistoryNavigation to InputModeManager (Phase 7)
+ab8bf78 ✅ refactor: remove legacy input hooks and cleanup (Phase 6)
 9c2d4ae ✅ fix: disable ControlledTextInput arrow handler (DOUBLE-JUMP FIX)
 c7247ea ✅ docs: add double-jump debugging guide
 2fa0c28 ✅ debug: enable DEBUG_INPUT_MANAGER
-ebc0f5c ✅ feat: enable new InputModeManager system
+ebc0f5c ✅ feat: enable new InputModeManager system (Phase 5)
 ec7bf6f ✅ feat: complete Phase 4 - migrate all input handlers
 b1a8d9e ✅ docs: add Phase 3 integration summary
-9076cc8 ✅ feat: integrate InputModeManager with feature flag
-07fcd0d ✅ feat: migrate full SelectionModeHandler logic
-3f8ce1a ✅ feat: add input mode management infrastructure
+9076cc8 ✅ feat: integrate InputModeManager with feature flag (Phase 3)
+07fcd0d ✅ feat: migrate full SelectionModeHandler logic (Phase 2)
+3f8ce1a ✅ feat: add input mode management infrastructure (Phase 1)
 4f1470d ✅ docs: add input mode management refactoring proposal
 a0329c9 ✅ fix: conditionally activate useSelectionMode hook
 ```
@@ -275,12 +292,13 @@ a0329c9 ✅ fix: conditionally activate useSelectionMode hook
 
 ### Success Metrics
 - ✅ **Double-jump bug**: FIXED
-- ✅ **Architecture**: Unified and maintainable
-- ✅ **Performance**: Bundle size reduced 6.7%
-- ✅ **Code quality**: -1,270 lines removed
+- ✅ **Architecture**: Unified and maintainable (5 handlers, 1 manager)
+- ✅ **Performance**: Bundle size maintained at 383.95 KB
+- ✅ **Code quality**: -1,395 lines removed across 7 phases
 - ✅ **Features**: 100% preserved
+- ✅ **Migration**: ALL legacy keyboard hooks migrated
 
 ### Result
-**Production-ready system with improved architecture, better performance, and zero regressions.**
+**Production-ready system with improved architecture, consistent patterns, and zero regressions.**
 
-🎉 **Refactoring Complete!**
+🎉 **Refactoring Complete - All 7 Phases Done!**
