@@ -14,6 +14,7 @@ import type {
 	ModelCapability,
 } from "./base-provider.js";
 import which from "which";
+import { execSync } from "node:child_process";
 
 import { ClaudeCodeLanguageModel } from "./claude-code-language-model.js";
 
@@ -29,12 +30,18 @@ export class ClaudeCodeProvider implements AIProvider {
 
 	isConfigured(_config: ProviderConfig): boolean {
 		// Claude Code uses CLI OAuth - check if 'claude' command exists
-		// Using 'which' package: fast, cross-platform, industry standard
+		// Method 1: Try which.sync (fast, but may fail with asdf/nvm)
 		try {
 			which.sync("claude");
 			return true;
 		} catch {
-			return false;
+			// Method 2: Try executing claude --version (more reliable with asdf/nvm)
+			try {
+				execSync("claude --version", { stdio: "ignore", timeout: 2000 });
+				return true;
+			} catch {
+				return false;
+			}
 		}
 	}
 
