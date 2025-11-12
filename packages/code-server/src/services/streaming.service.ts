@@ -237,9 +237,51 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				// 2. Validate provider configuration
 				const validationError = validateProvider(aiConfig, session);
 				if (validationError) {
+					// Create assistant message to display error
+					const assistantMessageId = await messageRepository.addMessage({
+						sessionId,
+						role: "assistant",
+						content: [],
+						status: "error",
+					});
+
+					// Emit assistant message created event
+					observer.next({
+						type: "assistant-message-created",
+						messageId: assistantMessageId,
+					});
+
+					// Create step with error content
+					const stepId = await createMessageStep(
+						messageRepository,
+						assistantMessageId,
+						0,
+						[
+							{
+								type: "error",
+								error: validationError.message,
+								status: "completed",
+							},
+						],
+						"error",
+					);
+
+					// Emit error event
 					observer.next({
 						type: "error",
 						error: validationError.message,
+					});
+
+					// Emit message status updated
+					observer.next({
+						type: "message-status-updated",
+						messageId: assistantMessageId,
+						status: "error",
+					});
+
+					// Complete
+					observer.next({
+						type: "complete",
 					});
 					observer.complete();
 					return;
