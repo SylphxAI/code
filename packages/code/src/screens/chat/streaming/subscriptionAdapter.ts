@@ -175,14 +175,12 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
 		abortControllerRef.current.signal.addEventListener("abort", async () => {
 			try {
-				console.log("[subscriptionAdapter] Abort signal received");
 				logSession("Stream aborted by user");
 				addLog("[Mutation] Aborted by user");
 
 				// Use sessionId from mutation result (available after mutation completes)
 				// Or fall back to currentSessionId if mutation hasn't completed yet
 				const abortSessionId = mutationSessionId || currentSessionId;
-				console.log("[subscriptionAdapter] Notifying server, sessionId:", abortSessionId);
 
 				if (abortSessionId) {
 					try {
@@ -190,7 +188,6 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 						await caller.message.abortStream.mutate({
 							sessionId: abortSessionId,
 						});
-						console.log("[subscriptionAdapter] Server notified successfully");
 						logSession("Server notified of abort");
 					} catch (abortError) {
 						console.error("[subscriptionAdapter] Failed to notify server of abort:", abortError);
@@ -207,7 +204,6 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
 				// DO NOT clean up here - wait for server's abort event
 				// This ensures handleAbort has access to streamingMessageIdRef
-				console.log("[subscriptionAdapter] Waiting for server abort event to complete cleanup");
 			} catch (handlerError) {
 				console.error("[subscriptionAdapter] Error in abort handler:", handlerError);
 				setIsStreaming(false);
