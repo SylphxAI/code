@@ -63,8 +63,8 @@ export default function StatusBar({
 	const usagePercent =
 		contextLength && usedTokens > 0 ? Math.round((usedTokens / contextLength) * 100) : 0;
 
-	// Handle unconfigured state
-	if (!provider || !model) {
+	// Handle unconfigured states
+	if (!provider) {
 		return (
 			<Box flexGrow={1} justifyContent="space-between" marginBottom={1}>
 				<Box>
@@ -74,7 +74,23 @@ export default function StatusBar({
 					</Text>
 				</Box>
 				<Box>
-					<Text color="yellow">⚠ No AI provider configured - use /provider to configure</Text>
+					<Text color="yellow">⚠ No AI provider selected - use /provider to select one</Text>
+				</Box>
+			</Box>
+		);
+	}
+
+	if (!model) {
+		return (
+			<Box flexGrow={1} justifyContent="space-between" marginBottom={1}>
+				<Box>
+					<Text dimColor>
+						{agentName && `${agentName} · `}
+						{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"} · {provider}
+					</Text>
+				</Box>
+				<Box>
+					<Text color="yellow">⚠ No model selected - configure {provider} or use /model to select</Text>
 				</Box>
 			</Box>
 		);

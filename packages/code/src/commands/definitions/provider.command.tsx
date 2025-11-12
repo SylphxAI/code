@@ -234,7 +234,8 @@ export const providerCommand: Command = {
 					console.log("[provider.command] onSelectProvider called:", providerId);
 					// Get fresh zen signal values
 					const { get } = await import("@sylphx/code-client");
-					const { $aiConfig, updateProvider, setAIConfig } = await import("@sylphx/code-client");
+					const { $aiConfig, updateProvider, setAIConfig, setSelectedProvider, setSelectedModel } = await import("@sylphx/code-client");
+					const { getTRPCClient } = await import("@sylphx/code-client");
 					const freshAiConfig = get($aiConfig);
 					console.log("[provider.command] Current aiConfig:", freshAiConfig);
 
@@ -259,9 +260,56 @@ export const providerCommand: Command = {
 
 					const providerConfig = freshAiConfig?.providers?.[providerId] || {};
 					const providerDefaultModel = providerConfig.defaultModel as string;
-					context.addLog(
-						`[provider] Switched to provider: ${providerId} (model: ${providerDefaultModel || "default"}) and saved config`,
-					);
+
+					// If provider has no default model, fetch models and set first one as default
+					if (!providerDefaultModel) {
+						console.log("[provider.command] No defaultModel, fetching models...");
+						try {
+							const trpc = getTRPCClient();
+							const result = await trpc.config.fetchModels.query({ providerId: providerId as any });
+
+							if (result.success && result.models && result.models.length > 0) {
+								const firstModel = result.models[0];
+								console.log("[provider.command] Setting first model as default:", firstModel.id);
+
+								// Update provider config with default model
+								const updatedProviderConfig = {
+									...providerConfig,
+									defaultModel: firstModel.id,
+								};
+
+								const configWithModel = {
+									...updatedConfig,
+									providers: {
+										...updatedConfig.providers,
+										[providerId]: updatedProviderConfig,
+									},
+								};
+
+								setAIConfig(configWithModel);
+								setSelectedModel(firstModel.id);
+								await context.saveConfig(configWithModel);
+
+								context.addLog(
+									`[provider] Switched to provider: ${providerId} (model: ${firstModel.id}) and saved config`,
+								);
+							} else {
+								console.warn("[provider.command] No models available for provider:", providerId);
+								context.addLog(
+									`[provider] Switched to provider: ${providerId} (no models available - configure API key first)`,
+								);
+							}
+						} catch (error) {
+							console.error("[provider.command] Failed to fetch models:", error);
+							context.addLog(
+								`[provider] Switched to provider: ${providerId} (configure API key to see models)`,
+							);
+						}
+					} else {
+						context.addLog(
+							`[provider] Switched to provider: ${providerId} (model: ${providerDefaultModel}) and saved config`,
+						);
+					}
 				}}
 				onConfigureProvider={async (providerId, config) => {
 					const { getTRPCClient } = await import("@sylphx/code-client");
