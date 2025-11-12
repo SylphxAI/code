@@ -8,7 +8,13 @@
  */
 
 import type { InputFormatter, ResultFormatter } from "@sylphx/code-core";
-import { truncateString, getRelativePath, isDefaultCwd, pluralize } from "@sylphx/code-core";
+import {
+	truncateString,
+	getRelativePath,
+	isDefaultCwd,
+	pluralize,
+	formatDiffLine,
+} from "@sylphx/code-core";
 import { createDefaultToolDisplay } from "../components/DefaultToolDisplay.js";
 import type { ToolDisplayProps, ToolConfig } from "../types/tool.types.js";
 
@@ -108,7 +114,7 @@ export const toolConfigs = {
 				return { lines: resultToLines(result) };
 			}
 
-			// Add line numbers using diff format with + marker (all lines are additions)
+			// Add line numbers using shared diff formatter (all lines marked as additions)
 			const formattedLines = displayLines.map((line, i) => {
 				// For long files with omitted section, handle the omitted message specially
 				if (line.startsWith("...") && line.includes("omitted")) {
@@ -119,7 +125,7 @@ export const toolConfigs = {
 					"previewFirst" in res && i > res.previewFirst.length
 						? lineCount - (displayLines.length - i - 1)
 						: i + 1;
-				return `${lineNum.toString().padStart(6)} + ${line}`;
+				return formatDiffLine(lineNum, "+", line);
 			});
 
 			return {

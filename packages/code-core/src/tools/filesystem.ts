@@ -7,6 +7,7 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import { tool } from "ai";
 import { z } from "zod";
+import { formatDiffLine } from "../utils/diff-formatter.js";
 
 /**
  * Read file tool with size limits to prevent crashes
@@ -179,7 +180,7 @@ export const editFileTool = tool({
 		// Count replacements
 		const occurrences = replace_all ? content.split(old_string).length - 1 : 1;
 
-		// Generate diff lines for display
+		// Generate diff lines for display using shared formatter
 		const contextLines = lines.slice(startLine, endLine);
 		const diffLines: string[] = [];
 
@@ -194,16 +195,16 @@ export const editFileTool = tool({
 
 				// Show removed lines
 				oldLines.forEach((oldLine) => {
-					diffLines.push(`${currentLineNum.toString().padStart(6)} - ${oldLine}`);
+					diffLines.push(formatDiffLine(currentLineNum, "-", oldLine));
 				});
 
 				// Show added lines
 				newLines.forEach((newLine) => {
-					diffLines.push(`${currentLineNum.toString().padStart(6)} + ${newLine}`);
+					diffLines.push(formatDiffLine(currentLineNum, "+", newLine));
 				});
 			} else {
 				// Context line
-				diffLines.push(`${currentLineNum.toString().padStart(6)}   ${line}`);
+				diffLines.push(formatDiffLine(currentLineNum, " ", line));
 			}
 		}
 

@@ -17,6 +17,8 @@
 
 export * from "./cache-storage.js";
 export * from "./database-errors.js";
+// Diff formatting utilities
+export * from "./diff-formatter.js";
 // Database utilities
 export * from "./drizzle-storage.js";
 // Error handling
