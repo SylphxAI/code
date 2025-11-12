@@ -634,24 +634,30 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 						hasEmittedAnyEvent = true;
 						observer.next({ type: "reasoning-end", duration });
 					},
-					onToolCall: (toolCallId, toolName, args) =>
-						observer.next({ type: "tool-call", toolCallId, toolName, args }),
-					onToolResult: (toolCallId, toolName, result, duration) =>
+					onToolCall: (toolCallId, toolName, args) => {
+						hasEmittedAnyEvent = true;
+						observer.next({ type: "tool-call", toolCallId, toolName, input: args });
+					},
+					onToolResult: (toolCallId, toolName, result, duration) => {
+						hasEmittedAnyEvent = true;
 						observer.next({
 							type: "tool-result",
 							toolCallId,
 							toolName,
 							result,
 							duration,
-						}),
-					onToolError: (toolCallId, toolName, error, duration) =>
+						});
+					},
+					onToolError: (toolCallId, toolName, error, duration) => {
+						hasEmittedAnyEvent = true;
 						observer.next({
 							type: "tool-error",
 							toolCallId,
 							toolName,
 							error,
 							duration,
-						}),
+						});
+					},
 					onFile: (mediaType, base64) => {
 						observer.next({ type: "file", mediaType, base64 });
 					},
