@@ -108,8 +108,11 @@ export const toolConfigs = {
 				return { lines: resultToLines(result) };
 			}
 
+			// Add visual indicator to distinguish file content from assistant text
+			const formattedLines = displayLines.map((line) => `│ ${line}`);
+
 			return {
-				lines: displayLines,
+				lines: formattedLines,
 				summary: `Wrote ${fileName} (${lineCount} ${pluralize(lineCount, "line")})`,
 			};
 		},
