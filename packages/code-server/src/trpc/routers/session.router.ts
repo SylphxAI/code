@@ -120,11 +120,25 @@ export const sessionRouter = router({
 			}),
 		)
 		.mutation(async ({ ctx, input }) => {
+			// If no enabledRuleIds provided, use rules with enabled: true in metadata
+			let enabledRuleIds = input.enabledRuleIds;
+
+			if (!enabledRuleIds) {
+				// Load all rules and filter by enabled: true
+				const { loadAllRules } = await import("@sylphx/code-core");
+				const cwd = process.cwd();
+				const allRules = await loadAllRules(cwd);
+
+				enabledRuleIds = allRules
+					.filter((rule) => rule.metadata.enabled === true)
+					.map((rule) => rule.id);
+			}
+
 			const session = await ctx.sessionRepository.createSession(
 				input.provider,
 				input.model,
 				input.agentId || "coder",
-				input.enabledRuleIds || [], // Initialize with provided rules or empty
+				enabledRuleIds,
 			);
 
 			// Publish to event stream for multi-client sync

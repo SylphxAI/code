@@ -7,6 +7,7 @@
  */
 
 import { useInput } from "ink";
+import { useEffect, useRef } from "react";
 import type React from "react";
 import type { WaitForInputOptions } from "../../types/command-types.js";
 
@@ -77,10 +78,53 @@ export function useSelectionMode(options: UseSelectionModeOptions) {
 		getAIConfig,
 	} = options;
 
+	console.log("[useSelectionMode] Hook render - pendingInput:", !!pendingInput, "type:", pendingInput?.type);
+
+	// Track initialized questions to avoid re-initialization
+	const initializedQuestionsRef = useRef<Set<string>>(new Set());
+
+	// Initialize multiSelectChoices when pendingInput first appears with multi-select question
+	// This ensures preSelected items are checked by default
+	useEffect(() => {
+		if (!pendingInput || pendingInput.type !== "selection") {
+			return;
+		}
+
+		const currentQuestion = pendingInput.questions[multiSelectionPage];
+		if (!currentQuestion?.multiSelect) {
+			return;
+		}
+
+		// Check if already initialized this question
+		const questionKey = `${multiSelectionPage}-${currentQuestion.id}`;
+		if (initializedQuestionsRef.current.has(questionKey)) {
+			return;
+		}
+
+		// Only initialize if there's a preSelected array
+		const preSelected = currentQuestion.preSelected;
+		if (!preSelected || preSelected.length === 0) {
+			return;
+		}
+
+		// Mark as initialized and set choices
+		initializedQuestionsRef.current.add(questionKey);
+		setMultiSelectChoices(new Set(preSelected));
+	}, [pendingInput, multiSelectionPage, setMultiSelectChoices]);
+
 	useInput(
 		async (char, key) => {
+			// DEBUG: Log every keystroke to verify hook is executing
+			console.log("[useSelectionMode] Key pressed:", { char, key: Object.keys(key).filter(k => key[k]) });
+			console.log("[useSelectionMode] State:", {
+				hasPendingInput: !!pendingInput,
+				type: pendingInput?.type,
+				hasResolver: !!inputResolver.current
+			});
+
 			// Only handle when pendingInput is selection mode
 			if (!pendingInput || pendingInput.type !== "selection" || !inputResolver.current) {
+				console.log("[useSelectionMode] Guard failed, returning false");
 				return false;
 			}
 
@@ -369,23 +413,31 @@ export function useSelectionMode(options: UseSelectionModeOptions) {
 			}
 
 			// Space - toggle multi-select choice (only for multi-select questions and NOT in filter mode)
-			if (char === " " && currentQuestion?.multiSelect && !isFilterMode) {
-				const selectedOption = filteredOptions[selectedCommandIndex];
-				if (selectedOption) {
-					const selectedValue = selectedOption.value || selectedOption.label;
-					setMultiSelectChoices((prev) => {
-						const newChoices = new Set(prev);
-						if (newChoices.has(selectedValue)) {
-							newChoices.delete(selectedValue);
-							addLog(`[multi-select] Unchecked: ${selectedValue}`);
-						} else {
-							newChoices.add(selectedValue);
-							addLog(`[multi-select] Checked: ${selectedValue}`);
-						}
-						return newChoices;
-					});
+			if (char === " ") {
+				addLog(`[multi-select] Space pressed - multiSelect: ${currentQuestion?.multiSelect}, isFilterMode: ${isFilterMode}, selectedCommandIndex: ${selectedCommandIndex}, filteredOptionsCount: ${filteredOptions.length}`);
+
+				if (currentQuestion?.multiSelect && !isFilterMode) {
+					const selectedOption = filteredOptions[selectedCommandIndex];
+					if (selectedOption) {
+						const selectedValue = selectedOption.value || selectedOption.label;
+						setMultiSelectChoices((prev) => {
+							const newChoices = new Set(prev);
+							if (newChoices.has(selectedValue)) {
+								newChoices.delete(selectedValue);
+								addLog(`[multi-select] Unchecked: ${selectedValue}`);
+							} else {
+								newChoices.add(selectedValue);
+								addLog(`[multi-select] Checked: ${selectedValue}`);
+							}
+							return newChoices;
+						});
+					} else {
+						addLog(`[multi-select] No selected option at index ${selectedCommandIndex}`);
+					}
+					return true;
+				} else {
+					addLog(`[multi-select] Space not handled - conditions not met`);
 				}
-				return true;
 			}
 
 			// === Enter - select option / confirm multi-select / enter free text mode ===

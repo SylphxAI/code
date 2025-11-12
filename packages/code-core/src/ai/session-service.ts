@@ -59,6 +59,20 @@ export async function getOrCreateSession(
 	const config = configResult.data;
 	const configuredProviders = await getConfiguredProviders(cwd);
 
+	// Load default enabled rules
+	const { loadAllRules } = await import("./rule-loader.js");
+	const allRules = await loadAllRules(cwd);
+
+	// Get enabled rule IDs from config or default to rules with enabled: true
+	let enabledRuleIds: string[] = config.defaultEnabledRuleIds || [];
+
+	// If no config, use rules that have enabled: true in their metadata
+	if (enabledRuleIds.length === 0) {
+		enabledRuleIds = allRules
+			.filter((rule) => rule.metadata.enabled === true)
+			.map((rule) => rule.id);
+	}
+
 	if (configuredProviders.length === 0) {
 		console.error(chalk.yellow("\n⚠️  No AI provider configured\n"));
 		console.error(chalk.dim("Run: sylphx code (to configure AI)\n"));
@@ -103,8 +117,8 @@ export async function getOrCreateSession(
 		return null;
 	}
 
-	// Create new session in database
-	return await repository.createSession(providerId, modelName);
+	// Create new session in database with default enabled rules
+	return await repository.createSession(providerId, modelName, "coder", enabledRuleIds);
 }
 
 /**

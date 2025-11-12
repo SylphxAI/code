@@ -142,6 +142,6 @@ export function useCommandNavigation(options: UseCommandNavigationOptions) {
 
 			return false; // Not our concern
 		},
-		{ isActive: true },
+		{ isActive: !pendingInput }, // Disable when in selection/text input mode
 	);
 }

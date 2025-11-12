@@ -102,6 +102,6 @@ export function usePendingCommand(options: UsePendingCommandOptions) {
 
 			return false; // Not our concern
 		},
-		{ isActive: true },
+		{ isActive: !pendingInput }, // Disable when in selection/text input mode
 	);
 }

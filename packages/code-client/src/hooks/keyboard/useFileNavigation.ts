@@ -114,6 +114,6 @@ export function useFileNavigation(options: UseFileNavigationOptions) {
 
 			return false; // Not our concern
 		},
-		{ isActive: true },
+		{ isActive: !pendingInput }, // Disable when in selection/text input mode
 	);
 }
