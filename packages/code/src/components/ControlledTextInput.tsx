@@ -338,30 +338,32 @@ function ControlledTextInput({
 	// Separate useInput for Up/Down arrows
 	// If onUpArrow/onDownArrow callbacks are provided, call them (autocomplete mode)
 	// Otherwise, perform default behavior (cursor movement accounting for wrapping)
+	// DISABLED when USE_NEW_INPUT_MANAGER is enabled (new system handles this)
 	useInput(
 		(input, key) => {
 			if (key.upArrow) {
 				if (onUpArrow) {
 					onUpArrow();
-					return;
+					return true; // Consume event
 				} else if (!disableUpDownArrows) {
 					const newCursor = Wrapping.moveCursorUpPhysical(value, cursor, availableWidth);
 					onCursorChange(newCursor);
-					return;
+					return true; // Consume event
 				}
 			}
 			if (key.downArrow) {
 				if (onDownArrow) {
 					onDownArrow();
-					return;
+					return true; // Consume event
 				} else if (!disableUpDownArrows) {
 					const newCursor = Wrapping.moveCursorDownPhysical(value, cursor, availableWidth);
 					onCursorChange(newCursor);
-					return;
+					return true; // Consume event
 				}
 			}
+			return false; // Don't consume
 		},
-		{ isActive: focus },
+		{ isActive: false }, // DISABLED - new InputModeManager handles all arrow keys
 	);
 
 	// Empty with placeholder
