@@ -108,7 +108,7 @@ export const toolConfigs = {
 				return { lines: resultToLines(result) };
 			}
 
-			// Add line numbers using diff format (matches edit tool style)
+			// Add line numbers using diff format with + marker (all lines are additions)
 			const formattedLines = displayLines.map((line, i) => {
 				// For long files with omitted section, handle the omitted message specially
 				if (line.startsWith("...") && line.includes("omitted")) {
@@ -119,7 +119,7 @@ export const toolConfigs = {
 					"previewFirst" in res && i > res.previewFirst.length
 						? lineCount - (displayLines.length - i - 1)
 						: i + 1;
-				return `${lineNum.toString().padStart(6)}   ${line}`;
+				return `${lineNum.toString().padStart(6)} + ${line}`;
 			});
 
 			return {
