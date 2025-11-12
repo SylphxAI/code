@@ -61,6 +61,7 @@ import { useCommandState } from "./chat/hooks/useCommandState.js";
 import { useInputState } from "./chat/hooks/useInputState.js";
 import { useSelectionState } from "./chat/hooks/useSelectionState.js";
 import { useStreamingState } from "./chat/hooks/useStreamingState.js";
+import { useFileAutocompleteHandlers } from "./chat/hooks/useFileAutocompleteHandlers.js";
 // Feature flags
 import { USE_NEW_INPUT_MANAGER, DEBUG_INPUT_MANAGER } from "../config/features.js";
 // Keyboard hooks (local to code package to work with Ink)
@@ -687,47 +688,22 @@ export default function Chat(_props: ChatProps) {
 	const handleCommandAutocompleteUpArrow = undefined;
 	const handleCommandAutocompleteDownArrow = undefined;
 
-	// File autocomplete handlers
-	const handleFileAutocompleteSelect = () => {
-		if (filteredFileInfo.files.length === 0) return;
-
-		const selectedFile = filteredFileInfo.files[selectedFileIndex];
-		if (!selectedFile) return;
-
-		// Add file to attachments
-		addAttachment({
-			path: selectedFile.path,
-			relativePath: selectedFile.relativePath,
-			size: selectedFile.size,
-		});
-
-		// Replace @query with @relativePath and space
-		const beforeAt = input.slice(0, filteredFileInfo.atIndex);
-		const afterQuery = input.slice(filteredFileInfo.atIndex + 1 + filteredFileInfo.query.length);
-		const newInput = `${beforeAt}@${selectedFile.relativePath} ${afterQuery}`;
-
-		setInput(newInput);
-		setCursor(filteredFileInfo.atIndex + 1 + selectedFile.relativePath.length + 1);
-		setSelectedFileIndex(0);
-	};
-
-	const handleFileAutocompleteTab = () => {
-		handleFileAutocompleteSelect();
-	};
-
-	const handleFileAutocompleteEnter = () => {
-		handleFileAutocompleteSelect();
-	};
-
-	const handleFileAutocompleteUpArrow = () => {
-		if (filteredFileInfo.files.length === 0) return;
-		setSelectedFileIndex((prev) => (prev === 0 ? filteredFileInfo.files.length - 1 : prev - 1));
-	};
-
-	const handleFileAutocompleteDownArrow = () => {
-		if (filteredFileInfo.files.length === 0) return;
-		setSelectedFileIndex((prev) => (prev === filteredFileInfo.files.length - 1 ? 0 : prev + 1));
-	};
+	// File autocomplete handlers - extracted to hook for reusability
+	const {
+		handleSelect: handleFileAutocompleteSelect,
+		handleTab: handleFileAutocompleteTab,
+		handleEnter: handleFileAutocompleteEnter,
+		handleUpArrow: handleFileAutocompleteUpArrow,
+		handleDownArrow: handleFileAutocompleteDownArrow,
+	} = useFileAutocompleteHandlers({
+		filteredFileInfo,
+		selectedFileIndex,
+		input,
+		setInput,
+		setCursor,
+		setSelectedFileIndex,
+		addAttachment,
+	});
 
 	// Message history navigation - now handled by MessageHistoryModeHandler in InputModeManager
 
