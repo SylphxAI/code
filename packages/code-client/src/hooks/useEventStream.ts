@@ -152,6 +152,9 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 			{
 				onData: (event: any) => {
 					console.log("[useEventStream] Received event:", event.type);
+					if (event.type === "error") {
+						console.error("[useEventStream] Error details:", event.error);
+					}
 					// Event is directly SessionEvent (no need to unwrap payload)
 
 					// Handle all event types
