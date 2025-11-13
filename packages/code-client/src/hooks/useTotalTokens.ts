@@ -98,5 +98,36 @@ export function useTotalTokens(
 		};
 	}, [trpc, sessionId, provider, model, agentId, JSON.stringify(enabledRuleIds)]);
 
+	// Subscribe to token update events (real-time sync)
+	// This ensures StatusBar updates immediately when tokens change
+	// (e.g., after streaming completes, after /context calculation)
+	useEffect(() => {
+		if (!sessionId) return;
+
+		const { eventBus } = require("../lib/event-bus.js");
+
+		const unsubscribe = eventBus.on("streaming:completed", () => {
+			// Refetch tokens after streaming completes
+			console.log("[useTotalTokens] Streaming completed, refetching...");
+			if (provider && model) {
+				trpc.session
+					.getTotalTokens.query({
+						sessionId,
+						model,
+						agentId: agentId || "coder",
+						enabledRuleIds: enabledRuleIds || [],
+					})
+					.then((result) => {
+						if (result.success) {
+							setTotalTokens(result.totalTokens);
+						}
+					})
+					.catch(console.error);
+			}
+		});
+
+		return unsubscribe;
+	}, [trpc, sessionId, provider, model, agentId, enabledRuleIds]);
+
 	return totalTokens;
 }
