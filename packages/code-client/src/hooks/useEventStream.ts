@@ -30,6 +30,7 @@ export interface EventStreamCallbacks {
 	onSessionTitleComplete?: (sessionId: string, title: string) => void;
 
 	// Message events
+	onUserMessageCreated?: (messageId: string, content: string) => void;
 	onAssistantMessageCreated?: (messageId: string) => void;
 	onSystemMessageCreated?: (messageId: string, content: string) => void;
 	onMessageStatusUpdated?: (
@@ -183,6 +184,11 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 							}
 							callbacksRef.current.onSessionTitleComplete?.(event.sessionId, event.title);
 							break;
+
+					case "user-message-created":
+						console.log("[useEventStream] user-message-created event:", event);
+						callbacksRef.current.onUserMessageCreated?.(event.messageId, event.content);
+						break;
 
 						case "assistant-message-created":
 							callbacksRef.current.onAssistantMessageCreated?.(event.messageId);

@@ -124,6 +124,13 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 
 			// Message streaming callbacks - unified event stream path
 			// All events go through handleStreamEvent (no dual-path complexity)
+		onUserMessageCreated: (messageId: string, content: string) => {
+			console.log("[Chat] onUserMessageCreated callback fired:", { messageId, content: content.substring(0, 100) });
+			handleStreamEvent(
+				{ type: "user-message-created", messageId, content },
+				eventContextParams,
+			);
+		},
 			onAssistantMessageCreated: (messageId: string) => {
 				handleStreamEvent({ type: "assistant-message-created", messageId }, eventContextParams);
 			},
