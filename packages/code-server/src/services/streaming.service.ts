@@ -441,7 +441,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 													if (toolPart && toolPart.type === "tool") {
 														// Update with AI SDK's wrapped format
-														toolPart.result = content.result; // Store wrapped format
+														toolPart.result = content.output; // Store wrapped format
 													}
 												}
 											}
@@ -1117,7 +1117,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 											if (toolPart && toolPart.type === "tool") {
 												// Update with AI SDK's wrapped format
-												toolPart.result = content.result; // Store wrapped format
+												toolPart.result = content.output; // Store wrapped format
 											}
 										}
 									}
