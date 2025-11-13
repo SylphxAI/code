@@ -44,14 +44,11 @@ export type {
 } from "./ai/system-messages/registry.js";
 
 // ============================================================================
-// Agent Manager (Pure Functions Only)
+// Agent Management (Pure Functions)
 // ============================================================================
 export { DEFAULT_AGENT_ID } from "./ai/builtin-agents.js";
 export { loadAllAgents } from "./ai/agent-loader.js";
-
-// NOTE: Global state functions removed (moved to code-server AppContext):
-// - initializeAgentManager, getAllAgents, getAgentById, reloadAgents
-// Use AgentManagerService from code-server/src/context.ts instead
+// Use AgentManagerService from code-server/src/context.ts for stateful operations
 
 // ============================================================================
 // System Prompt Builder
@@ -59,15 +56,10 @@ export { loadAllAgents } from "./ai/agent-loader.js";
 export { buildSystemPrompt } from "./ai/system-prompt-builder.js";
 
 // ============================================================================
-// Rule Manager (Pure Functions Only)
+// Rule Management (Pure Functions)
 // ============================================================================
 export { loadAllRules } from "./ai/rule-loader.js";
-
-// NOTE: Global state functions removed (moved to code-server AppContext):
-// - initializeRuleManager, getAllRules, getRuleById, getEnabledRuleIds,
-//   getEnabledRules, toggleRule, enableRule, disableRule, setEnabledRules
-// - setRuleAppStoreGetter (horror anti-pattern removed)
-// Use RuleManagerService from code-server/src/context.ts instead
+// Use RuleManagerService from code-server/src/context.ts for stateful operations
 
 // ============================================================================
 // Providers
@@ -98,9 +90,7 @@ export {
 export { events } from "./database/schema.js";
 export type { Event, NewEvent } from "./database/schema.js";
 
-// NOTE: Global state functions removed (moved to code-server AppContext):
-// - getDatabase, getSessionRepository
-// Use DatabaseService from code-server/src/context.ts instead
+// Use DatabaseService from code-server/src/context.ts for database access
 
 // ============================================================================
 // Configuration
@@ -264,7 +254,8 @@ export {
 	type CompactResult,
 } from "./ai/compact-service.js";
 export { createHeadlessDisplay } from "./ai/headless-display.js";
-export { addMessage } from "./utils/session-manager.js";
+// Legacy file-based session management (deprecated, use SessionRepository for new code)
+export { addMessage } from "./utils/legacy-session-manager.js";
 
 // ============================================================================
 // Utils

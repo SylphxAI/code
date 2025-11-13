@@ -1,6 +1,19 @@
 /**
- * Session Manager
- * Manage chat sessions for headless mode
+ * Legacy Session Manager (File-Based Sessions)
+ *
+ * @deprecated This module is kept for backward compatibility with headless mode only.
+ *
+ * For new development, use:
+ * - Database Sessions: code-core/src/database/session-repository.ts
+ * - AppContext Services: code-server/src/context.ts
+ *
+ * Legacy file-based sessions stored in: ~/.sylphx/sessions/
+ * Main database sessions stored in: SQLite database
+ *
+ * Migration Guide:
+ * 1. File sessions are simple: { id, provider, model, messages[], todos[], created, updated }
+ * 2. Database sessions support: multi-step messages, file references, system messages, metadata
+ * 3. To migrate: Load file session, create database session via SessionRepository
  */
 
 import { readFile, writeFile, mkdir } from "node:fs/promises";

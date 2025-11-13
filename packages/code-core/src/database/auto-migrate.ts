@@ -19,7 +19,7 @@ import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { sql } from "drizzle-orm";
 import { SessionRepository } from "./session-repository.js";
-import { loadSession } from "../utils/session-manager.js";
+import { loadSession } from "../utils/legacy-session-manager.js";
 import { findPackageRoot } from "../utils/paths.js";
 
 const SESSION_DIR = join(homedir(), ".sylphx", "sessions");
