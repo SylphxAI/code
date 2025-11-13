@@ -131,6 +131,13 @@ export {
 } from "./utils/settings.js";
 export type { ProjectSettings } from "./utils/settings.js";
 
+// Context Reserve Calculator
+export {
+	calculateReservedTokens,
+	calculateReservePercent,
+	getReserveBreakdown,
+} from "./utils/context-reserve.js";
+
 // ============================================================================
 // Credential Management (Normalized Credential System)
 // ============================================================================

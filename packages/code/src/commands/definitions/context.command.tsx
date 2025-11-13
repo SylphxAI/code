@@ -15,7 +15,7 @@ export const contextCommand: Command = {
 			console.log("[Context] Command starting...");
 			commandContext.addLog("[Context] Starting context calculation...");
 
-			const { formatTokenCount } = await import("@sylphx/code-core");
+			const { formatTokenCount, calculateReservedTokens } = await import("@sylphx/code-core");
 			const { get, getTRPCClient } = await import("@sylphx/code-client");
 			const {
 				$currentSession,
@@ -141,7 +141,8 @@ export const contextCommand: Command = {
 			// Calculate totals and percentages
 			const usedTokens = systemPromptTokens + toolsTokensTotal + messagesTokens;
 			const freeTokens = contextLimit - usedTokens;
-			const autocompactBuffer = Math.floor(contextLimit * 0.225); // 22.5%
+			// Use smart reserve calculation (scales with model size)
+			const autocompactBuffer = calculateReservedTokens(contextLimit);
 			const realFreeTokens = freeTokens - autocompactBuffer;
 
 			const usedPercent = ((usedTokens / contextLimit) * 100).toFixed(1);
