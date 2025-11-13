@@ -20,6 +20,21 @@ export interface ProjectSettings {
 	 * Default: true (accurate)
 	 */
 	useAccurateTokenizer?: boolean;
+	/**
+	 * Context reserve ratio (0-1)
+	 * Percentage of context to reserve for:
+	 * - Tokenizer error margin (~10% of reserve, ~1% of total)
+	 * - AI summary output during compact (~90% of reserve, ~9% of total)
+	 *
+	 * Default: 0.10 (10%)
+	 * Range: 0.05 (5%, minimal) to 0.20 (20%, very safe)
+	 *
+	 * Examples:
+	 * - 0.05 (5%):  Minimal reserve, more usable space, risk of hitting limits
+	 * - 0.10 (10%): Balanced (recommended)
+	 * - 0.15 (15%): Conservative, better summary quality for large contexts
+	 */
+	contextReserveRatio?: number;
 }
 
 /**
@@ -29,6 +44,7 @@ const ProjectSettingsSchema = z.object({
 	defaultTarget: z.string().optional(),
 	version: z.string().optional(),
 	useAccurateTokenizer: z.boolean().optional().default(true),
+	contextReserveRatio: z.number().min(0.01).max(0.50).optional().default(0.10),
 }).passthrough(); // Allow additional fields for forward compatibility
 
 const SETTINGS_FILE = ".sylphx-code/settings.json";

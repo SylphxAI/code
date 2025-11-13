@@ -7,138 +7,153 @@ import {
 	calculateReservedTokens,
 	calculateReservePercent,
 	getReserveBreakdown,
+	getSummaryMaxTokens,
+	DEFAULT_CONTEXT_RESERVE_RATIO,
 } from "../context-reserve.js";
 
 describe("calculateReservedTokens", () => {
-	it("should handle small models (<= 128K) with base reserve", () => {
-		// 64K model: 12.8K reserved (20%)
-		expect(calculateReservedTokens(64_000)).toBe(12_800);
-
-		// 128K model: 20K reserved (15.6%)
-		expect(calculateReservedTokens(128_000)).toBe(20_000);
+	it("should calculate 10% reserve by default", () => {
+		expect(calculateReservedTokens(64_000)).toBe(6_400); // 10%
+		expect(calculateReservedTokens(128_000)).toBe(12_800); // 10%
+		expect(calculateReservedTokens(256_000)).toBe(25_600); // 10%
+		expect(calculateReservedTokens(1_000_000)).toBe(100_000); // 10%
+		expect(calculateReservedTokens(2_000_000)).toBe(200_000); // 10%
 	});
 
-	it("should scale proportionally for large models", () => {
-		// 256K model: 20K + (128K * 5%) = 26.4K (10.3%)
-		expect(calculateReservedTokens(256_000)).toBe(26_400);
+	it("should support custom reserve ratios", () => {
+		// 5% reserve
+		expect(calculateReservedTokens(128_000, 0.05)).toBe(6_400);
+		expect(calculateReservedTokens(2_000_000, 0.05)).toBe(100_000);
 
-		// 512K model: 20K + (384K * 5%) = 39.2K (7.7%)
-		expect(calculateReservedTokens(512_000)).toBe(39_200);
-
-		// 1M model: 20K + (872K * 5%) = 63.6K (6.4%)
-		expect(calculateReservedTokens(1_000_000)).toBe(63_600);
-
-		// 2M model: 20K + (1.872M * 5%) = 113.6K (5.7%)
-		expect(calculateReservedTokens(2_000_000)).toBe(113_600);
+		// 15% reserve
+		expect(calculateReservedTokens(128_000, 0.15)).toBe(19_200);
+		expect(calculateReservedTokens(2_000_000, 0.15)).toBe(300_000);
 	});
 
 	it("should be more economical than old 22.5% approach", () => {
 		const oldApproach = (limit: number) => Math.floor(limit * 0.225);
 
-		// 256K: saves 31.2K
-		expect(oldApproach(256_000) - calculateReservedTokens(256_000)).toBe(31_200);
+		// 128K: saves 16K
+		expect(oldApproach(128_000) - calculateReservedTokens(128_000)).toBe(16_000);
 
-		// 1M: saves 161.4K
-		expect(oldApproach(1_000_000) - calculateReservedTokens(1_000_000)).toBe(161_400);
+		// 256K: saves 32K
+		expect(oldApproach(256_000) - calculateReservedTokens(256_000)).toBe(32_000);
 
-		// 2M: saves 336.4K!
-		expect(oldApproach(2_000_000) - calculateReservedTokens(2_000_000)).toBe(336_400);
+		// 1M: saves 125K
+		expect(oldApproach(1_000_000) - calculateReservedTokens(1_000_000)).toBe(125_000);
+
+		// 2M: saves 250K!
+		expect(oldApproach(2_000_000) - calculateReservedTokens(2_000_000)).toBe(250_000);
 	});
 
 	it("should handle edge cases", () => {
 		// Very small model
-		expect(calculateReservedTokens(10_000)).toBe(2_000); // 20%
-
-		// Exactly at baseline
-		expect(calculateReservedTokens(128_000)).toBe(20_000);
+		expect(calculateReservedTokens(10_000)).toBe(1_000); // 10%
 
 		// Very large model (10M)
-		expect(calculateReservedTokens(10_000_000)).toBe(513_600); // Still only 5.1%
+		expect(calculateReservedTokens(10_000_000)).toBe(1_000_000); // Still 10%
 	});
 });
 
 describe("calculateReservePercent", () => {
 	it("should return correct percentages", () => {
-		// 64K: 20%
-		expect(calculateReservePercent(64_000)).toBeCloseTo(20, 1);
-
-		// 128K: 15.6%
-		expect(calculateReservePercent(128_000)).toBeCloseTo(15.6, 1);
-
-		// 256K: 10.3%
-		expect(calculateReservePercent(256_000)).toBeCloseTo(10.3, 1);
-
-		// 2M: 5.7%
-		expect(calculateReservePercent(2_000_000)).toBeCloseTo(5.7, 1);
-	});
-
-	it("should show decreasing percentage as size increases", () => {
-		const percent64K = calculateReservePercent(64_000);
-		const percent128K = calculateReservePercent(128_000);
-		const percent256K = calculateReservePercent(256_000);
-		const percent1M = calculateReservePercent(1_000_000);
-		const percent2M = calculateReservePercent(2_000_000);
-
-		// Percentage should decrease as size increases
-		expect(percent64K).toBeGreaterThan(percent128K);
-		expect(percent128K).toBeGreaterThan(percent256K);
-		expect(percent256K).toBeGreaterThan(percent1M);
-		expect(percent1M).toBeGreaterThan(percent2M);
+		expect(calculateReservePercent()).toBe(10); // Default 10%
+		expect(calculateReservePercent(0.05)).toBe(5); // 5%
+		expect(calculateReservePercent(0.15)).toBe(15); // 15%
+		expect(calculateReservePercent(0.20)).toBe(20); // 20%
 	});
 });
 
 describe("getReserveBreakdown", () => {
-	it("should provide detailed breakdown for small models", () => {
-		const breakdown = getReserveBreakdown(64_000);
+	it("should provide detailed breakdown for 128K model", () => {
+		const breakdown = getReserveBreakdown(128_000);
 
 		expect(breakdown).toEqual({
-			contextLimit: 64_000,
-			baseReserved: 12_800,
-			extraReserved: 0,
+			contextLimit: 128_000,
+			reserveRatio: 0.10,
 			totalReserved: 12_800,
-			reservePercent: 20,
+			reservePercent: 10,
+			tokenizerErrorMargin: 1_280, // 10% of reserve
+			summaryOutputSpace: 11_520, // 90% of reserve
 		});
 	});
 
-	it("should provide detailed breakdown for large models", () => {
-		const breakdown = getReserveBreakdown(256_000);
-
-		expect(breakdown).toEqual({
-			contextLimit: 256_000,
-			baseReserved: 20_000,
-			extraReserved: 6_400, // (256K - 128K) * 5%
-			totalReserved: 26_400,
-			reservePercent: expect.closeTo(10.3, 1),
-		});
-	});
-
-	it("should show correct breakdown for 2M model", () => {
+	it("should provide detailed breakdown for 2M model", () => {
 		const breakdown = getReserveBreakdown(2_000_000);
 
 		expect(breakdown.contextLimit).toBe(2_000_000);
-		expect(breakdown.baseReserved).toBe(20_000);
-		expect(breakdown.extraReserved).toBe(93_600); // (2M - 128K) * 5%
-		expect(breakdown.totalReserved).toBe(113_600);
-		expect(breakdown.reservePercent).toBeCloseTo(5.7, 1);
+		expect(breakdown.reserveRatio).toBe(0.10);
+		expect(breakdown.totalReserved).toBe(200_000);
+		expect(breakdown.reservePercent).toBe(10);
+		expect(breakdown.tokenizerErrorMargin).toBe(20_000); // 10% of reserve
+		expect(breakdown.summaryOutputSpace).toBe(180_000); // 90% of reserve
+	});
+
+	it("should support custom reserve ratios", () => {
+		const breakdown = getReserveBreakdown(128_000, 0.15);
+
+		expect(breakdown.reserveRatio).toBe(0.15);
+		expect(breakdown.totalReserved).toBe(19_200);
+		expect(breakdown.reservePercent).toBe(15);
+	});
+});
+
+describe("getSummaryMaxTokens", () => {
+	it("should calculate summary tokens (90% of reserve)", () => {
+		// 128K: 12.8K reserve → 11.5K for summary
+		expect(getSummaryMaxTokens(128_000)).toBe(11_520);
+
+		// 256K: 25.6K reserve → 23K for summary
+		expect(getSummaryMaxTokens(256_000)).toBe(23_040);
+
+		// 1M: 100K reserve → 90K for summary
+		expect(getSummaryMaxTokens(1_000_000)).toBe(90_000);
+
+		// 2M: 200K reserve → 180K for summary
+		expect(getSummaryMaxTokens(2_000_000)).toBe(180_000);
+	});
+
+	it("should support custom reserve ratios", () => {
+		// 5% reserve: 128K → 6.4K reserve → 5.76K summary
+		expect(getSummaryMaxTokens(128_000, 0.05)).toBe(5_760);
+
+		// 15% reserve: 128K → 19.2K reserve → 17.28K summary
+		expect(getSummaryMaxTokens(128_000, 0.15)).toBe(17_280);
+	});
+
+	it("should scale summary with context size", () => {
+		const summary64K = getSummaryMaxTokens(64_000);
+		const summary128K = getSummaryMaxTokens(128_000);
+		const summary256K = getSummaryMaxTokens(256_000);
+		const summary1M = getSummaryMaxTokens(1_000_000);
+
+		// Summary tokens should increase proportionally with context
+		expect(summary128K).toBeGreaterThan(summary64K);
+		expect(summary256K).toBeGreaterThan(summary128K);
+		expect(summary1M).toBeGreaterThan(summary256K);
+
+		// Larger contexts should have proportionally more summary space
+		// (not exact due to Math.floor rounding, but should be close)
+		expect(summary1M).toBeGreaterThan(summary64K * 10);
 	});
 });
 
 describe("Real-world scenarios", () => {
 	it("should provide reasonable reserves for popular models", () => {
 		// GPT-4 Turbo (128K)
-		expect(calculateReservedTokens(128_000)).toBe(20_000); // 15.6%
+		expect(calculateReservedTokens(128_000)).toBe(12_800); // 10%
 
 		// Claude 3 Opus (200K)
-		expect(calculateReservedTokens(200_000)).toBe(23_600); // 11.8%
+		expect(calculateReservedTokens(200_000)).toBe(20_000); // 10%
 
 		// Gemini 1.5 Pro (1M)
-		expect(calculateReservedTokens(1_000_000)).toBe(63_600); // 6.4%
+		expect(calculateReservedTokens(1_000_000)).toBe(100_000); // 10%
 
 		// Gemini 1.5 Pro (2M)
-		expect(calculateReservedTokens(2_000_000)).toBe(113_600); // 5.7%
+		expect(calculateReservedTokens(2_000_000)).toBe(200_000); // 10%
 
 		// Claude 3.5 Sonnet (256K)
-		expect(calculateReservedTokens(256_000)).toBe(26_400); // 10.3%
+		expect(calculateReservedTokens(256_000)).toBe(25_600); // 10%
 	});
 
 	it("should save significant tokens on large models vs old approach", () => {
@@ -149,9 +164,26 @@ describe("Real-world scenarios", () => {
 		};
 
 		// Savings increase with model size
-		expect(savings(128_000)).toBe(8_800); // ~9K saved
-		expect(savings(256_000)).toBe(31_200); // ~31K saved
-		expect(savings(1_000_000)).toBe(161_400); // ~161K saved
-		expect(savings(2_000_000)).toBe(336_400); // ~336K saved!
+		expect(savings(128_000)).toBe(16_000); // ~16K saved
+		expect(savings(256_000)).toBe(32_000); // ~32K saved
+		expect(savings(1_000_000)).toBe(125_000); // ~125K saved
+		expect(savings(2_000_000)).toBe(250_000); // ~250K saved!
+	});
+
+	it("should provide quality summaries for large contexts", () => {
+		// 2M context → 180K summary budget
+		// Should be enough for detailed summary preserving key information
+		const summaryTokens = getSummaryMaxTokens(2_000_000);
+		expect(summaryTokens).toBe(180_000);
+
+		// Even with conservative 15% reserve: 270K summary budget
+		const conservativeSummary = getSummaryMaxTokens(2_000_000, 0.15);
+		expect(conservativeSummary).toBe(270_000);
+	});
+});
+
+describe("DEFAULT_CONTEXT_RESERVE_RATIO", () => {
+	it("should export default constant", () => {
+		expect(DEFAULT_CONTEXT_RESERVE_RATIO).toBe(0.10);
 	});
 });

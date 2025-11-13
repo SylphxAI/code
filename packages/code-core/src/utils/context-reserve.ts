@@ -1,109 +1,114 @@
 /**
  * Context Reserve Calculator
  *
- * Calculates optimal reserved context based on model size.
- * Small models need higher reserve % (tokenizer error),
- * large models need lower % (more economical).
+ * Calculates reserved context as percentage of context limit.
+ * Reserve covers both tokenizer error margin (~1%) and summary output space (~9%).
  *
- * Formula: BASE_RESERVED + (contextLimit - BASE_CONTEXT) * EXTRA_RATE
+ * Formula: contextLimit × CONTEXT_RESERVE_RATIO
  *
- * Examples:
- * - 64K:  12.8K reserved (20%)
- * - 128K: 20K reserved (15.6%)
- * - 256K: 26.4K reserved (10.3%)
- * - 1M:   63.6K reserved (6.4%)
- * - 2M:   113.6K reserved (5.7%)
+ * Default 10% breakdown:
+ * - 1% for tokenizer error margin (scales with context size)
+ * - 9% for AI summary output during compact (scales with content)
+ *
+ * Examples (10% default):
+ * - 64K:  6.4K reserved
+ * - 128K: 12.8K reserved
+ * - 256K: 25.6K reserved
+ * - 1M:   100K reserved
+ * - 2M:   200K reserved
  */
 
 /**
- * Base reserved tokens for small models (covers tokenizer error margin)
- * This is the minimum we always reserve, even for tiny models
+ * Default context reserve ratio
+ * User can override via project settings
  */
-const BASE_RESERVED = 20_000; // 20K
-
-/**
- * Baseline context size (GPT-4 style: 128K)
- * Models this size or smaller get BASE_RESERVED only
- */
-const BASE_CONTEXT = 128_000; // 128K
-
-/**
- * Reserve rate for extra capacity beyond baseline
- * Applied to (contextLimit - BASE_CONTEXT) for large models
- */
-const EXTRA_RESERVE_RATE = 0.05; // 5%
+export const DEFAULT_CONTEXT_RESERVE_RATIO = 0.10; // 10%
 
 /**
  * Calculate reserved tokens based on context limit
  *
  * Design rationale:
- * - Small models (<= 128K): Fixed 20K reserve (~15-20%)
- * - Large models (> 128K): 20K + 5% of extra capacity
- * - Result: Reserve ratio decreases as model size increases
+ * - Tokenizer error scales with context size (~1%)
+ * - Summary length scales with content amount (~9%)
+ * - Total reserve: 10% of context limit (configurable)
  *
  * @param contextLimit - Model's context window size
+ * @param reserveRatio - Reserve ratio (default: 10%)
  * @returns Reserved token count
  *
  * @example
- * calculateReservedTokens(128_000)  // 20K (15.6%)
- * calculateReservedTokens(256_000)  // 26.4K (10.3%)
- * calculateReservedTokens(2_000_000) // 113.6K (5.7%)
+ * calculateReservedTokens(128_000)     // 12.8K (10%)
+ * calculateReservedTokens(256_000)     // 25.6K (10%)
+ * calculateReservedTokens(2_000_000)   // 200K (10%)
+ * calculateReservedTokens(128_000, 0.05) // 6.4K (5% custom)
  */
-export function calculateReservedTokens(contextLimit: number): number {
-	// Small models: use base reserve only (capped at 20% of context)
-	if (contextLimit <= BASE_CONTEXT) {
-		return Math.min(BASE_RESERVED, Math.floor(contextLimit * 0.2));
-	}
-
-	// Large models: base + percentage of extra capacity
-	const extraCapacity = contextLimit - BASE_CONTEXT;
-	const extraReserve = Math.ceil(extraCapacity * EXTRA_RESERVE_RATE);
-
-	return BASE_RESERVED + extraReserve;
+export function calculateReservedTokens(
+	contextLimit: number,
+	reserveRatio: number = DEFAULT_CONTEXT_RESERVE_RATIO,
+): number {
+	return Math.floor(contextLimit * reserveRatio);
 }
 
 /**
  * Calculate reserve percentage for display
  *
- * @param contextLimit - Model's context window size
+ * @param reserveRatio - Reserve ratio (default: 10%)
  * @returns Reserve percentage (0-100)
  */
-export function calculateReservePercent(contextLimit: number): number {
-	const reserved = calculateReservedTokens(contextLimit);
-	return (reserved / contextLimit) * 100;
+export function calculateReservePercent(reserveRatio: number = DEFAULT_CONTEXT_RESERVE_RATIO): number {
+	return reserveRatio * 100;
 }
 
 /**
  * Get detailed reserve breakdown for debugging
  */
-export function getReserveBreakdown(contextLimit: number): {
+export function getReserveBreakdown(
+	contextLimit: number,
+	reserveRatio: number = DEFAULT_CONTEXT_RESERVE_RATIO,
+): {
 	contextLimit: number;
-	baseReserved: number;
-	extraReserved: number;
+	reserveRatio: number;
 	totalReserved: number;
 	reservePercent: number;
+	tokenizerErrorMargin: number;
+	summaryOutputSpace: number;
 } {
-	const baseReserved = Math.min(BASE_RESERVED, Math.floor(contextLimit * 0.2));
+	const totalReserved = calculateReservedTokens(contextLimit, reserveRatio);
+	const reservePercent = calculateReservePercent(reserveRatio);
 
-	if (contextLimit <= BASE_CONTEXT) {
-		return {
-			contextLimit,
-			baseReserved,
-			extraReserved: 0,
-			totalReserved: baseReserved,
-			reservePercent: calculateReservePercent(contextLimit),
-		};
-	}
-
-	const extraCapacity = contextLimit - BASE_CONTEXT;
-	const extraReserved = Math.ceil(extraCapacity * EXTRA_RESERVE_RATE);
-	const totalReserved = BASE_RESERVED + extraReserved;
+	// Breakdown (approximate):
+	// - 10% of reserve for tokenizer error (~1% of total)
+	// - 90% of reserve for summary output (~9% of total)
+	const tokenizerErrorMargin = Math.floor(totalReserved * 0.1);
+	const summaryOutputSpace = totalReserved - tokenizerErrorMargin;
 
 	return {
 		contextLimit,
-		baseReserved: BASE_RESERVED,
-		extraReserved,
+		reserveRatio,
 		totalReserved,
-		reservePercent: calculateReservePercent(contextLimit),
+		reservePercent,
+		tokenizerErrorMargin,
+		summaryOutputSpace,
 	};
+}
+
+/**
+ * Calculate max tokens for AI summary during compact
+ * Uses 90% of reserve (9% of total context) for summary quality
+ *
+ * @param contextLimit - Model's context window size
+ * @param reserveRatio - Reserve ratio (default: 10%)
+ * @returns Max tokens for summary output
+ *
+ * @example
+ * getSummaryMaxTokens(128_000)   // 11.5K (9% of 128K)
+ * getSummaryMaxTokens(2_000_000) // 180K (9% of 2M)
+ */
+export function getSummaryMaxTokens(
+	contextLimit: number,
+	reserveRatio: number = DEFAULT_CONTEXT_RESERVE_RATIO,
+): number {
+	const totalReserved = calculateReservedTokens(contextLimit, reserveRatio);
+	// Use 90% of reserve for summary (remaining 10% for tokenizer error)
+	return Math.floor(totalReserved * 0.9);
 }
