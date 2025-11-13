@@ -9,6 +9,7 @@ import {
 	useEnabledRuleIds,
 	useTotalTokens,
 } from "@sylphx/code-client";
+import { formatTokenCount } from "@sylphx/code-core";
 import { getAgentById } from "../embedded-context.js";
 import { Box, Text } from "ink";
 import React from "react";
@@ -81,16 +82,6 @@ export default function StatusBar({
 	console.log("[StatusBar] Model details:", { details, loading });
 	const contextLength = details.contextLength;
 	const capabilities = details.capabilities;
-
-	const formatNumber = (num: number): string => {
-		if (num >= 1000000) {
-			return `${(num / 1000000).toFixed(1)}M`;
-		}
-		if (num >= 1000) {
-			return `${(num / 1000).toFixed(0)}k`;
-		}
-		return num.toString();
-	};
 
 	// Calculate usage percentage using SSOT value
 	const usagePercent =
@@ -170,11 +161,12 @@ export default function StatusBar({
 			<Box>
 				{!loading && contextLength && totalTokensSSOT > 0 ? (
 					<Text dimColor>
-						{formatNumber(totalTokensSSOT)} / {formatNumber(contextLength)} ({usagePercent}%)
+						{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
+						{usagePercent}%)
 					</Text>
 				) : null}
 				{!loading && contextLength && totalTokensSSOT === 0 ? (
-					<Text dimColor>{formatNumber(contextLength)}</Text>
+					<Text dimColor>{formatTokenCount(contextLength)}</Text>
 				) : null}
 			</Box>
 		</Box>
