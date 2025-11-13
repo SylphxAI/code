@@ -24,9 +24,6 @@ import type {
 } from "@sylphx/code-core";
 import {
 	buildSystemPrompt,
-	createMessageStep,
-	updateStepParts,
-	completeMessageStep,
 	getProvider,
 	getAISDKTools,
 	hasUserInputHandler,
@@ -415,113 +412,20 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					onStepFinish: async (stepResult) => {
 						try {
 							const stepNumber = lastCompletedStepNumber + 1;
-							const stepId = `${assistantMessageId}-step-${stepNumber}`;
-
-							// Update tool results with AI SDK's wrapped format
-							if (stepResult.toolResults && stepResult.toolResults.length > 0) {
-								for (const toolResult of stepResult.toolResults) {
-									const toolPart = currentStepParts.find(
-										(p) => p.type === "tool" && p.toolId === toolResult.toolCallId,
-									);
-
-									if (toolPart && toolPart.type === "tool") {
-										toolPart.result = toolResult.result;
-									}
-								}
-							}
-
-							// Update step parts (now with wrapped tool results)
-							try {
-								await updateStepParts(sessionRepository.getDatabase(), stepId, currentStepParts);
-							} catch (dbError) {
-								console.error(`[onStepFinish] Failed to update step ${stepNumber} parts:`, dbError);
-							}
-
-							// Complete step
-							try {
-								await completeMessageStep(sessionRepository.getDatabase(), stepId, {
-									status: "completed",
-									finishReason: stepResult.finishReason,
-									usage: stepResult.usage,
-									provider: session.provider,
-									model: session.model,
-								});
-							} catch (dbError) {
-								console.error(`[onStepFinish] Failed to complete step ${stepNumber}:`, dbError);
-							}
-
-							// Emit step-complete event
-							observer.next({
-								type: "step-complete",
-								stepId,
-								usage: stepResult.usage || {
-									promptTokens: 0,
-									completionTokens: 0,
-									totalTokens: 0,
-								},
-								duration: 0, // TODO: track duration
-								finishReason: stepResult.finishReason || "unknown",
-							});
-
-							// Final token calculation for step (Dynamic Recalculation)
-							// ARCHITECTURE: NO database cache - all tokens calculated dynamically
-							// Real-time updates during streaming were optimistic (in-memory)
-							// This checkpoint recalculates accurate values and emits to all clients
-							// CRITICAL: Uses MODEL messages (buildModelMessages) for accurate counting
-							try {
-								// Refetch updated session (has latest messages after step completion)
-								const updatedSession = await sessionRepository.getSessionById(sessionId);
-
-								// Recalculate base context (dynamic - can change mid-session)
-								const recalculatedBaseContext = await calculateBaseContextTokens(
-									updatedSession.model,
-									updatedSession.agentId,
-									updatedSession.enabledRuleIds,
-									cwd,
-								);
-
-								// Recalculate messages tokens using current model's tokenizer
-								let recalculatedMessages = 0;
-								if (updatedSession.messages && updatedSession.messages.length > 0) {
-									const modelEntity = getModel(updatedSession.model);
-									const modelCapabilities = modelEntity?.capabilities;
-									const fileRepo = messageRepository.getFileRepository();
-
-									const modelMessages = await buildModelMessages(
-										updatedSession.messages,
-										modelCapabilities,
-										fileRepo,
-									);
-
-									recalculatedMessages = await calculateModelMessagesTokens(
-										modelMessages,
-										updatedSession.model,
-									);
-								}
-
-								const totalTokens = recalculatedBaseContext + recalculatedMessages;
-
-								// Emit to all clients (multi-client real-time sync)
-								await opts.appContext.eventStream.publish(`session:${sessionId}`, {
-									type: "session-tokens-updated" as const,
-									sessionId,
-									totalTokens,
-									baseContextTokens: recalculatedBaseContext,
-								});
-
-								console.log("[onStepFinish] Dynamic recalculation checkpoint:", {
-									step: stepNumber,
-									totalTokens,
-									baseContextTokens: recalculatedBaseContext,
-									messagesTokens: recalculatedMessages,
-								});
-
-								// Reset tracker with new baseline (for next streaming chunk)
-								tokenTracker.reset(totalTokens);
-							} catch (tokenError) {
-								console.error("[onStepFinish] Failed to recalculate tokens:", tokenError);
-							}
-
+							await completeStep(
+								stepNumber,
+								assistantMessageId,
+								sessionId,
+								stepResult,
+								currentStepParts,
+								sessionRepository,
+								messageRepository,
+								tokenTracker,
+								opts.appContext,
+								observer,
+								session,
+								cwd,
+							);
 							lastCompletedStepNumber = stepNumber;
 							currentStepParts = [];
 						} catch (error) {
@@ -529,132 +433,20 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 						}
 					},
 					// ⭐ AI SDK's native prepareStep hook - called before each step
-					prepareStep: async ({ steps, stepNumber }) => {
-						try {
-							// 1. Reload session to get latest state
-							const currentSession = await sessionRepository.getSessionById(sessionId);
-							if (!currentSession) {
-								console.warn(`[prepareStep] Session ${sessionId} not found`);
-								return {};
-							}
-
-							// 2. Calculate context token usage
-							let contextTokens: { current: number; max: number } | undefined;
-							try {
-								let totalTokens = 0;
-								for (const message of currentSession.messages) {
-									if (message.usage) {
-										totalTokens += message.usage.totalTokens;
-									}
-								}
-
-								const modelDetails = await providerInstance.getModelDetails(
-									modelName,
-									providerConfig,
-								);
-								const maxContextLength = modelDetails?.contextLength;
-
-								if (maxContextLength && totalTokens > 0) {
-									contextTokens = {
-										current: totalTokens,
-										max: maxContextLength,
-									};
-								}
-							} catch (error) {
-								console.error("[prepareStep] Failed to calculate context tokens:", error);
-							}
-
-							// 3. Check all triggers for this step
-							const triggerResults = await checkAllTriggers(
-								currentSession,
-								messageRepository,
-								sessionRepository,
-								contextTokens,
-							);
-
-							// 4. Build SystemMessage array from trigger results (may be empty)
-							const systemMessages =
-								triggerResults.length > 0
-									? triggerResults.map((trigger) => ({
-											type: trigger.messageType || "unknown",
-											content: trigger.message,
-											timestamp: Date.now(),
-										}))
-									: [];
-
-							// 5. Create step record in database
-							const stepId = `${assistantMessageId}-step-${stepNumber}`;
-							try {
-								await createMessageStep(
-									sessionRepository.getDatabase(),
-									assistantMessageId,
-									stepNumber,
-									undefined, // metadata
-									undefined, // todoSnapshot (deprecated)
-									systemMessages.length > 0 ? systemMessages : undefined,
-								);
-							} catch (stepError) {
-								console.error("[prepareStep] Failed to create step:", stepError);
-							}
-
-							// 6. Emit step-start event for UI
-							observer.next({
-								type: "step-start",
-								stepId,
-								stepIndex: stepNumber,
-								metadata: { cpu: "N/A", memory: "N/A" },
-								todoSnapshot: [],
-								systemMessages: systemMessages.length > 0 ? systemMessages : undefined,
-							});
-
-							// 7. Inject system messages if present
-							if (systemMessages.length > 0) {
-								// Get base messages (from last step or initial messages)
-								const baseMessages = steps.length > 0 ? steps[steps.length - 1].messages : messages;
-
-								// Combine system messages (already wrapped in <system_message> tags)
-								const combinedContent = systemMessages.map((sm) => sm.content).join("\n\n");
-
-								// Append to last message to avoid consecutive user messages
-								const lastMessage = baseMessages[baseMessages.length - 1];
-								if (lastMessage && lastMessage.role === "user") {
-									// Append system message to last user message
-									const lastContent = lastMessage.content;
-									const updatedContent = Array.isArray(lastContent)
-										? [
-												...lastContent,
-												{
-													type: "text" as const,
-													text: "\n\n" + combinedContent,
-												},
-											]
-										: [{ type: "text" as const, text: combinedContent }];
-
-									const updatedMessages = [
-										...baseMessages.slice(0, -1),
-										{ ...lastMessage, content: updatedContent },
-									];
-
-									return { messages: updatedMessages };
-								} else {
-									// Fallback: add as separate user message (shouldn't happen in practice)
-									const updatedMessages = [
-										...baseMessages,
-										{
-											role: "user" as const,
-											content: [{ type: "text" as const, text: combinedContent }],
-										},
-									];
-									return { messages: updatedMessages };
-								}
-							}
-
-							return {}; // No modifications needed
-						} catch (error) {
-							console.error("[prepareStep] Error:", error);
-							// Don't crash the stream, just skip modifications
-							return {};
-						}
+					prepareStep: async ({ steps, stepNumber, messages: stepMessages }) => {
+						return await prepareStep(
+							stepNumber,
+							assistantMessageId,
+							sessionId,
+							stepMessages,
+							steps,
+							sessionRepository,
+							messageRepository,
+							providerInstance,
+							modelName,
+							providerConfig,
+							observer,
+						);
 					},
 				});
 
@@ -1200,124 +992,24 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					"messageId:",
 					assistantMessageId,
 				);
-				try {
-					await messageRepository.updateMessageStatus(
-						assistantMessageId,
-						finalStatus,
-						finalFinishReason,
-					);
-					console.log("[streamAIResponse] Message status updated in DB");
-
-					// Emit message-status-updated event (unified status change event)
-					console.log("[streamAIResponse] Emitting message-status-updated event");
-					observer.next({
-						type: "message-status-updated",
-						messageId: assistantMessageId,
-						status: finalStatus,
-						usage: finalUsage,
-						finishReason: finalFinishReason,
-					});
-					console.log("[streamAIResponse] message-status-updated event emitted successfully");
-				} catch (dbError) {
-					console.error("[streamAIResponse] Failed to update message status:", dbError);
-					// Continue - not critical for user experience
-				}
+				await updateMessageStatus(
+					assistantMessageId,
+					finalStatus,
+					finalFinishReason,
+					finalUsage,
+					messageRepository,
+					observer,
+				);
 
 				// 11.5. Create system message to notify LLM about abort (if enabled)
 				// IMPORTANT: Only create notification for USER-INITIATED abort (via ESC key)
-				// - Error/timeout/network issues are NOT user abort
-				// - Status 'abort' is only set when abortSignal.aborted is true (line 805-807, 842)
-				// - This ensures we only notify LLM when user explicitly cancels
-				if (finalStatus === "abort" && aiConfig.notifyLLMOnAbort) {
-					try {
-						console.log("[streamAIResponse] Creating system message to notify LLM about abort");
-						const systemMessageId = await messageRepository.addMessage({
-							sessionId,
-							role: "system",
-							content: [
-								{
-									type: "text",
-									content: "Previous assistant message was aborted by user.",
-									status: "completed",
-								},
-							],
-							status: "completed",
-						});
-						console.log("[streamAIResponse] System message created:", systemMessageId);
-
-						// Emit system-message-created event
-						observer.next({
-							type: "system-message-created",
-							messageId: systemMessageId,
-							content: "Previous assistant message was aborted by user.",
-						});
-						console.log("[streamAIResponse] system-message-created event emitted");
-					} catch (systemMessageError) {
-						console.error(
-							"[streamAIResponse] Failed to create abort notification system message:",
-							systemMessageError,
-						);
-						// Continue - not critical for user experience
-					}
+				if (finalStatus === "abort") {
+					await createAbortNotificationMessage(sessionId, aiConfig, messageRepository, observer);
 				}
 
 				// 12. Calculate final token counts (Dynamic - NO database cache)
 				// MUST await to ensure event is emitted before observable completes
-				// Otherwise observer.complete() will close the stream before event is sent
-				try {
-					// Refetch final session state
-					const finalSession = await sessionRepository.getSessionById(sessionId);
-					if (!finalSession) {
-						throw new Error("Session not found for final token calculation");
-					}
-
-					// Recalculate base context (dynamic - reflects current agent/rules)
-					const finalBaseContext = await calculateBaseContextTokens(
-						finalSession.model,
-						finalSession.agentId,
-						finalSession.enabledRuleIds,
-						cwd,
-					);
-
-					// Recalculate messages tokens using current model's tokenizer
-					let finalMessages = 0;
-					if (finalSession.messages && finalSession.messages.length > 0) {
-						const modelEntity = getModel(finalSession.model);
-						const modelCapabilities = modelEntity?.capabilities;
-						const fileRepo = messageRepository.getFileRepository();
-
-						const modelMessages = await buildModelMessages(
-							finalSession.messages,
-							modelCapabilities,
-							fileRepo,
-						);
-
-						finalMessages = await calculateModelMessagesTokens(
-							modelMessages,
-							finalSession.model,
-						);
-					}
-
-					const finalTotal = finalBaseContext + finalMessages;
-
-					// Emit event with calculated token data (send data on needed)
-					// Publish to session-specific channel (same as other streaming events)
-					// All clients receive token data immediately without additional API calls
-					console.log("[streamAIResponse] Publishing session-tokens-updated event for session:", sessionId);
-					await opts.appContext.eventStream.publish(`session:${sessionId}`, {
-						type: "session-tokens-updated" as const,
-						sessionId,
-						totalTokens: finalTotal,
-						baseContextTokens: finalBaseContext,
-					});
-					console.log("[streamAIResponse] session-tokens-updated event published successfully:", {
-						totalTokens: finalTotal,
-						baseContextTokens: finalBaseContext,
-						messagesTokens: finalMessages,
-					});
-				} catch (error) {
-					console.error("[streamAIResponse] Failed to calculate final tokens:", error);
-				}
+				await calculateFinalTokens(sessionId, sessionRepository, messageRepository, opts.appContext, cwd);
 
 				// 13. Complete observable (title continues independently via eventStream)
 				observer.complete();
