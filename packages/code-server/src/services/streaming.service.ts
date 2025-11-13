@@ -39,6 +39,20 @@ import { buildModelMessages } from "./streaming/message-builder.js";
 import { generateSessionTitle, needsTitleGeneration } from "./streaming/title-generator.js";
 import { validateProvider } from "./streaming/provider-validator.js";
 
+// Extracted services (Phase 3 Refactoring)
+import {
+	initializeTokenTracking,
+	updateTokensFromDelta,
+	calculateFinalTokens,
+} from "./token-tracking.service.js";
+import { prepareStep, completeStep } from "./step-lifecycle.service.js";
+import {
+	createUserMessage,
+	createAssistantMessage,
+	updateMessageStatus,
+	createAbortNotificationMessage,
+} from "./message-persistence.service.js";
+
 // ============================================================================
 // AI SDK Type Helpers
 // ============================================================================
@@ -307,25 +321,10 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				let userMessageText = "";
 
 				if (userMessageContent) {
-					userMessageId = await messageRepository.addMessage({
-						sessionId,
-						role: "user",
-						content: frozenContent,
-						// REMOVED: metadata with cpu/memory (now provided via dynamic system messages)
-						// REMOVED: todoSnapshot (no longer stored, see TODOSNAPSHOT-REALITY.md)
-					});
-
-					// 4.1. Emit user-message-created event
-					// Extract text content for display (omit file details)
-					userMessageText = userMessageContent
-						.map((part) => (part.type === "text" ? part.content : `@${part.relativePath}`))
-						.join("");
-
-					observer.next({
-						type: "user-message-created",
-						messageId: userMessageId,
-						content: userMessageText,
-					});
+					// Use MessagePersistenceService to create user message
+					const result = await createUserMessage(sessionId, frozenContent, messageRepository, observer);
+					userMessageId = result.messageId;
+					userMessageText = result.messageText;
 				}
 
 				// 4. Reload session to get updated messages
@@ -388,18 +387,8 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				const needsTitle = needsTitleGeneration(updatedSession, isNewSession, isFirstMessage);
 
 				// 9.6. Create assistant message in database BEFORE stream (need ID for prepareStep)
-				const assistantMessageId = await messageRepository.addMessage({
-					sessionId,
-					role: "assistant",
-					content: [], // Empty content initially
-					status: "active",
-				});
-
-				// 9.7. Emit assistant message created event
-				observer.next({
-					type: "assistant-message-created",
-					messageId: assistantMessageId,
-				});
+				// Use MessagePersistenceService
+				const assistantMessageId = await createAssistantMessage(sessionId, messageRepository, observer);
 
 				// 10. Create AI stream with system prompt using AI SDK's native prepareStep
 				// Only provide tools if model supports them
@@ -758,83 +747,23 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				let hasError = false;
 
 				// Real-time token tracking (Dynamic Calculation - No Cache)
-				// ARCHITECTURE:
-				// - NO database cache - all tokens calculated dynamically
-				// - Streaming period: optimistic in-memory tracking
-				// - Events notify immediately on every chunk
-				// - Baseline recalculated on model/agent/rules change
-				const {
-					TokenCalculator,
-					StreamingTokenTracker,
-					calculateModelMessagesTokens,
-					buildModelMessages,
-					calculateBaseContextTokens,
-					getModel,
-				} = await import("@sylphx/code-core");
-
-				// Initialize calculator
-				const calculator = new TokenCalculator(session.model);
-
-				// Calculate current baseline (real-time, no cache)
-				// Uses current session state: model, agent, rules, messages
+				// Use TokenTrackingService for initialization
 				const cwd = process.cwd();
+				const tokenTracker = await initializeTokenTracking(
+					sessionId,
+					session,
+					messageRepository,
+					cwd,
+				);
+
+				// Get base context tokens for event emission
+				const { calculateBaseContextTokens } = await import("@sylphx/code-core");
 				const baseContextTokens = await calculateBaseContextTokens(
 					session.model,
 					session.agentId,
 					session.enabledRuleIds,
 					cwd,
 				);
-
-				let messagesTokens = 0;
-				if (session.messages && session.messages.length > 0) {
-					const modelEntity = getModel(session.model);
-					const modelCapabilities = modelEntity?.capabilities;
-					const fileRepo = messageRepository.getFileRepository();
-
-					const modelMessages = await buildModelMessages(
-						session.messages,
-						modelCapabilities,
-						fileRepo,
-					);
-
-					messagesTokens = await calculateModelMessagesTokens(modelMessages, session.model);
-				}
-
-				const baselineTotal = baseContextTokens + messagesTokens;
-				const tokenTracker = new StreamingTokenTracker(calculator, baselineTotal);
-
-				console.log("[streamAIResponse] Token tracking initialized (no cache):", {
-					baseContextTokens,
-					messagesTokens,
-					baselineTotal,
-				});
-
-				// Helper: Update tokens from delta and emit event
-				const updateTokensFromDelta = async (deltaText: string) => {
-					try {
-						// Add delta to tracker (optimistic, not persisted)
-						const currentTotal = await tokenTracker.addDelta(deltaText);
-
-						console.log("[updateTokensFromDelta] Optimistic update:", {
-							deltaText: deltaText.substring(0, 20) + "...",
-							streamingDelta: tokenTracker.getStreamingDelta(),
-							baseline: tokenTracker.getBaselineTotal(),
-							currentTotal,
-						});
-
-						// Emit immediate update (optimistic value, not SSOT)
-						// User requirement: 反正有任何異動都要即刻通知client去實時更新
-						await opts.appContext.eventStream.publish(`session:${sessionId}`, {
-							type: "session-tokens-updated" as const,
-							sessionId,
-							totalTokens: currentTotal,
-							baseContextTokens: baseContextTokens, // Use calculated value (not DB)
-						});
-					} catch (error) {
-						// Non-critical - don't interrupt streaming
-						console.error("[updateTokensFromDelta] Failed:", error);
-					}
-				};
 
 				try {
 					for await (const chunk of fullStream) {
