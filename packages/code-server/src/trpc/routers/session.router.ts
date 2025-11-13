@@ -436,34 +436,31 @@ export const sessionRouter = router({
 
 			const {
 				countTokens,
-				getSystemPrompt,
+				buildSystemPrompt,
+				loadAllAgents,
+				loadAllRules,
 				getAISDKTools,
-				getEnabledRulesContent,
-				getCurrentSystemPrompt,
 			} = await import("@sylphx/code-core");
 			const { readFile } = await import("node:fs/promises");
 
-			// System prompt tokens
-			const systemPrompt = getSystemPrompt();
+			// Get agent and rules for system prompt
+			const cwd = process.cwd();
+			const allAgents = await loadAllAgents(cwd);
+			const allRules = await loadAllRules(cwd);
+
+			// Use session's agent and rules, or defaults for base context
+			const agentId = session?.agentId || "coder";
+			const enabledRuleIds = session?.enabledRuleIds || [];
+			const enabledRules = allRules.filter((rule) => enabledRuleIds.includes(rule.id));
+
+			// Build system prompt
+			const systemPrompt = buildSystemPrompt(agentId, allAgents, enabledRules);
 			const systemPromptTokens = await countTokens(systemPrompt, modelName);
 
-			// System prompt breakdown
-			const BASE_SYSTEM_PROMPT = `You are Sylphx, an AI development assistant.`;
-			const systemPromptBreakdown: Record<string, number> = {};
-
-			try {
-				systemPromptBreakdown["Base prompt"] = await countTokens(BASE_SYSTEM_PROMPT, modelName);
-
-				const rulesContent = getEnabledRulesContent();
-				if (rulesContent) {
-					systemPromptBreakdown["Rules"] = await countTokens(rulesContent, modelName);
-				}
-
-				const agentPrompt = getCurrentSystemPrompt();
-				systemPromptBreakdown["Agent prompt"] = await countTokens(agentPrompt, modelName);
-			} catch (error) {
-				// Non-critical, continue
-			}
+			// System prompt breakdown - simplified (just total for now)
+			const systemPromptBreakdown: Record<string, number> = {
+				"System prompt": systemPromptTokens,
+			};
 
 			// Tools tokens
 			const tools = getAISDKTools();
