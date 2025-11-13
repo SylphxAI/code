@@ -119,6 +119,18 @@ export {
 } from "./config/tool-display-settings.js";
 export type { ToolDisplaySettings, ToolDisplayInfo } from "./config/tool-display-settings.js";
 
+// Project Settings
+export {
+	loadSettings,
+	saveSettings,
+	updateSettings,
+	getDefaultTarget,
+	setDefaultTarget,
+	settingsExists,
+	getSettingsPath,
+} from "./utils/settings.js";
+export type { ProjectSettings } from "./utils/settings.js";
+
 // ============================================================================
 // Credential Management (Normalized Credential System)
 // ============================================================================
