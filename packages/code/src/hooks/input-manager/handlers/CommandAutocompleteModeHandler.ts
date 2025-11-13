@@ -157,15 +157,42 @@ export class CommandAutocompleteModeHandler extends BaseInputHandler {
 						commandSessionRef.current = resultSessionId;
 					}
 
-					// Execute command - it will use waitForInput if needed
-					const response = await selected.execute(createCommandContext([]));
+					// Execute command with comprehensive error handling
+					try {
+						addLog(`[CommandAutocomplete] Executing ${selected.label}`);
+						const response = await selected.execute(createCommandContext([]));
 
-					// Add final response if any
-					if (response) {
+						addLog(
+							`[CommandAutocomplete] Result type: ${typeof response}, value: ${response ? String(response).substring(0, 100) : "none"}`,
+						);
+
+						// Add final response if any (check for string explicitly)
+						if (response && typeof response === "string") {
+							await addMessage({
+								sessionId: commandSessionRef.current,
+								role: "assistant",
+								content: response,
+								provider,
+								model,
+							});
+						} else if (response !== undefined) {
+							addLog(
+								`[CommandAutocomplete] WARNING: Command returned non-string: ${typeof response}`,
+							);
+						}
+					} catch (error) {
+						const errorMsg = error instanceof Error ? error.message : "Command failed";
+						const errorStack = error instanceof Error ? error.stack : undefined;
+
+						addLog(`[CommandAutocomplete] Command error: ${errorMsg}`);
+						console.error("[CommandAutocomplete] Error:", error);
+						console.error("[CommandAutocomplete] Stack:", errorStack);
+
+						// Always show error to user
 						await addMessage({
 							sessionId: commandSessionRef.current,
 							role: "assistant",
-							content: response,
+							content: `❌ Command Error: ${errorMsg}`,
 							provider,
 							model,
 						});
