@@ -15,7 +15,7 @@ interface SettingsManagementProps {
 	onSave: (config: AIConfig) => Promise<void>;
 }
 
-type View = "main" | "tool-display" | "tokenizer-mode";
+type View = "main" | "tool-display" | "tokenizer-mode" | "context-reserve";
 
 interface ToolDisplayItem {
 	label: string;
@@ -36,6 +36,7 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 	const mainMenuItems = [
 		{ label: "Tool Display Settings", value: "tool-display" },
 		{ label: "Token Calculation Mode", value: "tokenizer-mode" },
+		{ label: "Context Reserve Ratio", value: "context-reserve" },
 		{ label: "← Back", value: "back" },
 	];
 
@@ -75,6 +76,8 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 			setView("tool-display");
 		} else if (item.value === "tokenizer-mode") {
 			setView("tokenizer-mode");
+		} else if (item.value === "context-reserve") {
+			setView("context-reserve");
 		}
 	};
 
@@ -229,6 +232,64 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 							{
 								...currentSettings,
 								useAccurateTokenizer: useAccurate,
+							},
+							cwd,
+						);
+
+						// Go back to main menu
+						setView("main");
+					}}
+				/>
+			</Box>
+		);
+	}
+
+	// Context reserve ratio view
+	if (view === "context-reserve") {
+		return (
+			<Box flexDirection="column" padding={1}>
+				<Box marginBottom={1}>
+					<Text bold>Context Reserve Ratio</Text>
+				</Box>
+
+				<Box marginBottom={1} flexDirection="column">
+					<Text dimColor>Percentage of context to reserve for:</Text>
+					<Text dimColor>• Tokenizer error margin (~1% of total)</Text>
+					<Text dimColor>• AI summary during compact (~9% of total)</Text>
+					<Text dimColor>{" "}</Text>
+					<Text dimColor>Examples (for 128K context):</Text>
+					<Text dimColor>• 5%:  6.4K reserved (minimal, more space, risk hitting limits)</Text>
+					<Text dimColor>• 10%: 12.8K reserved (balanced, recommended)</Text>
+					<Text dimColor>• 15%: 19.2K reserved (conservative, better summaries)</Text>
+					<Text dimColor>• 20%: 25.6K reserved (very safe, max quality)</Text>
+				</Box>
+
+				<SelectInput
+					items={[
+						{ label: "5% - Minimal (more usable space, higher risk)", value: "0.05" },
+						{ label: "10% - Balanced (recommended)", value: "0.10" },
+						{ label: "15% - Conservative (better summaries)", value: "0.15" },
+						{ label: "20% - Very Safe (maximum quality)", value: "0.20" },
+						{ label: "← Back", value: "back" },
+					]}
+					onSelect={async (item) => {
+						if (item.value === "back") {
+							setView("main");
+							return;
+						}
+
+						const reserveRatio = parseFloat(item.value);
+
+						// Save to project settings
+						const { loadSettings, saveSettings } = await import("@sylphx/code-core");
+						const cwd = process.cwd();
+						const settingsResult = await loadSettings(cwd);
+						const currentSettings = settingsResult.success ? settingsResult.data : {};
+
+						await saveSettings(
+							{
+								...currentSettings,
+								contextReserveRatio: reserveRatio,
 							},
 							cwd,
 						);
