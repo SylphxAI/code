@@ -176,7 +176,8 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 	}
 
 	// Create visual bar chart with multiple segments
-	const parseTokenValue = (tokenStr: string): number => {
+	const parseTokenValue = (tokenStr: string | undefined): number => {
+		if (!tokenStr) return 0;
 		if (tokenStr.endsWith("K")) {
 			return parseFloat(tokenStr) * 1000;
 		} else if (tokenStr.endsWith("M")) {

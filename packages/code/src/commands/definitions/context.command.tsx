@@ -46,14 +46,14 @@ export const contextCommand: Command = {
 				commandContext.addLog(`[Context] No active session, using selected model: ${modelName}`);
 			}
 
+			// Initialize tRPC client
+			const trpc = getTRPCClient();
+
 			// Get model context limit from server (NO HARDCODED VALUES!)
-			const { useModelDetails } = await import("@sylphx/code-client");
-			const modelDetailsPromise = trpc.provider.getModelDetails.query({
+			const modelDetailsResult = await trpc.provider.getModelDetails.query({
 				provider: currentSession?.provider || null,
 				model: modelName,
 			});
-
-			const modelDetailsResult = await modelDetailsPromise;
 
 			if (!modelDetailsResult.success) {
 				commandContext.setInputComponent(
@@ -85,7 +85,6 @@ export const contextCommand: Command = {
 				`[Context] Calculating token counts for ${modelName} (limit: ${formatTokenCount(contextLimit)})...`,
 			);
 
-			const trpc = getTRPCClient();
 			console.log("[Context] Calling tRPC getContextInfo...");
 			const result = await trpc.session.getContextInfo.query({
 				sessionId: sessionId,
