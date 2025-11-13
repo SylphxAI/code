@@ -60,6 +60,7 @@ export default function StatusBar({
 	};
 
 	// Calculate usage percentage
+	// usedTokens comes from useTokenCalculation which includes base + messages
 	const usagePercent =
 		contextLength && usedTokens > 0 ? Math.round((usedTokens / contextLength) * 100) : 0;
 
@@ -136,19 +137,19 @@ export default function StatusBar({
 				{!loading && tokenizerInfo ? (
 					<>
 						<Text dimColor>
-							{tokenizerInfo.tokenizerName}
-							{tokenizerInfo.failed && " (fallback)"}
+							{tokenizerInfo.tokenizerName.split("/").pop()}
+							{tokenizerInfo.failed && " (est)"}
 						</Text>
 						{contextLength ? <Text dimColor> │ </Text> : null}
 					</>
 				) : null}
 				{!loading && contextLength && usedTokens > 0 ? (
 					<Text dimColor>
-						Context: {formatNumber(usedTokens)}/{formatNumber(contextLength)} ({usagePercent}%)
+						~{formatNumber(usedTokens)} / {formatNumber(contextLength)} (~{usagePercent}%)
 					</Text>
 				) : null}
 				{!loading && contextLength && usedTokens === 0 ? (
-					<Text dimColor>Context: {formatNumber(contextLength)}</Text>
+					<Text dimColor>{formatNumber(contextLength)}</Text>
 				) : null}
 			</Box>
 		</Box>

@@ -148,16 +148,6 @@ function parseContextOutput(output: string): ParsedContextData | null {
 	}
 }
 
-function createProgressBar(percent: number, width: number = 50): string {
-	const filled = Math.round((percent / 100) * width);
-	const empty = width - filled;
-	return "█".repeat(filled) + "░".repeat(empty);
-}
-
-function createSeparator(width: number = 70): string {
-	return "─".repeat(width);
-}
-
 export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 	const data = parseContextOutput(output);
 
@@ -175,143 +165,151 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 		);
 	}
 
-	const usedPercent = parseFloat(data.usedPercent);
-	const systemPercent = parseFloat(data.systemPromptPercent);
-	const toolsPercent = parseFloat(data.toolsPercent);
-	const messagesPercent = parseFloat(data.messagesPercent);
-	const freePercent = parseFloat(data.freePercent);
-	const bufferPercent = parseFloat(data.bufferPercent);
-
 	return (
 		<Box flexDirection="column" paddingY={1} paddingX={2}>
-			{/* Model name and session note */}
-			<Box flexDirection="row" justifyContent="flex-end" paddingBottom={1}>
-				<Text color="gray" dimColor>
-					{data.modelName}
-				</Text>
-			</Box>
-
 			{data.sessionNote && (
 				<Box paddingBottom={1}>
 					<Text color="yellow">{data.sessionNote}</Text>
 				</Box>
 			)}
 
-			{/* Total Usage */}
-			<Box flexDirection="column" paddingBottom={1}>
-				<Box flexDirection="row" justifyContent="space-between">
-					<Text dimColor>Total</Text>
+			{/* Summary */}
+			<Box flexDirection="column" gap={0}>
+				<Box flexDirection="row">
+					<Box width={20}>
+						<Text dimColor>Model</Text>
+					</Box>
+					<Text>{data.modelName}</Text>
+				</Box>
+				<Box flexDirection="row">
+					<Box width={20}>
+						<Text dimColor>Context Limit</Text>
+					</Box>
+					<Text>{data.contextLimit}</Text>
+				</Box>
+				<Box flexDirection="row">
+					<Box width={20}>
+						<Text dimColor>Total Used</Text>
+					</Box>
 					<Text>
-						{data.usedTokens}/{data.contextLimit} ({data.usedPercent}%)
+						{data.usedTokens} ({data.usedPercent}%)
 					</Text>
 				</Box>
-				<Text color="cyan">{createProgressBar(usedPercent, 60)}</Text>
 			</Box>
 
-			{/* Separator */}
 			<Box paddingY={1}>
-				<Text color="gray" dimColor>
-					{createSeparator(60)}
+				<Text dimColor>{"─".repeat(60)}</Text>
+			</Box>
+
+			{/* Breakdown - Base Context (fixed) */}
+			<Box paddingBottom={1}>
+				<Text dimColor bold>
+					Base Context (Fixed)
 				</Text>
 			</Box>
-
-			{/* Usage Breakdown */}
-			<Box flexDirection="column">
-				{/* System Prompt */}
-				<Box flexDirection="column" paddingBottom={1}>
-					<Box flexDirection="row" justifyContent="space-between">
-						<Text color="blue">System Prompt</Text>
-						<Text dimColor>
-							{data.systemPromptTokens} ({data.systemPromptPercent}%)
-						</Text>
+			<Box flexDirection="column" gap={0} paddingLeft={2}>
+				<Box flexDirection="row">
+					<Box width={18}>
+						<Text dimColor>System prompt</Text>
 					</Box>
-					<Text color="blue" dimColor>
-						{createProgressBar(systemPercent, 60)}
-					</Text>
-					{data.systemPromptBreakdown.length > 0 && (
-						<Box paddingLeft={2} paddingTop={1} flexDirection="column">
-							{data.systemPromptBreakdown.map((item, i) => (
-								<Text key={i} dimColor>
-									• {item.name}: {item.tokens}
-								</Text>
-							))}
-						</Box>
-					)}
+					<Box width={12}>
+						<Text>{data.systemPromptTokens}</Text>
+					</Box>
+					<Text dimColor>{data.systemPromptPercent}%</Text>
 				</Box>
-
-				{/* Tools */}
-				<Box flexDirection="column" paddingBottom={1}>
-					<Box flexDirection="row" justifyContent="space-between">
-						<Text color="green">Tools ({data.toolCount})</Text>
-						<Text dimColor>
-							{data.toolsTokens} ({data.toolsPercent}%)
-						</Text>
+				<Box flexDirection="row">
+					<Box width={18}>
+						<Text dimColor>Tools ({data.toolCount})</Text>
 					</Box>
-					<Text color="green" dimColor>
-						{createProgressBar(toolsPercent, 60)}
-					</Text>
-					{data.tools.length > 0 && (
-						<Box paddingLeft={2} paddingTop={1} flexDirection="column">
-							{data.tools.slice(0, 6).map((item, i) => (
-								<Text key={i} dimColor>
-									• {item.name}: {item.tokens}
-								</Text>
-							))}
-							{data.tools.length > 6 && (
-								<Text dimColor>• ...{data.tools.length - 6} more</Text>
-							)}
-						</Box>
-					)}
-				</Box>
-
-				{/* Messages */}
-				<Box flexDirection="column" paddingBottom={1}>
-					<Box flexDirection="row" justifyContent="space-between">
-						<Text color="yellow">Messages</Text>
-						<Text dimColor>
-							{data.messagesTokens} ({data.messagesPercent}%)
-						</Text>
+					<Box width={12}>
+						<Text>{data.toolsTokens}</Text>
 					</Box>
-					<Text color="yellow" dimColor>
-						{createProgressBar(messagesPercent, 60)}
-					</Text>
+					<Text dimColor>{data.toolsPercent}%</Text>
 				</Box>
 			</Box>
 
-			{/* Separator */}
-			<Box paddingY={1}>
-				<Text color="gray" dimColor>
-					{createSeparator(60)}
+			{/* Variable Context */}
+			<Box paddingTop={1} paddingBottom={1}>
+				<Text dimColor bold>
+					Variable Context
 				</Text>
+			</Box>
+			<Box flexDirection="column" gap={0} paddingLeft={2}>
+				<Box flexDirection="row">
+					<Box width={18}>
+						<Text dimColor>Messages</Text>
+					</Box>
+					<Box width={12}>
+						<Text>{data.messagesTokens}</Text>
+					</Box>
+					<Text dimColor>{data.messagesPercent}%</Text>
+				</Box>
 			</Box>
 
 			{/* Available Space */}
-			<Box flexDirection="column">
-				<Box flexDirection="column" paddingBottom={1}>
-					<Box flexDirection="row" justifyContent="space-between">
-						<Text color="green">Free Space</Text>
-						<Text dimColor>
-							{data.freeTokens} ({data.freePercent}%)
-						</Text>
+			<Box paddingTop={1} paddingBottom={1}>
+				<Text dimColor bold>
+					Available Space
+				</Text>
+			</Box>
+			<Box flexDirection="column" gap={0} paddingLeft={2}>
+				<Box flexDirection="row">
+					<Box width={18}>
+						<Text dimColor>Free space</Text>
 					</Box>
-					<Text color="green" dimColor>
-						{createProgressBar(freePercent, 60)}
-					</Text>
+					<Box width={12}>
+						<Text>{data.freeTokens}</Text>
+					</Box>
+					<Text dimColor>{data.freePercent}%</Text>
 				</Box>
-
-				<Box flexDirection="column">
-					<Box flexDirection="row" justifyContent="space-between">
-						<Text color="gray">Reserved (auto-compact)</Text>
-						<Text dimColor>
-							{data.bufferTokens} ({data.bufferPercent}%)
-						</Text>
+				<Box flexDirection="row" paddingTop={1}>
+					<Box width={18}>
+						<Text dimColor>Auto-compact at</Text>
 					</Box>
-					<Text dimColor>{createProgressBar(bufferPercent, 60)}</Text>
-					<Box paddingLeft={2} paddingTop={1}>
-						<Text dimColor>Triggers automatic compaction when reached</Text>
+					<Box width={12}>
+						<Text>{data.bufferTokens}</Text>
 					</Box>
+					<Text dimColor>({data.bufferPercent}% reserved)</Text>
 				</Box>
 			</Box>
+
+			{/* Important Notes */}
+			<Box paddingTop={1} flexDirection="column">
+				<Text dimColor bold>
+					About Token Counting:
+				</Text>
+				<Text dimColor>• All tokens counted using our own tokenizer (reliable)</Text>
+				<Text dimColor>• StatusBar: Cached base + estimated messages (fast summary)</Text>
+				<Text dimColor>• This command: Recalculated from scratch (accurate details)</Text>
+				<Text dimColor>• We never rely on AI provider usage reports</Text>
+			</Box>
+
+			{/* Tools list */}
+			{data.tools.length > 0 && (
+				<>
+					<Box paddingY={1}>
+						<Text dimColor>{"─".repeat(60)}</Text>
+					</Box>
+					<Box flexDirection="column" gap={0}>
+						<Box paddingBottom={1}>
+							<Text dimColor>Tools ({data.toolCount})</Text>
+						</Box>
+						{data.tools.slice(0, 8).map((tool, i) => (
+							<Box key={i} flexDirection="row">
+								<Box width={30}>
+									<Text dimColor>{tool.name}</Text>
+								</Box>
+								<Text dimColor>{tool.tokens}</Text>
+							</Box>
+						))}
+						{data.tools.length > 8 && (
+							<Box paddingTop={0}>
+								<Text dimColor>... and {data.tools.length - 8} more</Text>
+							</Box>
+						)}
+					</Box>
+				</>
+			)}
 
 			{/* Footer */}
 			<Box paddingTop={2}>
