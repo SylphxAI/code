@@ -154,7 +154,14 @@ export class ClaudeCodeLanguageModel implements LanguageModelV2 {
 			});
 
 			// Collect results
-			const contentParts: any[] = [];
+			const contentParts: Array<{
+				type: string;
+				reasoning?: string;
+				text?: string;
+				toolCallId?: string;
+				toolName?: string;
+				args?: unknown;
+			}> = [];
 			let inputTokens = 0;
 			let outputTokens = 0;
 			let finishReason: "stop" | "length" | "tool-calls" = "stop";

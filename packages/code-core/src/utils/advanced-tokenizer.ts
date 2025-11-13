@@ -30,11 +30,16 @@ export interface AdvancedTokenizerResult {
 	};
 }
 
+interface Tokenizer {
+	encode(text: string): { input_ids: number[] };
+	decode(ids: number[], skip_special_tokens?: boolean): string;
+}
+
 /**
  * Advanced Code Tokenizer - 純粹 StarCoder2
  */
 export class AdvancedCodeTokenizer {
-	private tokenizer: any;
+	private tokenizer: Tokenizer | null = null;
 	private initialized = false;
 	private modelPath: string;
 

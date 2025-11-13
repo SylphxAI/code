@@ -56,18 +56,31 @@ export const executeBashTool = tool({
 				stderr: stderr.trim(),
 				exitCode: 0,
 			};
-		} catch (error: any) {
+		} catch (error: unknown) {
 			// exec throws error on non-zero exit code
-			if (error.code !== undefined) {
+			if (
+				error &&
+				typeof error === "object" &&
+				"code" in error &&
+				typeof error.code === "number"
+			) {
 				return {
 					command,
-					stdout: error.stdout?.trim() || "",
-					stderr: error.stderr?.trim() || "",
+					stdout:
+						"stdout" in error && typeof error.stdout === "string"
+							? error.stdout.trim()
+							: "",
+					stderr:
+						"stderr" in error && typeof error.stderr === "string"
+							? error.stderr.trim()
+							: "",
 					exitCode: error.code,
 				};
 			}
 
-			throw new Error(`Command execution failed: ${error.message}`);
+			throw new Error(
+				`Command execution failed: ${error instanceof Error ? error.message : String(error)}`,
+			);
 		}
 	},
 });

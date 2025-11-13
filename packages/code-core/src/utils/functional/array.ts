@@ -73,7 +73,7 @@ export const flatten = <T>(arr: T[][]): T[] => arr.flat();
 /**
  * Flatten array deeply
  */
-export const flattenDeep = <T>(arr: any[]): T[] => arr.flat(Number.POSITIVE_INFINITY);
+export const flattenDeep = <T>(arr: unknown[]): T[] => arr.flat(Number.POSITIVE_INFINITY) as T[];
 
 /**
  * Map and flatten (flatMap)

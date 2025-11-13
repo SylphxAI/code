@@ -348,4 +348,4 @@ export type ErrorType<T> = T extends Result<any, infer E> ? E : never;
 /**
  * Create a type-safe Result from a function that might throw
  */
-export type SafeResult<T extends (...args: any[]) => any> = Result<ReturnType<T>, Error>;
+export type SafeResult<T extends (...args: never[]) => unknown> = Result<ReturnType<T>, Error>;

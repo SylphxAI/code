@@ -44,7 +44,7 @@ export function createLogger(namespace: string): debug.Debugger {
  * For backwards compatibility
  * @deprecated Use createLogger instead
  */
-export function debugLog(namespace: string, ...args: any[]): void {
+export function debugLog(namespace: string, ...args: unknown[]): void {
 	const log = debug(`sylphx:${namespace}`);
 	log(...args);
 }
