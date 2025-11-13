@@ -56,6 +56,7 @@ export function useTotalTokens(
 					provider,
 					model,
 					agentId: agentId || "coder",
+					enabledRuleIds,
 					ruleCount: enabledRuleIds.length,
 				});
 
@@ -66,18 +67,23 @@ export function useTotalTokens(
 					enabledRuleIds: enabledRuleIds || [],
 				});
 
+				console.log("[useTotalTokens] Raw result:", JSON.stringify(result, null, 2));
+
 				if (mounted) {
 					if (result.success) {
-						console.log("[useTotalTokens] Success:", {
+						console.log("[useTotalTokens] Success, updating state to:", result.totalTokens);
+						setTotalTokens(result.totalTokens);
+						console.log("[useTotalTokens] State updated, breakdown:", {
 							totalTokens: result.totalTokens,
 							baseContextTokens: result.baseContextTokens,
 							messagesTokens: result.messagesTokens,
 						});
-						setTotalTokens(result.totalTokens);
 					} else {
 						console.error("[useTotalTokens] Failed:", result.error);
 						setTotalTokens(0);
 					}
+				} else {
+					console.log("[useTotalTokens] Component unmounted, skipping state update");
 				}
 			} catch (error) {
 				if (mounted) {
