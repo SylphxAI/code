@@ -3,7 +3,7 @@
  * Shows context window usage and token breakdown in minimal, clean design
  */
 
-import { Box, Text } from "ink";
+import { Box, Text, useInput } from "ink";
 import React from "react";
 
 interface ContextDisplayProps {
@@ -149,6 +149,13 @@ function parseContextOutput(output: string): ParsedContextData | null {
 }
 
 export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
+	// Handle ESC key to close
+	useInput((input, key) => {
+		if (key.escape) {
+			onComplete();
+		}
+	});
+
 	const data = parseContextOutput(output);
 
 	// If parsing fails, show raw output
