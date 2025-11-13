@@ -428,6 +428,8 @@ export const sessionRouter = router({
 			z.object({
 				sessionId: z.string().nullable(),
 				model: z.string().optional(),
+				agentId: z.string().optional(),
+				enabledRuleIds: z.array(z.string()).optional(),
 			}),
 		)
 		.query(async ({ ctx, input }) => {
@@ -462,9 +464,10 @@ export const sessionRouter = router({
 			const allAgents = await loadAllAgents(cwd);
 			const allRules = await loadAllRules(cwd);
 
-			// Use session's agent and rules, or defaults for base context
-			const agentId = session?.agentId || "coder";
-			const enabledRuleIds = session?.enabledRuleIds || [];
+			// Use input parameters (from UI), fall back to session, then defaults
+			// This ensures /context command and StatusBar use SAME calculation (SSOT)
+			const agentId = input.agentId || session?.agentId || "coder";
+			const enabledRuleIds = input.enabledRuleIds || session?.enabledRuleIds || [];
 			const enabledRules = allRules.filter((rule) => enabledRuleIds.includes(rule.id));
 
 			// Build system prompt

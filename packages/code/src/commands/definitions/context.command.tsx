@@ -17,7 +17,13 @@ export const contextCommand: Command = {
 
 			const { formatTokenCount } = await import("@sylphx/code-core");
 			const { get, getTRPCClient } = await import("@sylphx/code-client");
-			const { $currentSession, $selectedModel, $selectedProvider } = await import("@sylphx/code-client");
+			const {
+				$currentSession,
+				$selectedModel,
+				$selectedProvider,
+				$selectedAgentId,
+				$enabledRuleIds,
+			} = await import("@sylphx/code-client");
 
 			console.log("[Context] Imports loaded");
 			commandContext.addLog("[Context] Imports loaded");
@@ -25,10 +31,14 @@ export const contextCommand: Command = {
 			const currentSession = get($currentSession);
 			const selectedModel = get($selectedModel);
 			const selectedProvider = get($selectedProvider);
+			const selectedAgentId = get($selectedAgentId);
+			const enabledRuleIds = get($enabledRuleIds);
 
-			// Get model name and provider from session or selection (match StatusBar logic)
+			// Get model, provider, agent, and rules from session or selection (match StatusBar logic)
 			const modelName = currentSession?.model || selectedModel || null;
 			const providerId = currentSession?.provider || selectedProvider || null;
+			const agentId = currentSession?.agentId || selectedAgentId || "coder";
+			const ruleIds = currentSession?.enabledRuleIds || enabledRuleIds || [];
 			const sessionId = currentSession?.id || null;
 
 			if (!modelName) {
@@ -102,6 +112,8 @@ export const contextCommand: Command = {
 			const result = await trpc.session.getContextInfo.query({
 				sessionId: sessionId,
 				model: modelName, // Pass current model for dynamic calculation
+				agentId: agentId, // Pass current agent for SSOT
+				enabledRuleIds: ruleIds, // Pass current rules for SSOT
 			});
 
 			console.log("[Context] tRPC result:", result.success ? "success" : `error: ${result.error}`);
