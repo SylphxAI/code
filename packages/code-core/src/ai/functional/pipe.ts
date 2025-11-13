@@ -74,7 +74,7 @@ export function pipe<A, B, C, D, E, F, G, H, I, J>(
 	fn8: (h: H) => I,
 	fn9: (i: I) => J,
 ): J;
-export function pipe(value: any, ...fns: Array<(arg: any) => any>): any {
+export function pipe(value: unknown, ...fns: Array<(arg: unknown) => unknown>): unknown {
 	return fns.reduce((acc, fn) => fn(acc), value);
 }
 
@@ -136,8 +136,8 @@ export function flow<A, B, C, D, E, F, G, H, I, J>(
 	fn8: (h: H) => I,
 	fn9: (i: I) => J,
 ): (a: A) => J;
-export function flow(...fns: Array<(arg: any) => any>): (arg: any) => any {
-	return (value: any) => pipe(value, ...fns);
+export function flow(...fns: Array<(arg: unknown) => unknown>): (arg: unknown) => unknown {
+	return (value: unknown) => pipe(value, ...fns);
 }
 
 /**

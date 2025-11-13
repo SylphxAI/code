@@ -25,7 +25,7 @@ export async function generateSessionTitle(
 	firstMessage: string,
 	provider: ProviderId,
 	modelName: string,
-	providerConfig: any,
+	providerConfig: Record<string, unknown>,
 ): Promise<string> {
 	if (!firstMessage || firstMessage.trim().length === 0) {
 		return "New Chat";
@@ -89,7 +89,7 @@ export async function generateSessionTitleWithStreaming(
 	firstMessage: string,
 	provider: ProviderId,
 	modelName: string,
-	providerConfig: any,
+	providerConfig: Record<string, unknown>,
 	onChunk: (chunk: string) => void,
 ): Promise<string> {
 	if (!firstMessage || firstMessage.trim().length === 0) {

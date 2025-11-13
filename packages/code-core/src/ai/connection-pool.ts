@@ -380,11 +380,11 @@ export class ConnectionPool<T> {
 /**
  * Create a connection pool for database connections
  */
-export function createDatabaseConnectionPool(
-	createDbConnection: () => Promise<any>,
-	destroyDbConnection: (connection: any) => Promise<void>,
-	healthCheckFn: (connection: any) => Promise<boolean>,
+export function createDatabaseConnectionPool<T = unknown>(
+	createDbConnection: () => Promise<T>,
+	destroyDbConnection: (connection: T) => Promise<void>,
+	healthCheckFn: (connection: T) => Promise<boolean>,
 	config?: ConnectionConfig,
-): ConnectionPoolInstance<any> {
+): ConnectionPoolInstance<T> {
 	return createConnectionPool(createDbConnection, destroyDbConnection, healthCheckFn, config);
 }

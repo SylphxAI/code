@@ -172,15 +172,19 @@ export const get =
  */
 export const getPath =
 	(path: string) =>
-	(obj: any): any => {
+	(obj: unknown): unknown => {
 		const keys = path.split(".");
-		let current = obj;
+		let current: unknown = obj;
 
 		for (const key of keys) {
 			if (current === null || current === undefined) {
 				return undefined;
 			}
-			current = current[key];
+			if (typeof current === "object" && current !== null && key in current) {
+				current = (current as Record<string, unknown>)[key];
+			} else {
+				return undefined;
+			}
 		}
 
 		return current;
@@ -222,14 +226,14 @@ export const isNotEmpty = <T extends object>(obj: T): boolean => {
  * Remove undefined values
  */
 export const compact = <T extends object>(obj: T): Partial<T> => {
-	return filterObj((value: any) => value !== undefined)(obj);
+	return filterObj((value: unknown) => value !== undefined)(obj);
 };
 
 /**
  * Remove null and undefined values
  */
 export const compactAll = <T extends object>(obj: T): Partial<T> => {
-	return filterObj((value: any) => value !== null && value !== undefined)(obj);
+	return filterObj((value: unknown) => value !== null && value !== undefined)(obj);
 };
 
 /**

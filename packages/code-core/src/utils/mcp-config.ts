@@ -30,6 +30,20 @@ interface ConfigField {
 	options?: string[];
 }
 
+interface ServerEnvConfig {
+	description: string;
+	required?: boolean;
+	secret?: boolean;
+	default?: string;
+}
+
+interface MCPServer {
+	id: string;
+	name: string;
+	description: string;
+	envVars?: Record<string, ServerEnvConfig>;
+}
+
 export class MCPConfigurator {
 	private targetId: string;
 	private cwd: string;
@@ -96,7 +110,7 @@ export class MCPConfigurator {
 		return serverId as MCPServerID;
 	}
 
-	private async configureServer(server: any): Promise<Record<string, string>> {
+	private async configureServer(server: MCPServer): Promise<Record<string, string>> {
 		const fields = this.buildConfigFields(server);
 		const values: Record<string, string> = {};
 
@@ -111,11 +125,11 @@ export class MCPConfigurator {
 		return values;
 	}
 
-	private buildConfigFields(server: any): ConfigField[] {
+	private buildConfigFields(server: MCPServer): ConfigField[] {
 		const fields: ConfigField[] = [];
 
 		if (server.envVars) {
-			Object.entries(server.envVars).forEach(([key, config]: [string, any]) => {
+			Object.entries(server.envVars).forEach(([key, config]) => {
 				let options: string[] | undefined;
 
 				if (key === "EMBEDDING_MODEL") {

@@ -41,15 +41,25 @@ cacheManager.register(
 	"Base context tokens (system prompt + tools) with SHA256 content-based caching",
 );
 
+interface AgentLike {
+	id: string;
+	[key: string]: unknown;
+}
+
+interface RuleLike {
+	id: string;
+	[key: string]: unknown;
+}
+
 /**
  * Generate content hash for base context caching
  * Hash includes all content that affects token count
  */
 function generateBaseContextHash(
 	agentId: string,
-	allAgents: any[],
-	enabledRules: any[],
-	tools: Record<string, any>,
+	allAgents: AgentLike[],
+	enabledRules: RuleLike[],
+	tools: Record<string, unknown>,
 ): string {
 	// 1. Agent content
 	const agent = allAgents.find((a) => a.id === agentId);
