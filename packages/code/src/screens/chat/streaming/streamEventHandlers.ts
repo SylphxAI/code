@@ -25,6 +25,7 @@ export {
 	handleSessionDeleted,
 	handleSessionModelUpdated,
 	handleSessionProviderUpdated,
+	handleSessionTokensUpdated,
 	handleSessionTitleUpdatedStart,
 	handleSessionTitleUpdatedDelta,
 	handleSessionTitleUpdatedEnd,
@@ -69,6 +70,7 @@ import {
 	handleSessionDeleted,
 	handleSessionModelUpdated,
 	handleSessionProviderUpdated,
+	handleSessionTokensUpdated,
 	handleSessionTitleUpdatedStart,
 	handleSessionTitleUpdatedDelta,
 	handleSessionTitleUpdatedEnd,
@@ -123,6 +125,7 @@ const eventHandlers: Record<StreamEvent["type"], EventHandler> = {
 	"session-deleted": handleSessionDeleted,
 	"session-model-updated": handleSessionModelUpdated,
 	"session-provider-updated": handleSessionProviderUpdated,
+	"session-tokens-updated": handleSessionTokensUpdated,
 
 	// Title events
 	"session-title-updated-start": handleSessionTitleUpdatedStart,

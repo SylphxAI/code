@@ -55,6 +55,7 @@ export type StreamEvent =
 			model: string;
 	  }
 	| { type: "session-updated"; sessionId: string }
+	| { type: "session-tokens-updated"; sessionId: string }
 	| { type: "session-title-updated-start"; sessionId: string }
 	| { type: "session-title-updated-delta"; sessionId: string; text: string }
 	| { type: "session-title-updated-end"; sessionId: string; title: string }
@@ -1172,10 +1173,19 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 				// 12. Update session token counts (baseContextTokens + totalTokens)
 				// Run in background - don't await to avoid blocking completion
+				// After updating, emit session-tokens-updated event for UI refresh
 				const { updateSessionTokens } = await import("@sylphx/code-core");
-				updateSessionTokens(sessionId, sessionRepository).catch((error) => {
-					console.error("[streamAIResponse] Failed to update session tokens:", error);
-				});
+				updateSessionTokens(sessionId, sessionRepository)
+					.then(async () => {
+						// Emit event to notify clients of updated tokens
+						await eventStream.publish("session-events", {
+							type: "session-tokens-updated" as const,
+							sessionId,
+						});
+					})
+					.catch((error) => {
+						console.error("[streamAIResponse] Failed to update session tokens:", error);
+					});
 
 				// 13. Complete observable (title continues independently via eventStream)
 				observer.complete();

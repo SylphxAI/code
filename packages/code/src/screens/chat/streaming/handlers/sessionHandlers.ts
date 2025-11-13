@@ -155,3 +155,54 @@ export function handleSessionTitleUpdated(
 		context.updateSessionTitle(event.sessionId, event.title);
 	}
 }
+
+// ============================================================================
+// Token Update Events
+// ============================================================================
+
+/**
+ * Handle session tokens updated event
+ * Server has calculated and updated totalTokens in database
+ * We need to re-fetch the current session to get updated tokens
+ */
+export function handleSessionTokensUpdated(
+	event: Extract<StreamEvent, { type: "session-tokens-updated" }>,
+	context: EventHandlerContext,
+) {
+	const currentSessionId = getCurrentSessionId();
+	const currentSession = getSignal($currentSession);
+
+	// Only handle if this is the current session
+	if (event.sessionId !== currentSessionId || !currentSession) {
+		return;
+	}
+
+	logSession("Session tokens updated, re-fetching session from server:", event.sessionId);
+
+	// Re-fetch session from server to get updated totalTokens
+	// ARCHITECTURE: Client is pure UI - server calculates tokens
+	import("@sylphx/code-client")
+		.then(({ getTRPCClient }) => {
+			return getTRPCClient();
+		})
+		.then((caller) => {
+			return caller.session.get.query({ sessionId: event.sessionId });
+		})
+		.then((updatedSession) => {
+			if (updatedSession) {
+				// Update session with new totalTokens
+				setSignal($currentSession, {
+					...currentSession,
+					totalTokens: updatedSession.totalTokens,
+					baseContextTokens: updatedSession.baseContextTokens,
+				});
+				logSession("Session tokens updated successfully:", {
+					total: updatedSession.totalTokens,
+					base: updatedSession.baseContextTokens,
+				});
+			}
+		})
+		.catch((error) => {
+			console.error("[handleSessionTokensUpdated] Failed to re-fetch session:", error);
+		});
+}
