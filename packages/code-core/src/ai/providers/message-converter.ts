@@ -12,15 +12,32 @@ export interface MessageConversionResult {
 	messageFingerprints: string[];
 }
 
+interface MessageLike {
+	role: string;
+	content: unknown;
+}
+
+interface TextPart {
+	type: string;
+	text: string;
+}
+
 /**
  * Simple message fingerprint for detecting changes
  * Returns a hash of role + first 100 chars of text content
  */
-export function getMessageFingerprint(message: any): string {
+export function getMessageFingerprint(message: MessageLike): string {
 	const content = Array.isArray(message.content) ? message.content : [message.content];
 	const textParts = content
-		.filter((part: any) => typeof part === "object" && part.type === "text")
-		.map((part: any) => part.text)
+		.filter((part: unknown): part is TextPart =>
+			typeof part === "object" &&
+			part !== null &&
+			"type" in part &&
+			part.type === "text" &&
+			"text" in part &&
+			typeof part.text === "string"
+		)
+		.map((part) => part.text)
 		.join("");
 	// Simple fingerprint: role + first 100 chars
 	const preview = textParts.slice(0, 100);
@@ -32,7 +49,7 @@ export function getMessageFingerprint(message: any): string {
  * Returns true if inconsistency detected
  */
 export function detectMessageInconsistency(
-	messages: any[],
+	messages: MessageLike[],
 	lastProcessedCount: number,
 	lastMessageFingerprints?: string[],
 ): boolean {

@@ -16,10 +16,10 @@ import type { Result } from "../result.js";
  * Logger interface
  */
 export interface ILogger {
-	debug(message: string, ...args: any[]): void;
-	info(message: string, ...args: any[]): void;
-	warn(message: string, ...args: any[]): void;
-	error(message: string, ...args: any[]): void;
+	debug(message: string, ...args: unknown[]): void;
+	info(message: string, ...args: unknown[]): void;
+	warn(message: string, ...args: unknown[]): void;
+	error(message: string, ...args: unknown[]): void;
 }
 
 /**
@@ -110,7 +110,7 @@ export interface IValidationService<T> {
 /**
  * Event emitter interface for event-driven architecture
  */
-export interface IEventEmitter<EventMap extends Record<string, any>> {
+export interface IEventEmitter<EventMap extends Record<string, unknown>> {
 	/**
 	 * Emit an event
 	 */

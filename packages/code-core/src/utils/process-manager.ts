@@ -1,8 +1,10 @@
+import type { ChildProcess } from "node:child_process";
+
 /**
  * ProcessManager interface for managing child processes
  */
 export interface ProcessManager {
-	trackChildProcess(childProcess: any): void;
+	trackChildProcess(childProcess: ChildProcess): void;
 	killAllProcesses(): Promise<void>;
 	// Internal for testing - exposed for tests to access state
 	readonly _state?: ProcessManagerState;
@@ -13,9 +15,9 @@ export interface ProcessManager {
  * Internal state for ProcessManager
  */
 interface ProcessManagerState {
-	readonly childProcesses: Set<any>;
+	readonly childProcesses: Set<ChildProcess>;
 	isShuttingDown: boolean;
-	readonly signalHandlers: Map<NodeJS.Signals, (...args: any[]) => void>;
+	readonly signalHandlers: Map<NodeJS.Signals, (...args: unknown[]) => void>;
 }
 
 /**
@@ -100,7 +102,7 @@ export function createProcessManager(): ProcessManager {
 	/**
 	 * Track a child process for cleanup on shutdown
 	 */
-	const trackChildProcess = (childProcess: any): void => {
+	const trackChildProcess = (childProcess: ChildProcess): void => {
 		state.childProcesses.add(childProcess);
 
 		// Remove from tracking when process exits
