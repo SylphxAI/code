@@ -278,10 +278,11 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 				<Text dimColor bold>
 					About Token Counting:
 				</Text>
-				<Text dimColor>• All tokens counted using our own tokenizer (reliable)</Text>
-				<Text dimColor>• StatusBar: Cached base + estimated messages (fast summary)</Text>
-				<Text dimColor>• This command: Recalculated from scratch (accurate details)</Text>
-				<Text dimColor>• We never rely on AI provider usage reports</Text>
+				<Text dimColor>• Server calculates all tokens using Hugging Face tokenizer</Text>
+				<Text dimColor>• StatusBar: Shows session.totalTokens (fast, server-calculated)</Text>
+				<Text dimColor>• This command: Full breakdown with details (same source)</Text>
+				<Text dimColor>• Multi-client sync: all clients see same counts</Text>
+				<Text dimColor>• Never relies on AI provider usage reports</Text>
 			</Box>
 
 			{/* Tools list */}

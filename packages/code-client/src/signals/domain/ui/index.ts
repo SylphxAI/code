@@ -19,15 +19,6 @@ export const $debugLogs = zen<string[]>([]);
 export const $isCompacting = zen(false);
 export const $compactAbortController = zen<AbortController | null>(null);
 
-// Base context cache (system prompt + tools tokens)
-// Calculated once per model/agent/rules combination and cached
-export const $baseContextTokens = zen<{
-	modelId: string;
-	agentId: string;
-	ruleIds: string;
-	tokens: number;
-} | null>(null);
-
 // Computed signals
 export const $canGoBack = computed(
 	[$currentScreen, $previousScreen],

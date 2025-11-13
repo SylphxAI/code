@@ -428,6 +428,12 @@ export interface Session {
 	// Used to prevent duplicate system messages (e.g., memoryWarning, cpuWarning)
 	flags?: Record<string, boolean>;
 
+	// Token usage (calculated by server, never by client)
+	// Server calculates using Hugging Face tokenizer
+	// Client displays only - NO client-side calculation
+	baseContextTokens?: number; // System prompt + tools (calculated once at session creation)
+	totalTokens?: number; // Base + all messages (updated after each message)
+
 	// Note: Streaming state derived from message.status, not stored here
 	// To check if streaming: messages.some(m => m.status === 'active')
 

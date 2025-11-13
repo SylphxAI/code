@@ -60,7 +60,7 @@ export default function StatusBar({
 	};
 
 	// Calculate usage percentage
-	// usedTokens comes from useTokenCalculation which includes base + messages
+	// usedTokens = session.totalTokens (calculated by server)
 	const usagePercent =
 		contextLength && usedTokens > 0 ? Math.round((usedTokens / contextLength) * 100) : 0;
 
@@ -145,7 +145,7 @@ export default function StatusBar({
 				) : null}
 				{!loading && contextLength && usedTokens > 0 ? (
 					<Text dimColor>
-						~{formatNumber(usedTokens)} / {formatNumber(contextLength)} (~{usagePercent}%)
+						{formatNumber(usedTokens)} / {formatNumber(contextLength)} ({usagePercent}%)
 					</Text>
 				) : null}
 				{!loading && contextLength && usedTokens === 0 ? (
