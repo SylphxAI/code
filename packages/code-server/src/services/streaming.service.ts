@@ -795,7 +795,13 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 									callbacks.onTextDelta?.(chunk.text);
 
 									// Update tokens in real-time (incremental)
-									await updateTokensFromDelta(chunk.text);
+									await updateTokensFromDelta(
+										tokenTracker,
+										chunk.text,
+										sessionId,
+										baseContextTokens,
+										opts.appContext,
+									);
 								}
 								break;
 							}
@@ -840,7 +846,13 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 									callbacks.onReasoningDelta?.(chunk.text);
 
 									// Update tokens in real-time (incremental)
-									await updateTokensFromDelta(chunk.text);
+									await updateTokensFromDelta(
+										tokenTracker,
+										chunk.text,
+										sessionId,
+										baseContextTokens,
+										opts.appContext,
+									);
 								}
 								break;
 							}
