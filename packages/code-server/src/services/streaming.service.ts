@@ -55,7 +55,12 @@ export type StreamEvent =
 			model: string;
 	  }
 	| { type: "session-updated"; sessionId: string }
-	| { type: "session-tokens-updated"; sessionId: string }
+	| {
+			type: "session-tokens-updated";
+			sessionId: string;
+			totalTokens: number;
+			baseContextTokens: number;
+	  }
 	| { type: "session-title-updated-start"; sessionId: string }
 	| { type: "session-title-updated-delta"; sessionId: string; text: string }
 	| { type: "session-title-updated-end"; sessionId: string; title: string }
@@ -1178,14 +1183,26 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					const { updateSessionTokens } = await import("@sylphx/code-core");
 					await updateSessionTokens(sessionId, sessionRepository);
 
-					// Emit event to notify clients of updated tokens
+					// Read updated session to get token values (server-side read, efficient)
+					const updatedSession = await sessionRepository.get(sessionId);
+					if (!updatedSession) {
+						throw new Error("Session not found after token update");
+					}
+
+					// Emit event with actual token data (send data on needed)
 					// Publish to session-specific channel (same as other streaming events)
+					// All clients receive token data immediately without additional API calls
 					console.log("[streamAIResponse] Publishing session-tokens-updated event for session:", sessionId);
 					await opts.appContext.eventStream.publish(`session:${sessionId}`, {
 						type: "session-tokens-updated" as const,
 						sessionId,
+						totalTokens: updatedSession.totalTokens || 0,
+						baseContextTokens: updatedSession.baseContextTokens || 0,
 					});
-					console.log("[streamAIResponse] session-tokens-updated event published successfully");
+					console.log("[streamAIResponse] session-tokens-updated event published successfully:", {
+						totalTokens: updatedSession.totalTokens,
+						baseContextTokens: updatedSession.baseContextTokens,
+					});
 				} catch (error) {
 					console.error("[streamAIResponse] Failed to update session tokens:", error);
 				}

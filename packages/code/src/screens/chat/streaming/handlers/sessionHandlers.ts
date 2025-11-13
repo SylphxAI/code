@@ -162,8 +162,8 @@ export function handleSessionTitleUpdated(
 
 /**
  * Handle session tokens updated event
- * Server has calculated and updated totalTokens in database
- * We need to re-fetch the current session to get updated tokens
+ * Server has calculated tokens and sent them in the event
+ * Client directly uses event data (send data on needed principle)
  */
 export function handleSessionTokensUpdated(
 	event: Extract<StreamEvent, { type: "session-tokens-updated" }>,
@@ -177,37 +177,24 @@ export function handleSessionTokensUpdated(
 		return;
 	}
 
-	logSession("Session tokens updated, re-fetching session from server:", event.sessionId);
+	// ARCHITECTURE: Send data on needed - event contains actual token data
+	// Client is pure UI - directly use data from server, no business logic
+	// Multi-client sync: All clients receive same data simultaneously
+	logSession("Session tokens updated from event:", {
+		sessionId: event.sessionId,
+		totalTokens: event.totalTokens,
+		baseContextTokens: event.baseContextTokens,
+	});
 
-	// Re-fetch session from server to get updated totalTokens
-	// ARCHITECTURE: Client is pure UI - server calculates tokens
-	import("@sylphx/code-client")
-		.then(({ getTRPCClient }) => {
-			return getTRPCClient();
-		})
-		.then((caller) => {
-			return caller.session.get.query({ sessionId: event.sessionId });
-		})
-		.then((updatedSession) => {
-			if (updatedSession) {
-				// Update session with new totalTokens
-				logSession("Re-fetched session from server:", {
-					sessionId: updatedSession.id,
-					totalTokens: updatedSession.totalTokens,
-					baseContextTokens: updatedSession.baseContextTokens,
-				});
-				setSignal($currentSession, {
-					...currentSession,
-					totalTokens: updatedSession.totalTokens,
-					baseContextTokens: updatedSession.baseContextTokens,
-				});
-				logSession("Session tokens updated successfully:", {
-					total: updatedSession.totalTokens,
-					base: updatedSession.baseContextTokens,
-				});
-			}
-		})
-		.catch((error) => {
-			console.error("[handleSessionTokensUpdated] Failed to re-fetch session:", error);
-		});
+	// Update local state with data from event (no API call needed)
+	setSignal($currentSession, {
+		...currentSession,
+		totalTokens: event.totalTokens,
+		baseContextTokens: event.baseContextTokens,
+	});
+
+	logSession("Session tokens updated successfully:", {
+		total: event.totalTokens,
+		base: event.baseContextTokens,
+	});
 }

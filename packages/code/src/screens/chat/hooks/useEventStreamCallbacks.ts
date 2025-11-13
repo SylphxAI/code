@@ -123,10 +123,14 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 			},
 
 			// ENABLED: Token updates (server calculates tokens, client displays)
-			onSessionTokensUpdated: (sessionId: string) => {
-				console.log("[useEventStreamCallbacks] onSessionTokensUpdated called for session:", sessionId);
+			onSessionTokensUpdated: (sessionId: string, totalTokens: number, baseContextTokens: number) => {
+				console.log("[useEventStreamCallbacks] onSessionTokensUpdated called:", {
+					sessionId,
+					totalTokens,
+					baseContextTokens,
+				});
 				handleStreamEvent(
-					{ type: "session-tokens-updated", sessionId },
+					{ type: "session-tokens-updated", sessionId, totalTokens, baseContextTokens },
 					eventContextParams,
 				);
 			},

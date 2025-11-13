@@ -28,7 +28,7 @@ export interface EventStreamCallbacks {
 	onSessionTitleStart?: (sessionId: string) => void;
 	onSessionTitleDelta?: (sessionId: string, text: string) => void;
 	onSessionTitleComplete?: (sessionId: string, title: string) => void;
-	onSessionTokensUpdated?: (sessionId: string) => void;
+	onSessionTokensUpdated?: (sessionId: string, totalTokens: number, baseContextTokens: number) => void;
 
 	// Message events
 	onUserMessageCreated?: (messageId: string, content: string) => void;
@@ -187,8 +187,16 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 							break;
 
 						case "session-tokens-updated":
-							console.log("[useEventStream] Received session-tokens-updated event:", event.sessionId);
-							callbacksRef.current.onSessionTokensUpdated?.(event.sessionId);
+							console.log("[useEventStream] Received session-tokens-updated event:", {
+								sessionId: event.sessionId,
+								totalTokens: event.totalTokens,
+								baseContextTokens: event.baseContextTokens,
+							});
+							callbacksRef.current.onSessionTokensUpdated?.(
+								event.sessionId,
+								event.totalTokens,
+								event.baseContextTokens,
+							);
 							break;
 
 					case "user-message-created":
