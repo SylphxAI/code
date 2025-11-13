@@ -140,38 +140,40 @@
 
 ---
 
-### Phase 2: Quick Wins 🎯 NEXT
+### Phase 2: Quick Wins ✅ DONE
 **Tasks**:
 1. [x] Delete empty files:
    - `code-core/src/ai/agent-manager.ts`
    - `code-core/src/ai/rule-manager.ts`
 
-2. [ ] Update index exports to remove deleted files
+2. [x] Update index exports to remove deleted files
 
-3. [ ] Add ESLint rule to warn on `any`:
+3. [x] Add Biome linter rule to warn on `any`:
    ```json
    {
-     "@typescript-eslint/no-explicit-any": "warn"
+     "suspicious": {
+       "noExplicitAny": "warn"
+     }
    }
    ```
 
-4. [ ] Document Session types in ARCHITECTURE.md:
+4. [x] Document Session types in ARCHITECTURE.md:
    - File-based: Headless mode sessions (legacy)
    - Database: Main application sessions
    - Clarify when to use which
 
-**Duration**: 1-2 hours
-**Impact**: Immediate clarity improvement
+**Duration**: 2 hours (completed)
+**Impact**: ✅ Immediate clarity improvement achieved
 
 ---
 
-### Phase 3: Streaming Service Refactoring 🔨 CORE
+### Phase 3: Streaming Service Refactoring 🔨 IN PROGRESS
 **Current**: `streaming.service.ts` (1450 lines, monolithic)
 
 **Target**: Modular services with clear boundaries
 
-#### 3.1: Extract Token Tracking
-**New File**: `services/token-tracking.service.ts`
+#### 3.1: Extract Token Tracking ✅ DONE
+**New File**: `services/token-tracking.service.ts` (257 lines)
 
 **Responsibilities**:
 - Initialize token tracker
@@ -179,7 +181,11 @@
 - Emit token update events
 - Checkpoint recalculation
 
-**Extracted Code**: Lines 760-837 from streaming.service.ts
+**Functions Extracted**:
+- `initializeTokenTracking()` - Setup baseline
+- `updateTokensFromDelta()` - Optimistic updates
+- `recalculateTokensAtCheckpoint()` - Step completion
+- `calculateFinalTokens()` - Final accurate count
 
 **Benefits**:
 - ✅ Testable in isolation
@@ -188,8 +194,8 @@
 
 ---
 
-#### 3.2: Extract Step Lifecycle
-**New File**: `services/step-lifecycle.service.ts`
+#### 3.2: Extract Step Lifecycle ✅ DONE
+**New File**: `services/step-lifecycle.service.ts` (268 lines)
 
 **Responsibilities**:
 - Create message steps
@@ -197,9 +203,9 @@
 - Complete steps
 - Emit step events
 
-**Extracted Code**:
-- `prepareStep` hook (lines 543-669)
-- `onStepFinish` hook (lines 426-540)
+**Functions Extracted**:
+- `prepareStep()` - AI SDK prepareStep hook
+- `completeStep()` - AI SDK onStepFinish hook
 
 **Benefits**:
 - ✅ Single Responsibility (step management)
@@ -208,26 +214,17 @@
 
 ---
 
-#### 3.3: Extract Stream Processing
-**New File**: `services/stream-processor.service.ts`
-
-**Responsibilities**:
-- Process AI SDK stream chunks
-- Handle chunk types (text, tool, file, etc.)
-- Maintain active parts state
-- Emit streaming events
-
-**Extracted Code**: Lines 839-1190 (chunk processing loop)
-
-**Benefits**:
-- ✅ Isolated streaming logic
-- ✅ Easier to add new chunk types
-- ✅ Testable chunk handling
+#### 3.3: Extract Stream Processing ⏭️ SKIPPED
+**Rationale**: Stream processing is tightly coupled to AI SDK Observable
+- Chunk handling logic is ~400 lines but highly interconnected
+- Extracting would require complex state passing
+- Better to keep in orchestrator for now
+- Can revisit if orchestrator still >500 lines after Phase 3.5
 
 ---
 
-#### 3.4: Extract Message Persistence
-**New File**: `services/message-persistence.service.ts`
+#### 3.4: Extract Message Persistence ✅ DONE
+**New File**: `services/message-persistence.service.ts` (164 lines)
 
 **Responsibilities**:
 - Create user/assistant messages
@@ -235,10 +232,11 @@
 - Save message steps
 - Handle message-related DB operations
 
-**Extracted Code**:
-- Message creation (lines 306-328, 390-402)
-- Status updates (lines 1262-1283)
-- System message creation (lines 1285-1321)
+**Functions Extracted**:
+- `createUserMessage()` - User message with frozen files
+- `createAssistantMessage()` - Empty assistant message
+- `updateMessageStatus()` - Status + event emission
+- `createAbortNotificationMessage()` - System message for abort
 
 **Benefits**:
 - ✅ Centralized persistence logic
@@ -247,33 +245,31 @@
 
 ---
 
-#### 3.5: Orchestrator (Remaining)
-**Refactored File**: `services/streaming-orchestrator.service.ts`
+#### 3.5: Refactor Orchestrator ⏳ NEXT
+**Goal**: Update streaming.service.ts to use extracted services
 
-**Responsibilities**:
-- Compose services
-- Coordinate streaming flow
-- Handle high-level errors
-- Emit top-level events
+**Tasks**:
+1. [ ] Add imports for new services
+2. [ ] Replace inline token tracking with TokenTrackingService calls
+3. [ ] Replace inline step hooks with StepLifecycleService calls
+4. [ ] Replace inline message creation with MessagePersistenceService calls
+5. [ ] Verify no duplicate code remains
+6. [ ] Build and test
 
-**Remaining Code**: High-level flow coordination (~300 lines)
-
-**Benefits**:
-- ✅ Clear entry point
-- ✅ Thin orchestration layer
-- ✅ Easy to understand flow
+**Expected Result**: streaming.service.ts reduced to ~800-900 lines
 
 ---
 
-**Phase 3 Timeline**:
-- Step 1: Extract TokenTracking (2 hours)
-- Step 2: Extract StepLifecycle (3 hours)
-- Step 3: Extract StreamProcessor (4 hours)
-- Step 4: Extract MessagePersistence (2 hours)
-- Step 5: Refactor Orchestrator (2 hours)
-- Step 6: Testing & Integration (4 hours)
+**Phase 3 Progress**:
+- ✅ Step 1: Extract TokenTracking (2 hours) - DONE
+- ✅ Step 2: Extract StepLifecycle (2 hours) - DONE
+- ⏭️ Step 3: Extract StreamProcessor - SKIPPED
+- ✅ Step 4: Extract MessagePersistence (1 hour) - DONE
+- ⏳ Step 5: Refactor Orchestrator (3 hours) - IN PROGRESS
+- ⏸️ Step 6: Testing & Integration (2 hours) - PENDING
 
-**Total**: ~17 hours (2-3 days)
+**Total**: ~10 hours (1-2 days)
+**Completed**: ~5 hours (50%)
 
 ---
 
