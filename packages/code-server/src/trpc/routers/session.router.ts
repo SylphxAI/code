@@ -424,10 +424,15 @@ export const sessionRouter = router({
 	 * If sessionId is null, returns base context (system prompt + tools only)
 	 */
 	getContextInfo: publicProcedure
-		.input(z.object({ sessionId: z.string().nullable() }))
+		.input(
+			z.object({
+				sessionId: z.string().nullable(),
+				model: z.string().optional(),
+			}),
+		)
 		.query(async ({ ctx, input }) => {
 			let session = null;
-			let modelName = "anthropic/claude-3.5-sonnet"; // Default model for base context
+			let modelName = input.model || "anthropic/claude-3.5-sonnet"; // Use input model or default
 
 			// If sessionId provided, get the session
 			if (input.sessionId) {
@@ -435,7 +440,9 @@ export const sessionRouter = router({
 				if (!session) {
 					return { success: false as const, error: "Session not found" };
 				}
-				modelName = session.model;
+				// IMPORTANT: Use input.model if provided (current UI selection)
+				// Falls back to session.model only if input.model not specified
+				modelName = input.model || session.model;
 			}
 
 			const {

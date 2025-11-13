@@ -101,6 +101,7 @@ export const contextCommand: Command = {
 			console.log("[Context] Calling tRPC getContextInfo...");
 			const result = await trpc.session.getContextInfo.query({
 				sessionId: sessionId,
+				model: modelName, // Pass current model for dynamic calculation
 			});
 
 			console.log("[Context] tRPC result:", result.success ? "success" : `error: ${result.error}`);
