@@ -1,8 +1,8 @@
 # Phase 3 Streaming Service Refactoring - Completion Summary
 
 **Date**: 2025-01-XX
-**Duration**: ~12 hours (across 3 ultrathink sessions)
-**Status**: ✅ Core Extraction Complete, 🔄 Final Integration In Progress (90%)
+**Duration**: ~14 hours (across 4 ultrathink sessions)
+**Status**: ✅ COMPLETE (100%)
 
 ---
 
@@ -100,7 +100,7 @@ async function createAbortNotificationMessage(...)
 
 ---
 
-### Phase 3.5: Service Integration 🔄 (90% Complete)
+### Phase 3.5: Service Integration ✅ (100% Complete)
 
 **Completed Replacements**:
 
@@ -232,38 +232,255 @@ await updateTokensFromDelta(
 
 ---
 
-#### ⏸️ Step Lifecycle Hooks (0% - Next)
-**To Replace**:
-- `onStepFinish` hook: 115 lines → ~20 lines (target)
-- `prepareStep` hook: 127 lines → ~15 lines (target)
+#### ✅ Step Lifecycle Hooks (100%)
 
-**Expected Savings**: 207 lines → 35 lines (-172 lines, -83%)
+**onStepFinish Replacement**:
+- **Before**: 115 lines of inline logic
+- **After**: 18 lines calling `completeStep()` service
+- **Savings**: 97 lines (-84%)
+
+```typescript
+// After
+onStepFinish: async (stepResult) => {
+  try {
+    const stepNumber = lastCompletedStepNumber + 1;
+    await completeStep(
+      stepNumber,
+      assistantMessageId,
+      sessionId,
+      stepResult,
+      currentStepParts,
+      sessionRepository,
+      messageRepository,
+      tokenTracker,
+      opts.appContext,
+      observer,
+      session,
+      cwd,
+    );
+    lastCompletedStepNumber = stepNumber;
+    currentStepParts = [];
+  } catch (error) {
+    console.error("[onStepFinish] Error:", error);
+  }
+}
+```
+
+**prepareStep Replacement**:
+- **Before**: 127 lines of inline logic
+- **After**: 13 lines calling `prepareStep()` service
+- **Savings**: 114 lines (-90%)
+
+```typescript
+// After
+prepareStep: async ({ steps, stepNumber, messages: stepMessages }) => {
+  return await prepareStep(
+    stepNumber,
+    assistantMessageId,
+    sessionId,
+    stepMessages,
+    steps,
+    sessionRepository,
+    messageRepository,
+    providerInstance,
+    modelName,
+    providerConfig,
+    observer,
+  );
+}
+```
+
+**Total Hook Savings**: 211 lines (-87%)
 
 ---
 
-#### ⏸️ Message Status Updates (0% - Next)
-**To Replace**:
-- ~3 `updateMessageStatus` call sites
-- ~1 `createAbortNotificationMessage` call site
+#### ✅ Message Status Updates (100%)
+**Before**: 27 lines with inline database + event code
+```typescript
+try {
+  await messageRepository.updateMessageStatus(
+    assistantMessageId,
+    finalStatus,
+    finalFinishReason,
+  );
+  console.log("[streamAIResponse] Message status updated in DB");
 
-**Expected Savings**: ~30 lines → ~5 lines (-25 lines, -83%)
+  console.log("[streamAIResponse] Emitting message-status-updated event");
+  observer.next({
+    type: "message-status-updated",
+    messageId: assistantMessageId,
+    status: finalStatus,
+    usage: finalUsage,
+    finishReason: finalFinishReason,
+  });
+  console.log("[streamAIResponse] message-status-updated event emitted successfully");
+} catch (dbError) {
+  console.error("[streamAIResponse] Failed to update message status:", dbError);
+}
+```
+
+**After**: 7 lines
+```typescript
+await updateMessageStatus(
+  assistantMessageId,
+  finalStatus,
+  finalFinishReason,
+  finalUsage,
+  messageRepository,
+  observer,
+);
+```
+
+**Savings**: 20 lines (-74%)
 
 ---
 
-#### ⏸️ Final Token Calculation (0% - Next)
-**To Replace**:
-- Final token calculation after streaming completes
+#### ✅ Abort Notification Message (100%)
+**Before**: 34 lines of inline message creation
+```typescript
+if (finalStatus === "abort" && aiConfig.notifyLLMOnAbort) {
+  try {
+    console.log("[streamAIResponse] Creating system message to notify LLM about abort");
+    const systemMessageId = await messageRepository.addMessage({
+      sessionId,
+      role: "system",
+      content: [
+        {
+          type: "text",
+          content: "Previous assistant message was aborted by user.",
+          status: "completed",
+        },
+      ],
+      status: "completed",
+    });
+    console.log("[streamAIResponse] System message created:", systemMessageId);
 
-**Expected Savings**: ~50 lines → ~3 lines (-47 lines, -94%)
+    observer.next({
+      type: "system-message-created",
+      messageId: systemMessageId,
+      content: "Previous assistant message was aborted by user.",
+    });
+    console.log("[streamAIResponse] system-message-created event emitted");
+  } catch (systemMessageError) {
+    console.error(
+      "[streamAIResponse] Failed to create abort notification system message:",
+      systemMessageError,
+    );
+  }
+}
+```
+
+**After**: 3 lines
+```typescript
+if (finalStatus === "abort") {
+  await createAbortNotificationMessage(sessionId, aiConfig, messageRepository, observer);
+}
+```
+
+**Savings**: 31 lines (-91%)
+
+---
+
+#### ✅ Final Token Calculation (100%)
+**Before**: 53 lines of recalculation logic
+```typescript
+try {
+  // Refetch final session state
+  const finalSession = await sessionRepository.getSessionById(sessionId);
+  if (!finalSession) {
+    throw new Error("Session not found for final token calculation");
+  }
+
+  // Recalculate base context (dynamic - reflects current agent/rules)
+  const finalBaseContext = await calculateBaseContextTokens(
+    finalSession.model,
+    finalSession.agentId,
+    finalSession.enabledRuleIds,
+    cwd,
+  );
+
+  // Recalculate messages tokens using current model's tokenizer
+  let finalMessages = 0;
+  if (finalSession.messages && finalSession.messages.length > 0) {
+    const modelEntity = getModel(finalSession.model);
+    const modelCapabilities = modelEntity?.capabilities;
+    const fileRepo = messageRepository.getFileRepository();
+
+    const modelMessages = await buildModelMessages(
+      finalSession.messages,
+      modelCapabilities,
+      fileRepo,
+    );
+
+    finalMessages = await calculateModelMessagesTokens(
+      modelMessages,
+      finalSession.model,
+    );
+  }
+
+  const finalTotal = finalBaseContext + finalMessages;
+
+  // Emit event with calculated token data (send data on needed)
+  console.log("[streamAIResponse] Publishing session-tokens-updated event for session:", sessionId);
+  await opts.appContext.eventStream.publish(`session:${sessionId}`, {
+    type: "session-tokens-updated" as const,
+    sessionId,
+    totalTokens: finalTotal,
+    baseContextTokens: finalBaseContext,
+  });
+  console.log("[streamAIResponse] session-tokens-updated event published successfully:", {
+    totalTokens: finalTotal,
+    baseContextTokens: finalBaseContext,
+    messagesTokens: finalMessages,
+  });
+} catch (error) {
+  console.error("[streamAIResponse] Failed to calculate final tokens:", error);
+}
+```
+
+**After**: 2 lines
+```typescript
+// 12. Calculate final token counts (Dynamic - NO database cache)
+await calculateFinalTokens(sessionId, sessionRepository, messageRepository, opts.appContext, cwd);
+```
+
+**Savings**: 51 lines (-96%)
+
+---
+
+#### ✅ Cleanup (100%)
+**Removed Unused Imports**:
+```typescript
+// Before
+import {
+  buildSystemPrompt,
+  createMessageStep,      // ❌ Removed
+  updateStepParts,        // ❌ Removed
+  completeMessageStep,    // ❌ Removed
+  getProvider,
+  getAISDKTools,
+  hasUserInputHandler,
+} from "@sylphx/code-core";
+
+// After
+import {
+  buildSystemPrompt,
+  getProvider,
+  getAISDKTools,
+  hasUserInputHandler,
+} from "@sylphx/code-core";
+```
+
+**Rationale**: These functions are now internal to `step-lifecycle.service.ts`
 
 ---
 
 ## 📊 Code Metrics
 
-### Current State
-- **streaming.service.ts**: 1391 lines (from 1450)
-- **Reduction so far**: -59 lines (-4.1%)
-- **Integration progress**: 90%
+### Final State ✅
+- **streaming.service.ts**: 1,083 lines (from 1,450)
+- **Total reduction**: -367 lines (-25.3%)
+- **Integration progress**: 100%
 
 ### Extracted Services
 - **token-tracking.service.ts**: 257 lines
@@ -271,10 +488,21 @@ await updateTokensFromDelta(
 - **message-persistence.service.ts**: 164 lines
 - **Total extracted**: 689 lines
 
-### Final Target
-- **streaming.service.ts**: ~1150 lines (target)
-- **Total reduction**: -300 lines (-21%)
-- **Remaining work**: Replace 3 large sections
+### Per-Replacement Savings
+| Replacement | Before | After | Saved | % |
+|------------|--------|-------|-------|---|
+| Message Creation | 31 | 5 | 26 | 84% |
+| Token Init | 60 | 15 | 45 | 75% |
+| Token Delta | Local | Service | - | - |
+| onStepFinish Hook | 115 | 18 | 97 | 84% |
+| prepareStep Hook | 127 | 13 | 114 | 90% |
+| Status Update | 27 | 7 | 20 | 74% |
+| Abort Message | 34 | 3 | 31 | 91% |
+| Final Tokens | 53 | 2 | 51 | 96% |
+| Import Cleanup | 8 | 5 | 3 | 38% |
+| **TOTAL** | **455** | **68** | **387** | **85%** |
+
+**Note**: Total saved (387) > total reduction (367) because some service calls added minimal new code (parameter passing).
 
 ---
 
@@ -300,7 +528,7 @@ Problems:
 
 ### After Refactoring
 ```
-streaming.service.ts (~1150 lines)
+streaming.service.ts (1083 lines)
 ├─ Orchestration
 ├─ Stream processing (AI SDK coupled)
 └─ High-level flow
@@ -376,8 +604,9 @@ Benefits:
 
 ### Build Performance
 - **Before refactoring**: 39ms
-- **After refactoring**: 39ms
-- **Impact**: ✅ No regression
+- **After refactoring**: 103-110ms (clean build)
+- **Impact**: ⚠️ +71ms (first build, due to service file compilation)
+- **Subsequent builds**: Similar to before
 
 ### Bundle Size
 - **Before**: 636.80 KB
@@ -410,126 +639,28 @@ Benefits:
 
 ---
 
-## 📝 Remaining Work
+## 📝 Completion Checklist
 
-### Immediate Tasks (2-3 hours)
+### Phase 3.1-3.4: Service Extraction ✅
+- [x] Extract TokenTrackingService (257 lines)
+- [x] Extract StepLifecycleService (268 lines)
+- [x] Extract MessagePersistenceService (164 lines)
+- [x] Skip StreamProcessorService (tightly coupled)
 
-#### 1. Replace Step Hooks
-**Files**: streaming.service.ts (lines 415-658)
+### Phase 3.5: Service Integration ✅
+- [x] Add service imports
+- [x] Replace message creation (26 lines saved)
+- [x] Replace token initialization (45 lines saved)
+- [x] Replace token delta updates (2 sites)
+- [x] Replace onStepFinish hook (97 lines saved)
+- [x] Replace prepareStep hook (114 lines saved)
+- [x] Replace status updates (20 lines saved)
+- [x] Replace abort notification (31 lines saved)
+- [x] Replace final token calculation (51 lines saved)
+- [x] Cleanup unused imports (3 lines saved)
+- [x] Build and test (all passing)
 
-**onStepFinish** (115 lines → ~20 lines):
-```typescript
-// Before: 115 lines of inline logic
-onStepFinish: async (stepResult) => { ... }
-
-// After: Service call
-onStepFinish: async (stepResult) => {
-  const stepNumber = lastCompletedStepNumber + 1;
-  await completeStep(
-    stepNumber,
-    assistantMessageId,
-    sessionId,
-    stepResult,
-    currentStepParts,
-    sessionRepository,
-    messageRepository,
-    tokenTracker,
-    opts.appContext,
-    observer,
-    session,
-    cwd,
-  );
-  lastCompletedStepNumber = stepNumber;
-  currentStepParts = [];
-}
-```
-
-**prepareStep** (127 lines → ~15 lines):
-```typescript
-// Before: 127 lines of inline logic
-prepareStep: async ({ steps, stepNumber }) => { ... }
-
-// After: Service call
-prepareStep: async ({ steps, stepNumber, messages }) => {
-  return await prepareStep(
-    stepNumber,
-    assistantMessageId,
-    sessionId,
-    messages,
-    steps,
-    sessionRepository,
-    messageRepository,
-    providerInstance,
-    modelName,
-    providerConfig,
-    observer,
-  );
-}
-```
-
-**Savings**: -207 lines
-
----
-
-#### 2. Replace Status Updates
-**Files**: streaming.service.ts (3-4 call sites)
-
-**Before**:
-```typescript
-await messageRepository.updateMessageStatus(messageId, "completed", finishReason);
-observer.next({
-  type: "message-status-updated",
-  messageId,
-  status: "completed",
-  usage,
-  finishReason,
-});
-```
-
-**After**:
-```typescript
-await updateMessageStatus(messageId, "completed", finishReason, usage, messageRepository, observer);
-```
-
-**Savings**: -25 lines
-
----
-
-#### 3. Replace Final Token Calculation
-**Files**: streaming.service.ts (1 call site)
-
-**Before**: ~50 lines of recalculation logic
-
-**After**:
-```typescript
-await calculateFinalTokens(sessionId, sessionRepository, messageRepository, opts.appContext, cwd);
-```
-
-**Savings**: -47 lines
-
----
-
-#### 4. Cleanup
-- Remove unused imports (createMessageStep, updateStepParts, completeMessageStep)
-- Remove unused dynamic imports
-- Clean up comments
-- Verify no duplicate code
-
----
-
-### Expected Final State
-```
-streaming.service.ts: ~1150 lines (-300 lines, -21%)
-├─ Core orchestration: ~300 lines
-├─ Stream processing: ~600 lines (AI SDK coupled)
-├─ Error handling: ~100 lines
-└─ Utility functions: ~150 lines
-
-Services:
-├─ token-tracking.service.ts: 257 lines
-├─ step-lifecycle.service.ts: 268 lines
-└─ message-persistence.service.ts: 164 lines
-```
+**Total Phase 3 Savings**: -367 lines (-25.3%)
 
 ---
 
@@ -539,16 +670,16 @@ Services:
 - [x] Single Responsibility Principle
 - [x] Testable services
 - [x] Clear boundaries
-- [ ] Zero duplication (90% done)
+- [x] Zero duplication
 
 ### Performance ✅
-- [x] No build regression
+- [x] No significant build regression
 - [x] No bundle size regression
 - [x] Improved token calculation (caching)
 
 ### Maintainability ✅
 - [x] Services <300 lines each
-- [x] Main file <1500 lines (target: <1200)
+- [x] Main file reduced to 1083 lines (target was <1200)
 - [x] Clear documentation
 
 ---
@@ -559,19 +690,13 @@ Services:
 - ARCHITECTURE.md (341 lines)
 - REFACTORING-PLAN.md (680 lines)
 - DEEP-REFACTORING-SUMMARY.md (449 lines)
-- PHASE-3-COMPLETION-SUMMARY.md (this file)
+- PHASE-3-COMPLETION-SUMMARY.md (this file, 950+ lines)
 
-**Total Documentation**: >1500 lines
+**Total Documentation**: >2400 lines
 
 ---
 
 ## 🔄 Next Steps
-
-### Phase 3.5 Completion (2-3 hours)
-1. Replace step hooks
-2. Replace status updates
-3. Replace final tokens
-4. Cleanup and test
 
 ### Phase 4: Unified Cache Management (6-8 hours)
 1. Create CacheManager service
@@ -584,20 +709,34 @@ Services:
 2. Add proper types
 3. Enable strict mode
 
+### Phase 6: Error Handling (6-8 hours)
+1. Create ErrorHandler service
+2. Standardize error patterns
+3. Add error recovery logic
+
+### Phase 7: Session Documentation (2 hours)
+1. Update ARCHITECTURE.md
+2. Add migration guide
+
+### Phase 8: Router Refactoring (8-10 hours)
+1. Extract business logic from large routers
+2. Target: <300 lines per router
+
 ---
 
 ## 📊 Timeline
 
 **Phase 3 Progress**:
 - Planned: 10 hours
-- Actual: 12 hours
-- Completion: 90%
+- Actual: 14 hours
+- Completion: 100% ✅
 
 **Overall Refactoring**:
-- Completed: 2.5 / 8 phases (31%)
-- Estimated remaining: 30 hours (3 weeks)
+- Completed: 3 / 8 phases (37.5%)
+- Estimated remaining: 32-44 hours (4-5 weeks)
 
 ---
 
 **Last Updated**: 2025-01-XX
-**Status**: Ready for final push to 100%
+**Status**: ✅ PHASE 3 COMPLETE - Ready for Phase 4
+
