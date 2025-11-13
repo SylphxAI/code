@@ -1,4 +1,4 @@
-# Token Calculation - Requirements & User Stories
+# System Requirements & User Stories
 
 **Document Type**: Specification (WHAT, not HOW)
 **Last Updated**: 2025-01-XX
@@ -6,9 +6,318 @@
 
 ---
 
+## 🎯 Overview
+
+This document defines the **requirements and user stories** for the entire system. It focuses on WHAT the system should do, not HOW it should be implemented.
+
+**Key Principles**:
+- Architecture-agnostic (implementation can evolve)
+- User-centric (based on real use cases)
+- Testable (clear acceptance criteria)
+- Living document (updates as requirements evolve)
+
+---
+
+# Part 1: Real-Time Streaming & Event System
+
 ## 📋 Problem Statement
 
-**The Challenge**:
+Users interact with the system through multiple clients (TUI, Web GUI) and need:
+1. **Real-time streaming responses** from AI
+2. **Multi-client synchronization** (same session across devices)
+3. **Resumable streaming** (join ongoing streaming)
+4. **Selective event delivery** (right events to right clients)
+
+---
+
+## 🎯 Core Requirements
+
+### R1.1: Real-Time Streaming
+**Requirement**: Users MUST see AI responses stream in real-time, not wait for complete response.
+
+**Acceptance Criteria**:
+- User sends message
+- AI response appears word-by-word (streaming)
+- Tool calls appear as they execute
+- User can see progress in real-time
+
+**Why**: Better UX, feels responsive
+
+---
+
+### R1.2: Multi-Client Support
+**Requirement**: Multiple clients MUST be able to interact with same session simultaneously.
+
+**Acceptance Criteria**:
+- User opens session in TUI and GUI
+- Message sent from TUI appears in GUI immediately
+- AI response streams to both clients in real-time
+- Both clients stay synchronized
+
+**Why**: Common workflow (desktop + mobile, multiple tabs)
+
+---
+
+### R1.3: Event-Driven Architecture
+**Requirement**: System MUST use events for real-time updates, not polling.
+
+**Acceptance Criteria**:
+- State changes publish events
+- Clients subscribe to relevant events
+- Events delivered within 500ms
+- No client-side polling
+
+**Why**: Efficient, scalable, real-time
+
+---
+
+## 👤 User Stories - Streaming
+
+### UC1: Normal Streaming (用戶發送消息)
+
+**As a** user
+**I want to** send a message and see AI response stream in real-time
+**So that** I get immediate feedback and can monitor progress
+
+**Flow**:
+```
+User 輸入 "hi"
+  → Client 調用 subscription: caller.message.streamResponse.subscribe()
+  → Server: streamAIResponse() 返回 Observable
+  → Server emit events (text-delta, tool-call, tool-result, etc.)
+  → Client onData callback 接收 events
+  → Client 顯示 streaming response
+```
+
+**Acceptance Criteria**:
+- Text appears word-by-word as AI generates it
+- Tool calls appear when they execute
+- Tool results appear when they complete
+- User can see "thinking" state (reasoning, if supported)
+- Final message saved to session after completion
+
+**Current Status**: ✅ Working
+
+**Priority**: P0 (Critical)
+
+---
+
+### UC7: Command with Auto-Response (Compact with Streaming)
+
+**As a** user
+**I want to** execute commands that trigger AI responses
+**So that** the system can automate workflows
+
+**Example**: `/compact` command
+
+**Flow**:
+```
+User 執行 /compact
+  → Client 調用 mutation: caller.session.compact.mutate()
+  → Server: 生成 summary，創建新 session with system message
+  → Server: 自動觸發 AI streaming (業務邏輯內部)
+  → Server streaming AI response via event stream
+  → Client 接收 streaming events (必須透過 event subscription)
+  → Client 顯示 AI response
+```
+
+**Acceptance Criteria**:
+- Command executes successfully
+- AI response streams in real-time
+- User sees streaming events (not just final result)
+- New session created with correct state
+- Client receives events without explicit subscription call
+
+**Current Status**: ❌ Not working (client doesn't receive streaming events)
+
+**Priority**: P0 (Critical)
+
+**Technical Challenge**: How does client receive streaming events when mutation (not subscription) initiated the stream?
+
+---
+
+### UC8: Multi-Client Real-Time Sync
+
+**As a** user with multiple clients open
+**I want to** see actions in one client reflected immediately in other clients
+**So that** I can work seamlessly across devices
+
+**Scenario**:
+```
+User A (TUI) 發送消息
+  → Server streaming
+  → User A (TUI) 看到 streaming ✅
+  → User B (GUI, same session) 實時看到 streaming ✅
+  → Both clients synchronized
+```
+
+**Acceptance Criteria**:
+- Message sent in one client appears in all clients
+- AI response streams to all clients simultaneously
+- Tool calls/results appear in all clients
+- No client falls behind or misses events
+- Works across device types (TUI ↔ GUI)
+
+**Current Status**: ✅ Working (via event stream)
+
+**Priority**: P0 (Critical)
+
+---
+
+### UC9: Resumable Streaming (跨 Client 同步進行中的 Streaming)
+
+**As a** user
+**I want to** join an ongoing streaming session from a different client
+**So that** I can monitor progress from any device
+
+**Scenario**:
+```
+GUI 在 session A 發送 "hi"
+  → Server streaming AI response
+  → GUI 看到 streaming ✅
+
+TUI 從 session B 切換到 session A (mid-stream)
+  → TUI 應該看到正在進行的 streaming ✅
+  → TUI 實時同步 remaining text-delta, tool-call, etc.
+  → TUI joins stream mid-flight (不會錯過後續 events)
+```
+
+**Acceptance Criteria**:
+- User switches to session with active streaming
+- Client receives remaining streaming events
+- Client displays correct state (current text + new deltas)
+- No missed events
+- Seamless join experience
+
+**Current Status**: ✅ Working (client subscribes to session channel)
+
+**Priority**: P1 (High)
+
+---
+
+### UC10: Selective Event Delivery (事件選擇性送達)
+
+**As the** system
+**I want to** send events only to relevant clients
+**So that** clients don't receive unnecessary data
+
+**Scenario 1 - Session-Specific Events**:
+```
+TUI 在 session A
+GUI 在 session B
+
+Session A streaming (text-delta, tool-call):
+  → TUI 收到 ✅ (subscribed to session:A)
+  → GUI 不收到 ✅ (subscribed to session:B, not session:A)
+```
+
+**Scenario 2 - Global Events**:
+```
+Session A title 更新 (AI generated title):
+  → TUI 收到 ✅ (in session A, needs to update header)
+  → GUI 收到 ✅ (needs to update sidebar session list)
+  → Both clients update their UI appropriately
+```
+
+**Acceptance Criteria**:
+- Session-specific events only go to clients in that session
+- Global events go to all relevant clients
+- Clients can subscribe to multiple event channels
+- Event routing is efficient (no broadcast overhead)
+
+**Event Channel Types**:
+- `session:{sessionId}` - Session-specific events (streaming, messages, etc.)
+- `session-events` - Global session events (created, deleted, title-updated)
+- `global` - System-wide events (if needed)
+
+**Current Status**: ✅ Working (event stream with channels)
+
+**Priority**: P1 (High)
+
+---
+
+## 🧪 Testing Acceptance Criteria - Streaming
+
+### Test Case S1: Normal Streaming
+**Steps**:
+1. User sends message "hi"
+2. Observe streaming in client
+
+**Expected**:
+- Text appears progressively
+- Tool calls appear when executed
+- Tool results appear when completed
+- Final message saved correctly
+
+**Priority**: P0
+
+---
+
+### Test Case S2: Multi-Client Streaming
+**Steps**:
+1. Open session in 2 clients
+2. Send message in Client 1
+3. Observe both clients
+
+**Expected**:
+- Both clients show streaming simultaneously
+- Both clients show identical content
+- No desync or missing events
+
+**Priority**: P0
+
+---
+
+### Test Case S3: Resumable Streaming
+**Steps**:
+1. Start streaming in Client 1
+2. Open session in Client 2 mid-stream
+3. Observe Client 2
+
+**Expected**:
+- Client 2 shows current state
+- Client 2 receives remaining events
+- No errors or crashes
+
+**Priority**: P1
+
+---
+
+### Test Case S4: Command Auto-Response
+**Steps**:
+1. Execute `/compact` command
+2. Observe streaming response
+
+**Expected**:
+- Command executes successfully
+- AI response streams in real-time
+- Client shows streaming events
+- New session created correctly
+
+**Priority**: P0
+
+---
+
+### Test Case S5: Selective Delivery
+**Steps**:
+1. Open Client 1 in session A
+2. Open Client 2 in session B
+3. Send message in session A
+4. Update title in session A
+
+**Expected**:
+- Streaming events: Only Client 1 receives
+- Title update: Both clients receive
+- Client 2 doesn't get session A streaming
+
+**Priority**: P1
+
+---
+
+# Part 2: Token Calculation System
+
+## 📋 Problem Statement
+
 Users need to see accurate token usage counts throughout their session, but token counts are NOT static:
 
 1. **Agent changes mid-session** → System prompt changes → Base context changes
@@ -32,7 +341,7 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ## 🎯 Core Requirements
 
-### R1: SSOT (Single Source of Truth)
+### R2.1: SSOT (Single Source of Truth)
 **Requirement**: All token displays MUST show identical numbers for the same state.
 
 **Acceptance Criteria**:
@@ -47,7 +356,7 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
-### R2: Real-Time Updates
+### R2.2: Real-Time Updates
 **Requirement**: Token counts MUST update immediately when session state changes.
 
 **State Changes That Affect Tokens**:
@@ -67,7 +376,7 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
-### R3: Multi-Client Synchronization
+### R2.3: Multi-Client Synchronization
 **Requirement**: Multiple clients viewing the same session MUST see synchronized token counts.
 
 **Scenario**:
@@ -86,7 +395,7 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
-### R4: Volatile State Handling
+### R2.4: Volatile State Handling
 **Requirement**: System MUST handle the fact that token counts are volatile (not cacheable).
 
 **Volatile Factors**:
@@ -118,9 +427,9 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
-## 👤 User Stories
+## 👤 User Stories - Token Calculation
 
-### US-1: View Current Context Usage
+### UC6: View Current Context Usage
 **As a** user
 **I want to** see how many tokens I'm currently using
 **So that** I can monitor my usage and avoid hitting context limits
@@ -135,7 +444,7 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
-### US-2: See Token Breakdown
+### UC7: See Token Breakdown
 **As a** user
 **I want to** see a detailed breakdown of where my tokens are used
 **So that** I can understand what's consuming my context
@@ -156,7 +465,7 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
-### US-3: Switch Agent Mid-Session
+### UC8: Switch Agent Mid-Session
 **As a** user
 **I want to** switch to a different agent mid-session
 **So that** I can use different agent capabilities without starting over
@@ -177,7 +486,7 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
-### US-4: Switch Model Mid-Session
+### UC9: Switch Model Mid-Session
 **As a** user
 **I want to** switch to a different model mid-session
 **So that** I can try different models without losing my conversation
@@ -198,7 +507,7 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
-### US-5: Toggle Rules Mid-Session
+### UC10: Toggle Rules Mid-Session
 **As a** user
 **I want to** enable/disable rules mid-session
 **So that** I can control which rules apply without restarting
@@ -219,7 +528,7 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
-### US-6: Real-Time Streaming Updates
+### UC11: Real-Time Streaming Updates
 **As a** user
 **I want to** see token count update while AI is responding
 **So that** I can monitor usage in real-time
@@ -245,7 +554,7 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
-### US-7: Multi-Tab Sync
+### UC12: Multi-Tab Sync
 **As a** user
 **I want to** open the same session in multiple tabs
 **So that** I can work across devices/windows
@@ -267,7 +576,7 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
-### US-8: Start Without Session (Lazy Session)
+### UC13: Start Without Session (Lazy Session)
 **As a** user
 **I want to** see token usage before I send my first message
 **So that** I know my base context size
@@ -288,7 +597,7 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
-### US-9: Understand Why Counts Change
+### UC14: Understand Why Counts Change
 **As a** user
 **I want to** understand why my token count changed
 **So that** I can make informed decisions
