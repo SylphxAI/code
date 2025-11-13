@@ -36,6 +36,7 @@ export function useTotalTokens(
 	const [totalTokens, setTotalTokens] = useState(0);
 	const [loading, setLoading] = useState(false);
 
+	// Initial fetch when dependencies change
 	useEffect(() => {
 		// Only calculate if we have provider and model
 		if (!provider || !model) {
@@ -95,7 +96,7 @@ export function useTotalTokens(
 		return () => {
 			mounted = false;
 		};
-	}, [trpc, sessionId, provider, model, agentId, enabledRuleIds.length]);
+	}, [trpc, sessionId, provider, model, agentId, JSON.stringify(enabledRuleIds)]);
 
 	return totalTokens;
 }

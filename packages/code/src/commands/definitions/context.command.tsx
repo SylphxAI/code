@@ -46,29 +46,38 @@ export const contextCommand: Command = {
 				commandContext.addLog(`[Context] No active session, using selected model: ${modelName}`);
 			}
 
-			// Get model-specific context limit
-			const getContextLimit = (model: string): number => {
-				// Default limits for common models
-				if (model.includes("gpt-4")) {
-					if (model.includes("32k") || model.includes("turbo")) return 128000;
-					if (model.includes("vision")) return 128000;
-					return 8192; // Original GPT-4
-				}
-				if (model.includes("gpt-3.5")) {
-					if (model.includes("16k")) return 16385;
-					return 4096; // Original GPT-3.5
-				}
-				// Claude models
-				if (model.includes("claude-3")) {
-					if (model.includes("opus")) return 200000;
-					if (model.includes("sonnet")) return 200000;
-					if (model.includes("haiku")) return 200000;
-				}
-				// Default fallback
-				return 200000;
-			};
+			// Get model context limit from server (NO HARDCODED VALUES!)
+			const { useModelDetails } = await import("@sylphx/code-client");
+			const modelDetailsPromise = trpc.provider.getModelDetails.query({
+				provider: currentSession?.provider || null,
+				model: modelName,
+			});
 
-			const contextLimit = getContextLimit(modelName);
+			const modelDetailsResult = await modelDetailsPromise;
+
+			if (!modelDetailsResult.success) {
+				commandContext.setInputComponent(
+					<ContextDisplay
+						output={`❌ Failed to get model details: ${modelDetailsResult.error}`}
+						onComplete={() => commandContext.setInputComponent(null)}
+					/>,
+					"Context",
+				);
+				return;
+			}
+
+			const contextLimit = modelDetailsResult.details.contextLength;
+
+			if (!contextLimit || contextLimit === 0) {
+				commandContext.setInputComponent(
+					<ContextDisplay
+						output={`❌ Model ${modelName} has invalid context length: ${contextLimit}`}
+						onComplete={() => commandContext.setInputComponent(null)}
+					/>,
+					"Context",
+				);
+				return;
+			}
 
 			// Calculate token counts (SERVER HANDLES ALL FILE I/O AND BUSINESS LOGIC)
 			console.log(`[Context] Model: ${modelName}, sessionId: ${sessionId}, contextLimit: ${contextLimit}`);

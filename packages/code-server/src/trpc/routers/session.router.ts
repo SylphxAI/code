@@ -593,9 +593,11 @@ export const sessionRouter = router({
 				}
 
 				// Calculate messages tokens using MODEL messages (SSOT logic)
+				// IMPORTANT: Use input.model (current UI selection) not session.model (stored in DB)
+				// This ensures dynamic recalculation when model changes mid-session
 				let messagesTokens = 0;
 				if (session.messages && session.messages.length > 0) {
-					const modelEntity = getModel(session.model);
+					const modelEntity = getModel(input.model);
 					const modelCapabilities = modelEntity?.capabilities;
 					const fileRepo = ctx.messageRepository.getFileRepository();
 
@@ -605,7 +607,7 @@ export const sessionRouter = router({
 						fileRepo,
 					);
 
-					messagesTokens = await calculateModelMessagesTokens(modelMessages, session.model);
+					messagesTokens = await calculateModelMessagesTokens(modelMessages, input.model);
 				}
 
 				const totalTokens = baseContextTokens + messagesTokens;

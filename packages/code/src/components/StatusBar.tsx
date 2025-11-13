@@ -66,11 +66,14 @@ export default function StatusBar({
 	);
 
 	// DEBUG: Log calculation
-	console.log("[StatusBar] SSOT calculation:", {
+	console.log("[StatusBar] Render:", {
 		sessionId,
 		provider,
 		model,
+		selectedAgentId,
+		enabledRuleIds,
 		totalTokensSSOT,
+		"typeof totalTokensSSOT": typeof totalTokensSSOT,
 	});
 
 	// Fetch model details from server
