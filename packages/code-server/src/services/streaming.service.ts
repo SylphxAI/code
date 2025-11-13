@@ -416,84 +416,75 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					tools,
 					...(abortSignal ? { abortSignal } : {}),
 					stopWhen: stepCountIs(1000), // Reasonable limit for multi-step tool calling
+					// ⭐ AI SDK's onStepFinish hook - called after each step completes
+					onStepFinish: async (stepResult) => {
+						try {
+							const stepNumber = lastCompletedStepNumber + 1;
+							const stepId = `${assistantMessageId}-step-${stepNumber}`;
+
+							// Update tool results with AI SDK's wrapped format
+							if (stepResult.toolResults && stepResult.toolResults.length > 0) {
+								for (const toolResult of stepResult.toolResults) {
+									const toolPart = currentStepParts.find(
+										(p) => p.type === "tool" && p.toolId === toolResult.toolCallId,
+									);
+
+									if (toolPart && toolPart.type === "tool") {
+										toolPart.result = toolResult.result;
+									}
+								}
+							}
+
+							// Update step parts (now with wrapped tool results)
+							try {
+								await updateStepParts(sessionRepository.getDatabase(), stepId, currentStepParts);
+							} catch (dbError) {
+								console.error(`[onStepFinish] Failed to update step ${stepNumber} parts:`, dbError);
+							}
+
+							// Complete step
+							try {
+								await completeMessageStep(sessionRepository.getDatabase(), stepId, {
+									status: "completed",
+									finishReason: stepResult.finishReason,
+									usage: stepResult.usage,
+									provider: session.provider,
+									model: session.model,
+								});
+							} catch (dbError) {
+								console.error(`[onStepFinish] Failed to complete step ${stepNumber}:`, dbError);
+							}
+
+							// Emit step-complete event
+							observer.next({
+								type: "step-complete",
+								stepId,
+								usage: stepResult.usage || {
+									promptTokens: 0,
+									completionTokens: 0,
+									totalTokens: 0,
+								},
+								duration: 0, // TODO: track duration
+								finishReason: stepResult.finishReason || "unknown",
+							});
+
+							lastCompletedStepNumber = stepNumber;
+							currentStepParts = [];
+						} catch (error) {
+							console.error("[onStepFinish] Error:", error);
+						}
+					},
 					// ⭐ AI SDK's native prepareStep hook - called before each step
 					prepareStep: async ({ steps, stepNumber }) => {
 						try {
-							// 1. Complete previous step if this is not the first step
-							if (stepNumber > 0 && lastCompletedStepNumber < stepNumber - 1) {
-								const prevStepId = `${assistantMessageId}-step-${stepNumber - 1}`;
-								const prevStep = steps[steps.length - 1];
-
-								// ⭐ Update tool results with AI SDK's wrapped format from prevStep.messages
-								// Note: chunk.output provides unwrapped results during streaming
-								// We update with wrapped format here for proper database storage
-								if (prevStep && (prevStep as any).messages) {
-									const prevStepMessages = (prevStep as any).messages;
-									for (const msg of prevStepMessages) {
-										if (msg.role === "tool") {
-											// Tool message contains wrapped tool results
-											for (const content of msg.content) {
-												if (content.type === "tool-result") {
-													// Find matching tool part in currentStepParts
-													const toolPart = currentStepParts.find(
-														(p) => p.type === "tool" && p.toolId === content.toolCallId,
-													);
-
-													if (toolPart && toolPart.type === "tool") {
-														// Update with AI SDK's wrapped format
-														toolPart.result = content.output; // Store wrapped format
-													}
-												}
-											}
-										}
-									}
-								}
-
-								// Update step parts (now with wrapped tool results)
-								try {
-									await updateStepParts(sessionRepository.getDatabase(), prevStepId, currentStepParts);
-								} catch (dbError) {
-									console.error(`[prepareStep] Failed to update step ${stepNumber - 1} parts:`, dbError);
-								}
-
-								// Complete step
-								try {
-									await completeMessageStep(sessionRepository.getDatabase(), prevStepId, {
-										status: "completed",
-										finishReason: prevStep?.finishReason,
-										usage: prevStep?.usage,
-										provider: session.provider,
-										model: session.model,
-									});
-								} catch (dbError) {
-									console.error(`[prepareStep] Failed to complete step ${stepNumber - 1}:`, dbError);
-								}
-
-								// Emit step-complete event
-								observer.next({
-									type: "step-complete",
-									stepId: prevStepId,
-									usage: prevStep?.usage || {
-										promptTokens: 0,
-										completionTokens: 0,
-										totalTokens: 0,
-									},
-									duration: 0, // TODO: track duration
-									finishReason: prevStep?.finishReason || "unknown",
-								});
-
-								lastCompletedStepNumber = stepNumber - 1;
-								currentStepParts = [];
-							}
-
-							// 2. Reload session to get latest state (includes new tool results)
+							// 1. Reload session to get latest state
 							const currentSession = await sessionRepository.getSessionById(sessionId);
 							if (!currentSession) {
 								console.warn(`[prepareStep] Session ${sessionId} not found`);
 								return {};
 							}
 
-							// 3. Calculate context token usage
+							// 2. Calculate context token usage
 							let contextTokens: { current: number; max: number } | undefined;
 							try {
 								let totalTokens = 0;
@@ -519,7 +510,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 								console.error("[prepareStep] Failed to calculate context tokens:", error);
 							}
 
-							// 4. Check all triggers for this step (unified for all steps)
+							// 3. Check all triggers for this step
 							const triggerResults = await checkAllTriggers(
 								currentSession,
 								messageRepository,
@@ -527,7 +518,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 								contextTokens,
 							);
 
-							// 5. Build SystemMessage array from trigger results (may be empty)
+							// 4. Build SystemMessage array from trigger results (may be empty)
 							const systemMessages =
 								triggerResults.length > 0
 									? triggerResults.map((trigger) => ({
@@ -537,7 +528,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 										}))
 									: [];
 
-							// 6. Create step record in database
+							// 5. Create step record in database
 							const stepId = `${assistantMessageId}-step-${stepNumber}`;
 							try {
 								await createMessageStep(
@@ -552,7 +543,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 								console.error("[prepareStep] Failed to create step:", stepError);
 							}
 
-							// 7. Emit step-start event for UI
+							// 6. Emit step-start event for UI
 							observer.next({
 								type: "step-start",
 								stepId,
@@ -562,7 +553,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 								systemMessages: systemMessages.length > 0 ? systemMessages : undefined,
 							});
 
-							// 8. Inject system messages if present
+							// 7. Inject system messages if present
 							if (systemMessages.length > 0) {
 								// Get base messages (from last step or initial messages)
 								const baseMessages = steps.length > 0 ? steps[steps.length - 1].messages : messages;
@@ -1036,7 +1027,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 							}
 
 							case "finish-step": {
-								// Step finished - prepareStep hook handles step completion
+								// Step finished - onStepFinish hook handles step completion
 								break;
 							}
 
@@ -1093,77 +1084,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					console.log(`[streamAIResponse] WARNING: No events emitted but stream completed within ${elapsedMs}ms`);
 				}
 
-				// 13. Complete final step (if there is one)
-				// prepareStep only completes previous steps, so we need to manually complete the last step
-				if (lastCompletedStepNumber >= 0 || currentStepParts.length > 0) {
-					const finalStepNumber = lastCompletedStepNumber + 1;
-					const finalStepId = `${assistantMessageId}-step-${finalStepNumber}`;
-
-					// ⭐ Update tool results with AI SDK's wrapped format from final response.messages
-					// Note: chunk.output provides unwrapped results during streaming
-					// We update with wrapped format here for proper database storage
-					try {
-						const response = await responsePromise;
-						if (response && response.messages) {
-							for (const msg of response.messages) {
-								if (msg.role === "tool") {
-									// Tool message contains wrapped tool results
-									for (const content of msg.content) {
-										if (content.type === "tool-result") {
-											// Find matching tool part in currentStepParts
-											const toolPart = currentStepParts.find(
-												(p) => p.type === "tool" && p.toolId === content.toolCallId,
-											);
-
-											if (toolPart && toolPart.type === "tool") {
-												// Update with AI SDK's wrapped format
-												toolPart.result = content.output; // Store wrapped format
-											}
-										}
-									}
-								}
-							}
-						}
-					} catch (responseError) {
-						console.error("[streamAIResponse] Failed to extract final tool results from response:", responseError);
-						// Continue - not critical, we have unwrapped results at least
-					}
-
-					// Update final step parts (now with wrapped tool results)
-					try {
-						await updateStepParts(sessionRepository.getDatabase(), finalStepId, currentStepParts);
-					} catch (dbError) {
-						console.error(`[streamAIResponse] Failed to update final step ${finalStepNumber} parts:`, dbError);
-					}
-
-					// Complete final step
-					try {
-						await completeMessageStep(sessionRepository.getDatabase(), finalStepId, {
-							status: aborted ? "abort" : finalUsage ? "completed" : "error",
-							finishReason: finalFinishReason,
-							usage: finalUsage,
-							provider: session.provider,
-							model: session.model,
-						});
-					} catch (dbError) {
-						console.error(`[streamAIResponse] Failed to complete final step ${finalStepNumber}:`, dbError);
-					}
-
-					// Emit final step-complete event
-					observer.next({
-						type: "step-complete",
-						stepId: finalStepId,
-						usage: finalUsage || {
-							promptTokens: 0,
-							completionTokens: 0,
-							totalTokens: 0,
-						},
-						duration: 0, // TODO: track duration
-						finishReason: finalFinishReason || "unknown",
-					});
-				}
-
-				// 14. Emit error event if no valid response
+				// 13. Emit error event if no valid response (onStepFinish handles step completion)
 				if (!finalUsage && !aborted && !hasError) {
 					const errorPart = currentStepParts.find((p) => p.type === "error");
 					if (errorPart && errorPart.type === "error") {
