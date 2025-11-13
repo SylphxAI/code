@@ -72,7 +72,11 @@ function getTokenizerForModel(modelName?: string): string {
 
 /**
  * Fast fallback estimation (only when BPE tokenizer unavailable)
- * Based on ~3.5 chars per token for code
+ * CONSERVATIVE: Overestimates to avoid hitting context limits unexpectedly
+ *
+ * Rationale: Better to estimate high than low
+ * - Estimate too high: User avoids context limit (safe, slightly inefficient)
+ * - Estimate too low: User hits limit unexpectedly (breaks, bad UX)
  */
 function estimateFallback(text: string): number {
 	if (!text) return 0;
@@ -80,10 +84,15 @@ function estimateFallback(text: string): number {
 	const words = text.split(/\s+/).filter(Boolean).length;
 	const chars = text.length;
 
-	const charBasedEstimate = Math.ceil(chars / 3.5);
-	const wordBasedEstimate = Math.ceil(words * 1.3);
+	// Conservative estimates (overestimate to be safe):
+	// - Char-based: 1 token per 3 chars (most tokenizers are 3.5-4 chars/token)
+	// - Word-based: 1.5 tokens per word (most are 1.3 tokens/word)
+	const charBasedEstimate = Math.ceil(chars / 3);
+	const wordBasedEstimate = Math.ceil(words * 1.5);
 
-	return Math.round((charBasedEstimate + wordBasedEstimate) / 2);
+	// Return the HIGHER estimate (most conservative)
+	// This ensures we never underestimate and risk hitting context limits
+	return Math.max(charBasedEstimate, wordBasedEstimate);
 }
 
 /**
