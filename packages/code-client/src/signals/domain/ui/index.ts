@@ -19,6 +19,9 @@ export const $debugLogs = zen<string[]>([]);
 export const $isCompacting = zen(false);
 export const $compactAbortController = zen<AbortController | null>(null);
 
+// Command output (for UI commands like /context, /help, etc.)
+export const $commandOutput = zen<string | null>(null);
+
 // Computed signals
 export const $canGoBack = computed(
 	[$currentScreen, $previousScreen],
@@ -66,6 +69,9 @@ export const abortCompact = () => {
 	}
 };
 
+export const setCommandOutput = (output: string | null) => set($commandOutput, output);
+export const clearCommandOutput = () => set($commandOutput, null);
+
 export const addDebugLog = (message: string) => {
 	if (!process.env.DEBUG) {
 		return;
@@ -94,3 +100,4 @@ export const useUIError = () => useStore($error);
 export const useShowNavigation = () => useStore($showNavigation);
 export const useDebugLogs = () => useStore($debugLogs);
 export const useIsCompacting = () => useStore($isCompacting);
+export const useCommandOutput = () => useStore($commandOutput);

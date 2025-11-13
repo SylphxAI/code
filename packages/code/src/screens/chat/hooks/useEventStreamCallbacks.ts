@@ -125,7 +125,6 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 			// Message streaming callbacks - unified event stream path
 			// All events go through handleStreamEvent (no dual-path complexity)
 		onUserMessageCreated: (messageId: string, content: string) => {
-			console.log("[Chat] onUserMessageCreated callback fired:", { messageId, content: content.substring(0, 100) });
 			handleStreamEvent(
 				{ type: "user-message-created", messageId, content },
 				eventContextParams,
@@ -219,7 +218,6 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 
 			// Abort handling
 			onAbort: () => {
-				console.log("[Chat] onAbort callback fired");
 				handleStreamEvent({ type: "abort" }, eventContextParams);
 			},
 
@@ -230,10 +228,6 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 				usage?: any,
 				finishReason?: string,
 			) => {
-				console.log("[Chat] onMessageStatusUpdated callback fired:", {
-					messageId,
-					status,
-				});
 				handleStreamEvent(
 					{
 						type: "message-status-updated",

@@ -15,15 +15,10 @@ export interface CommandAutocompleteModeHandlerDeps {
 	filteredCommands: Command[];
 	selectedCommandIndex: number;
 	skipNextSubmit: React.MutableRefObject<boolean>;
-	commandSessionRef: React.MutableRefObject<string | null>;
-	currentSessionId: string | null;
 	setInput: (value: string) => void;
 	setCursor: (value: number) => void;
 	setSelectedCommandIndex: React.Dispatch<React.SetStateAction<number>>;
-	addLog: (message: string) => void;
-	addMessage: (params: any) => Promise<string>;
-	getAIConfig: () => { defaultProvider?: string; defaultModel?: string } | null;
-	setCurrentSessionId: (sessionId: string | null) => void;
+	setCommandOutput: (output: string | null) => void;
 	createCommandContext: (args: string[]) => CommandContext;
 }
 
@@ -38,7 +33,7 @@ export interface CommandAutocompleteModeHandlerDeps {
  * Features:
  * - Arrow navigation through command list
  * - Tab to fill in autocomplete text
- * - Enter to execute command
+ * - Enter to execute command (output shown in UI, not saved to chat)
  * - Escape to cancel command mode
  */
 export class CommandAutocompleteModeHandler extends BaseInputHandler {
@@ -83,15 +78,10 @@ export class CommandAutocompleteModeHandler extends BaseInputHandler {
 			filteredCommands,
 			selectedCommandIndex,
 			skipNextSubmit,
-			commandSessionRef,
-			currentSessionId,
 			setInput,
 			setCursor,
 			setSelectedCommandIndex,
-			addLog,
-			addMessage,
-			getAIConfig,
-			setCurrentSessionId,
+			setCommandOutput,
 			createCommandContext,
 		} = this.deps;
 
@@ -119,7 +109,6 @@ export class CommandAutocompleteModeHandler extends BaseInputHandler {
 					const hasArgs = selected.args && selected.args.length > 0;
 					const completedText = hasArgs ? `${selected.label} ` : selected.label;
 
-					addLog(`[CommandAutocomplete] Tab fill: ${completedText}`);
 					setInput(completedText);
 					setCursor(completedText.length); // Move cursor to end
 					setSelectedCommandIndex(0);
@@ -131,103 +120,28 @@ export class CommandAutocompleteModeHandler extends BaseInputHandler {
 		if (key.return) {
 			return this.handleEnter(async () => {
 				const selected = filteredCommands[selectedCommandIndex];
-				console.log("[CommandAutocomplete] Enter pressed, selected:", selected?.label);
 				if (selected) {
 					// Prevent TextInput's onSubmit from also executing
 					skipNextSubmit.current = true;
 
+					// Clear input immediately before execution
+					setInput("");
+					setSelectedCommandIndex(0);
 
 					try {
-						console.log(`[CommandAutocomplete] Executing command: ${selected.label}`);
-						addLog(`[CommandAutocomplete] Execute: ${selected.label}`);
-
-						// Add user message to conversation (lazy create session if needed)
-						const aiConfig = getAIConfig();
-						const provider = aiConfig?.defaultProvider || "openrouter";
-						const model = aiConfig?.defaultModel || "anthropic/claude-3.5-sonnet";
-
-						const sessionIdToUse = commandSessionRef.current || currentSessionId;
-						const resultSessionId = await addMessage({
-							sessionId: sessionIdToUse,
-							role: "user",
-							content: selected.label,
-							provider,
-							model,
-						});
-
-						if (!commandSessionRef.current) {
-							commandSessionRef.current = resultSessionId;
-							// Update current session to show messages in UI
-							setCurrentSessionId(resultSessionId);
-						}
-
-						addLog(`[CommandAutocomplete] Executing ${selected.label}`);
+						// Execute command
 						const response = await selected.execute(createCommandContext([]));
-						console.log("[RESPONSE]", typeof response, response ? response.substring(0, 100) : "null/undefined");
 
-console.log("[DEBUG] Before addLog");
-						addLog(
-							`[CommandAutocomplete] Result type: ${typeof response}, value: ${response ? String(response).substring(0, 100) : "none"}`,
-						);
-console.log("[DEBUG] After addLog, about to check if statement");
-
-						// Add final response if any (check for string explicitly)
+						// Show output in UI (not saved to chat history)
 						if (response && typeof response === "string") {
-console.log("[DEBUG] Inside if - response is string, sessionId:", commandSessionRef.current);
-							await addMessage({
-								sessionId: commandSessionRef.current,
-								role: "assistant",
-								content: response,
-								provider,
-								model,
-							});
-console.log("[DEBUG] After await addMessage");
+							setCommandOutput(response);
 						} else if (response !== undefined) {
-console.log("[DEBUG] Before addLog");
-							addLog(
-								`[CommandAutocomplete] WARNING: Command returned non-string: ${typeof response}`,
-							);
+							setCommandOutput(`⚠️ Command returned non-string: ${typeof response}`);
 						}
 					} catch (error) {
 						const errorMsg = error instanceof Error ? error.message : "Command failed";
-						const errorStack = error instanceof Error ? error.stack : undefined;
-
-						addLog(`[CommandAutocomplete] Command error: ${errorMsg}`);
-						console.error("[CommandAutocomplete] Error:", error);
-						console.error("[CommandAutocomplete] Stack:", errorStack);
-
-						// Always show error to user, create session if needed
-						if (!commandSessionRef.current) {
-console.log("[DEBUG] Before addLog");
-							addLog(
-								`[CommandAutocomplete] ERROR: commandSessionRef is null, creating session for error`,
-							);
-							const aiConfig = getAIConfig();
-							const provider = aiConfig?.defaultProvider || "openrouter";
-							const model = aiConfig?.defaultModel || "anthropic/claude-3.5-sonnet";
-							const sessionIdToUse = currentSessionId;
-							const resultSessionId = await addMessage({
-								sessionId: sessionIdToUse,
-								role: "assistant",
-								content: `❌ Command Error: ${errorMsg}`,
-								provider,
-								model,
-							});
-							commandSessionRef.current = resultSessionId;
-							// Update current session to show error in UI
-							setCurrentSessionId(resultSessionId);
-						} else {
-							await addMessage({
-								sessionId: commandSessionRef.current,
-								role: "assistant",
-								content: `❌ Command Error: ${errorMsg}`,
-							});
-						}
+						setCommandOutput(`❌ Command Error: ${errorMsg}`);
 					}
-
-					// Clear input after command execution completes
-					setInput("");
-					setSelectedCommandIndex(0);
 				}
 			});
 		}

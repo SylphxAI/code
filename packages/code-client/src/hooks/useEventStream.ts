@@ -186,7 +186,6 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 							break;
 
 					case "user-message-created":
-						console.log("[useEventStream] user-message-created event:", event);
 						callbacksRef.current.onUserMessageCreated?.(event.messageId, event.content);
 						break;
 
