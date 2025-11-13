@@ -57,7 +57,8 @@ export async function calculateBaseContextTokens(
 
 /**
  * Calculate message tokens
- * Converts message parts to text and counts tokens
+ * Converts ALL message parts to text and counts tokens
+ * COMPLETE: Handles text, reasoning, tool calls/results, files, system messages
  */
 async function calculateMessageTokens(
 	message: SessionMessage,
@@ -68,8 +69,26 @@ async function calculateMessageTokens(
 	for (const step of message.steps) {
 		for (const part of step.parts) {
 			if (part.type === "text") {
+				// Count text content
 				const tokens = await countTokens(part.content, modelName);
 				totalTokens += tokens;
+			} else if (part.type === "reasoning") {
+				// Count reasoning content (extended thinking)
+				const tokens = await countTokens(part.content, modelName);
+				totalTokens += tokens;
+			} else if (part.type === "tool") {
+				// Count tool call input
+				if (part.input) {
+					const inputJson = JSON.stringify(part.input);
+					const tokens = await countTokens(inputJson, modelName);
+					totalTokens += tokens;
+				}
+				// Count tool result
+				if (part.result) {
+					const resultJson = JSON.stringify(part.result);
+					const tokens = await countTokens(resultJson, modelName);
+					totalTokens += tokens;
+				}
 			} else if (part.type === "file" && "base64" in part) {
 				// File content is frozen as base64, decode and count
 				try {
@@ -77,13 +96,18 @@ async function calculateMessageTokens(
 					const tokens = await countTokens(content, modelName);
 					totalTokens += tokens;
 				} catch {
-					// Skip invalid file content
+					// Skip invalid file content (e.g., binary files)
 				}
 			} else if (part.type === "file-ref") {
 				// File-ref: read from file_contents table
 				// For now, skip (requires repository access)
 				// TODO: Add file content reading if needed
+			} else if (part.type === "system-message") {
+				// Count system message content
+				const tokens = await countTokens(part.content, modelName);
+				totalTokens += tokens;
 			}
+			// Skip error parts - not sent to LLM
 		}
 	}
 

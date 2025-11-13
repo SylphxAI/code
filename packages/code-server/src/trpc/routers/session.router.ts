@@ -495,28 +495,50 @@ export const sessionRouter = router({
 			let messagesTokens = 0;
 			if (session && session.messages) {
 				for (const msg of session.messages) {
-					// NEW: Loop through steps and parts (message.steps[].parts[])
-				let totalMsgTokens = 0;
-				for (const step of msg.steps) {
-					for (const part of step.parts) {
-						if (part.type === "text") {
-							const tokens = await countTokens(part.content, modelName);
-							totalMsgTokens += tokens;
-						} else if (part.type === "file" && "base64" in part) {
-							// File content is frozen as base64, decode and count
-							try {
-								const content = Buffer.from(part.base64, "base64").toString("utf-8");
-								const tokens = await countTokens(content, modelName);
+					// Loop through steps and parts - handle ALL part types
+					let totalMsgTokens = 0;
+					for (const step of msg.steps) {
+						for (const part of step.parts) {
+							if (part.type === "text") {
+								// Count text content
+								const tokens = await countTokens(part.content, modelName);
 								totalMsgTokens += tokens;
-							} catch {
-								// Skip invalid file content
+							} else if (part.type === "reasoning") {
+								// Count reasoning content (extended thinking)
+								const tokens = await countTokens(part.content, modelName);
+								totalMsgTokens += tokens;
+							} else if (part.type === "tool") {
+								// Count tool call input
+								if (part.input) {
+									const inputJson = JSON.stringify(part.input);
+									const tokens = await countTokens(inputJson, modelName);
+									totalMsgTokens += tokens;
+								}
+								// Count tool result
+								if (part.result) {
+									const resultJson = JSON.stringify(part.result);
+									const tokens = await countTokens(resultJson, modelName);
+									totalMsgTokens += tokens;
+								}
+							} else if (part.type === "file" && "base64" in part) {
+								// File content is frozen as base64, decode and count
+								try {
+									const content = Buffer.from(part.base64, "base64").toString("utf-8");
+									const tokens = await countTokens(content, modelName);
+									totalMsgTokens += tokens;
+								} catch {
+									// Skip invalid file content (e.g., binary files)
+								}
+							} else if (part.type === "system-message") {
+								// Count system message content
+								const tokens = await countTokens(part.content, modelName);
+								totalMsgTokens += tokens;
 							}
+							// Skip error parts and file-ref (not sent to LLM)
 						}
 					}
+					messagesTokens += totalMsgTokens;
 				}
-				messagesTokens += totalMsgTokens;
-
-			}
 			}
 
 			return {

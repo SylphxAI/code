@@ -474,6 +474,38 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 								finishReason: stepResult.finishReason || "unknown",
 							});
 
+							// Update session tokens in real-time after each step
+							// ARCHITECTURE: Unified tokenizer for consistent usage tracking
+							// - Uses our own HuggingFace tokenizer (not AI SDK usage)
+							// - Consistent across all providers/models for context management
+							// - Handles all part types: text, reasoning, tool calls/results, files
+							// - Update after each step for real-time UI feedback
+							try {
+								const { updateSessionTokens } = await import("@sylphx/code-core");
+								await updateSessionTokens(sessionId, sessionRepository);
+
+								// Read updated session to get calculated token values
+								const updatedSession = await sessionRepository.getSessionById(sessionId);
+								if (updatedSession) {
+									// Emit event for real-time UI update (send data on needed)
+									await opts.appContext.eventStream.publish(`session:${sessionId}`, {
+										type: "session-tokens-updated" as const,
+										sessionId,
+										totalTokens: updatedSession.totalTokens || 0,
+										baseContextTokens: updatedSession.baseContextTokens || 0,
+									});
+
+									console.log("[onStepFinish] Session tokens updated (real-time):", {
+										step: stepNumber,
+										baseContextTokens: updatedSession.baseContextTokens,
+										totalTokens: updatedSession.totalTokens,
+									});
+								}
+							} catch (tokenError) {
+								console.error("[onStepFinish] Failed to update session tokens:", tokenError);
+								// Non-critical - don't fail the step
+							}
+
 							lastCompletedStepNumber = stepNumber;
 							currentStepParts = [];
 						} catch (error) {
