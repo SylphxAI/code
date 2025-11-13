@@ -195,11 +195,11 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 
 				<Box marginBottom={1} flexDirection="column">
 					<Text dimColor>Choose how token counts are calculated:</Text>
-					<Text dimColor> </Text>
+					<Text dimColor>{" "}</Text>
 					<Text dimColor>• Accurate: BPE tokenizer (slow, 100% accurate)</Text>
 					<Text dimColor>  - First calculation: ~3-5s</Text>
-					<Text dimColor>  - Subsequent: <100ms (cached)</Text>
-					<Text dimColor> </Text>
+					<Text dimColor>  - Subsequent: &lt;100ms (cached)</Text>
+					<Text dimColor>{" "}</Text>
 					<Text dimColor>• Fast: Mathematical estimation (instant, ~10% error)</Text>
 					<Text dimColor>  - All calculations: ~100ms</Text>
 					<Text dimColor>  - Good for large sessions</Text>
