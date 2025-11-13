@@ -79,22 +79,6 @@ export interface SearchServiceStatus {
 	healthy: boolean;
 }
 
-// Target manager interface
-export interface ITargetManager {
-	getTarget(id: string): Target | null;
-	getAllTargets(): Target[];
-	registerTarget(target: Target): void;
-}
-
-// Target definition
-export interface Target {
-	id: string;
-	name: string;
-	type: string;
-	config: Record<string, unknown>;
-	enabled: boolean;
-}
-
 // Embedding provider interface
 export interface IEmbeddingProvider {
 	name: string;
@@ -102,28 +86,3 @@ export interface IEmbeddingProvider {
 	isAvailable(): Promise<boolean>;
 }
 
-// MCP service interface
-export interface IMCPService {
-	initialize(): Promise<void>;
-	installServers(serverIds: string[], options?: MCPServerInstallOptions): Promise<void>;
-	getAvailableServers(): MCPServerInfo[];
-	getInstalledServers(): MCPServerInfo[];
-}
-
-// MCP server installation options
-export interface MCPServerInstallOptions {
-	force?: boolean;
-	autoStart?: boolean;
-	config?: Record<string, unknown>;
-}
-
-// MCP server information
-export interface MCPServerInfo {
-	id: string;
-	name: string;
-	version: string;
-	description?: string;
-	installed: boolean;
-	enabled: boolean;
-	config?: Record<string, unknown>;
-}

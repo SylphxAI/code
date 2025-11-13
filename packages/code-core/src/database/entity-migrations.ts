@@ -15,7 +15,6 @@ import type { AIConfig } from "../config/ai-config.js";
 import type { ProviderId } from "../ai/providers/index.js";
 import { migrateToModelId, getDefaultModelIdForProvider } from "../registry/model-migration.js";
 import { getTool } from "../registry/tool-registry.js";
-import { getMCPServer } from "../registry/mcp-registry.js";
 import { createLogger } from "../utils/logger.js";
 
 const logger = createLogger("EntityMigrations");
@@ -137,24 +136,12 @@ export function migrateMessagePart(part: MessagePart): MessagePart {
 	if (part.toolId.includes(":")) {
 		const [serverId] = part.toolId.split(":", 2);
 
-		// Verify server exists in registry
-		const server = getMCPServer(serverId);
-		if (server) {
-			return {
-				...part,
-				mcpServerId: serverId,
-			};
-		} else {
-			logger.warn("MCP server not found in registry", {
-				toolId: part.toolId,
-				serverId,
-			});
-			// Still add mcpServerId even if server not found (for historical data)
-			return {
-				...part,
-				mcpServerId: serverId,
-			};
-		}
+		// MCP server verification removed (old MCP registry deleted)
+		// Keep the serverId as-is for backward compatibility
+		return {
+			...part,
+			mcpServerId: serverId,
+		};
 	}
 
 	// Builtin tool - verify it exists

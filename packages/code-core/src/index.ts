@@ -180,7 +180,6 @@ export type * from "./types/interaction.types.js";
 export type * from "./types/todo.types.js";
 export type * from "./types/model.types.js";
 export type * from "./types/tool.types.js";
-export type * from "./types/mcp-entity.types.js";
 
 // ============================================================================
 // Model Registry (Normalized Model System)
@@ -239,28 +238,6 @@ export {
 	getSafeTools,
 } from "./registry/tool-registry.js";
 
-// ============================================================================
-// MCP Server Registry (Model Context Protocol)
-// ============================================================================
-export {
-	getAllMCPServers,
-	getMCPServer,
-	registerMCPServer,
-	unregisterMCPServer,
-	updateMCPServerStatus,
-	getAllMCPTools,
-	getMCPServerTools,
-	getMCPTool,
-	getAllMCPResources,
-	getMCPServerResources,
-	getAllMCPPrompts,
-	getMCPServerPrompts,
-	getActiveMCPServers,
-	getEnabledMCPServers,
-	isMCPServerActive,
-	getMCPStats,
-	clearMCPRegistry,
-} from "./registry/mcp-registry.js";
 
 // ============================================================================
 // Session Management

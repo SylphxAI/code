@@ -2,9 +2,7 @@
  * Service configuration and registration for DI container
  */
 
-import { targetManager } from "../ai/target-manager.js";
 import { MemoryDatabaseClient } from "../db/memory-db.js";
-import { createMCPService } from "../services/mcp-service.js";
 import { getDefaultEmbeddingProvider } from "../services/search/embeddings.js";
 import { getSearchService } from "../services/search/unified-search-service.js";
 import { createLogger as createRealLogger } from "../utils/logger.js";
@@ -16,10 +14,8 @@ import type {
 	IDatabaseConnection,
 	IEmbeddingProvider,
 	ILogger,
-	IMCPService,
 	ISearchService,
 	IStorage,
-	ITargetManager,
 } from "./interfaces.js";
 
 /**
@@ -69,13 +65,6 @@ export async function configureServices(): Promise<void> {
 		"singleton",
 	);
 
-	// Target Manager - Singleton
-	container.register<ITargetManager>(
-		SERVICE_TOKENS.TARGET_MANAGER,
-		() => targetManager,
-		"singleton",
-	);
-
 	// Embedding Provider - Singleton (lazy initialization)
 	container.register<IEmbeddingProvider>(
 		SERVICE_TOKENS.EMBEDDING_PROVIDER,
@@ -90,20 +79,6 @@ export async function configureServices(): Promise<void> {
 		"singleton",
 	);
 
-	// MCP Service - Transient (since it depends on target)
-	container.register<IMCPService>(
-		SERVICE_TOKENS.MCP_SERVICE,
-		(targetId: string) => {
-			const targetOption = targetManager.getTarget(targetId);
-			if (targetOption._tag === "None") {
-				throw new Error(`Target not found: ${targetId}`);
-			}
-
-			const target = targetOption.value;
-			return createMCPService({ target });
-		},
-		"transient",
-	);
 }
 
 /**
