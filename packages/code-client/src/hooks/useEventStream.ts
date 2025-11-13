@@ -28,6 +28,7 @@ export interface EventStreamCallbacks {
 	onSessionTitleStart?: (sessionId: string) => void;
 	onSessionTitleDelta?: (sessionId: string, text: string) => void;
 	onSessionTitleComplete?: (sessionId: string, title: string) => void;
+	onSessionTokensUpdated?: (sessionId: string) => void;
 
 	// Message events
 	onUserMessageCreated?: (messageId: string, content: string) => void;
@@ -183,6 +184,10 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 								}
 							}
 							callbacksRef.current.onSessionTitleComplete?.(event.sessionId, event.title);
+							break;
+
+						case "session-tokens-updated":
+							callbacksRef.current.onSessionTokensUpdated?.(event.sessionId);
 							break;
 
 					case "user-message-created":

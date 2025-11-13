@@ -122,6 +122,14 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 				}
 			},
 
+			// ENABLED: Token updates (server calculates tokens, client displays)
+			onSessionTokensUpdated: (sessionId: string) => {
+				handleStreamEvent(
+					{ type: "session-tokens-updated", sessionId },
+					eventContextParams,
+				);
+			},
+
 			// Message streaming callbacks - unified event stream path
 			// All events go through handleStreamEvent (no dual-path complexity)
 		onUserMessageCreated: (messageId: string, content: string) => {
