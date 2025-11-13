@@ -25,8 +25,8 @@
  *   x => x.toString() // "13"
  * );
  */
-export const pipe = <T>(value: T, ...fns: Array<(arg: any) => any>): any =>
-	fns.reduce((acc, fn) => fn(acc), value);
+export const pipe = <T>(value: T, ...fns: Array<(arg: unknown) => unknown>): unknown =>
+	fns.reduce((acc, fn) => fn(acc), value as unknown);
 
 /**
  * Compose - Right-to-left function composition
@@ -40,9 +40,9 @@ export const pipe = <T>(value: T, ...fns: Array<(arg: any) => any>): any =>
  * addThenMultiply(5); // (5 + 3) * 2 = 16
  */
 export const compose =
-	<T>(...fns: Array<(arg: any) => any>) =>
-	(value: T): any =>
-		fns.reduceRight((acc, fn) => fn(acc), value);
+	<T>(...fns: Array<(arg: unknown) => unknown>) =>
+	(value: T): unknown =>
+		fns.reduceRight((acc, fn) => fn(acc), value as unknown);
 
 /**
  * Flow - Alias for pipe (for function composition without initial value)
@@ -56,9 +56,9 @@ export const compose =
  * transform(5); // "13"
  */
 export const flow =
-	<A, B>(...fns: Array<(arg: any) => any>) =>
+	<A, B>(...fns: Array<(arg: unknown) => unknown>) =>
 	(value: A): B =>
-		pipe(value, ...fns);
+		pipe(value, ...fns) as B;
 
 // ============================================================================
 // CURRYING & PARTIAL APPLICATION
@@ -97,8 +97,8 @@ export const curry3 =
  * add5(3, 2); // 10
  */
 export const partial =
-	<A extends any[], R>(fn: (...args: A) => R, ...partialArgs: Partial<A>) =>
-	(...remainingArgs: any[]): R =>
+	<A extends unknown[], R>(fn: (...args: A) => R, ...partialArgs: Partial<A>) =>
+	(...remainingArgs: unknown[]): R =>
 		fn(...([...partialArgs, ...remainingArgs] as A));
 
 // ============================================================================
@@ -472,7 +472,7 @@ export const noop = (): void => {};
  */
 export const prop =
 	<K extends string | number | symbol>(key: K) =>
-	<T extends Record<K, any>>(obj: T): T[K] =>
+	<T extends Record<K, unknown>>(obj: T): T[K] =>
 		obj[key];
 
 /**

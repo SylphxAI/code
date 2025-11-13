@@ -129,8 +129,8 @@ const loadConfigFile = async (filePath: string): Promise<AIConfig | null> => {
 		const content = await fs.readFile(filePath, "utf8");
 		const parsed = JSON.parse(content);
 		return aiConfigSchema.parse(parsed);
-	} catch (error: any) {
-		if (error.code === "ENOENT") {
+	} catch (error: unknown) {
+		if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
 			return null; // File doesn't exist
 		}
 		throw error; // Re-throw other errors
@@ -345,7 +345,8 @@ export const loadAIConfig = async (
 
 			return merged;
 		},
-		(error: any) => new Error(`Failed to load AI config: ${error.message}`),
+		(error: unknown) =>
+			new Error(`Failed to load AI config: ${error instanceof Error ? error.message : String(error)}`),
 	);
 };
 
@@ -400,7 +401,8 @@ export const saveAIConfig = async (
 			// Write config
 			await fs.writeFile(configPath, JSON.stringify(validated, null, 2) + "\n", "utf8");
 		},
-		(error: any) => new Error(`Failed to save AI config: ${error.message}`),
+		(error: unknown) =>
+			new Error(`Failed to save AI config: ${error instanceof Error ? error.message : String(error)}`),
 	);
 };
 
@@ -426,7 +428,10 @@ export const saveAIConfigTo = async (
 			// Write config
 			await fs.writeFile(configPath, JSON.stringify(validated, null, 2) + "\n", "utf8");
 		},
-		(error: any) => new Error(`Failed to save AI config to ${location}: ${error.message}`),
+		(error: unknown) =>
+			new Error(
+				`Failed to save AI config to ${location}: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 };
 
@@ -531,6 +536,9 @@ export const migrateLegacyConfig = async (
 			console.log(`✓ Migrated configuration from ${paths.legacy} to ${paths.global}`);
 			console.log(`  You can now safely delete the legacy file: ${paths.legacy}`);
 		},
-		(error: any) => new Error(`Failed to migrate legacy config: ${error.message}`),
+		(error: unknown) =>
+			new Error(
+				`Failed to migrate legacy config: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 };
