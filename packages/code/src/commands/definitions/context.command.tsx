@@ -17,16 +17,18 @@ export const contextCommand: Command = {
 
 			const { formatTokenCount } = await import("@sylphx/code-core");
 			const { get, getTRPCClient } = await import("@sylphx/code-client");
-			const { $currentSession, $selectedModel } = await import("@sylphx/code-client");
+			const { $currentSession, $selectedModel, $selectedProvider } = await import("@sylphx/code-client");
 
 			console.log("[Context] Imports loaded");
 			commandContext.addLog("[Context] Imports loaded");
 
 			const currentSession = get($currentSession);
 			const selectedModel = get($selectedModel);
+			const selectedProvider = get($selectedProvider);
 
-			// Get model name from session or selected model (match StatusBar logic)
+			// Get model name and provider from session or selection (match StatusBar logic)
 			const modelName = currentSession?.model || selectedModel || null;
+			const providerId = currentSession?.provider || selectedProvider || null;
 			const sessionId = currentSession?.id || null;
 
 			if (!modelName) {
@@ -50,9 +52,20 @@ export const contextCommand: Command = {
 			const trpc = getTRPCClient();
 
 			// Get model context limit from server (NO HARDCODED VALUES!)
-			const modelDetailsResult = await trpc.provider.getModelDetails.query({
-				provider: currentSession?.provider || null,
-				model: modelName,
+			if (!providerId) {
+				commandContext.setInputComponent(
+					<ContextDisplay
+						output="❌ No provider selected. Please select a provider first."
+						onComplete={() => commandContext.setInputComponent(null)}
+					/>,
+					"Context",
+				);
+				return;
+			}
+
+			const modelDetailsResult = await trpc.config.getModelDetails.query({
+				providerId: providerId,
+				modelId: modelName,
 			});
 
 			if (!modelDetailsResult.success) {
