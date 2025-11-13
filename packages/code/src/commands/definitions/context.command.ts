@@ -20,13 +20,22 @@ export const contextCommand: Command = {
 			context.addLog("[Context] Imports loaded");
 
 			const currentSession = get($currentSession);
-			if (!currentSession) {
-				context.addLog("[Context] No active session");
-				return "No active session. Start chatting first to see context usage.";
-			}
 
-			context.addLog(`[Context] Current session: ${currentSession.id}`);
-			const modelName = currentSession.model;
+			// Get model name from session or AI config
+			let modelName: string;
+			let sessionId: string | null = null;
+
+			if (currentSession) {
+				context.addLog(`[Context] Current session: ${currentSession.id}`);
+				modelName = currentSession.model;
+				sessionId = currentSession.id;
+			} else {
+				context.addLog("[Context] No active session, showing base context");
+				const { get: getStore } = await import("@sylphx/code-client");
+				const { $aiConfig } = await import("@sylphx/code-client");
+				const aiConfig = getStore($aiConfig);
+				modelName = aiConfig?.defaultModel || "anthropic/claude-3.5-sonnet";
+			}
 
 			// Get model-specific context limit
 			const getContextLimit = (model: string): number => {
@@ -59,7 +68,7 @@ export const contextCommand: Command = {
 
 			const trpc = getTRPCClient();
 			const result = await trpc.session.getContextInfo.query({
-				sessionId: currentSession.id,
+				sessionId: sessionId,
 			});
 
 			if (!result.success) {
@@ -131,7 +140,8 @@ export const contextCommand: Command = {
 				: "    (breakdown unavailable)";
 
 			// Format output with clean visual hierarchy
-			const output = `
+			const sessionNote = sessionId ? "" : "\n📌 Showing base context (no active session)\n";
+			const output = `${sessionNote}
 Context Usage: ${formatTokenCount(usedTokens)}/${formatTokenCount(contextLimit)} tokens (${usedPercent}%)
 Model: ${modelName}
 
