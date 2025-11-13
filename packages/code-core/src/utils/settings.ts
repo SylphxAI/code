@@ -70,12 +70,14 @@ export const loadSettings = async (
 			}
 			return parsed.data as ProjectSettings;
 		},
-		(error: any) => {
+		(error: unknown) => {
 			// File not found is not an error - return empty settings
-			if (error.code === "ENOENT") {
+			if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
 				return new Error("EMPTY_SETTINGS");
 			}
-			return new Error(`Failed to load settings: ${error.message}`);
+			return new Error(
+				`Failed to load settings: ${error instanceof Error ? error.message : String(error)}`,
+			);
 		},
 	).then((result) => {
 		// Convert EMPTY_SETTINGS error to success with empty object
@@ -110,7 +112,8 @@ export const saveSettings = async (
 			// Write settings with proper formatting
 			await fs.writeFile(settingsPath, `${JSON.stringify(settingsWithVersion, null, 2)}\n`, "utf8");
 		},
-		(error: any) => new Error(`Failed to save settings: ${error.message}`),
+		(error: unknown) =>
+			new Error(`Failed to save settings: ${error instanceof Error ? error.message : String(error)}`),
 	);
 };
 

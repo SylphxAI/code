@@ -209,11 +209,13 @@ export const commandSecurity = {
 
 		try {
 			return await execFileAsync(command, validatedArgs, secureOptions);
-		} catch (error: any) {
+		} catch (error: unknown) {
 			// Sanitize error message to prevent information disclosure
-			const sanitizedError = new Error(`Command execution failed: ${command}`);
-			sanitizedError.code = error.code;
-			sanitizedError.signal = error.signal;
+			const sanitizedError = new Error(`Command execution failed: ${command}`) as NodeJS.ErrnoException;
+			if (error && typeof error === "object") {
+				sanitizedError.code = "code" in error ? (error.code as string) : undefined;
+				sanitizedError.signal = "signal" in error ? (error.signal as NodeJS.Signals) : undefined;
+			}
 			throw sanitizedError;
 		}
 	},
@@ -496,30 +498,40 @@ export const securityMiddleware = {
 	/**
 	 * Rate limiting middleware
 	 */
-	rateLimit: (limiter: RateLimiter, getIdentifier: (req: any) => string) => {
-		return (req: any, res: any, next: any) => {
+	rateLimit: <TReq = unknown, TRes = unknown, TNext = unknown>(
+		limiter: RateLimiter,
+		getIdentifier: (req: TReq) => string,
+	) => {
+		return (req: TReq, res: TRes, next: TNext) => {
 			const identifier = getIdentifier(req);
 
 			if (!limiter.isAllowed(identifier)) {
-				return res.status(429).json({ error: "Too many requests" });
+				return (res as { status: (code: number) => { json: (body: unknown) => unknown } })
+					.status(429)
+					.json({ error: "Too many requests" });
 			}
 
-			next();
+			(next as () => void)();
 		};
 	},
 
 	/**
 	 * Input validation middleware
 	 */
-	validateInput: (schema: z.ZodSchema, source: "body" | "query" | "params" = "body") => {
-		return (req: any, res: any, next: any) => {
+	validateInput: <TReq = Record<string, unknown>, TRes = unknown, TNext = unknown>(
+		schema: z.ZodSchema,
+		source: "body" | "query" | "params" = "body",
+	) => {
+		return (req: TReq, res: TRes, next: TNext) => {
 			try {
-				const data = req[source];
+				const data = (req as Record<string, unknown>)[source];
 				const validated = schema.parse(data);
-				req[source] = validated;
-				next();
+				(req as Record<string, unknown>)[source] = validated;
+				(next as () => void)();
 			} catch (error) {
-				return res.status(400).json({ error: "Invalid input", details: error });
+				return (res as { status: (code: number) => { json: (body: unknown) => unknown } })
+					.status(400)
+					.json({ error: "Invalid input", details: error });
 			}
 		};
 	},

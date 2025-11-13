@@ -15,7 +15,7 @@ import { homedir } from "node:os";
 import { readdir, mkdir, readFile as fsReadFile, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { sql } from "drizzle-orm";
 import { SessionRepository } from "./session-repository.js";
@@ -42,7 +42,7 @@ export type ProgressCallback = (progress: MigrationProgress) => void;
  * Note: Schema migrations are handled automatically by Drizzle's migrate()
  * We only need to check for JSON file migration here
  */
-async function needsFileMigration(db: any): Promise<boolean> {
+async function needsFileMigration(db: LibSQLDatabase): Promise<boolean> {
 	try {
 		// Check if migration flag exists
 		if (existsSync(MIGRATION_FLAG)) {
@@ -108,7 +108,7 @@ async function cleanupOldJSONFiles(): Promise<void> {
 /**
  * Run database schema migrations
  */
-async function runSchemaMigrations(db: any): Promise<void> {
+async function runSchemaMigrations(db: LibSQLDatabase): Promise<void> {
 	// Ensure database directory exists
 	await mkdir(DB_DIR, { recursive: true });
 
@@ -128,7 +128,7 @@ async function runSchemaMigrations(db: any): Promise<void> {
  * Migrate session files to database
  */
 async function migrateSessionFiles(
-	db: any,
+	db: LibSQLDatabase,
 	onProgress?: ProgressCallback,
 ): Promise<{ success: number; errors: number }> {
 	const repository = new SessionRepository(db);
@@ -193,7 +193,13 @@ async function migrateSessionFiles(
 					message.attachments.length > 0
 				) {
 					const validAttachments = message.attachments.filter(
-						(a: any) => a && typeof a === "object" && a.path && a.relativePath,
+						(a: unknown): a is { path: string; relativePath: string } =>
+							a !== null &&
+							typeof a === "object" &&
+							"path" in a &&
+							"relativePath" in a &&
+							typeof (a as { path: unknown }).path === "string" &&
+							typeof (a as { relativePath: unknown }).relativePath === "string",
 					);
 					if (validAttachments.length > 0) {
 						normalizedAttachments = validAttachments;
