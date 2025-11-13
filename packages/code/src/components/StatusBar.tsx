@@ -43,8 +43,12 @@ export default function StatusBar({
 	const enabledRuleIds = useEnabledRuleIds();
 	const enabledRulesCount = enabledRuleIds.length;
 
+	// DEBUG: Log props received
+	console.log("[StatusBar] Props:", { provider, model, modelStatus, usedTokens });
+
 	// Fetch model details from server
 	const { details, loading } = useModelDetails(provider, model);
+	console.log("[StatusBar] Model details:", { details, loading });
 	const contextLength = details.contextLength;
 	const capabilities = details.capabilities;
 
