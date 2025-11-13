@@ -7,6 +7,11 @@
  * - Calculates baseContextTokens on session creation
  * - Updates totalTokens after each message
  * - Never runs on client (pure UI)
+ *
+ * SSOT: Database is Single Source of Truth
+ * - persistSessionTokens() is the ONLY function that writes to DB
+ * - All calculations use TokenCalculator for consistency
+ * - Called at checkpoints: step completion, session creation
  */
 
 import type { SessionRepository } from "../database/session-repository.js";
@@ -17,6 +22,7 @@ import { loadAllAgents } from "./agent-loader.js";
 import { loadAllRules } from "./rule-loader.js";
 import { getAISDKTools } from "../tools/registry.js";
 import type { SessionMessage } from "../types/session.types.js";
+import { TokenCalculator } from "./token-calculator.js";
 
 /**
  * Calculate base context tokens (system prompt + tools)
@@ -56,67 +62,21 @@ export async function calculateBaseContextTokens(
 }
 
 /**
- * Calculate message tokens
- * Converts ALL message parts to text and counts tokens
- * COMPLETE: Handles text, reasoning, tool calls/results, files, system messages
+ * Calculate message tokens using TokenCalculator
+ * DEPRECATED: Use TokenCalculator.calculateMessageTokens() directly
+ * Kept for backward compatibility
  */
 async function calculateMessageTokens(
 	message: SessionMessage,
 	modelName: string,
 ): Promise<number> {
-	let totalTokens = 0;
-
-	for (const step of message.steps) {
-		for (const part of step.parts) {
-			if (part.type === "text") {
-				// Count text content
-				const tokens = await countTokens(part.content, modelName);
-				totalTokens += tokens;
-			} else if (part.type === "reasoning") {
-				// Count reasoning content (extended thinking)
-				const tokens = await countTokens(part.content, modelName);
-				totalTokens += tokens;
-			} else if (part.type === "tool") {
-				// Count tool call input
-				if (part.input) {
-					const inputJson = JSON.stringify(part.input);
-					const tokens = await countTokens(inputJson, modelName);
-					totalTokens += tokens;
-				}
-				// Count tool result
-				if (part.result) {
-					const resultJson = JSON.stringify(part.result);
-					const tokens = await countTokens(resultJson, modelName);
-					totalTokens += tokens;
-				}
-			} else if (part.type === "file" && "base64" in part) {
-				// File content is frozen as base64, decode and count
-				try {
-					const content = Buffer.from(part.base64, "base64").toString("utf-8");
-					const tokens = await countTokens(content, modelName);
-					totalTokens += tokens;
-				} catch {
-					// Skip invalid file content (e.g., binary files)
-				}
-			} else if (part.type === "file-ref") {
-				// File-ref: read from file_contents table
-				// For now, skip (requires repository access)
-				// TODO: Add file content reading if needed
-			} else if (part.type === "system-message") {
-				// Count system message content
-				const tokens = await countTokens(part.content, modelName);
-				totalTokens += tokens;
-			}
-			// Skip error parts - not sent to LLM
-		}
-	}
-
-	return totalTokens;
+	const calculator = new TokenCalculator(modelName);
+	return await calculator.calculateMessageTokens(message);
 }
 
 /**
  * Calculate total tokens for session (base + all messages)
- * Called after each message is added
+ * Using TokenCalculator for unified logic
  */
 export async function calculateTotalTokens(
 	sessionId: string,
@@ -140,12 +100,9 @@ export async function calculateTotalTokens(
 		);
 	}
 
-	// Calculate messages tokens
-	let messagesTokens = 0;
-	for (const message of session.messages) {
-		const tokens = await calculateMessageTokens(message, session.model);
-		messagesTokens += tokens;
-	}
+	// Calculate messages tokens using TokenCalculator
+	const calculator = new TokenCalculator(session.model);
+	const messagesTokens = await calculator.calculateSessionTokens(session.messages);
 
 	const totalTokens = baseContextTokens + messagesTokens;
 
@@ -153,13 +110,43 @@ export async function calculateTotalTokens(
 }
 
 /**
+ * Persist session tokens to database
+ * SSOT: This is the ONLY function that writes session tokens to DB
+ *
+ * Called at checkpoints:
+ * - Step completion (after all parts including tools are complete)
+ * - Session creation (for baseContextTokens)
+ * - Manual recalculation (e.g., /context command)
+ *
+ * @returns Calculated tokens that were persisted
+ */
+export async function persistSessionTokens(
+	sessionId: string,
+	sessionRepository: SessionRepository,
+): Promise<{ baseContextTokens: number; totalTokens: number }> {
+	// Calculate using unified logic
+	const tokens = await calculateTotalTokens(sessionId, sessionRepository);
+
+	// Write to DB (SSOT update)
+	await sessionRepository.updateSessionTokens(sessionId, tokens);
+
+	console.log("[persistSessionTokens] SSOT updated:", {
+		sessionId,
+		baseContextTokens: tokens.baseContextTokens,
+		totalTokens: tokens.totalTokens,
+	});
+
+	return tokens;
+}
+
+/**
  * Update session tokens after message is added
- * Called automatically by streaming service after each message
+ * DEPRECATED: Use persistSessionTokens() directly
+ * Kept for backward compatibility
  */
 export async function updateSessionTokens(
 	sessionId: string,
 	sessionRepository: SessionRepository,
 ): Promise<void> {
-	const tokens = await calculateTotalTokens(sessionId, sessionRepository);
-	await sessionRepository.updateSessionTokens(sessionId, tokens);
+	await persistSessionTokens(sessionId, sessionRepository);
 }

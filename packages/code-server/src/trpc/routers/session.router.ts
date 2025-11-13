@@ -451,6 +451,7 @@ export const sessionRouter = router({
 				loadAllAgents,
 				loadAllRules,
 				getAISDKTools,
+				TokenCalculator,
 			} = await import("@sylphx/code-core");
 			const { readFile } = await import("node:fs/promises");
 
@@ -490,55 +491,13 @@ export const sessionRouter = router({
 				toolsTokensTotal += tokens;
 			}
 
-			// Messages tokens - use NEW step-based structure (message.steps[].parts[])
+			// Messages tokens - use TokenCalculator for unified logic
 			// If no session, messagesTokens is 0 (base context only)
 			let messagesTokens = 0;
 			if (session && session.messages) {
-				for (const msg of session.messages) {
-					// Loop through steps and parts - handle ALL part types
-					let totalMsgTokens = 0;
-					for (const step of msg.steps) {
-						for (const part of step.parts) {
-							if (part.type === "text") {
-								// Count text content
-								const tokens = await countTokens(part.content, modelName);
-								totalMsgTokens += tokens;
-							} else if (part.type === "reasoning") {
-								// Count reasoning content (extended thinking)
-								const tokens = await countTokens(part.content, modelName);
-								totalMsgTokens += tokens;
-							} else if (part.type === "tool") {
-								// Count tool call input
-								if (part.input) {
-									const inputJson = JSON.stringify(part.input);
-									const tokens = await countTokens(inputJson, modelName);
-									totalMsgTokens += tokens;
-								}
-								// Count tool result
-								if (part.result) {
-									const resultJson = JSON.stringify(part.result);
-									const tokens = await countTokens(resultJson, modelName);
-									totalMsgTokens += tokens;
-								}
-							} else if (part.type === "file" && "base64" in part) {
-								// File content is frozen as base64, decode and count
-								try {
-									const content = Buffer.from(part.base64, "base64").toString("utf-8");
-									const tokens = await countTokens(content, modelName);
-									totalMsgTokens += tokens;
-								} catch {
-									// Skip invalid file content (e.g., binary files)
-								}
-							} else if (part.type === "system-message") {
-								// Count system message content
-								const tokens = await countTokens(part.content, modelName);
-								totalMsgTokens += tokens;
-							}
-							// Skip error parts and file-ref (not sent to LLM)
-						}
-					}
-					messagesTokens += totalMsgTokens;
-				}
+				// Use TokenCalculator for consistent calculation with persistence
+				const calculator = new TokenCalculator(modelName);
+				messagesTokens = await calculator.calculateSessionTokens(session.messages);
 			}
 
 			return {

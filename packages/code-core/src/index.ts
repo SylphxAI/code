@@ -287,7 +287,10 @@ export {
 	calculateBaseContextTokens,
 	calculateTotalTokens,
 	updateSessionTokens,
+	persistSessionTokens,
 } from "./ai/session-tokens.js";
+export { TokenCalculator } from "./ai/token-calculator.js";
+export { StreamingTokenTracker } from "./ai/streaming-token-tracker.js";
 export { filterFiles, type FileInfo } from "./utils/file-scanner.js";
 export { fetchModels, type ModelInfo } from "./utils/ai-model-fetcher.js";
 export { debugLog, createLogger } from "./utils/debug-logger.js";

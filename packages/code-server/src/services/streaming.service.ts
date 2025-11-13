@@ -474,33 +474,37 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 								finishReason: stepResult.finishReason || "unknown",
 							});
 
-							// Final token calculation for step (accurate count including tool results)
-							// NOTE: Real-time updates happen on each chunk (text-delta/reasoning-delta)
-							// This is the final accurate calculation after all parts are complete
+							// Final token calculation for step (SSOT update)
+							// NOTE: This is the ONLY place where tokens are persisted to DB
+							// Real-time updates during streaming were optimistic (not persisted)
+							// This checkpoint writes accurate calculation to DB
 							try {
-								const { updateSessionTokens } = await import("@sylphx/code-core");
-								await updateSessionTokens(sessionId, sessionRepository);
+								const { persistSessionTokens } = await import("@sylphx/code-core");
 
-								// Read updated session and emit final accurate count
-								const updatedSession = await sessionRepository.getSessionById(sessionId);
-								if (updatedSession) {
-									await opts.appContext.eventStream.publish(`session:${sessionId}`, {
-										type: "session-tokens-updated" as const,
-										sessionId,
-										totalTokens: updatedSession.totalTokens || 0,
-										baseContextTokens: updatedSession.baseContextTokens || 0,
-									});
+								// Persist to DB (SSOT update)
+								const { totalTokens, baseContextTokens } = await persistSessionTokens(
+									sessionId,
+									sessionRepository,
+								);
 
-									console.log("[onStepFinish] Final token count:", {
-										step: stepNumber,
-										totalTokens: updatedSession.totalTokens,
-									});
-								}
+								// Emit accurate value (from SSOT)
+								await opts.appContext.eventStream.publish(`session:${sessionId}`, {
+									type: "session-tokens-updated" as const,
+									sessionId,
+									totalTokens,
+									baseContextTokens,
+								});
 
-								// Reset accumulated delta tokens for next step
-								accumulatedDeltaTokens = 0;
+								console.log("[onStepFinish] SSOT checkpoint:", {
+									step: stepNumber,
+									totalTokens,
+									baseContextTokens,
+								});
+
+								// Reset tracker with new baseline from DB
+								tokenTracker.reset(totalTokens);
 							} catch (tokenError) {
-								console.error("[onStepFinish] Failed to update final tokens:", tokenError);
+								console.error("[onStepFinish] Failed to persist tokens to SSOT:", tokenError);
 							}
 
 							lastCompletedStepNumber = stepNumber;
@@ -727,44 +731,41 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				let finalFinishReason: string | undefined;
 				let hasError = false;
 
-				// Real-time token tracking (incremental calculation)
-				// ARCHITECTURE: Update tokens on each chunk for real-time UI feedback
-				// - Track accumulated tokens from deltas
-				// - Emit session-tokens-updated event on EVERY delta (no throttling)
-				// - Use unified tokenizer for consistency
-				let accumulatedDeltaTokens = 0; // Tokens from current streaming content
+				// Real-time token tracking (SSOT Architecture)
+				// ARCHITECTURE:
+				// - Database is SSOT - only written at checkpoints (step completion)
+				// - Streaming period: optimistic in-memory tracking
+				// - Events notify immediately on every chunk
+				// - TokenCalculator provides unified calculation logic
+				const { TokenCalculator, StreamingTokenTracker } = await import("@sylphx/code-core");
 
-				// Helper: Calculate tokens for delta content and emit update immediately
+				// Initialize calculator and tracker
+				const calculator = new TokenCalculator(session.model);
+				const baselineTotal = session.totalTokens || session.baseContextTokens || 0;
+				const tokenTracker = new StreamingTokenTracker(calculator, baselineTotal);
+
+				// Helper: Update tokens from delta and emit event
 				const updateTokensFromDelta = async (deltaText: string) => {
 					try {
-						const { countTokens } = await import("@sylphx/code-core");
-						const deltaTokens = await countTokens(deltaText, session.model);
-						accumulatedDeltaTokens += deltaTokens;
+						// Add delta to tracker (optimistic, not persisted)
+						const currentTotal = await tokenTracker.addDelta(deltaText);
+						const baseTokens = session.baseContextTokens || 0;
 
-						// Get current session totals
-						const currentSession = await sessionRepository.getSessionById(sessionId);
-						if (currentSession) {
-							const baseTokens = currentSession.baseContextTokens || 0;
-							const existingTokens = currentSession.totalTokens || baseTokens;
-							const newTotal = existingTokens + accumulatedDeltaTokens;
+						console.log("[updateTokensFromDelta] Optimistic update:", {
+							deltaText: deltaText.substring(0, 20) + "...",
+							streamingDelta: tokenTracker.getStreamingDelta(),
+							baseline: tokenTracker.getBaselineTotal(),
+							currentTotal,
+						});
 
-							console.log("[updateTokensFromDelta]", {
-								deltaText: deltaText.substring(0, 20) + "...",
-								deltaTokens,
-								accumulatedDeltaTokens,
-								existingTokens,
-								newTotal,
-							});
-
-							// Emit immediate update on EVERY chunk (no throttling)
-							// User requirement: 反正有任何異動都要即刻通知client去實時更新
-							await opts.appContext.eventStream.publish(`session:${sessionId}`, {
-								type: "session-tokens-updated" as const,
-								sessionId,
-								totalTokens: newTotal,
-								baseContextTokens: baseTokens,
-							});
-						}
+						// Emit immediate update (optimistic value, not SSOT)
+						// User requirement: 反正有任何異動都要即刻通知client去實時更新
+						await opts.appContext.eventStream.publish(`session:${sessionId}`, {
+							type: "session-tokens-updated" as const,
+							sessionId,
+							totalTokens: currentTotal,
+							baseContextTokens: baseTokens,
+						});
 					} catch (error) {
 						// Non-critical - don't interrupt streaming
 						console.error("[updateTokensFromDelta] Failed:", error);
