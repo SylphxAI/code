@@ -223,37 +223,37 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 					<Box width={18}>
 						<Text>Used</Text>
 					</Box>
-					<Box width={12}>
+					<Box width={16}>
 						<Text>{data.usedTokens} tokens</Text>
 					</Box>
-					<Text dimColor>{data.usedPercent}%</Text>
+					<Text dimColor> {data.usedPercent}%</Text>
 				</Box>
 				<Box flexDirection="row" paddingLeft={2}>
 					<Box width={16}>
 						<Text dimColor>System</Text>
 					</Box>
-					<Box width={12}>
+					<Box width={16}>
 						<Text dimColor>{data.systemPromptTokens} tokens</Text>
 					</Box>
-					<Text dimColor>{data.systemPromptPercent}%</Text>
+					<Text dimColor> {data.systemPromptPercent}%</Text>
 				</Box>
 				<Box flexDirection="row" paddingLeft={2}>
 					<Box width={16}>
 						<Text dimColor>Tools</Text>
 					</Box>
-					<Box width={12}>
+					<Box width={16}>
 						<Text dimColor>{data.toolsTokens} tokens</Text>
 					</Box>
-					<Text dimColor>{data.toolsPercent}%</Text>
+					<Text dimColor> {data.toolsPercent}%</Text>
 				</Box>
 				<Box flexDirection="row" paddingLeft={2}>
 					<Box width={16}>
 						<Text dimColor>Messages</Text>
 					</Box>
-					<Box width={12}>
+					<Box width={16}>
 						<Text dimColor>{data.messagesTokens} tokens</Text>
 					</Box>
-					<Text dimColor>{data.messagesPercent}%</Text>
+					<Text dimColor> {data.messagesPercent}%</Text>
 				</Box>
 			</Box>
 
@@ -263,10 +263,10 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 					<Box width={18}>
 						<Text>Free</Text>
 					</Box>
-					<Box width={12}>
+					<Box width={16}>
 						<Text>{data.freeTokens} tokens</Text>
 					</Box>
-					<Text dimColor>{data.freePercent}%</Text>
+					<Text dimColor> {data.freePercent}%</Text>
 				</Box>
 			</Box>
 
@@ -276,10 +276,10 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 					<Box width={18}>
 						<Text>Reserved</Text>
 					</Box>
-					<Box width={12}>
+					<Box width={16}>
 						<Text>{data.bufferTokens} tokens</Text>
 					</Box>
-					<Text dimColor>{data.bufferPercent}%</Text>
+					<Text dimColor> {data.bufferPercent}%</Text>
 				</Box>
 			</Box>
 
