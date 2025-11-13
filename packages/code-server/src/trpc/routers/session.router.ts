@@ -490,43 +490,33 @@ export const sessionRouter = router({
 				toolsTokensTotal += tokens;
 			}
 
-			// Messages tokens - include attachments (SERVER READS FILES)
+			// Messages tokens - use NEW step-based structure (message.steps[].parts[])
 			// If no session, messagesTokens is 0 (base context only)
 			let messagesTokens = 0;
 			if (session && session.messages) {
 				for (const msg of session.messages) {
-					let msgText = msg.content;
-
-					// Add attachment content if present
-					if (msg.attachments && msg.attachments.length > 0) {
-						try {
-							const fileContents = await Promise.all(
-								msg.attachments.map(async (att) => {
-									try {
-										const content = await readFile(att.path, "utf8");
-										return { path: att.relativePath, content };
-									} catch {
-										return {
-											path: att.relativePath,
-											content: "[Error reading file]",
-										};
-									}
-								}),
-							);
-
-							const fileContentsText = fileContents
-								.map((f) => `\n\n<file path="${f.path}">\n${f.content}\n</file>`)
-								.join("");
-
-							msgText += fileContentsText;
-						} catch (error) {
-							// Continue with content we have
+					// NEW: Loop through steps and parts (message.steps[].parts[])
+				let totalMsgTokens = 0;
+				for (const step of msg.steps) {
+					for (const part of step.parts) {
+						if (part.type === "text") {
+							const tokens = await countTokens(part.content, modelName);
+							totalMsgTokens += tokens;
+						} else if (part.type === "file" && "base64" in part) {
+							// File content is frozen as base64, decode and count
+							try {
+								const content = Buffer.from(part.base64, "base64").toString("utf-8");
+								const tokens = await countTokens(content, modelName);
+								totalMsgTokens += tokens;
+							} catch {
+								// Skip invalid file content
+							}
 						}
 					}
-
-					const msgTokens = await countTokens(msgText, modelName);
-					messagesTokens += msgTokens;
 				}
+				messagesTokens += totalMsgTokens;
+
+			}
 			}
 
 			return {
