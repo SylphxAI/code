@@ -649,6 +649,76 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
+### PR-3: Token Calculation Caching Strategy
+**Requirement**: System MUST cache calculations intelligently to avoid redundant work while maintaining accuracy.
+
+**User Feedback**:
+> "TTL 好唔準確，應該係按實際內容有無變而係決定會唔會再計算"
+>
+> Translation: "TTL is very inaccurate, should decide whether to recalculate based on whether actual content changed"
+
+**Problem Analysis**:
+- Each model switch recalculates ALL messages (100+ messages × 30ms = 3-5 seconds)
+- Concurrent requests (StatusBar + /context) duplicate calculations
+- Base context (system + tools) rarely changes but recalculated every time
+- No caching = poor performance with large sessions
+
+**Cache Strategy - Content-Based Invalidation**:
+
+1. **Base Context Cache** (System Prompt + Tools)
+   - Cache key: `${model}:${contentHash}`
+   - Content hash: SHA256 of (agent + rules + tools definitions)
+   - Invalidation: Automatic when content changes
+   - Why: Agent/rules/tools rarely change during session
+   - Hit rate: ~90%
+   - Performance gain: 700ms → <1ms
+
+2. **Message Token Cache** (Individual Messages)
+   - Cache key: `${model}:${messageHash}`
+   - Content hash: SHA256 of message content
+   - Invalidation: Automatic (messages immutable once created)
+   - Why: Historical messages never change
+   - Hit rate: ~95%
+   - Performance gain: 3000ms → 100ms (only new messages calculated)
+
+3. **Request Deduplication** (Concurrent Requests)
+   - Detect identical in-flight requests
+   - Share result instead of duplicate calculation
+   - Why: StatusBar + /context often call simultaneously
+   - Performance gain: 5000ms → 2500ms (50% reduction)
+
+**Anti-Pattern - TTL-Based Caching**:
+```
+❌ Cache with TTL (5 minutes)
+   → User edits agent file at minute 3
+   → Cache still valid (not expired)
+   → Returns stale token count ❌ WRONG
+
+✅ Cache with content hash
+   → User edits agent file
+   → Content hash changes
+   → Cache miss, recalculates ✅ CORRECT
+```
+
+**Implementation Requirements**:
+- Use crypto.createHash('sha256') for content hashing
+- Use LRU cache with size limits (prevent memory leak)
+  - Base context cache: Max 100 entries
+  - Message cache: Max 1000 entries
+- Cache is in-memory only (process-level, not shared across restarts)
+- No TTL - content hash provides perfect invalidation
+
+**Performance Targets with Caching**:
+- First calculation (cache miss): 3-5s (acceptable)
+- Subsequent identical calculation (cache hit): <100ms (meets target)
+- Model switch with 100 messages:
+  - Before: 5000ms (recalculate all)
+  - After: 100ms (base context + new messages only)
+
+**Priority**: P0 (Critical) - Required for acceptable performance with large sessions
+
+---
+
 ## 🔮 Future Enhancements (Optional)
 
 ### FE-1: Fast Estimation Mode (Advanced Setting)
@@ -893,6 +963,31 @@ Users need to see accurate token usage counts throughout their session, but toke
 
 ---
 
+### Q4: Cache Memory Management
+**Question**: Should cache be process-level or shared across server restarts?
+
+**Options**:
+1. **In-memory only** (current design)
+   - Pro: Simple, no persistence complexity
+   - Con: Cache lost on server restart
+
+2. **Persist to disk**
+   - Pro: Cache survives restarts
+   - Con: Disk I/O overhead, cache invalidation complexity
+
+3. **Redis/External cache**
+   - Pro: Shared across instances, survives restarts
+   - Con: Infrastructure dependency, network overhead
+
+**Current Decision**: In-memory only (simplicity wins)
+- Tokenizer initialization already cached to disk (./models/.cache)
+- First calculation after restart: ~3-5s (acceptable)
+- Subsequent calculations: <100ms (cached)
+
+**Trade-offs**: Simplicity vs warm-start performance
+
+---
+
 ## 🔗 Related Documents
 
 - Implementation: (TBD - to be written after architecture solidifies)
@@ -902,5 +997,11 @@ Users need to see accurate token usage counts throughout their session, but toke
 ---
 
 ## 📅 Revision History
+
+- **v1.1** (2025-01-XX): Added PR-3 Token Calculation Caching Strategy
+  - User feedback: TTL-based caching is inaccurate
+  - Requirement: Content-based invalidation using SHA256 hashing
+  - Three-tier cache: Base context, Message tokens, Request deduplication
+  - Performance targets: 5000ms → 100ms for model switches
 
 - **v1.0** (2025-01-XX): Initial specification based on user requirements
