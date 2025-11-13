@@ -136,9 +136,6 @@ export class CommandAutocompleteModeHandler extends BaseInputHandler {
 					// Prevent TextInput's onSubmit from also executing
 					skipNextSubmit.current = true;
 
-					// Clear input immediately before execution
-					setInput("");
-					setSelectedCommandIndex(0);
 
 					try {
 						console.log(`[CommandAutocomplete] Executing command: ${selected.label}`);
@@ -221,6 +218,10 @@ export class CommandAutocompleteModeHandler extends BaseInputHandler {
 							});
 						}
 					}
+
+					// Clear input after command execution completes
+					setInput("");
+					setSelectedCommandIndex(0);
 				}
 			});
 		}
