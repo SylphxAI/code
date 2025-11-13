@@ -16,7 +16,6 @@ import { Box, Text } from "ink";
 import React, { useEffect, useState } from "react";
 import Chat from "./screens/Chat.js";
 import CommandPalette from "./screens/CommandPalette.js";
-import Dashboard from "./screens/Dashboard.js";
 import Logs from "./screens/Logs.js";
 import ModelSelection from "./screens/ModelSelection.js";
 import ProviderManagement from "./screens/ProviderManagement.js";
@@ -61,10 +60,6 @@ function AppContent() {
 
 	// Full-screen screens - no app layout padding
 	// These screens manage their own layout to handle Static/Dynamic boundary correctly
-	if (currentScreen === "dashboard") {
-		return <Dashboard />;
-	}
-
 	if (currentScreen === "chat") {
 		return <Chat commandFromPalette={commandPaletteCommand} />;
 	}
