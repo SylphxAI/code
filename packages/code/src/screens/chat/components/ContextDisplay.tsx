@@ -1,6 +1,6 @@
 /**
  * Context Display Component
- * Shows context window usage and token breakdown
+ * Shows context window usage and token breakdown in minimal, clean design
  */
 
 import { Box, Text } from "ink";
@@ -148,10 +148,14 @@ function parseContextOutput(output: string): ParsedContextData | null {
 	}
 }
 
-function createProgressBar(percent: number, width: number = 40): string {
+function createProgressBar(percent: number, width: number = 50): string {
 	const filled = Math.round((percent / 100) * width);
 	const empty = width - filled;
 	return "█".repeat(filled) + "░".repeat(empty);
+}
+
+function createSeparator(width: number = 70): string {
+	return "─".repeat(width);
 }
 
 export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
@@ -160,21 +164,15 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 	// If parsing fails, show raw output
 	if (!data) {
 		return (
-			<Box flexDirection="column" paddingY={1}>
-				<Box borderStyle="round" borderColor="cyan" paddingX={1} paddingY={1}>
-					<Box flexDirection="column">
-						<Text color="cyan" bold>
-							Context Usage
-						</Text>
-						<Box paddingTop={1}>
-							<Text>{output}</Text>
-						</Box>
-						<Box paddingTop={1}>
-							<Text color="gray" dimColor>
-								Press ESC to close
-							</Text>
-						</Box>
-					</Box>
+			<Box flexDirection="column" paddingY={1} paddingX={2}>
+				<Box paddingBottom={1}>
+					<Text color="cyan">▌ CONTEXT</Text>
+				</Box>
+				<Text>{output}</Text>
+				<Box paddingTop={2}>
+					<Text color="gray" dimColor>
+						Press ESC to close
+					</Text>
 				</Box>
 			</Box>
 		);
@@ -188,158 +186,142 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 	const bufferPercent = parseFloat(data.bufferPercent);
 
 	return (
-		<Box flexDirection="column" paddingY={1}>
-			<Box borderStyle="round" borderColor="cyan" paddingX={2} paddingY={1}>
-				<Box flexDirection="column" width={80}>
-					{/* Header */}
-					<Box flexDirection="row" justifyContent="space-between">
-						<Text color="cyan" bold>
-							📊 Context Window Analysis
-						</Text>
-						<Text color="gray">{data.modelName}</Text>
-					</Box>
+		<Box flexDirection="column" paddingY={1} paddingX={2}>
+			{/* Header */}
+			<Box flexDirection="row" justifyContent="space-between" paddingBottom={1}>
+				<Text color="cyan">▌ CONTEXT</Text>
+				<Text color="gray" dimColor>
+					{data.modelName}
+				</Text>
+			</Box>
 
-					{data.sessionNote && (
-						<Box paddingTop={1}>
-							<Text color="yellow">{data.sessionNote}</Text>
+			{data.sessionNote && (
+				<Box paddingBottom={1}>
+					<Text color="yellow">{data.sessionNote}</Text>
+				</Box>
+			)}
+
+			{/* Total Usage */}
+			<Box flexDirection="column" paddingBottom={1}>
+				<Box flexDirection="row" justifyContent="space-between">
+					<Text dimColor>Total</Text>
+					<Text>
+						{data.usedTokens}/{data.contextLimit} ({data.usedPercent}%)
+					</Text>
+				</Box>
+				<Text color="cyan">{createProgressBar(usedPercent, 60)}</Text>
+			</Box>
+
+			{/* Separator */}
+			<Box paddingY={1}>
+				<Text color="gray" dimColor>
+					{createSeparator(60)}
+				</Text>
+			</Box>
+
+			{/* Usage Breakdown */}
+			<Box flexDirection="column">
+				{/* System Prompt */}
+				<Box flexDirection="column" paddingBottom={1}>
+					<Box flexDirection="row" justifyContent="space-between">
+						<Text color="blue">System Prompt</Text>
+						<Text dimColor>
+							{data.systemPromptTokens} ({data.systemPromptPercent}%)
+						</Text>
+					</Box>
+					<Text color="blue" dimColor>
+						{createProgressBar(systemPercent, 60)}
+					</Text>
+					{data.systemPromptBreakdown.length > 0 && (
+						<Box paddingLeft={2} paddingTop={1} flexDirection="column">
+							{data.systemPromptBreakdown.map((item, i) => (
+								<Text key={i} dimColor>
+									• {item.name}: {item.tokens}
+								</Text>
+							))}
 						</Box>
 					)}
+				</Box>
 
-					{/* Overall Usage */}
-					<Box paddingTop={1} flexDirection="column">
-						<Box flexDirection="row" justifyContent="space-between">
-							<Text bold>Total Usage:</Text>
-							<Text>
-								{data.usedTokens}/{data.contextLimit} tokens ({data.usedPercent}%)
-							</Text>
-						</Box>
-						<Box paddingTop={1}>
-							<Text color="cyan">{createProgressBar(usedPercent, 70)}</Text>
-						</Box>
-					</Box>
-
-					{/* Breakdown */}
-					<Box paddingTop={1} flexDirection="column">
-						<Text bold underline>
-							Usage Breakdown
+				{/* Tools */}
+				<Box flexDirection="column" paddingBottom={1}>
+					<Box flexDirection="row" justifyContent="space-between">
+						<Text color="green">Tools ({data.toolCount})</Text>
+						<Text dimColor>
+							{data.toolsTokens} ({data.toolsPercent}%)
 						</Text>
-
-						{/* System Prompt */}
-						<Box paddingTop={1} flexDirection="column">
-							<Box flexDirection="row" justifyContent="space-between">
-								<Text color="blue">● System Prompt</Text>
-								<Text>
-									{data.systemPromptTokens} ({data.systemPromptPercent}%)
+					</Box>
+					<Text color="green" dimColor>
+						{createProgressBar(toolsPercent, 60)}
+					</Text>
+					{data.tools.length > 0 && (
+						<Box paddingLeft={2} paddingTop={1} flexDirection="column">
+							{data.tools.slice(0, 6).map((item, i) => (
+								<Text key={i} dimColor>
+									• {item.name}: {item.tokens}
 								</Text>
-							</Box>
-							<Box paddingLeft={2}>
-								<Text color="blue" dimColor>
-									{createProgressBar(systemPercent, 60)}
-								</Text>
-							</Box>
-							{data.systemPromptBreakdown.length > 0 && (
-								<Box paddingLeft={4} flexDirection="column">
-									{data.systemPromptBreakdown.map((item, i) => (
-										<Text key={i} color="gray" dimColor>
-											{item.name}: {item.tokens}
-										</Text>
-									))}
-								</Box>
+							))}
+							{data.tools.length > 6 && (
+								<Text dimColor>• ...{data.tools.length - 6} more</Text>
 							)}
 						</Box>
+					)}
+				</Box>
 
-						{/* Tools */}
-						<Box paddingTop={1} flexDirection="column">
-							<Box flexDirection="row" justifyContent="space-between">
-								<Text color="green">● Tools ({data.toolCount} total)</Text>
-								<Text>
-									{data.toolsTokens} ({data.toolsPercent}%)
-								</Text>
-							</Box>
-							<Box paddingLeft={2}>
-								<Text color="green" dimColor>
-									{createProgressBar(toolsPercent, 60)}
-								</Text>
-							</Box>
-							{data.tools.length > 0 && (
-								<Box paddingLeft={4} flexDirection="column">
-									{data.tools.slice(0, 5).map((item, i) => (
-										<Text key={i} color="gray" dimColor>
-											{item.name}: {item.tokens}
-										</Text>
-									))}
-									{data.tools.length > 5 && (
-										<Text color="gray" dimColor>
-											...and {data.tools.length - 5} more
-										</Text>
-									)}
-								</Box>
-							)}
-						</Box>
-
-						{/* Messages */}
-						<Box paddingTop={1} flexDirection="column">
-							<Box flexDirection="row" justifyContent="space-between">
-								<Text color="yellow">● Messages</Text>
-								<Text>
-									{data.messagesTokens} ({data.messagesPercent}%)
-								</Text>
-							</Box>
-							<Box paddingLeft={2}>
-								<Text color="yellow" dimColor>
-									{createProgressBar(messagesPercent, 60)}
-								</Text>
-							</Box>
-						</Box>
-					</Box>
-
-					{/* Available Space */}
-					<Box paddingTop={1} flexDirection="column">
-						<Text bold underline>
-							Available Space
+				{/* Messages */}
+				<Box flexDirection="column" paddingBottom={1}>
+					<Box flexDirection="row" justifyContent="space-between">
+						<Text color="yellow">Messages</Text>
+						<Text dimColor>
+							{data.messagesTokens} ({data.messagesPercent}%)
 						</Text>
-
-						<Box paddingTop={1} flexDirection="column">
-							<Box flexDirection="row" justifyContent="space-between">
-								<Text color="green">✓ Free for use</Text>
-								<Text>
-									{data.freeTokens} ({data.freePercent}%)
-								</Text>
-							</Box>
-							<Box paddingLeft={2}>
-								<Text color="green" dimColor>
-									{createProgressBar(freePercent, 60)}
-								</Text>
-							</Box>
-						</Box>
-
-						<Box paddingTop={1} flexDirection="column">
-							<Box flexDirection="row" justifyContent="space-between">
-								<Text color="gray">⚠ Auto-compact buffer (reserved)</Text>
-								<Text>
-									{data.bufferTokens} ({data.bufferPercent}%)
-								</Text>
-							</Box>
-							<Box paddingLeft={2}>
-								<Text color="gray" dimColor>
-									{createProgressBar(bufferPercent, 60)}
-								</Text>
-							</Box>
-							<Box paddingLeft={2}>
-								<Text color="gray" dimColor>
-									(Triggers automatic context compaction)
-								</Text>
-							</Box>
-						</Box>
 					</Box>
+					<Text color="yellow" dimColor>
+						{createProgressBar(messagesPercent, 60)}
+					</Text>
+				</Box>
+			</Box>
 
-					{/* Footer */}
-					<Box paddingTop={2} borderStyle="single" borderTop paddingTop={1}>
-						<Text color="gray" dimColor>
-							Press ESC to close
+			{/* Separator */}
+			<Box paddingY={1}>
+				<Text color="gray" dimColor>
+					{createSeparator(60)}
+				</Text>
+			</Box>
+
+			{/* Available Space */}
+			<Box flexDirection="column">
+				<Box flexDirection="column" paddingBottom={1}>
+					<Box flexDirection="row" justifyContent="space-between">
+						<Text color="green">Free Space</Text>
+						<Text dimColor>
+							{data.freeTokens} ({data.freePercent}%)
 						</Text>
+					</Box>
+					<Text color="green" dimColor>
+						{createProgressBar(freePercent, 60)}
+					</Text>
+				</Box>
+
+				<Box flexDirection="column">
+					<Box flexDirection="row" justifyContent="space-between">
+						<Text color="gray">Reserved (auto-compact)</Text>
+						<Text dimColor>
+							{data.bufferTokens} ({data.bufferPercent}%)
+						</Text>
+					</Box>
+					<Text dimColor>{createProgressBar(bufferPercent, 60)}</Text>
+					<Box paddingLeft={2} paddingTop={1}>
+						<Text dimColor>Triggers automatic compaction when reached</Text>
 					</Box>
 				</Box>
+			</Box>
+
+			{/* Footer */}
+			<Box paddingTop={2}>
+				<Text color="gray" dimColor>
+					Press ESC to close
+				</Text>
 			</Box>
 		</Box>
 	);
