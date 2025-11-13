@@ -7,13 +7,64 @@
  */
 
 import { AutoTokenizer } from "@huggingface/transformers";
+import { cacheManager } from "../cache/cache-manager.js";
 
 // Cache for multiple tokenizers (keyed by tokenizer name)
 // Limited to 3 tokenizers to prevent memory leak (each ~100-500MB)
+// Note: Using Map instead of LRUCache because tokenizers are large (~100-500MB each)
+// and we want manual eviction control
 const tokenizerCache = new Map<string, any>();
 const tokenizerInitializing = new Set<string>();
 const tokenizerFailed = new Set<string>();
 const MAX_CACHED_TOKENIZERS = 3;
+
+/**
+ * Wrap tokenizer cache for stats tracking
+ * Since this is a Map, not LRUCache, we track stats manually
+ */
+let tokenizerCacheHits = 0;
+let tokenizerCacheMisses = 0;
+
+/**
+ * Get tokenizer cache stats for CacheManager
+ * Since Map doesn't have built-in stats, we provide a wrapper
+ */
+function getTokenizerCacheStats() {
+	return {
+		size: tokenizerCache.size,
+		maxSize: MAX_CACHED_TOKENIZERS,
+		hits: tokenizerCacheHits,
+		misses: tokenizerCacheMisses,
+	};
+}
+
+/**
+ * Clear tokenizer cache
+ */
+function clearTokenizerCache() {
+	tokenizerCache.clear();
+	tokenizerInitializing.clear();
+	tokenizerFailed.clear();
+	tokenizerCacheHits = 0;
+	tokenizerCacheMisses = 0;
+}
+
+// Register tokenizer cache with manager
+// Note: Since Map doesn't conform to LRUCache interface, we create a pseudo-cache
+// for monitoring purposes only (actual cache operations use Map directly)
+cacheManager.register(
+	"tokenizers",
+	{
+		size: 0,
+		maxSize: MAX_CACHED_TOKENIZERS,
+		get: () => undefined,
+		set: () => {},
+		clear: clearTokenizerCache,
+		has: () => false,
+		delete: () => false,
+	} as any,
+	"HuggingFace BPE tokenizers (large ~100-500MB each, manual eviction)",
+);
 
 /**
  * Map provider model names to tokenizer names
@@ -106,6 +157,8 @@ async function ensureTokenizer(modelName?: string): Promise<any | null> {
 
 	// Check if already cached
 	if (tokenizerCache.has(tokenizerName)) {
+		tokenizerCacheHits++;
+		cacheManager.recordHit("tokenizers");
 		return tokenizerCache.get(tokenizerName);
 	}
 
@@ -128,6 +181,9 @@ async function ensureTokenizer(modelName?: string): Promise<any | null> {
 	}
 
 	// Initialize with Hugging Face AutoTokenizer
+	tokenizerCacheMisses++;
+	cacheManager.recordMiss("tokenizers");
+
 	try {
 		tokenizerInitializing.add(tokenizerName);
 

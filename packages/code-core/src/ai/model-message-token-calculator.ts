@@ -25,10 +25,18 @@ import { createHash } from "node:crypto";
 import type { ModelMessage } from "ai";
 import { countTokens, getTokenizerForModel } from "../utils/token-counter.js";
 import { LRUCache } from "../utils/lru-cache.js";
+import { cacheManager } from "../cache/cache-manager.js";
 
 // Message token cache: ${tokenizerName}:${messageHash} → tokens
 // Max 1000 entries (individual messages across sessions)
 const messageTokenCache = new LRUCache<string, number>(1000);
+
+// Register with cache manager
+cacheManager.register(
+	"message-tokens",
+	messageTokenCache,
+	"Model message tokens with SHA256 content-based caching (immutable messages)",
+);
 
 /**
  * Generate content hash for a message
@@ -67,12 +75,14 @@ export async function calculateModelMessagesTokens(
 		// Check cache
 		const cached = messageTokenCache.get(cacheKey);
 		if (cached !== undefined) {
+			cacheManager.recordHit("message-tokens");
 			totalTokens += cached;
 			cacheHits++;
 			continue;
 		}
 
 		// Cache miss - calculate
+		cacheManager.recordMiss("message-tokens");
 		cacheMisses++;
 		const tokens = await calculateModelMessageTokens(message, modelName, options);
 		messageTokenCache.set(cacheKey, tokens);

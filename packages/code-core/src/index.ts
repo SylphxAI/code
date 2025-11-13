@@ -281,6 +281,13 @@ export {
 	calculateModelMessagesTokens,
 	clearMessageTokenCache,
 } from "./ai/model-message-token-calculator.js";
+
+// ============================================================================
+// Cache Management
+// ============================================================================
+export { cacheManager } from "./cache/cache-manager.js";
+export type { CacheStats } from "./cache/cache-manager.js";
+
 export { filterFiles, type FileInfo } from "./utils/file-scanner.js";
 export { fetchModels, type ModelInfo } from "./utils/ai-model-fetcher.js";
 export { debugLog, createLogger } from "./utils/debug-logger.js";

@@ -28,10 +28,18 @@ import { loadAllAgents } from "./agent-loader.js";
 import { loadAllRules } from "./rule-loader.js";
 import { getAISDKTools } from "../tools/registry.js";
 import { LRUCache } from "../utils/lru-cache.js";
+import { cacheManager } from "../cache/cache-manager.js";
 
 // Base context cache: ${tokenizerName}:${contentHash} → tokens
 // Max 100 entries (different model/agent/rules combinations)
 const baseContextCache = new LRUCache<string, number>(100);
+
+// Register with cache manager
+cacheManager.register(
+	"base-context",
+	baseContextCache,
+	"Base context tokens (system prompt + tools) with SHA256 content-based caching",
+);
 
 /**
  * Generate content hash for base context caching
@@ -96,10 +104,12 @@ export async function calculateBaseContextTokens(
 	// Check cache
 	const cached = baseContextCache.get(cacheKey);
 	if (cached !== undefined) {
+		cacheManager.recordHit("base-context");
 		console.log(`[BaseContextCache HIT] ${cacheKey.slice(0, 32)}... → ${cached} tokens`);
 		return cached;
 	}
 
+	cacheManager.recordMiss("base-context");
 	console.log(`[BaseContextCache MISS] ${cacheKey.slice(0, 32)}... (calculating...)`);
 
 	// Build system prompt
