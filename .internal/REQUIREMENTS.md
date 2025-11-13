@@ -653,9 +653,7 @@ Users need to see accurate token usage counts throughout their session, but toke
 **Requirement**: System MUST cache calculations intelligently to avoid redundant work while maintaining accuracy.
 
 **User Feedback**:
-> "TTL 好唔準確，應該係按實際內容有無變而係決定會唔會再計算"
->
-> Translation: "TTL is very inaccurate, should decide whether to recalculate based on whether actual content changed"
+> "TTL is very inaccurate, should decide whether to recalculate based on whether actual content changed"
 
 **Problem Analysis**:
 - Each model switch recalculates ALL messages (100+ messages × 30ms = 3-5 seconds)
