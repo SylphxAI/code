@@ -113,18 +113,18 @@ function createLogger(): ILogger {
 	const logger = createRealLogger();
 
 	return {
-		info(message: string, ...args: any[]): void {
+		info(message: string, ...args: unknown[]): void {
 			// Merge args into context for structured logging
 			const context = args.length > 0 ? { args } : undefined;
 			logger.info(message, context);
 		},
 
-		warn(message: string, ...args: any[]): void {
+		warn(message: string, ...args: unknown[]): void {
 			const context = args.length > 0 ? { args } : undefined;
 			logger.warn(message, context);
 		},
 
-		error(message: string, error?: Error | unknown, ...args: any[]): void {
+		error(message: string, error?: Error | unknown, ...args: unknown[]): void {
 			const context = args.length > 0 ? { args } : undefined;
 			if (error instanceof Error) {
 				logger.error(message, error, context);
@@ -133,12 +133,12 @@ function createLogger(): ILogger {
 			}
 		},
 
-		debug(message: string, ...args: any[]): void {
+		debug(message: string, ...args: unknown[]): void {
 			const context = args.length > 0 ? { args } : undefined;
 			logger.debug(message, context);
 		},
 
-		success(message: string, ...args: any[]): void {
+		success(message: string, ...args: unknown[]): void {
 			// Success is just info with different styling
 			const context = args.length > 0 ? { args, level: "success" } : { level: "success" };
 			logger.info(message, context);
@@ -150,7 +150,7 @@ function createLogger(): ILogger {
  * Create a configuration service
  */
 function createConfiguration(): IConfiguration {
-	const config = new Map<string, any>();
+	const config = new Map<string, unknown>();
 
 	// Load environment variables
 	const loadEnvConfig = () => {
@@ -168,23 +168,23 @@ function createConfiguration(): IConfiguration {
 	loadEnvConfig();
 
 	return {
-		get<T = any>(key: string, defaultValue?: T): T {
-			return config.get(key) ?? defaultValue;
+		get<T = unknown>(key: string, defaultValue?: T): T {
+			return (config.get(key) as T) ?? (defaultValue as T);
 		},
 
-		getRequired<T = any>(key: string): T {
+		getRequired<T = unknown>(key: string): T {
 			const value = config.get(key);
 			if (value === undefined) {
 				throw new Error(`Required configuration key missing: ${key}`);
 			}
-			return value;
+			return value as T;
 		},
 
 		has(key: string): boolean {
 			return config.has(key);
 		},
 
-		set(key: string, value: any): void {
+		set(key: string, value: unknown): void {
 			config.set(key, value);
 		},
 

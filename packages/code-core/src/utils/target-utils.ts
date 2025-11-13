@@ -2,6 +2,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import type { MCPServerConfigUnion, TargetConfig } from "../types.js";
+import type {
+	AgentMetadata,
+	ClaudeCodeMetadata,
+	FrontMatterMetadata,
+	TargetConfigurationData,
+} from "../types/target-config.types.js";
 import { readJSONCFile, writeJSONCFile } from "./jsonc.js";
 import { pathSecurity, sanitize } from "./security.js";
 
@@ -17,7 +23,10 @@ export const fileUtils = {
 		return pathSecurity.safeJoin(cwd, configFileName);
 	},
 
-	async readConfig(config: TargetConfig, cwd: string): Promise<any> {
+	async readConfig(
+		config: TargetConfig,
+		cwd: string,
+	): Promise<TargetConfigurationData | Record<string, unknown>> {
 		const configPath = fileUtils.getConfigPath(config, cwd);
 
 		try {
@@ -40,7 +49,11 @@ export const fileUtils = {
 		throw new Error(`Unsupported config file format: ${config.configFile}`);
 	},
 
-	async writeConfig(config: TargetConfig, cwd: string, data: any): Promise<void> {
+	async writeConfig(
+		config: TargetConfig,
+		cwd: string,
+		data: TargetConfigurationData | Record<string, unknown>,
+	): Promise<void> {
 		const configPath = fileUtils.getConfigPath(config, cwd);
 
 		await fs.mkdir(path.dirname(configPath), { recursive: true });
@@ -91,7 +104,9 @@ export const fileUtils = {
  * YAML utilities for targets
  */
 export const yamlUtils = {
-	async extractFrontMatter(content: string): Promise<{ metadata: any; content: string }> {
+	async extractFrontMatter(
+		content: string,
+	): Promise<{ metadata: FrontMatterMetadata; content: string }> {
 		const yamlRegex = /^---\s*\n([\s\S]*?)\n---\s*\n([\s\S]*)$/;
 		const match = content.match(yamlRegex);
 
@@ -99,7 +114,7 @@ export const yamlUtils = {
 			try {
 				const parsedMetadata = parseYaml(match[1]);
 				return {
-					metadata: parsedMetadata,
+					metadata: parsedMetadata as FrontMatterMetadata,
 					content: match[2]!,
 				};
 			} catch (error) {
@@ -111,7 +126,7 @@ export const yamlUtils = {
 		return { metadata: {}, content };
 	},
 
-	async addFrontMatter(content: string, metadata: any): Promise<string> {
+	async addFrontMatter(content: string, metadata: FrontMatterMetadata): Promise<string> {
 		if (!metadata || Object.keys(metadata).length === 0) {
 			return content;
 		}
@@ -136,54 +151,62 @@ export const yamlUtils = {
 		return yamlRegex.test(content);
 	},
 
-	async ensureFrontMatter(content: string, defaultMetadata: any = {}): Promise<string> {
+	async ensureFrontMatter(
+		content: string,
+		defaultMetadata: FrontMatterMetadata = {},
+	): Promise<string> {
 		if (yamlUtils.hasValidFrontMatter(content)) {
 			return content;
 		}
 		return yamlUtils.addFrontMatter(content, defaultMetadata);
 	},
 
-	async extractAgentMetadata(content: string): Promise<any> {
+	async extractAgentMetadata(content: string): Promise<AgentMetadata> {
 		const { metadata } = await yamlUtils.extractFrontMatter(content);
 
 		if (typeof metadata === "string") {
 			try {
-				return JSON.parse(metadata);
+				return JSON.parse(metadata) as AgentMetadata;
 			} catch {
-				return { raw: metadata };
+				// Store unparseable string in properties.raw
+				return { properties: { raw: metadata } } as AgentMetadata;
 			}
 		}
 
-		return metadata || {};
+		return (metadata as AgentMetadata) || {};
 	},
 
-	async updateAgentMetadata(content: string, updates: any): Promise<string> {
+	async updateAgentMetadata(
+		content: string,
+		updates: Partial<AgentMetadata>,
+	): Promise<string> {
 		const { metadata: existingMetadata, content: baseContent } =
 			await yamlUtils.extractFrontMatter(content);
 		const updatedMetadata = { ...existingMetadata, ...updates };
 		return yamlUtils.addFrontMatter(baseContent, updatedMetadata);
 	},
 
-	validateClaudeCodeFrontMatter(metadata: any): boolean {
+	validateClaudeCodeFrontMatter(metadata: unknown): boolean {
 		if (typeof metadata !== "object" || metadata === null) {
 			return false;
 		}
 
+		const meta = metadata as ClaudeCodeMetadata;
 		const requiredFields = ["name", "description"];
 		for (const field of requiredFields) {
-			if (!metadata[field]) {
+			if (!meta[field as keyof ClaudeCodeMetadata]) {
 				return false;
 			}
 		}
 
-		if (metadata.tools && !Array.isArray(metadata.tools)) {
+		if (meta.tools && !Array.isArray(meta.tools)) {
 			return false;
 		}
 
 		return true;
 	},
 
-	normalizeClaudeCodeFrontMatter(metadata: any): any {
+	normalizeClaudeCodeFrontMatter(metadata: ClaudeCodeMetadata): ClaudeCodeMetadata {
 		const normalized = { ...metadata };
 
 		if (normalized.tools && typeof normalized.tools === "string") {
@@ -191,7 +214,7 @@ export const yamlUtils = {
 		}
 
 		if (!normalized.model) {
-			normalized.model = "inherit";
+			normalized.model = { name: "inherit" };
 		}
 
 		return normalized;
@@ -276,7 +299,7 @@ export const pathUtils = {
 		return kebabName || null;
 	},
 
-	extractAgentName(content: string, metadata: any, sourcePath?: string): string {
+	extractAgentName(content: string, metadata: AgentMetadata, sourcePath?: string): string {
 		// Try to extract from file path first
 		if (sourcePath) {
 			const pathName = pathUtils.extractNameFromPath(sourcePath);
@@ -363,13 +386,13 @@ ${basePrompt}`;
 export const transformUtils = {
 	defaultTransformAgentContent(
 		content: string,
-		_metadata?: any,
+		_metadata?: AgentMetadata,
 		_sourcePath?: string,
 	): Promise<string> {
 		return Promise.resolve(content);
 	},
 
-	defaultTransformMCPConfig(config: MCPServerConfigUnion): any {
+	defaultTransformMCPConfig(config: MCPServerConfigUnion): MCPServerConfigUnion {
 		return config;
 	},
 };

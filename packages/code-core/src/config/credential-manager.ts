@@ -100,13 +100,13 @@ async function loadCredentialFile(filePath: string): Promise<ProviderCredential[
 		const parsed = JSON.parse(content);
 		const validated = credentialFileSchema.parse(parsed);
 		return validated.credentials;
-	} catch (error: any) {
-		if (error.code === "ENOENT") {
+	} catch (error: unknown) {
+		if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
 			return []; // File doesn't exist
 		}
 		logger.error("Failed to load credential file", {
 			filePath,
-			error: error.message,
+			error: error instanceof Error ? error.message : String(error),
 		});
 		throw error;
 	}
@@ -161,7 +161,10 @@ export async function loadCredentials(cwd: string = process.cwd()): Promise<Resu
 				project: projectCreds.length,
 			});
 		},
-		(error: any) => new Error(`Failed to load credentials: ${error.message}`),
+		(error: unknown) =>
+			new Error(
+				`Failed to load credentials: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 }
 
@@ -191,7 +194,10 @@ export async function saveCredentials(cwd: string = process.cwd()): Promise<Resu
 				project: projectCreds.length,
 			});
 		},
-		(error: any) => new Error(`Failed to save credentials: ${error.message}`),
+		(error: unknown) =>
+			new Error(
+				`Failed to save credentials: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 }
 
@@ -216,7 +222,10 @@ export async function addCredential(
 
 			return credential;
 		},
-		(error: any) => new Error(`Failed to add credential: ${error.message}`),
+		(error: unknown) =>
+			new Error(
+				`Failed to add credential: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 }
 
@@ -247,7 +256,10 @@ export async function removeCredential(
 
 			return deleted;
 		},
-		(error: any) => new Error(`Failed to remove credential: ${error.message}`),
+		(error: unknown) =>
+			new Error(
+				`Failed to remove credential: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 }
 
@@ -279,7 +291,10 @@ export async function modifyCredential(
 
 			return updated;
 		},
-		(error: any) => new Error(`Failed to update credential: ${error.message}`),
+		(error: unknown) =>
+			new Error(
+				`Failed to update credential: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 }
 
@@ -309,7 +324,7 @@ export async function credentialsExist(cwd: string = process.cwd()): Promise<boo
  * Used during transition from old config structure
  */
 export async function migrateProviderConfigToCredentials(
-	providerConfigs: Record<string, any>,
+	providerConfigs: Record<string, { apiKey?: string; [key: string]: unknown }>,
 	cwd: string = process.cwd(),
 ): Promise<Result<number, Error>> {
 	return tryCatchAsync(
@@ -355,7 +370,10 @@ export async function migrateProviderConfigToCredentials(
 
 			return migratedCount;
 		},
-		(error: any) => new Error(`Failed to migrate credentials: ${error.message}`),
+		(error: unknown) =>
+			new Error(
+				`Failed to migrate credentials: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 }
 
