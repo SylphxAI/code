@@ -15,11 +15,14 @@ import type { Session } from "@sylphx/code-core";
 export function useTokenCalculation(currentSession: Session | null): number {
 	return useMemo(() => {
 		if (!currentSession) {
+			console.log("[useTokenCalculation] No session");
 			return 0;
 		}
 
 		// Return tokens calculated by server
 		// Server updates this field after each message
-		return currentSession.totalTokens || 0;
+		const tokens = currentSession.totalTokens || 0;
+		console.log("[useTokenCalculation] Session:", currentSession.id, "totalTokens:", tokens, "baseContextTokens:", currentSession.baseContextTokens);
+		return tokens;
 	}, [currentSession?.id, currentSession?.totalTokens]);
 }

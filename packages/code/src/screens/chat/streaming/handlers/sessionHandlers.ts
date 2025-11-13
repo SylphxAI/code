@@ -191,6 +191,11 @@ export function handleSessionTokensUpdated(
 		.then((updatedSession) => {
 			if (updatedSession) {
 				// Update session with new totalTokens
+				logSession("Re-fetched session from server:", {
+					sessionId: updatedSession.id,
+					totalTokens: updatedSession.totalTokens,
+					baseContextTokens: updatedSession.baseContextTokens,
+				});
 				setSignal($currentSession, {
 					...currentSession,
 					totalTokens: updatedSession.totalTokens,
