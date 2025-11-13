@@ -11,12 +11,14 @@ export const contextCommand: Command = {
 	description: "Display context window usage and token breakdown",
 	execute: async (context) => {
 		try {
+			console.log("[Context] Command starting...");
 			context.addLog("[Context] Starting context calculation...");
 
 			const { formatTokenCount } = await import("@sylphx/code-core");
 			const { get, getTRPCClient } = await import("@sylphx/code-client");
 			const { $currentSession } = await import("@sylphx/code-client");
 
+			console.log("[Context] Imports loaded");
 			context.addLog("[Context] Imports loaded");
 
 			const currentSession = get($currentSession);
@@ -62,16 +64,20 @@ export const contextCommand: Command = {
 			const contextLimit = getContextLimit(modelName);
 
 			// Calculate token counts (SERVER HANDLES ALL FILE I/O AND BUSINESS LOGIC)
+			console.log(`[Context] Model: ${modelName}, sessionId: ${sessionId}, contextLimit: ${contextLimit}`);
 			context.addLog(
 				`[Context] Calculating token counts for ${modelName} (limit: ${formatTokenCount(contextLimit)})...`,
 			);
 
 			const trpc = getTRPCClient();
+			console.log("[Context] Calling tRPC getContextInfo...");
 			const result = await trpc.session.getContextInfo.query({
 				sessionId: sessionId,
 			});
 
+			console.log("[Context] tRPC result:", result.success ? "success" : `error: ${result.error}`);
 			if (!result.success) {
+				console.log("[Context] Returning error:", result.error);
 				return `Error: ${result.error}`;
 			}
 
@@ -161,11 +167,14 @@ System Tools (${toolCount} total):
 ${toolList}
 `.trim();
 
+			console.log("[Context] Output generated, length:", output.length);
+			console.log("[Context] First 200 chars:", output.substring(0, 200));
 			return output;
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			const errorStack = error instanceof Error ? error.stack : undefined;
 
+			console.log("[Context] ERROR CAUGHT:", errorMsg);
 			context.addLog(`[Context] Error: ${errorMsg}`);
 			console.error("[Context] Full error:", error);
 			console.error("[Context] Stack trace:", errorStack);
