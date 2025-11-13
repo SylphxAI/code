@@ -13,6 +13,13 @@ export interface ProjectSettings {
 	defaultTarget?: string;
 	/** Settings version for migration purposes */
 	version?: string;
+	/**
+	 * Use accurate BPE tokenizer (slower) vs fast estimation (faster)
+	 * - true: Use Hugging Face AutoTokenizer (accurate, 100+ messages = 3-5s)
+	 * - false: Use estimation (charLength * ratio, 100+ messages = ~100ms)
+	 * Default: true (accurate)
+	 */
+	useAccurateTokenizer?: boolean;
 }
 
 /**
@@ -21,6 +28,7 @@ export interface ProjectSettings {
 const ProjectSettingsSchema = z.object({
 	defaultTarget: z.string().optional(),
 	version: z.string().optional(),
+	useAccurateTokenizer: z.boolean().optional().default(true),
 }).passthrough(); // Allow additional fields for forward compatibility
 
 const SETTINGS_FILE = ".sylphx-code/settings.json";

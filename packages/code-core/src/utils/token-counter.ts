@@ -153,15 +153,27 @@ async function ensureTokenizer(modelName?: string): Promise<any | null> {
 
 /**
  * Count tokens using BPE tokenizer (Hugging Face AutoTokenizer)
- * Falls back to estimation if tokenizer unavailable
+ * Falls back to estimation if tokenizer unavailable or fast mode enabled
  *
  * @param text Text to count tokens for
  * @param modelName Optional model name to use specific tokenizer
+ * @param options Optional configuration
+ * @param options.useAccurate If false, skip BPE and use fast estimation (default: true)
  * @returns Token count
  */
-export async function countTokens(text: string, modelName?: string): Promise<number> {
+export async function countTokens(
+	text: string,
+	modelName?: string,
+	options?: { useAccurate?: boolean },
+): Promise<number> {
 	if (!text) return 0;
 
+	// Fast mode: skip BPE tokenizer, use estimation directly
+	if (options?.useAccurate === false) {
+		return estimateFallback(text);
+	}
+
+	// Accurate mode: use BPE tokenizer
 	const tokenizer = await ensureTokenizer(modelName);
 
 	if (!tokenizer) {

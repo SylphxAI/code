@@ -456,6 +456,7 @@ export const sessionRouter = router({
 				buildModelMessages,
 				calculateModelMessagesTokens,
 				getModel,
+				loadSettings,
 			} = await import("@sylphx/code-core");
 			const { readFile } = await import("node:fs/promises");
 
@@ -463,6 +464,12 @@ export const sessionRouter = router({
 			const cwd = process.cwd();
 			const allAgents = await loadAllAgents(cwd);
 			const allRules = await loadAllRules(cwd);
+
+			// Load settings to check tokenizer mode
+			const settingsResult = await loadSettings(cwd);
+			const useAccurate = settingsResult.success
+				? (settingsResult.data.useAccurateTokenizer ?? true)
+				: true; // Default: accurate mode
 
 			// Use input parameters (from UI), fall back to session, then defaults
 			// This ensures /context command and StatusBar use SAME calculation (SSOT)
@@ -472,7 +479,7 @@ export const sessionRouter = router({
 
 			// Build system prompt
 			const systemPrompt = buildSystemPrompt(agentId, allAgents, enabledRules);
-			const systemPromptTokens = await countTokens(systemPrompt, modelName);
+			const systemPromptTokens = await countTokens(systemPrompt, modelName, { useAccurate });
 
 			// System prompt breakdown - simplified (just total for now)
 			const systemPromptBreakdown: Record<string, number> = {
@@ -491,7 +498,7 @@ export const sessionRouter = router({
 					parameters: toolDef.parameters || {},
 				};
 				const toolJson = JSON.stringify(toolRepresentation, null, 0);
-				const tokens = await countTokens(toolJson, modelName);
+				const tokens = await countTokens(toolJson, modelName, { useAccurate });
 				toolTokens[toolName] = tokens;
 				toolsTokensTotal += tokens;
 			}
@@ -518,7 +525,9 @@ export const sessionRouter = router({
 
 				// Calculate tokens of MODEL messages (not session messages)
 				// This is the actual context usage
-				messagesTokens = await calculateModelMessagesTokens(modelMessages, modelName);
+				messagesTokens = await calculateModelMessagesTokens(modelMessages, modelName, {
+					useAccurate,
+				});
 
 				console.log("[getContextInfo] Calculated message tokens:", {
 					sessionId: session.id,
@@ -565,17 +574,25 @@ export const sessionRouter = router({
 				buildModelMessages,
 				calculateModelMessagesTokens,
 				getModel,
+				loadSettings,
 			} = await import("@sylphx/code-core");
 
 			const cwd = process.cwd();
 			const agentId = input.agentId || "coder";
 			const enabledRuleIds = input.enabledRuleIds || [];
 
+			// Load settings to check tokenizer mode
+			const settingsResult = await loadSettings(cwd);
+			const useAccurate = settingsResult.success
+				? (settingsResult.data.useAccurateTokenizer ?? true)
+				: true; // Default: accurate mode
+
 			console.log("[getTotalTokens] Request:", {
 				sessionId: input.sessionId,
 				model: input.model,
 				agentId,
 				enabledRuleIds,
+				useAccurate,
 			});
 
 			try {
@@ -585,6 +602,7 @@ export const sessionRouter = router({
 					agentId,
 					enabledRuleIds,
 					cwd,
+					{ useAccurate },
 				);
 
 				console.log("[getTotalTokens] Base context calculated:", baseContextTokens);
@@ -627,7 +645,9 @@ export const sessionRouter = router({
 						fileRepo,
 					);
 
-					messagesTokens = await calculateModelMessagesTokens(modelMessages, input.model);
+					messagesTokens = await calculateModelMessagesTokens(modelMessages, input.model, {
+						useAccurate,
+					});
 				}
 
 				const totalTokens = baseContextTokens + messagesTokens;

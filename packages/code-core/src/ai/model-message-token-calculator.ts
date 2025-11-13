@@ -24,16 +24,19 @@ import { countTokens } from "../utils/token-counter.js";
  *
  * @param modelMessages - Messages in AI SDK format (from buildModelMessages)
  * @param modelName - Model name for tokenizer selection
+ * @param options - Optional configuration
+ * @param options.useAccurate - If false, use fast estimation instead of BPE tokenizer
  * @returns Total tokens for all messages
  */
 export async function calculateModelMessagesTokens(
 	modelMessages: ModelMessage[],
 	modelName: string,
+	options?: { useAccurate?: boolean },
 ): Promise<number> {
 	let totalTokens = 0;
 
 	for (const message of modelMessages) {
-		totalTokens += await calculateModelMessageTokens(message, modelName);
+		totalTokens += await calculateModelMessageTokens(message, modelName, options);
 	}
 
 	return totalTokens;
@@ -46,23 +49,24 @@ export async function calculateModelMessagesTokens(
 async function calculateModelMessageTokens(
 	message: ModelMessage,
 	modelName: string,
+	options?: { useAccurate?: boolean },
 ): Promise<number> {
 	let tokens = 0;
 
 	// Role overhead (minimal, but include for accuracy)
 	// AI SDK includes role in prompt construction
-	tokens += await countTokens(message.role, modelName);
+	tokens += await countTokens(message.role, modelName, options);
 
 	// Calculate content tokens based on type
 	const content = message.content;
 
 	if (typeof content === "string") {
 		// Simple string content
-		tokens += await countTokens(content, modelName);
+		tokens += await countTokens(content, modelName, options);
 	} else if (Array.isArray(content)) {
 		// Array of content parts
 		for (const part of content) {
-			tokens += await calculateContentPartTokens(part, modelName);
+			tokens += await calculateContentPartTokens(part, modelName, options);
 		}
 	}
 
@@ -76,15 +80,16 @@ async function calculateModelMessageTokens(
 async function calculateContentPartTokens(
 	part: any, // AI SDK content types are complex, use any for flexibility
 	modelName: string,
+	options?: { useAccurate?: boolean },
 ): Promise<number> {
 	switch (part.type) {
 		case "text":
 			// Text content
-			return await countTokens(part.text, modelName);
+			return await countTokens(part.text, modelName, options);
 
 		case "reasoning":
 			// Extended thinking (Anthropic)
-			return await countTokens(part.text, modelName);
+			return await countTokens(part.text, modelName, options);
 
 		case "file": {
 			// File content sent to model
@@ -106,7 +111,7 @@ async function calculateContentPartTokens(
 					fileContent = buffer.toString("utf-8");
 				} catch {
 					// Fallback: count the base64 string itself
-					return await countTokens(part.data, modelName);
+					return await countTokens(part.data, modelName, options);
 				}
 			} else {
 				return 0;
@@ -115,16 +120,16 @@ async function calculateContentPartTokens(
 			// For text files, count actual tokens
 			// Include filename and mediaType in XML wrapper (as sent to model)
 			const wrappedContent = `<file path="${part.filename || 'file'}" type="${part.mediaType || 'unknown'}">\n${fileContent}\n</file>`;
-			return await countTokens(wrappedContent, modelName);
+			return await countTokens(wrappedContent, modelName, options);
 		}
 
 		case "tool-call": {
 			// Tool call - count toolName + input
 			let tokens = 0;
-			tokens += await countTokens(part.toolName, modelName);
+			tokens += await countTokens(part.toolName, modelName, options);
 			if (part.input) {
 				const inputJson = JSON.stringify(part.input);
-				tokens += await countTokens(inputJson, modelName);
+				tokens += await countTokens(inputJson, modelName, options);
 			}
 			return tokens;
 		}
@@ -132,11 +137,11 @@ async function calculateContentPartTokens(
 		case "tool-result": {
 			// Tool result - count toolName + output
 			let tokens = 0;
-			tokens += await countTokens(part.toolName, modelName);
+			tokens += await countTokens(part.toolName, modelName, options);
 			if (part.output) {
 				// output is AI SDK wrapped format: { type: 'json', value: ... } or { type: 'text', text: ... }
 				const outputJson = JSON.stringify(part.output);
-				tokens += await countTokens(outputJson, modelName);
+				tokens += await countTokens(outputJson, modelName, options);
 			}
 			return tokens;
 		}

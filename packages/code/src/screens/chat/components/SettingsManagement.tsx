@@ -15,7 +15,7 @@ interface SettingsManagementProps {
 	onSave: (config: AIConfig) => Promise<void>;
 }
 
-type View = "main" | "tool-display";
+type View = "main" | "tool-display" | "tokenizer-mode";
 
 interface ToolDisplayItem {
 	label: string;
@@ -35,6 +35,7 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 	// Main menu options
 	const mainMenuItems = [
 		{ label: "Tool Display Settings", value: "tool-display" },
+		{ label: "Token Calculation Mode", value: "tokenizer-mode" },
 		{ label: "← Back", value: "back" },
 	];
 
@@ -72,6 +73,8 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 			onComplete();
 		} else if (item.value === "tool-display") {
 			setView("tool-display");
+		} else if (item.value === "tokenizer-mode") {
+			setView("tokenizer-mode");
 		}
 	};
 
@@ -178,6 +181,62 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 				</Box>
 
 				<SelectInput items={items} onSelect={handleToolDisplaySelect} />
+			</Box>
+		);
+	}
+
+	// Tokenizer mode view
+	if (view === "tokenizer-mode") {
+		return (
+			<Box flexDirection="column" padding={1}>
+				<Box marginBottom={1}>
+					<Text bold>Token Calculation Mode</Text>
+				</Box>
+
+				<Box marginBottom={1} flexDirection="column">
+					<Text dimColor>Choose how token counts are calculated:</Text>
+					<Text dimColor> </Text>
+					<Text dimColor>• Accurate: BPE tokenizer (slow, 100% accurate)</Text>
+					<Text dimColor>  - First calculation: ~3-5s</Text>
+					<Text dimColor>  - Subsequent: <100ms (cached)</Text>
+					<Text dimColor> </Text>
+					<Text dimColor>• Fast: Mathematical estimation (instant, ~10% error)</Text>
+					<Text dimColor>  - All calculations: ~100ms</Text>
+					<Text dimColor>  - Good for large sessions</Text>
+				</Box>
+
+				<SelectInput
+					items={[
+						{ label: "Accurate (BPE Tokenizer) - Recommended", value: "accurate" },
+						{ label: "Fast (Estimation)", value: "fast" },
+						{ label: "← Back", value: "back" },
+					]}
+					onSelect={async (item) => {
+						if (item.value === "back") {
+							setView("main");
+							return;
+						}
+
+						const useAccurate = item.value === "accurate";
+
+						// Save to project settings
+						const { loadSettings, saveSettings } = await import("@sylphx/code-core");
+						const cwd = process.cwd();
+						const settingsResult = await loadSettings(cwd);
+						const currentSettings = settingsResult.success ? settingsResult.data : {};
+
+						await saveSettings(
+							{
+								...currentSettings,
+								useAccurateTokenizer: useAccurate,
+							},
+							cwd,
+						);
+
+						// Go back to main menu
+						setView("main");
+					}}
+				/>
 			</Box>
 		);
 	}

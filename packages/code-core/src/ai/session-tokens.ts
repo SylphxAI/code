@@ -29,12 +29,20 @@ import { getAISDKTools } from "../tools/registry.js";
 /**
  * Calculate base context tokens (system prompt + tools)
  * Called dynamically on demand (no caching)
+ *
+ * @param modelName Model name for tokenizer selection
+ * @param agentId Agent ID for system prompt
+ * @param enabledRuleIds Rule IDs for system prompt
+ * @param cwd Current working directory
+ * @param options Optional configuration
+ * @param options.useAccurate If false, use fast estimation instead of BPE tokenizer
  */
 export async function calculateBaseContextTokens(
 	modelName: string,
 	agentId: string,
 	enabledRuleIds: string[],
 	cwd: string,
+	options?: { useAccurate?: boolean },
 ): Promise<number> {
 	// Load agent and rules
 	const allAgents = await loadAllAgents(cwd);
@@ -43,7 +51,7 @@ export async function calculateBaseContextTokens(
 
 	// Build system prompt
 	const systemPrompt = buildSystemPrompt(agentId, allAgents, enabledRules);
-	const systemPromptTokens = await countTokens(systemPrompt, modelName);
+	const systemPromptTokens = await countTokens(systemPrompt, modelName, options);
 
 	// Calculate tools tokens
 	const tools = getAISDKTools();
@@ -56,7 +64,7 @@ export async function calculateBaseContextTokens(
 			parameters: toolDef.parameters || {},
 		};
 		const toolJson = JSON.stringify(toolRepresentation, null, 0);
-		const tokens = await countTokens(toolJson, modelName);
+		const tokens = await countTokens(toolJson, modelName, options);
 		toolsTokens += tokens;
 	}
 
