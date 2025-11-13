@@ -471,7 +471,9 @@ export const sessionRouter = router({
 				loadAllAgents,
 				loadAllRules,
 				getAISDKTools,
-				TokenCalculator,
+				buildModelMessages,
+				calculateModelMessagesTokens,
+				getModel,
 			} = await import("@sylphx/code-core");
 			const { readFile } = await import("node:fs/promises");
 
@@ -511,13 +513,36 @@ export const sessionRouter = router({
 				toolsTokensTotal += tokens;
 			}
 
-			// Messages tokens - use TokenCalculator for unified logic
+			// Messages tokens - use MODEL messages (buildModelMessages) for accurate calculation
+			// CRITICAL: Must calculate what ACTUALLY gets sent to AI, not session messages
 			// If no session, messagesTokens is 0 (base context only)
 			let messagesTokens = 0;
-			if (session && session.messages) {
-				// Use TokenCalculator for consistent calculation with persistence
-				const calculator = new TokenCalculator(modelName);
-				messagesTokens = await calculator.calculateSessionTokens(session.messages);
+			if (session && session.messages && session.messages.length > 0) {
+				// Build MODEL messages (what actually gets sent to AI)
+				// This includes all transformations:
+				// - System message injection
+				// - File loading (from file_contents table)
+				// - Format conversion to AI SDK
+				const modelEntity = getModel(modelName);
+				const modelCapabilities = modelEntity?.capabilities;
+				const fileRepo = ctx.messageRepository.getFileRepository();
+
+				const modelMessages = await buildModelMessages(
+					session.messages,
+					modelCapabilities,
+					fileRepo,
+				);
+
+				// Calculate tokens of MODEL messages (not session messages)
+				// This is the actual context usage
+				messagesTokens = await calculateModelMessagesTokens(modelMessages, modelName);
+
+				console.log("[getContextInfo] Calculated message tokens:", {
+					sessionId: session.id,
+					sessionMessageCount: session.messages.length,
+					modelMessageCount: modelMessages.length,
+					messagesTokens,
+				});
 			}
 
 			return {

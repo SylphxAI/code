@@ -10,11 +10,19 @@
  *
  * SSOT: Database is Single Source of Truth
  * - persistSessionTokens() is the ONLY function that writes to DB
- * - All calculations use TokenCalculator for consistency
+ * - All calculations use MODEL MESSAGES (not session messages)
+ * - Model messages = buildModelMessages(session messages) = what actually gets sent to AI
  * - Called at checkpoints: step completion, session creation
+ *
+ * CRITICAL: Token calculation must use MODEL messages (via buildModelMessages)
+ * - Session messages = database storage format
+ * - Model messages = actual AI SDK format sent to model
+ * - Model messages include: system message injection, file loading, format conversion
+ * - Only model messages reflect actual context usage
  */
 
 import type { SessionRepository } from "../database/session-repository.js";
+import type { MessageRepository } from "../database/message-repository.js";
 import type { ProviderId } from "../config/ai-config.js";
 import { countTokens } from "../utils/token-counter.js";
 import { buildSystemPrompt } from "./system-prompt-builder.js";
@@ -23,6 +31,9 @@ import { loadAllRules } from "./rule-loader.js";
 import { getAISDKTools } from "../tools/registry.js";
 import type { SessionMessage } from "../types/session.types.js";
 import { TokenCalculator } from "./token-calculator.js";
+import { buildModelMessages } from "./message-builder/index.js";
+import { calculateModelMessagesTokens } from "./model-message-token-calculator.js";
+import { getModel } from "../registry/model-registry.js";
 
 /**
  * Calculate base context tokens (system prompt + tools)
@@ -76,11 +87,20 @@ async function calculateMessageTokens(
 
 /**
  * Calculate total tokens for session (base + all messages)
- * Using TokenCalculator for unified logic
+ * CRITICAL: Uses MODEL messages (buildModelMessages) not session messages
+ *
+ * Model messages include:
+ * - System message injection at step level
+ * - File content (loaded from file_contents table via file-ref)
+ * - Format conversion to AI SDK format
+ * - All parts: text, reasoning, tool-call, tool-result, files
+ *
+ * This is what ACTUALLY gets sent to the AI model, so this is what we must count.
  */
 export async function calculateTotalTokens(
 	sessionId: string,
 	sessionRepository: SessionRepository,
+	messageRepository: MessageRepository,
 ): Promise<{ baseContextTokens: number; totalTokens: number }> {
 	// Get session to access model and messages
 	const session = await sessionRepository.getSessionById(sessionId);
@@ -100,11 +120,35 @@ export async function calculateTotalTokens(
 		);
 	}
 
-	// Calculate messages tokens using TokenCalculator
-	const calculator = new TokenCalculator(session.model);
-	const messagesTokens = await calculator.calculateSessionTokens(session.messages);
+	// Build MODEL messages (what actually gets sent to AI)
+	// This includes all transformations:
+	// - System message injection
+	// - File loading (from file_contents table)
+	// - Format conversion to AI SDK
+	const modelEntity = getModel(session.model);
+	const modelCapabilities = modelEntity?.capabilities;
+	const fileRepo = messageRepository.getFileRepository();
+
+	const modelMessages = await buildModelMessages(
+		session.messages,
+		modelCapabilities,
+		fileRepo,
+	);
+
+	// Calculate tokens of MODEL messages (not session messages)
+	// This is the actual context usage
+	const messagesTokens = await calculateModelMessagesTokens(modelMessages, session.model);
 
 	const totalTokens = baseContextTokens + messagesTokens;
+
+	console.log("[calculateTotalTokens] SSOT calculation:", {
+		sessionId,
+		baseContextTokens,
+		messagesTokens,
+		totalTokens,
+		messageCount: session.messages.length,
+		modelMessageCount: modelMessages.length,
+	});
 
 	return { baseContextTokens, totalTokens };
 }
@@ -118,14 +162,20 @@ export async function calculateTotalTokens(
  * - Session creation (for baseContextTokens)
  * - Manual recalculation (e.g., /context command)
  *
+ * CRITICAL: Uses MODEL messages via buildModelMessages
+ * - Calculates what ACTUALLY gets sent to AI
+ * - Includes all transformations, file loading, system messages
+ * - This is the true context usage
+ *
  * @returns Calculated tokens that were persisted
  */
 export async function persistSessionTokens(
 	sessionId: string,
 	sessionRepository: SessionRepository,
+	messageRepository: MessageRepository,
 ): Promise<{ baseContextTokens: number; totalTokens: number }> {
-	// Calculate using unified logic
-	const tokens = await calculateTotalTokens(sessionId, sessionRepository);
+	// Calculate using unified logic (uses MODEL messages)
+	const tokens = await calculateTotalTokens(sessionId, sessionRepository, messageRepository);
 
 	// Write to DB (SSOT update)
 	await sessionRepository.updateSessionTokens(sessionId, tokens);
@@ -147,6 +197,7 @@ export async function persistSessionTokens(
 export async function updateSessionTokens(
 	sessionId: string,
 	sessionRepository: SessionRepository,
+	messageRepository: MessageRepository,
 ): Promise<void> {
-	await persistSessionTokens(sessionId, sessionRepository);
+	await persistSessionTokens(sessionId, sessionRepository, messageRepository);
 }

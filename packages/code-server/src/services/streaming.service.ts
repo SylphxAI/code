@@ -478,13 +478,16 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 							// NOTE: This is the ONLY place where tokens are persisted to DB
 							// Real-time updates during streaming were optimistic (not persisted)
 							// This checkpoint writes accurate calculation to DB
+							// CRITICAL: Uses MODEL messages (buildModelMessages) for accurate counting
 							try {
 								const { persistSessionTokens } = await import("@sylphx/code-core");
 
 								// Persist to DB (SSOT update)
+								// Uses buildModelMessages internally to calculate actual context usage
 								const { totalTokens, baseContextTokens } = await persistSessionTokens(
 									sessionId,
 									sessionRepository,
+									messageRepository,
 								);
 
 								// Emit accurate value (from SSOT)
