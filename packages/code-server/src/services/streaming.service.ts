@@ -730,39 +730,32 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				// Real-time token tracking (incremental calculation)
 				// ARCHITECTURE: Update tokens on each chunk for real-time UI feedback
 				// - Track accumulated tokens from deltas
-				// - Emit session-tokens-updated event periodically (throttled)
+				// - Emit session-tokens-updated event on EVERY delta (no throttling)
 				// - Use unified tokenizer for consistency
 				let accumulatedDeltaTokens = 0; // Tokens from current streaming content
-				let lastTokenUpdateTime = Date.now();
-				const TOKEN_UPDATE_INTERVAL_MS = 500; // Throttle updates to every 500ms
 
-				// Helper: Calculate tokens for delta content and emit update if needed
+				// Helper: Calculate tokens for delta content and emit update immediately
 				const updateTokensFromDelta = async (deltaText: string) => {
 					try {
 						const { countTokens } = await import("@sylphx/code-core");
 						const deltaTokens = await countTokens(deltaText, session.model);
 						accumulatedDeltaTokens += deltaTokens;
 
-						// Throttle updates - only emit every 500ms
-						const now = Date.now();
-						if (now - lastTokenUpdateTime >= TOKEN_UPDATE_INTERVAL_MS) {
-							lastTokenUpdateTime = now;
+						// Get current session totals
+						const currentSession = await sessionRepository.getSessionById(sessionId);
+						if (currentSession) {
+							const baseTokens = currentSession.baseContextTokens || 0;
+							const existingTokens = currentSession.totalTokens || baseTokens;
+							const newTotal = existingTokens + accumulatedDeltaTokens;
 
-							// Get current session totals
-							const currentSession = await sessionRepository.getSessionById(sessionId);
-							if (currentSession) {
-								const baseTokens = currentSession.baseContextTokens || 0;
-								const existingTokens = currentSession.totalTokens || baseTokens;
-								const newTotal = existingTokens + accumulatedDeltaTokens;
-
-								// Emit real-time update (optimistic - will be corrected at step end)
-								await opts.appContext.eventStream.publish(`session:${sessionId}`, {
-									type: "session-tokens-updated" as const,
-									sessionId,
-									totalTokens: newTotal,
-									baseContextTokens: baseTokens,
-								});
-							}
+							// Emit immediate update on EVERY chunk (no throttling)
+							// User requirement: 反正有任何異動都要即刻通知client去實時更新
+							await opts.appContext.eventStream.publish(`session:${sessionId}`, {
+								type: "session-tokens-updated" as const,
+								sessionId,
+								totalTokens: newTotal,
+								baseContextTokens: baseTokens,
+							});
 						}
 					} catch (error) {
 						// Non-critical - don't interrupt streaming
