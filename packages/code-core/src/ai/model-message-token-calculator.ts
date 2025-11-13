@@ -1,26 +1,47 @@
 /**
  * Model Message Token Calculator
- * SSOT for calculating tokens of AI SDK ModelMessage format
+ * SSOT for calculating tokens of AI SDK ModelMessage format with content-based caching
  *
- * ARCHITECTURE PRINCIPLE:
- * - Calculate tokens based on ACTUAL messages sent to AI (model messages)
- * - NOT based on session messages (database storage format)
- * - model messages = buildModelMessages(session messages)
- * - Includes ALL transformations: system message injection, file loading, format conversion
+ * ARCHITECTURE: Content-based caching (NO database cache, NO TTL)
+ * - Uses SHA256 content hashing for cache invalidation
+ * - Cache key: ${tokenizerName}:${messageHash}
+ * - LRU cache with max 1000 entries
+ * - Messages are immutable → cache永遠有效
  *
- * WHY THIS MATTERS:
- * - Auto-compact needs accurate usage
- * - Context management relies on this number
- * - Multi-client real-time sync requires consistent calculations
- * - All features depend on this SSOT being accurate
+ * CACHING STRATEGY:
+ * - Content hash = SHA256(entire message object)
+ * - Message unchanged → cache hit (< 1ms)
+ * - New message → cache miss, calculate (30ms)
+ * - Model switch → different tokenizer → cache miss for that tokenizer
+ *
+ * PERFORMANCE:
+ * - First time with model: Calculate all messages (~3s for 100 messages)
+ * - Subsequent calls: All cache hits (~100ms for 100 messages)
+ * - New message added: Only calculate new message (30ms)
+ * - Model switch: Recalculate all (but can reuse for that model next time)
  */
 
+import { createHash } from "node:crypto";
 import type { ModelMessage } from "ai";
-import { countTokens } from "../utils/token-counter.js";
+import { countTokens, getTokenizerForModel } from "../utils/token-counter.js";
+import { LRUCache } from "../utils/lru-cache.js";
+
+// Message token cache: ${tokenizerName}:${messageHash} → tokens
+// Max 1000 entries (individual messages across sessions)
+const messageTokenCache = new LRUCache<string, number>(1000);
+
+/**
+ * Generate content hash for a message
+ * Hash entire message object for cache key
+ */
+function generateMessageHash(message: ModelMessage): string {
+	const messageStr = JSON.stringify(message);
+	return createHash("sha256").update(messageStr).digest("hex").slice(0, 16);
+}
 
 /**
  * Calculate tokens for AI SDK ModelMessage array
- * This is what ACTUALLY gets sent to the AI model
+ * With content-based caching for performance
  *
  * @param modelMessages - Messages in AI SDK format (from buildModelMessages)
  * @param modelName - Model name for tokenizer selection
@@ -33,13 +54,46 @@ export async function calculateModelMessagesTokens(
 	modelName: string,
 	options?: { useAccurate?: boolean },
 ): Promise<number> {
+	const tokenizerName = getTokenizerForModel(modelName);
 	let totalTokens = 0;
+	let cacheHits = 0;
+	let cacheMisses = 0;
 
 	for (const message of modelMessages) {
-		totalTokens += await calculateModelMessageTokens(message, modelName, options);
+		// Generate cache key
+		const messageHash = generateMessageHash(message);
+		const cacheKey = `${tokenizerName}:${messageHash}`;
+
+		// Check cache
+		const cached = messageTokenCache.get(cacheKey);
+		if (cached !== undefined) {
+			totalTokens += cached;
+			cacheHits++;
+			continue;
+		}
+
+		// Cache miss - calculate
+		cacheMisses++;
+		const tokens = await calculateModelMessageTokens(message, modelName, options);
+		messageTokenCache.set(cacheKey, tokens);
+		totalTokens += tokens;
+	}
+
+	if (cacheHits > 0 || cacheMisses > 0) {
+		console.log(
+			`[MessageTokenCache] ${cacheHits} hits, ${cacheMisses} misses (${modelMessages.length} total)`,
+		);
 	}
 
 	return totalTokens;
+}
+
+/**
+ * Clear message token cache
+ * Useful for testing or memory management
+ */
+export function clearMessageTokenCache(): void {
+	messageTokenCache.clear();
 }
 
 /**

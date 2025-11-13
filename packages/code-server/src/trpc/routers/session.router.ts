@@ -10,6 +10,11 @@ import { router, publicProcedure, strictProcedure, moderateProcedure } from "../
 import type { ProviderId } from "@sylphx/code-core";
 import { publishTitleUpdate } from "../../services/event-publisher.js";
 
+// Request deduplication: prevent concurrent duplicate token calculations
+// Key: stringified input → Promise<result>
+// Automatically cleaned up when request completes
+const pendingTokenRequests = new Map<string, Promise<any>>();
+
 export const sessionRouter = router({
 	/**
 	 * Get recent sessions metadata (cursor-based pagination)
@@ -569,43 +574,59 @@ export const sessionRouter = router({
 			}),
 		)
 		.query(async ({ ctx, input }) => {
-			const {
-				calculateBaseContextTokens,
-				buildModelMessages,
-				calculateModelMessagesTokens,
-				getModel,
-				loadSettings,
-			} = await import("@sylphx/code-core");
-
-			const cwd = process.cwd();
-			const agentId = input.agentId || "coder";
-			const enabledRuleIds = input.enabledRuleIds || [];
-
-			// Load settings to check tokenizer mode
-			const settingsResult = await loadSettings(cwd);
-			const useAccurate = settingsResult.success
-				? (settingsResult.data.useAccurateTokenizer ?? true)
-				: true; // Default: accurate mode
-
-			console.log("[getTotalTokens] Request:", {
+			// Request deduplication: check if identical request is in-flight
+			const requestKey = JSON.stringify({
 				sessionId: input.sessionId,
 				model: input.model,
-				agentId,
-				enabledRuleIds,
-				useAccurate,
+				agentId: input.agentId,
+				enabledRuleIds: input.enabledRuleIds?.sort(), // Sort for consistency
 			});
 
-			try {
-				// Calculate base context (system prompts + tools)
-				const baseContextTokens = await calculateBaseContextTokens(
-					input.model,
-					agentId,
-					enabledRuleIds,
-					cwd,
-					{ useAccurate },
-				);
+			const pending = pendingTokenRequests.get(requestKey);
+			if (pending) {
+				console.log("[getTotalTokens] Dedup: waiting for in-flight request");
+				return pending;
+			}
 
-				console.log("[getTotalTokens] Base context calculated:", baseContextTokens);
+			// Start new request
+			const promise = (async () => {
+				try {
+					const {
+						calculateBaseContextTokens,
+						buildModelMessages,
+						calculateModelMessagesTokens,
+						getModel,
+						loadSettings,
+					} = await import("@sylphx/code-core");
+
+					const cwd = process.cwd();
+					const agentId = input.agentId || "coder";
+					const enabledRuleIds = input.enabledRuleIds || [];
+
+					// Load settings to check tokenizer mode
+					const settingsResult = await loadSettings(cwd);
+					const useAccurate = settingsResult.success
+						? (settingsResult.data.useAccurateTokenizer ?? true)
+						: true; // Default: accurate mode
+
+					console.log("[getTotalTokens] Request:", {
+						sessionId: input.sessionId,
+						model: input.model,
+						agentId,
+						enabledRuleIds,
+						useAccurate,
+					});
+
+					// Calculate base context (system prompts + tools)
+					const baseContextTokens = await calculateBaseContextTokens(
+						input.model,
+						agentId,
+						enabledRuleIds,
+						cwd,
+						{ useAccurate },
+					);
+
+					console.log("[getTotalTokens] Base context calculated:", baseContextTokens);
 
 				// If no session, return base context only
 				if (!input.sessionId) {
@@ -650,24 +671,33 @@ export const sessionRouter = router({
 					});
 				}
 
-				const totalTokens = baseContextTokens + messagesTokens;
+					const totalTokens = baseContextTokens + messagesTokens;
 
-				return {
-					success: true as const,
-					totalTokens,
-					baseContextTokens,
-					messagesTokens,
-				};
-			} catch (error) {
-				console.error("[getTotalTokens] Failed:", error);
-				return {
-					success: false as const,
-					error: error instanceof Error ? error.message : "Unknown error",
-					totalTokens: 0,
-					baseContextTokens: 0,
-					messagesTokens: 0,
-				};
-			}
+					return {
+						success: true as const,
+						totalTokens,
+						baseContextTokens,
+						messagesTokens,
+					};
+				} catch (error) {
+					console.error("[getTotalTokens] Failed:", error);
+					return {
+						success: false as const,
+						error: error instanceof Error ? error.message : "Unknown error",
+						totalTokens: 0,
+						baseContextTokens: 0,
+						messagesTokens: 0,
+					};
+				} finally {
+					// Clean up deduplication entry
+					pendingTokenRequests.delete(requestKey);
+				}
+			})();
+
+			// Track pending request
+			pendingTokenRequests.set(requestKey, promise);
+
+			return promise;
 		}),
 
 	// Note: Session events are now delivered via events.subscribeToAllSessions

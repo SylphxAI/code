@@ -49,8 +49,9 @@ const MODEL_TO_TOKENIZER: Record<string, string> = {
 /**
  * Get tokenizer name for a model
  * AutoTokenizer will find the right tokenizer automatically
+ * Exported for cache key generation
  */
-function getTokenizerForModel(modelName?: string): string {
+export function getTokenizerForModel(modelName?: string): string {
 	if (!modelName) return MODEL_TO_TOKENIZER["default"]!;
 
 	// Direct match

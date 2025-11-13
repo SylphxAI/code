@@ -283,10 +283,13 @@ export {
 	getTokenizerInfo,
 	countTokens,
 } from "./utils/token-counter.js";
-export { calculateBaseContextTokens } from "./ai/session-tokens.js";
+export { calculateBaseContextTokens, clearBaseContextCache } from "./ai/session-tokens.js";
 export { TokenCalculator } from "./ai/token-calculator.js";
 export { StreamingTokenTracker } from "./ai/streaming-token-tracker.js";
-export { calculateModelMessagesTokens } from "./ai/model-message-token-calculator.js";
+export {
+	calculateModelMessagesTokens,
+	clearMessageTokenCache,
+} from "./ai/model-message-token-calculator.js";
 export { filterFiles, type FileInfo } from "./utils/file-scanner.js";
 export { fetchModels, type ModelInfo } from "./utils/ai-model-fetcher.js";
 export { debugLog, createLogger } from "./utils/debug-logger.js";
