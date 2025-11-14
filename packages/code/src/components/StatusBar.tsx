@@ -96,26 +96,26 @@ export default function StatusBar({
 	// Handle unconfigured states
 	if (!provider) {
 		return (
-			<Box width="100%" flexDirection="row" marginBottom={1}>
-				<Text dimColor>
+			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
+				<Text dimColor wrap="truncate">
 					{agentName && `${agentName} · `}
 					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
 				</Text>
 				<Spacer />
-				<Text color="yellow">⚠ No AI provider selected - use /provider to select one</Text>
+				<Text color="yellow" wrap="truncate">⚠ No AI provider selected - use /provider to select one</Text>
 			</Box>
 		);
 	}
 
 	if (!model) {
 		return (
-			<Box width="100%" flexDirection="row" marginBottom={1}>
-				<Text dimColor>
+			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
+				<Text dimColor wrap="truncate">
 					{agentName && `${agentName} · `}
 					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"} · {provider}
 				</Text>
 				<Spacer />
-				<Text color="yellow">
+				<Text color="yellow" wrap="truncate">
 					⚠ No model selected - type "/model" to select a model
 				</Text>
 			</Box>
@@ -138,9 +138,9 @@ export default function StatusBar({
 	}
 
 	return (
-		<Box width="100%" flexDirection="row" marginBottom={1}>
+		<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
 			{/* Left side - all metadata in one text block */}
-			<Text dimColor>
+			<Text dimColor wrap="truncate">
 				{agentName && `${agentName} · `}
 				{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
 				{mcpStatus.total > 0 && ` · MCP ${mcpStatus.connected}/${mcpStatus.total}`}
@@ -154,13 +154,13 @@ export default function StatusBar({
 
 			{/* Right side - context usage */}
 			{!loading && contextLength && totalTokensSSOT > 0 && (
-				<Text dimColor>
+				<Text dimColor wrap="truncate">
 					{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
 					{usagePercent}%)
 				</Text>
 			)}
 			{!loading && contextLength && totalTokensSSOT === 0 && (
-				<Text dimColor>{formatTokenCount(contextLength)}</Text>
+				<Text dimColor wrap="truncate">{formatTokenCount(contextLength)}</Text>
 			)}
 		</Box>
 	);
