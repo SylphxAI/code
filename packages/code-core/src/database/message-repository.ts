@@ -107,23 +107,13 @@ export class MessageRepository {
 					});
 
 					// 3. Insert step parts (with file migration to file_contents)
-					console.log(`[MessageRepository] addMessage - inserting ${content.length} parts for message ${messageId}`);
 					for (let i = 0; i < content.length; i++) {
 						const part = content[i];
 						let partToStore: MessagePart = part;
 
-						// DEBUG: Log incoming part structure
-						console.log(`[MessageRepository] Processing part ${i}:`, {
-							type: part.type,
-							hasBase64: "base64" in part,
-							base64Length: "base64" in part ? (part as any).base64?.length : 0,
-							relativePath: "relativePath" in part ? (part as any).relativePath : "N/A",
-						});
-
 						// Migrate file parts to file_contents table
-						const shouldMigrate = part.type === "file" && "base64" in part && part.base64;
-						console.log(`[MessageRepository] Should migrate: ${shouldMigrate}`);
-						if (shouldMigrate) {
+						if (part.type === "file" && "base64" in part && part.base64) {
+							console.log(`[MessageRepository] Migrating file part ${i}: ${(part as any).relativePath} (${(part as any).base64?.length} bytes)`);
 							try {
 								// Convert base64 back to Buffer
 								const buffer = Buffer.from(part.base64, "base64");
@@ -421,9 +411,14 @@ export class MessageRepository {
 				console.log("[getRecentUserMessages] File contents rows found:", fileContentsRows.length);
 
 				for (const row of fileContentsRows) {
+					// BLOB columns from SQLite are Uint8Array, convert to Buffer for .toString('base64')
+					const content = Buffer.isBuffer(row.content)
+						? row.content
+						: Buffer.from(row.content as Uint8Array);
+
 					fileContentsMap.set(row.id, {
 						relativePath: row.relativePath,
-						content: row.content as Buffer,
+						content,
 						mediaType: row.mediaType,
 						size: row.size,
 					});

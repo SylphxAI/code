@@ -101,10 +101,15 @@ export class FileRepository {
 			return null;
 		}
 
+		// BLOB columns from SQLite are Uint8Array, convert to Buffer
+		const content = Buffer.isBuffer(record.content)
+			? record.content
+			: Buffer.from(record.content as Uint8Array);
+
 		return {
 			...record,
 			isText: record.isText === 1,
-			content: record.content as Buffer,
+			content,
 		};
 	}
 
@@ -118,11 +123,18 @@ export class FileRepository {
 			.where(eq(fileContents.stepId, stepId))
 			.orderBy(fileContents.ordering);
 
-		return records.map((r) => ({
-			...r,
-			isText: r.isText === 1,
-			content: r.content as Buffer,
-		}));
+		return records.map((r) => {
+			// BLOB columns from SQLite are Uint8Array, convert to Buffer
+			const content = Buffer.isBuffer(r.content)
+				? r.content
+				: Buffer.from(r.content as Uint8Array);
+
+			return {
+				...r,
+				isText: r.isText === 1,
+				content,
+			};
+		});
 	}
 
 	/**
