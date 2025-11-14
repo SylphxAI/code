@@ -100,6 +100,8 @@ export type StreamEvent =
 				content: string;
 				timestamp: number;
 			}>;
+			provider?: string;
+			model?: string;
 	  }
 	| {
 			type: "step-complete";

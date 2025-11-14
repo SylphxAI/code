@@ -130,8 +130,6 @@ export async function prepareStep(
 			metadata: { cpu: "N/A", memory: "N/A" },
 			todoSnapshot: [],
 			systemMessages: systemMessages.length > 0 ? systemMessages : undefined,
-		provider: currentSession.provider,
-		model: currentSession.model,
 		});
 
 		// 7. Inject system messages if present

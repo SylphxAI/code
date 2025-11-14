@@ -180,15 +180,57 @@ export function handleStepStart(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
+	const currentSession = getSignal($currentSession);
 
 	logMessage(
 		"Step started:",
 		event.stepId,
 		"index:",
 		event.stepIndex,
+		"provider:",
+		event.provider,
+		"model:",
+		event.model,
 		"systemMessages:",
 		event.systemMessages?.length || 0,
 	);
+
+	// Create/update steps array in optimistic message
+	if (currentSession && context.streamingMessageIdRef.current) {
+		const updatedMessages = currentSession.messages.map((msg) => {
+			if (msg.id !== context.streamingMessageIdRef.current) return msg;
+
+			// Initialize steps array if not exists
+			const steps = msg.steps || [];
+
+			// Check if step already exists (avoid duplicates)
+			const existingStepIndex = steps.findIndex((s) => s.stepIndex === event.stepIndex);
+
+			if (existingStepIndex === -1) {
+				// Add new step with provider/model
+				const newStep = {
+					id: event.stepId,
+					stepIndex: event.stepIndex,
+					parts: [],
+					status: "active" as const,
+					provider: event.provider,
+					model: event.model,
+				};
+
+				return {
+					...msg,
+					steps: [...steps, newStep],
+				};
+			}
+
+			return msg;
+		});
+
+		setSignal($currentSession, {
+			...currentSession,
+			messages: updatedMessages,
+		});
+	}
 
 	// If there are system messages, add them to the active message content
 	if (event.systemMessages && event.systemMessages.length > 0) {
