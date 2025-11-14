@@ -70,20 +70,8 @@ export default function StatusBar({
 		enabledRuleIds,
 	);
 
-	// DEBUG: Log calculation
-	console.log("[StatusBar] Render:", {
-		sessionId,
-		provider,
-		model,
-		selectedAgentId,
-		enabledRuleIds,
-		totalTokensSSOT,
-		"typeof totalTokensSSOT": typeof totalTokensSSOT,
-	});
-
 	// Fetch model details from server
 	const { details, loading } = useModelDetails(provider, model);
-	console.log("[StatusBar] Model details:", { details, loading });
 	const contextLength = details.contextLength;
 	const capabilities = details.capabilities;
 
@@ -95,13 +83,14 @@ export default function StatusBar({
 
 	// Handle unconfigured states
 	if (!provider) {
+		const leftContent = [agentName, `${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`]
+			.filter(Boolean)
+			.join(" · ");
+
 		return (
 			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
 				<Box flexShrink={0}>
-					<Text dimColor>
-						{agentName && `${agentName} · `}
-						{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
-					</Text>
+					<Text dimColor>{leftContent}</Text>
 				</Box>
 				<Spacer />
 				<Box flexShrink={0}>
@@ -112,19 +101,18 @@ export default function StatusBar({
 	}
 
 	if (!model) {
+		const leftContent = [agentName, `${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`, provider]
+			.filter(Boolean)
+			.join(" · ");
+
 		return (
 			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
 				<Box flexShrink={0}>
-					<Text dimColor>
-						{agentName && `${agentName} · `}
-						{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"} · {provider}
-					</Text>
+					<Text dimColor>{leftContent}</Text>
 				</Box>
 				<Spacer />
 				<Box flexShrink={0}>
-					<Text color="yellow">
-						⚠ No model selected - type "/model" to select a model
-					</Text>
+					<Text color="yellow">⚠ No model selected - type "/model" to select a model</Text>
 				</Box>
 			</Box>
 		);
@@ -145,19 +133,22 @@ export default function StatusBar({
 		}
 	}
 
+	// Build left content as single string to prevent internal wrapping
+	const leftContent = [
+		agentName && `${agentName}`,
+		`${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`,
+		mcpStatus.total > 0 && `MCP ${mcpStatus.connected}/${mcpStatus.total}${mcpStatus.connected > 0 ? ` (${mcpStatus.toolCount})` : ""}`,
+		provider,
+		model + capabilityLabel,
+	]
+		.filter(Boolean)
+		.join(" · ");
+
 	return (
 		<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
 			{/* Left side - all metadata in one text block */}
 			<Box flexShrink={0}>
-				<Text dimColor>
-					{agentName && `${agentName} · `}
-					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
-					{mcpStatus.total > 0 && ` · MCP ${mcpStatus.connected}/${mcpStatus.total}`}
-					{mcpStatus.connected > 0 && ` (${mcpStatus.toolCount})`}
-					{" · "}
-					{provider} · {model}
-					{capabilityLabel}
-				</Text>
+				<Text dimColor>{leftContent}</Text>
 			</Box>
 
 			<Spacer />
