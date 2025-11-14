@@ -327,6 +327,15 @@ export class SessionRepository {
 			return null;
 		}
 
+		// DEBUG: Log raw session data from database
+		console.log(`[SessionRepository] Raw session from DB:`, {
+			id: session.id,
+			provider: session.provider,
+			model: session.model,
+			providerType: typeof session.provider,
+			modelType: typeof session.model,
+		});
+
 		// Get messages with all parts, attachments, usage
 		const sessionMessages = await this.getSessionMessages(sessionId);
 

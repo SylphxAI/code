@@ -60,6 +60,14 @@ export async function prepareStep(
 			return {};
 		}
 
+		// DEBUG: Log session object to verify provider/model are loaded
+		console.log(`[StepLifecycle] Loaded session:`, {
+			id: currentSession.id,
+			provider: currentSession.provider,
+			model: currentSession.model,
+			messagesCount: currentSession.messages.length,
+		});
+
 		// 2. Calculate context token usage for triggers
 		let contextTokens: { current: number; max: number } | undefined;
 		try {
