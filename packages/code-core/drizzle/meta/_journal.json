@@ -15,6 +15,13 @@
       "when": 1763125777242,
       "tag": "0001_sturdy_violations",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1763126264597,
+      "tag": "0002_equal_daredevil",
+      "breakpoints": true
     }
   ]
 }

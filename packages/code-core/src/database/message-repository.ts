@@ -29,7 +29,7 @@ export class MessageRepository {
 
 	constructor(
 		private db: LibSQLDatabase,
-		storage?: StorageOps,
+		storage: StorageOps,
 	) {
 		this.fileRepo = new FileRepository(db, storage);
 	}

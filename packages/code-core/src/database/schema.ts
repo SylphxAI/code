@@ -422,8 +422,8 @@ export const events = sqliteTable(
 /**
  * File contents table - Frozen file storage for conversation history
  *
- * Design: Immutable file storage supporting multiple use cases
- * =============================================================
+ * Design: Immutable file storage using object storage
+ * ====================================================
  *
  * Use Cases:
  * 1. Frozen History: Files never change → prompt cache preserved
@@ -432,19 +432,18 @@ export const events = sqliteTable(
  * 4. Deduplication: SHA256 hash to share identical files (future)
  *
  * Storage Format:
- * - BLOB storage (no base64 overhead = 33% smaller than JSON)
- * - Text files: content + text_content for FTS5 search
- * - Binary files: content only (images, PDFs, etc.)
+ * - Files stored in object storage (filesystem or cloud S3/R2)
+ * - DB stores metadata + storageKey
+ * - Text files: text_content extracted for FTS5 search
+ *
+ * Storage Modes (zero code change):
+ * - Local dev: STORAGE_TYPE=filesystem (files in ~/.sylphx-code/storage)
+ * - Production: STORAGE_TYPE=r2 or s3 (files in cloud)
  *
  * Relationship:
  * - step_parts contains file-ref type with fileContentId
- * - file_contents stores actual frozen content
+ * - file_contents stores metadata + storageKey pointing to actual file
  * - ordering preserves position within step for reconstruction
- *
- * Migration from base64-in-JSON:
- * - Old: step_parts.content = { type: 'file', base64: '...' }
- * - New: step_parts.content = { type: 'file-ref', fileContentId: '...' }
- *       + file_contents row with BLOB
  */
 export const fileContents = sqliteTable(
 	"file_contents",
@@ -460,9 +459,8 @@ export const fileContents = sqliteTable(
 		mediaType: text("media_type").notNull(),
 		size: integer("size").notNull(),
 
-		// Storage: Hybrid approach (DB BLOB for local, cloud storage for serverless)
-		content: text("content", { mode: "blob" }), // Binary BLOB (local/embedded mode)
-		storageKey: text("storage_key"), // Cloud storage key (s3/r2 mode) - e.g., "files/abc123.png"
+		// Storage: Always use object storage (filesystem or cloud)
+		storageKey: text("storage_key").notNull(), // Storage key - e.g., "files/abc123.png"
 
 		// Search support
 		isText: integer("is_text").notNull(), // 1 for text files, 0 for binary
