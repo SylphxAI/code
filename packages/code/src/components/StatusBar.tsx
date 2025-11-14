@@ -12,7 +12,7 @@ import {
 } from "@sylphx/code-client";
 import { formatTokenCount } from "@sylphx/code-core";
 import { getAgentById } from "../embedded-context.js";
-import { Box, Text } from "ink";
+import { Box, Text, Spacer } from "ink";
 import React from "react";
 
 interface StatusBarProps {
@@ -96,34 +96,28 @@ export default function StatusBar({
 	// Handle unconfigured states
 	if (!provider) {
 		return (
-			<Box flexGrow={1} justifyContent="space-between" marginBottom={1}>
-				<Box>
-					<Text dimColor>
-						{agentName && `${agentName} · `}
-						{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
-					</Text>
-				</Box>
-				<Box>
-					<Text color="yellow">⚠ No AI provider selected - use /provider to select one</Text>
-				</Box>
+			<Box marginBottom={1}>
+				<Text dimColor>
+					{agentName && `${agentName} · `}
+					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
+				</Text>
+				<Spacer />
+				<Text color="yellow">⚠ No AI provider selected - use /provider to select one</Text>
 			</Box>
 		);
 	}
 
 	if (!model) {
 		return (
-			<Box flexGrow={1} justifyContent="space-between" marginBottom={1}>
-				<Box>
-					<Text dimColor>
-						{agentName && `${agentName} · `}
-						{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"} · {provider}
-					</Text>
-				</Box>
-				<Box>
-					<Text color="yellow">
-						⚠ No model selected - type "/model" to select a model
-					</Text>
-				</Box>
+			<Box marginBottom={1}>
+				<Text dimColor>
+					{agentName && `${agentName} · `}
+					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"} · {provider}
+				</Text>
+				<Spacer />
+				<Text color="yellow">
+					⚠ No model selected - type "/model" to select a model
+				</Text>
 			</Box>
 		);
 	}
@@ -144,7 +138,7 @@ export default function StatusBar({
 	}
 
 	return (
-		<Box width="100%" justifyContent="space-between" marginBottom={1}>
+		<Box marginBottom={1}>
 			{/* Left side - all metadata in one text block */}
 			<Text dimColor>
 				{agentName && `${agentName} · `}
@@ -155,6 +149,8 @@ export default function StatusBar({
 				{provider} · {model}
 				{capabilityLabel}
 			</Text>
+
+			<Spacer />
 
 			{/* Right side - context usage */}
 			{!loading && contextLength && totalTokensSSOT > 0 && (
