@@ -13,6 +13,11 @@ const logContent = createLogger("subscription:content");
  * Helper to update active message content in SessionStore
  * Exported for use in error handlers and cleanup
  * Uses immutable updates (no Immer middleware)
+ *
+ * ARCHITECTURE: Updates current step's parts, not message.content
+ * - Message has steps[] array, each step has parts[] array
+ * - UI renders from msg.steps[].parts (MessageList.tsx line 300-302)
+ * - This function updates the LAST (current) step's parts array
  */
 export function updateActiveMessageContent(
 	currentSessionId: string | null,
@@ -42,12 +47,39 @@ export function updateActiveMessageContent(
 		return;
 	}
 
-	// IMMUTABLE UPDATE: Create new messages array with updated content
-	const updatedMessages = session.messages.map((msg) =>
-		msg.id === activeMessage.id
-			? { ...msg, content: updater(msg.content || []) } // Ensure content is array
-			: msg,
-	);
+	// FIX: Update current step's parts array, not msg.content
+	// Find the last (current) step - this is where streaming content goes
+	const updatedMessages = session.messages.map((msg) => {
+		if (msg.id !== activeMessage.id) return msg;
+
+		// Get current step (last step in array)
+		const steps = msg.steps || [];
+		if (steps.length === 0) {
+			logContent("No steps found! Creating default step. messageId:", msg.id);
+			// Shouldn't happen (step-start creates step), but handle gracefully
+			return {
+				...msg,
+				steps: [{
+					id: "step-0",
+					stepIndex: 0,
+					parts: updater([]),
+					status: "active" as const,
+				}],
+			};
+		}
+
+		const currentStepIndex = steps.length - 1;
+		const currentStep = steps[currentStepIndex];
+
+		// Update current step's parts
+		const updatedSteps = steps.map((step, idx) =>
+			idx === currentStepIndex
+				? { ...step, parts: updater(step.parts || []) }
+				: step,
+		);
+
+		return { ...msg, steps: updatedSteps };
+	});
 
 	// Update signal with new session object
 	setSignal($currentSession, {
