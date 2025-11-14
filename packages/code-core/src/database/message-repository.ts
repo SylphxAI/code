@@ -414,26 +414,26 @@ export class MessageRepository {
 			console.log("[getRecentUserMessages] File refs:", allFileRefs);
 
 			if (allFileRefs.length > 0) {
-				const fileContentsRows = await this.db
-					.select()
-					.from(fileContents)
-					.where(inArray(fileContents.id, allFileRefs));
+				console.log("[getRecentUserMessages] Fetching file contents from storage...");
 
-				console.log("[getRecentUserMessages] File contents rows found:", fileContentsRows.length);
-
-				for (const row of fileContentsRows) {
-					// BLOB columns from SQLite are Uint8Array, convert to Buffer for .toString('base64')
-					const content = Buffer.isBuffer(row.content)
-						? row.content
-						: Buffer.from(row.content as Uint8Array);
-
-					fileContentsMap.set(row.id, {
-						relativePath: row.relativePath,
-						content,
-						mediaType: row.mediaType,
-						size: row.size,
-					});
+				// Fetch files from object storage via FileRepository
+				for (const fileId of allFileRefs) {
+					try {
+						const fileRecord = await this.fileRepo.getFileContent(fileId);
+						if (fileRecord) {
+							fileContentsMap.set(fileId, {
+								relativePath: fileRecord.relativePath,
+								content: fileRecord.content,
+								mediaType: fileRecord.mediaType,
+								size: fileRecord.size,
+							});
+						}
+					} catch (error) {
+						console.error(`[getRecentUserMessages] Failed to fetch file ${fileId}:`, error);
+					}
 				}
+
+				console.log("[getRecentUserMessages] File contents fetched:", fileContentsMap.size);
 			}
 
 			// Build result in timestamp order (most recent first)
