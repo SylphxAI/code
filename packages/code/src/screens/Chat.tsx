@@ -569,13 +569,13 @@ export default function Chat(_props: ChatProps) {
 		});
 
 		// Insert tag at cursor position
-		const before = input.slice(0, cursor);
-		const after = input.slice(cursor);
+		const before = input.slice(0, normalizedCursor);
+		const after = input.slice(normalizedCursor);
 		const newInput = `${before}${imageTag}${after}`;
 
 		setInput(newInput);
-		setCursor(cursor + imageTag.length);
-	}, [input, cursor, setInput, setCursor, addAttachment, pendingAttachments]);
+		setCursor(normalizedCursor + imageTag.length);
+	}, [input, normalizedCursor, setInput, setCursor, addAttachment, pendingAttachments]);
 
 	// Message history navigation - now handled by MessageHistoryModeHandler in InputModeManager
 
