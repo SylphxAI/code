@@ -126,7 +126,8 @@ export const saveMCPConfig = async (
 	return tryCatchAsync(
 		async () => {
 			// Ensure directory exists
-			await fs.mkdir(path.dirname(configPath), { recursive: true });
+			const dir = path.dirname(configPath);
+			await fs.mkdir(dir, { recursive: true });
 
 			// Set version and timestamp
 			const configToSave: MCPServersConfig = {
@@ -139,10 +140,13 @@ export const saveMCPConfig = async (
 			const validated = mcpServersConfigSchema.parse(configToSave);
 
 			// Write config
-			await fs.writeFile(configPath, JSON.stringify(validated, null, 2) + "\n", "utf8");
+			const jsonString = JSON.stringify(validated, null, 2) + "\n";
+			await fs.writeFile(configPath, jsonString, "utf8");
 		},
-		(error: unknown) =>
-			new Error(`Failed to save MCP config: ${error instanceof Error ? error.message : String(error)}`),
+		(error: unknown) => {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			return new Error(`Failed to save MCP config: ${errorMessage}`);
+		},
 	);
 };
 
@@ -174,7 +178,7 @@ export const addMCPServer = async (
 
 			// Load current config
 			const configResult = await loadMCPConfig(cwd);
-			if (!configResult.ok) {
+			if (!configResult.success) {
 				throw configResult.error;
 			}
 
@@ -191,12 +195,14 @@ export const addMCPServer = async (
 
 			// Save config
 			const saveResult = await saveMCPConfig(config, cwd);
-			if (!saveResult.ok) {
+			if (!saveResult.success) {
 				throw saveResult.error;
 			}
 		},
-		(error: unknown) =>
-			new Error(`Failed to add MCP server: ${error instanceof Error ? error.message : String(error)}`),
+		(error: unknown) => {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			return new Error(`Failed to add MCP server: ${errorMessage}`);
+		},
 	);
 };
 
@@ -212,7 +218,7 @@ export const updateMCPServer = async (
 		async () => {
 			// Load current config
 			const configResult = await loadMCPConfig(cwd);
-			if (!configResult.ok) {
+			if (!configResult.success) {
 				throw configResult.error;
 			}
 
@@ -238,7 +244,7 @@ export const updateMCPServer = async (
 
 			// Save config
 			const saveResult = await saveMCPConfig(config, cwd);
-			if (!saveResult.ok) {
+			if (!saveResult.success) {
 				throw saveResult.error;
 			}
 		},
@@ -258,7 +264,7 @@ export const removeMCPServer = async (
 		async () => {
 			// Load current config
 			const configResult = await loadMCPConfig(cwd);
-			if (!configResult.ok) {
+			if (!configResult.success) {
 				throw configResult.error;
 			}
 
@@ -275,7 +281,7 @@ export const removeMCPServer = async (
 
 			// Save config
 			const saveResult = await saveMCPConfig(config, cwd);
-			if (!saveResult.ok) {
+			if (!saveResult.success) {
 				throw saveResult.error;
 			}
 		},
@@ -294,7 +300,7 @@ export const getMCPServer = async (
 	return tryCatchAsync(
 		async () => {
 			const configResult = await loadMCPConfig(cwd);
-			if (!configResult.ok) {
+			if (!configResult.success) {
 				throw configResult.error;
 			}
 
@@ -315,7 +321,7 @@ export const listMCPServers = async (
 	return tryCatchAsync(
 		async () => {
 			const configResult = await loadMCPConfig(cwd);
-			if (!configResult.ok) {
+			if (!configResult.success) {
 				throw configResult.error;
 			}
 
@@ -335,7 +341,7 @@ export const listEnabledMCPServers = async (
 	return tryCatchAsync(
 		async () => {
 			const configResult = await loadMCPConfig(cwd);
-			if (!configResult.ok) {
+			if (!configResult.success) {
 				throw configResult.error;
 			}
 
