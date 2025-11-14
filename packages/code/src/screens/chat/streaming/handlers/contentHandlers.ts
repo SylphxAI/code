@@ -25,7 +25,6 @@ export function handleReasoningStart(
 
 	logContent("Reasoning start, session:", currentSessionId);
 	updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
-		logContent("Adding reasoning part, existing parts:", prev.length);
 		return [
 			...prev,
 			{
