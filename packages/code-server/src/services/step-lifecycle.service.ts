@@ -123,6 +123,9 @@ export async function prepareStep(
 		}
 
 		// 6. Emit step-start event for UI
+		console.log(
+			`[StepLifecycle] Emitting step-start for step ${stepNumber} with provider: ${currentSession.provider}, model: ${currentSession.model}`,
+		);
 		observer.next({
 			type: "step-start",
 			stepId,
@@ -130,8 +133,8 @@ export async function prepareStep(
 			metadata: { cpu: "N/A", memory: "N/A" },
 			todoSnapshot: [],
 			systemMessages: systemMessages.length > 0 ? systemMessages : undefined,
-		provider: currentSession.provider,
-		model: currentSession.model,
+			provider: currentSession.provider,
+			model: currentSession.model,
 		});
 
 		// 7. Inject system messages if present
