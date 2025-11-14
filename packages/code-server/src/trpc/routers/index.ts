@@ -10,6 +10,7 @@ import { todoRouter } from "./todo.router.js";
 import { configRouter } from "./config.router.js";
 import { adminRouter } from "./admin.router.js";
 import { eventsRouter } from "./events.router.js";
+import { fileRouter } from "./file.router.js";
 
 /**
  * Main application router
@@ -22,6 +23,7 @@ export const appRouter = router({
 	config: configRouter,
 	admin: adminRouter,
 	events: eventsRouter,
+	file: fileRouter,
 }) satisfies ReturnType<typeof router>;
 
 /**
