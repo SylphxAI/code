@@ -46,7 +46,16 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 							(() => {
 								// Extract provider and model from steps
 								const steps = msg.steps && msg.steps.length > 0 ? msg.steps : [];
+								console.log('[MessageList] Assistant message:', msg.id);
+								console.log('[MessageList] Steps:', steps);
+								console.log('[MessageList] Steps length:', steps.length);
+								if (steps.length > 0) {
+									console.log('[MessageList] First step:', steps[0]);
+									console.log('[MessageList] First step provider:', steps[0].provider);
+									console.log('[MessageList] First step model:', steps[0].model);
+								}
 								const stepsWithModel = steps.filter((s) => s.provider && s.model);
+								console.log('[MessageList] Steps with model:', stepsWithModel.length);
 
 								if (stepsWithModel.length === 0) {
 									// No model info available
