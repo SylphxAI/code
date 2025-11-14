@@ -460,8 +460,9 @@ export const fileContents = sqliteTable(
 		mediaType: text("media_type").notNull(),
 		size: integer("size").notNull(),
 
-		// Frozen content (immutable for prompt cache + rewind)
-		content: text("content", { mode: "blob" }).notNull(), // Binary BLOB (no base64!)
+		// Storage: Hybrid approach (DB BLOB for local, cloud storage for serverless)
+		content: text("content", { mode: "blob" }), // Binary BLOB (local/embedded mode)
+		storageKey: text("storage_key"), // Cloud storage key (s3/r2 mode) - e.g., "files/abc123.png"
 
 		// Search support
 		isText: integer("is_text").notNull(), // 1 for text files, 0 for binary

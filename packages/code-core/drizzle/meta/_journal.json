@@ -8,6 +8,13 @@
       "when": 1763044060769,
       "tag": "0000_charming_tyrannus",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1763125777242,
+      "tag": "0001_sturdy_violations",
+      "breakpoints": true
     }
   ]
 }

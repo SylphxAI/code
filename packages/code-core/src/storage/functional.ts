@@ -509,51 +509,76 @@ export const createStorageOps = (config: AnyStorageConfig): StorageOps => {
 // Configuration Helpers
 // ============================================================================
 
+type EnvReader = (key: string) => string | undefined;
+
+// ASSUMPTION: process.env reader (can be injected for testing)
+const readEnv: EnvReader = (key) => process.env[key];
+
+const buildFilesystemConfig = (env: EnvReader): FilesystemStorageConfig => ({
+	type: "filesystem",
+	basePath: env("STORAGE_PATH") || `${env("HOME")}/.sylphx-code/storage`,
+});
+
+const buildS3Config = (env: EnvReader): S3StorageConfig => {
+	const bucket = env("S3_BUCKET");
+	const accessKeyId = env("AWS_ACCESS_KEY_ID");
+	const secretAccessKey = env("AWS_SECRET_ACCESS_KEY");
+
+	if (!bucket || !accessKeyId || !secretAccessKey) {
+		throw new Error("S3 storage requires: S3_BUCKET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY");
+	}
+
+	return {
+		type: "s3",
+		region: env("AWS_REGION") || "us-east-1",
+		bucket,
+		accessKeyId,
+		secretAccessKey,
+		endpoint: env("S3_ENDPOINT"),
+		publicUrlBase: env("S3_PUBLIC_URL_BASE"),
+	};
+};
+
+const buildR2Config = (env: EnvReader): S3StorageConfig => {
+	const bucket = env("R2_BUCKET");
+	const accessKeyId = env("R2_ACCESS_KEY_ID");
+	const secretAccessKey = env("R2_SECRET_ACCESS_KEY");
+
+	if (!bucket || !accessKeyId || !secretAccessKey) {
+		throw new Error("R2 storage requires: R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY");
+	}
+
+	return {
+		type: "r2",
+		region: "auto",
+		bucket,
+		accessKeyId,
+		secretAccessKey,
+		endpoint: env("R2_ENDPOINT") || `https://${env("R2_ACCOUNT_ID")}.r2.cloudflarestorage.com`,
+		publicUrlBase: env("R2_PUBLIC_URL_BASE"),
+	};
+};
+
+// Data-driven config map (modular, testable, extensible)
+const configBuilders: Record<string, (env: EnvReader) => AnyStorageConfig> = {
+	filesystem: buildFilesystemConfig,
+	s3: buildS3Config,
+	r2: buildR2Config,
+};
+
 /**
  * Get storage configuration from environment variables
- * Pure function that reads from process.env
+ * Pure function with dependency injection (env reader can be mocked for testing)
  */
-export const getStorageConfigFromEnv = (): AnyStorageConfig => {
-	const storageType = process.env.STORAGE_TYPE || "filesystem";
+export const getStorageConfigFromEnv = (env: EnvReader = readEnv): AnyStorageConfig => {
+	const storageType = env("STORAGE_TYPE") || "filesystem";
+	const builder = configBuilders[storageType];
 
-	switch (storageType) {
-		case "filesystem":
-			return {
-				type: "filesystem",
-				basePath: process.env.STORAGE_PATH || `${process.env.HOME}/.sylphx-code/storage`,
-			};
-
-		case "s3":
-			if (!process.env.S3_BUCKET || !process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
-				throw new Error("S3 storage requires: S3_BUCKET, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY");
-			}
-			return {
-				type: "s3",
-				region: process.env.AWS_REGION || "us-east-1",
-				bucket: process.env.S3_BUCKET,
-				accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-				secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-				endpoint: process.env.S3_ENDPOINT,
-				publicUrlBase: process.env.S3_PUBLIC_URL_BASE,
-			};
-
-		case "r2":
-			if (!process.env.R2_BUCKET || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY) {
-				throw new Error("R2 storage requires: R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY");
-			}
-			return {
-				type: "r2",
-				region: "auto",
-				bucket: process.env.R2_BUCKET,
-				accessKeyId: process.env.R2_ACCESS_KEY_ID,
-				secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-				endpoint: process.env.R2_ENDPOINT || `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-				publicUrlBase: process.env.R2_PUBLIC_URL_BASE,
-			};
-
-		default:
-			throw new Error(`Unknown STORAGE_TYPE: ${storageType}`);
+	if (!builder) {
+		throw new Error(`Unknown STORAGE_TYPE: ${storageType}`);
 	}
+
+	return builder(env);
 };
 
 // ============================================================================
