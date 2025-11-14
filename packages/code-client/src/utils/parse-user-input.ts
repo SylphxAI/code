@@ -16,6 +16,7 @@ export type ParsedContentPart =
 			relativePath: string;
 			size?: number;
 			mimeType?: string;
+			imageData?: string; // Base64 encoded image data for images
 	  };
 
 /**
@@ -30,16 +31,18 @@ export interface ParsedUserInput {
  *
  * Converts:
  * - "I share @file.pdf to you" + attachments=[{relativePath: "file.pdf", ...}]
+ * - "[Image #1] what is it?" + attachments=[{relativePath: "[Image #1]", type: "image", imageData: "..."}]
  * Into:
  * - [{type: 'text', content: 'I share '}, {type: 'file', ...}, {type: 'text', content: ' to you'}]
+ * - [{type: 'file', imageData: "...", ...}, {type: 'text', content: ' what is it?'}]
  *
  * Benefits:
- * - Preserves order of text and files
+ * - Preserves order of text and files/images
  * - Semantic correctness
  * - Backend just needs to transform, not parse
  *
- * @param input - User input string with @file references
- * @param pendingAttachments - Files that user selected via autocomplete
+ * @param input - User input string with @file and [Image #N] references
+ * @param pendingAttachments - Files and images that user selected
  * @returns Ordered content parts
  */
 export function parseUserInput(
@@ -59,44 +62,83 @@ export function parseUserInput(
 		return { parts: [{ type: "text", content: input }] };
 	}
 
-	// Create map for fast lookup
+	// Create map for fast lookup - use relativePath as key
 	const attachmentMap = new Map(pendingAttachments.map((a) => [a.relativePath, a]));
 
+	// Find all tags (both @file and [Image #N]) with their positions
+	interface TagMatch {
+		index: number;
+		length: number;
+		tag: string;
+		attachment: FileAttachment | undefined;
+	}
+
+	const tagMatches: TagMatch[] = [];
+
 	// Match @filename pattern (any non-whitespace after @)
-	const regex = /@([^\s]+)/g;
-	let lastIndex = 0;
+	const fileRegex = /@([^\s]+)/g;
 	let match;
+	while ((match = fileRegex.exec(input)) !== null) {
+		const fileName = match[1];
+		const attachment = attachmentMap.get(fileName);
+		tagMatches.push({
+			index: match.index,
+			length: match[0].length,
+			tag: match[0],
+			attachment,
+		});
+	}
 
-	while ((match = regex.exec(input)) !== null) {
-		const matchStart = match.index;
+	// Match [Image #N] pattern
+	const imageRegex = /\[Image #\d+\]/g;
+	while ((match = imageRegex.exec(input)) !== null) {
+		const imageTag = match[0];
+		const attachment = attachmentMap.get(imageTag);
+		tagMatches.push({
+			index: match.index,
+			length: match[0].length,
+			tag: match[0],
+			attachment,
+		});
+	}
 
-		// Add text before @file (if any)
-		if (matchStart > lastIndex) {
-			const text = input.slice(lastIndex, matchStart);
+	// Sort matches by position
+	tagMatches.sort((a, b) => a.index - b.index);
+
+	// Process matches in order
+	let lastIndex = 0;
+
+	for (const tagMatch of tagMatches) {
+		// Add text before tag (if any)
+		if (tagMatch.index > lastIndex) {
+			const text = input.slice(lastIndex, tagMatch.index);
 			if (text) {
 				parts.push({ type: "text", content: text });
 			}
 		}
 
-		// Check if this @filename has a matching attachment
-		const fileName = match[1];
-		const attachment = attachmentMap.get(fileName);
-
-		if (attachment) {
-			// Valid @file reference - add as file part
-			parts.push({
+		// Add file/image part if attachment exists
+		if (tagMatch.attachment) {
+			const filePart: ParsedContentPart = {
 				type: "file",
-				path: attachment.path,
-				relativePath: attachment.relativePath,
-				size: attachment.size,
-				mimeType: attachment.mimeType,
-			});
+				path: tagMatch.attachment.path,
+				relativePath: tagMatch.attachment.relativePath,
+				size: tagMatch.attachment.size,
+				mimeType: tagMatch.attachment.mimeType,
+			};
+
+			// Include imageData for image attachments
+			if (tagMatch.attachment.type === "image" && tagMatch.attachment.imageData) {
+				filePart.imageData = tagMatch.attachment.imageData;
+			}
+
+			parts.push(filePart);
 		} else {
 			// Invalid reference (no matching attachment) - keep as text
-			parts.push({ type: "text", content: match[0] });
+			parts.push({ type: "text", content: tagMatch.tag });
 		}
 
-		lastIndex = match.index + match[0].length;
+		lastIndex = tagMatch.index + tagMatch.length;
 	}
 
 	// Add remaining text after last match (if any)
@@ -107,9 +149,9 @@ export function parseUserInput(
 		}
 	}
 
-	// Handle empty input or input with no text after removing @file refs
+	// Handle empty input or input with no text after removing tags
 	if (parts.length === 0 && input.length > 0) {
-		// Input was only whitespace or invalid @refs
+		// Input was only whitespace or invalid refs
 		parts.push({ type: "text", content: input });
 	}
 

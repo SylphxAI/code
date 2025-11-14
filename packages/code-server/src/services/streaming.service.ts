@@ -284,18 +284,32 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 							});
 						} else if (part.type === "file") {
 							try {
-								// READ NOW and freeze - never re-read from disk
-								const buffer = await fs.readFile(part.path);
-								const mimeType = part.mimeType || lookup(part.path) || "application/octet-stream";
+								// Check if imageData is already provided (for pasted images)
+								let base64Data: string;
+								let mimeType: string;
+								let size: number;
+
+								if ('imageData' in part && part.imageData) {
+									// Image data already provided - use it directly
+									base64Data = part.imageData;
+									mimeType = part.mimeType || "image/png";
+									size = Buffer.from(part.imageData, 'base64').length;
+								} else {
+									// READ NOW and freeze - never re-read from disk
+									const buffer = await fs.readFile(part.path);
+									base64Data = buffer.toString("base64");
+									mimeType = part.mimeType || lookup(part.path) || "application/octet-stream";
+									size = buffer.length;
+								}
 
 								// LEGACY format for backward compatibility
 								// New messages will migrate to file-ref after step creation
 								frozenContent.push({
 									type: "file",
 									relativePath: part.relativePath,
-									size: buffer.length,
+									size,
 									mediaType: mimeType,
-									base64: buffer.toString("base64"), // Temporary - will be moved to file_contents
+									base64: base64Data, // Temporary - will be moved to file_contents
 									status: "completed",
 								});
 							} catch (error) {
