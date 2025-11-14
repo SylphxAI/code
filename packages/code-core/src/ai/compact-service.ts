@@ -231,10 +231,16 @@ ${summary}
 ---
 *You are now in a new session. Continue the conversation naturally based on the context above.*`;
 
-		// Import message repository to add message
+		// Import message repository and storage to add message
 		const { MessageRepository } = await import("../database/message-repository.js");
+		const { createStorageOps, getStorageConfigFromEnv } = await import("../storage/index.js");
+
+		// Create storage from environment config
+		const storageConfig = getStorageConfigFromEnv();
+		const storage = createStorageOps(storageConfig);
+
 		// Get database instance from sessionRepository for cross-repository operation
-		const messageRepo = new MessageRepository(sessionRepository.getDatabase());
+		const messageRepo = new MessageRepository(sessionRepository.getDatabase(), storage);
 
 		await messageRepo.addMessage({
 			sessionId: newSession.id,
