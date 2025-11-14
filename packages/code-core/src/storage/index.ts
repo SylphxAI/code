@@ -1,11 +1,11 @@
 /**
- * Storage Abstraction Layer
+ * Storage Abstraction Layer - Pure Functional Style
  *
  * Unified interface for file storage across different backends
+ * Using pure functions, closures, and function composition
  */
 
 export type {
-	IStorage,
 	StorageResult,
 	StorageObject,
 	StorageConfig,
@@ -19,6 +19,13 @@ export type {
 	GetOptions,
 } from "./types.js";
 
-export { FilesystemStorage } from "./filesystem-storage.js";
-export { S3Storage } from "./s3-storage.js";
-export { createStorage, getStorage, setStorage, resetStorage, getStorageConfigFromEnv } from "./factory.js";
+export type { StorageOps } from "./functional.js";
+export {
+	createStorageOps,
+	createFilesystemOps,
+	createS3Ops,
+	getStorageConfigFromEnv,
+	withLogging,
+	withRetry,
+	withCache,
+} from "./functional.js";
