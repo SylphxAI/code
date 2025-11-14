@@ -609,13 +609,6 @@ export const sessionRouter = router({
 						? (settingsResult.data.useAccurateTokenizer ?? true)
 						: true; // Default: accurate mode
 
-					console.log("[getTotalTokens] Request:", {
-						sessionId: input.sessionId,
-						model: input.model,
-						agentId,
-						enabledRuleIds,
-						useAccurate,
-					});
 
 					// Calculate base context (system prompts + tools)
 					const baseContextTokens = await calculateBaseContextTokens(
@@ -626,11 +619,8 @@ export const sessionRouter = router({
 						{ useAccurate },
 					);
 
-					console.log("[getTotalTokens] Base context calculated:", baseContextTokens);
-
 				// If no session, return base context only
 				if (!input.sessionId) {
-					console.log("[getTotalTokens] No session, returning base context only");
 					return {
 						success: true as const,
 						totalTokens: baseContextTokens,
