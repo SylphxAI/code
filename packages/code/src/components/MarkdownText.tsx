@@ -6,6 +6,10 @@
  * - Detects HR patterns (---, ***, ___)
  * - Renders with fixed width (48 chars) instead of full terminal width
  * - Prevents awkward line wrapping in narrow containers
+ *
+ * ENHANCED: [Image #N] tag highlighting
+ * - Detects [Image #1], [Image #2], etc. patterns
+ * - Renders with blue background color
  */
 
 import Markdown from "@jescalan/ink-markdown";
@@ -25,12 +29,64 @@ const HR_PATTERNS = [
 	/^_{3,}\s*$/, // ___ (3 or more underscores)
 ];
 
+// Image tag pattern to detect and highlight
+const IMAGE_TAG_PATTERN = /\[Image #\d+\]/g;
+
 /**
  * Check if a line is a horizontal rule
  */
 function isHorizontalRule(line: string): boolean {
 	const trimmed = line.trim();
 	return HR_PATTERNS.some((pattern) => pattern.test(trimmed));
+}
+
+/**
+ * Check if a line contains image tags
+ */
+function hasImageTags(line: string): boolean {
+	return IMAGE_TAG_PATTERN.test(line);
+}
+
+/**
+ * Render line with image tag highlighting
+ * Splits line into text and [Image #N] segments, applies blue background to tags
+ */
+function renderLineWithImageTags(line: string, key: string): React.ReactElement {
+	const parts: React.ReactElement[] = [];
+	let lastIndex = 0;
+	let match: RegExpExecArray | null;
+
+	// Reset regex state
+	IMAGE_TAG_PATTERN.lastIndex = 0;
+
+	while ((match = IMAGE_TAG_PATTERN.exec(line)) !== null) {
+		// Add text before tag
+		if (match.index > lastIndex) {
+			const text = line.slice(lastIndex, match.index);
+			parts.push(
+				<Markdown key={`${key}-text-${lastIndex}`}>{text}</Markdown>
+			);
+		}
+
+		// Add highlighted tag
+		parts.push(
+			<Text key={`${key}-tag-${match.index}`} bgColor="#1a2a47" color="#5599FF">
+				{match[0]}
+			</Text>
+		);
+
+		lastIndex = match.index + match[0].length;
+	}
+
+	// Add remaining text
+	if (lastIndex < line.length) {
+		const text = line.slice(lastIndex);
+		parts.push(
+			<Markdown key={`${key}-text-${lastIndex}`}>{text}</Markdown>
+		);
+	}
+
+	return <Box key={key}>{parts}</Box>;
 }
 
 /**
@@ -57,20 +113,22 @@ const MarkdownText = React.memo(function MarkdownText({
 	// Split content into lines for HR detection
 	const lines = children.split("\n");
 
-	// Check if we have any HRs that need custom rendering
+	// Check if we have any HRs or image tags that need custom rendering
 	const hasHR = lines.some(isHorizontalRule);
+	const hasImageTag = lines.some(hasImageTags);
 
-	if (!hasHR && !prefix) {
-		// No HR and no prefix - use default rendering
+	if (!hasHR && !hasImageTag && !prefix) {
+		// No HR, no image tags, and no prefix - use default rendering
 		return <Markdown>{children}</Markdown>;
 	}
 
-	// Process line by line for HR detection and/or prefix
+	// Process line by line for HR detection, image tag highlighting, and/or prefix
 
 	return (
 		<Box flexDirection="column">
 			{lines.map((line, idx) => {
 				const isHR = isHorizontalRule(line);
+				const hasTag = hasImageTags(line);
 				// Use unique key with component instance ID to avoid duplicate keys across different instances
 				const key = `${instanceId}-line-${idx}`;
 
@@ -82,6 +140,19 @@ const MarkdownText = React.memo(function MarkdownText({
 							<Text dimColor>{"─".repeat(48)}</Text>
 						</Box>
 					);
+				}
+
+				if (hasTag) {
+					// Line with image tags - render with highlighting
+					if (prefix) {
+						return (
+							<Box key={key}>
+								<Text color={prefixColor}>{prefix}</Text>
+								{renderLineWithImageTags(line, `${key}-content`)}
+							</Box>
+						);
+					}
+					return renderLineWithImageTags(line, key);
 				}
 
 				if (prefix) {
