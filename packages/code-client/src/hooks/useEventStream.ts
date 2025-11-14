@@ -187,11 +187,6 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 							break;
 
 						case "session-tokens-updated":
-							console.log("[useEventStream] Received session-tokens-updated event:", {
-								sessionId: event.sessionId,
-								totalTokens: event.totalTokens,
-								baseContextTokens: event.baseContextTokens,
-							});
 							callbacksRef.current.onSessionTokensUpdated?.(
 								event.sessionId,
 								event.totalTokens,

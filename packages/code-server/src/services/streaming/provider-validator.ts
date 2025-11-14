@@ -23,7 +23,6 @@ export function validateProvider(
 	const providerConfig = aiConfig?.providers?.[provider];
 
 	if (!providerConfig) {
-		console.error(`[validateProvider] Provider ${provider} not found in config`);
 		return {
 			type: "not-configured",
 			message:
@@ -33,7 +32,6 @@ export function validateProvider(
 
 	const providerInstance = getProvider(provider);
 	const isConfigured = providerInstance.isConfigured(providerConfig);
-	console.log(`[validateProvider] Provider: ${provider}, isConfigured: ${isConfigured}`);
 
 	if (!isConfigured) {
 		return {

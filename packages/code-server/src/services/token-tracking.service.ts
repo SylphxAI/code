@@ -70,13 +70,6 @@ export async function initializeTokenTracking(
 	const baselineTotal = baseContextTokens + messagesTokens;
 	const tokenTracker = new StreamingTokenTracker(calculator, baselineTotal);
 
-	console.log("[TokenTracking] Initialized (no cache):", {
-		sessionId,
-		baseContextTokens,
-		messagesTokens,
-		baselineTotal,
-	});
-
 	return tokenTracker;
 }
 
@@ -94,13 +87,6 @@ export async function updateTokensFromDelta(
 	try {
 		// Add delta to tracker (optimistic, not persisted)
 		const currentTotal = await tokenTracker.addDelta(deltaText);
-
-		console.log("[TokenTracking] Optimistic update:", {
-			deltaPreview: deltaText.substring(0, 20) + "...",
-			streamingDelta: tokenTracker.getStreamingDelta(),
-			baseline: tokenTracker.getBaselineTotal(),
-			currentTotal,
-		});
 
 		// Emit immediate update (optimistic value, not SSOT)
 		// User requirement: "反正有任何異動都要即刻通知client去實時更新"
@@ -174,12 +160,6 @@ export async function recalculateTokensAtCheckpoint(
 			baseContextTokens: recalculatedBaseContext,
 		});
 
-		console.log("[TokenTracking] Checkpoint recalculation:", {
-			step: stepNumber,
-			totalTokens,
-			baseContextTokens: recalculatedBaseContext,
-			messagesTokens: recalculatedMessages,
-		});
 
 		// Reset tracker with new baseline (for next streaming chunk)
 		tokenTracker.reset(totalTokens);
@@ -246,11 +226,6 @@ export async function calculateFinalTokens(
 			baseContextTokens: finalBaseContext,
 		});
 
-		console.log("[TokenTracking] Final tokens published:", {
-			totalTokens: finalTotal,
-			baseContextTokens: finalBaseContext,
-			messagesTokens: finalMessages,
-		});
 	} catch (error) {
 		console.error("[TokenTracking] Failed to calculate final tokens:", error);
 	}

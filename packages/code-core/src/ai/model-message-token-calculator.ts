@@ -89,12 +89,6 @@ export async function calculateModelMessagesTokens(
 		totalTokens += tokens;
 	}
 
-	if (cacheHits > 0 || cacheMisses > 0) {
-		console.log(
-			`[MessageTokenCache] ${cacheHits} hits, ${cacheMisses} misses (${modelMessages.length} total)`,
-		);
-	}
-
 	return totalTokens;
 }
 
