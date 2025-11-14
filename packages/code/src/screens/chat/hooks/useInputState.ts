@@ -52,36 +52,38 @@ export function useInputState(): InputState {
 				console.log("[useInputState] Loaded messages from DB:", messages.length);
 				console.log("[useInputState] First message:", messages[0]);
 
-				// Convert DB messages to MessageHistoryEntry format
-				const entries: MessageHistoryEntry[] = messages.map((msg: { text: string; files: Array<{ relativePath: string; base64: string; mediaType: string; size: number }> }) => {
-					// Convert DB files to FileAttachment format
-					const attachments: FileAttachment[] = msg.files.map((file) => ({
-						// ASSUMPTION: DB files are permanent, no disk path needed
-						path: "", // No temp path for DB-loaded files
-						relativePath: file.relativePath,
-						size: file.size,
-						mimeType: file.mediaType,
-						type: file.mediaType.startsWith("image/") ? "image" : "file",
-						imageData: file.mediaType.startsWith("image/") ? file.base64 : undefined,
-					}));
+				// Convert DB messages to MessageHistoryEntry format (ChatGPT-style fileId architecture)
+				const entries: MessageHistoryEntry[] = messages.map(
+					(msg: {
+						text: string;
+						files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }>;
+					}) => {
+						// Convert DB files to FileAttachment format (with fileId, no content)
+						const attachments: FileAttachment[] = msg.files.map((file) => ({
+							fileId: file.fileId, // Reference to uploaded file in object storage
+							relativePath: file.relativePath,
+							size: file.size,
+							mimeType: file.mediaType,
+							type: file.mediaType.startsWith("image/") ? "image" : "file",
+						}));
 
-					console.log("[useInputState] Message text:", msg.text.substring(0, 50));
-					console.log("[useInputState] Files:", msg.files.length);
-					console.log("[useInputState] Attachments:", attachments.length);
-					if (attachments.length > 0) {
-						console.log("[useInputState] First attachment:", {
-							relativePath: attachments[0].relativePath,
-							type: attachments[0].type,
-							hasImageData: !!attachments[0].imageData,
-							imageDataLength: attachments[0].imageData?.length,
-						});
-					}
+						console.log("[useInputState] Message text:", msg.text.substring(0, 50));
+						console.log("[useInputState] Files:", msg.files.length);
+						console.log("[useInputState] Attachments:", attachments.length);
+						if (attachments.length > 0) {
+							console.log("[useInputState] First attachment:", {
+								fileId: attachments[0].fileId,
+								relativePath: attachments[0].relativePath,
+								type: attachments[0].type,
+							});
+						}
 
-					return {
-						text: msg.text,
-						attachments,
-					};
-				});
+						return {
+							text: msg.text,
+							attachments,
+						};
+					},
+				);
 
 				// Reverse to get oldest-first order (for bash-like navigation)
 				setMessageHistory(entries.reverse());
