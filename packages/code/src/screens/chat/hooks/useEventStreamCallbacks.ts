@@ -155,6 +155,8 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 				metadata: any,
 				todoSnapshot: any[],
 				systemMessages?: any[],
+				provider?: string,
+				model?: string,
 			) => {
 				handleStreamEvent(
 					{
@@ -164,6 +166,8 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 						metadata,
 						todoSnapshot,
 						systemMessages,
+						provider,
+						model,
 					},
 					eventContextParams,
 				);
