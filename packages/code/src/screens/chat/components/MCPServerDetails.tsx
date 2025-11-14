@@ -3,7 +3,7 @@
  * Shows detailed information about an MCP server with layered navigation
  */
 
-import { Box, Text } from "ink";
+import { Box, Text, useInput } from "ink";
 import { useState, useEffect } from "react";
 import type { MCPServerWithId, MCPToolInfo } from "@sylphx/code-core";
 import { InlineSelection } from "../../../components/selection/index.js";
@@ -147,17 +147,8 @@ export function MCPServerDetails({
 		});
 	}
 
-	// Back
-	overviewActionOptions.push({
-		label: "Back",
-		value: "back",
-		description: "Return to server list",
-	});
-
 	const handleOverviewAction = async (action: string) => {
-		if (action === "back") {
-			onBack();
-		} else if (action === "view-tools") {
+		if (action === "view-tools") {
 			setView("tools-list");
 		} else if (action === "connect" && onConnect) {
 			await onConnect();
@@ -228,7 +219,7 @@ export function MCPServerDetails({
 
 				<InlineSelection
 					options={toolListOptions}
-					subtitle="Select a tool to view details"
+					subtitle="Select a tool to view details • ESC: Back to overview"
 					placeholder="Select tool..."
 					onSelect={handleToolSelect}
 					onCancel={() => setView("overview")}
@@ -240,6 +231,13 @@ export function MCPServerDetails({
 
 	// View: Tool Detail
 	if (view === "tool-detail" && selectedTool) {
+		// Handle ESC key to go back
+		useInput((input, key) => {
+			if (key.escape) {
+				setView("tools-list");
+			}
+		});
+
 		return (
 			<Box flexDirection="column" paddingX={2}>
 				<Box marginBottom={1}>
@@ -268,20 +266,7 @@ export function MCPServerDetails({
 					)}
 
 					<Box marginTop={2}>
-						<InlineSelection
-							options={[
-								{
-									label: "Back to tools list",
-									value: "back",
-									description: "Return to tools list",
-								},
-							]}
-							subtitle="Navigation"
-							placeholder="Select action..."
-							onSelect={() => setView("tools-list")}
-							onCancel={() => setView("tools-list")}
-							showSearch={false}
-						/>
+						<Text dimColor>Press ESC to go back to tools list</Text>
 					</Box>
 				</Box>
 			</Box>
@@ -337,7 +322,7 @@ export function MCPServerDetails({
 					<Box marginTop={2}>
 						<InlineSelection
 							options={overviewActionOptions}
-							subtitle="Choose an action"
+							subtitle="Choose an action • ESC: Back to server list"
 							placeholder="Select action..."
 							onSelect={handleOverviewAction}
 							onCancel={onBack}
