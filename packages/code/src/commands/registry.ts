@@ -9,6 +9,7 @@ import compactCommand from "./definitions/compact.command.js";
 import contextCommand from "./definitions/context.command.js";
 import helpCommand from "./definitions/help.command.js";
 import logsCommand from "./definitions/logs.command.js";
+import mcpCommand from "./definitions/mcp.command.js";
 import modelCommand from "./definitions/model.command.js";
 import newCommand from "./definitions/new.command.js";
 import notificationsCommand from "./definitions/notifications.command.js";
@@ -29,6 +30,7 @@ export const commands: Command[] = [
 	agentCommand,
 	rulesCommand,
 	settingsCommand,
+	mcpCommand,
 	compactCommand,
 	notificationsCommand,
 	logsCommand,
