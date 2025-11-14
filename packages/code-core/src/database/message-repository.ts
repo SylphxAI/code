@@ -308,7 +308,7 @@ export class MessageRepository {
 		limit = 100,
 		cursor?: number,
 	): Promise<{
-		messages: Array<{ text: string; files: Array<{ relativePath: string; base64: string; mediaType: string; size: number }> }>;
+		messages: Array<{ text: string; files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }> }>;
 		nextCursor: number | null;
 	}> {
 		return retryDatabase(async () => {
@@ -371,7 +371,9 @@ export class MessageRepository {
 			}
 
 			// Group parts by message, preserving order
-			type MessagePart = { type: "text"; content: string } | { type: "file-ref"; fileContentId: string; relativePath: string };
+			type MessagePart =
+				| { type: "text"; content: string }
+				| { type: "file-ref"; fileContentId: string; relativePath: string; size: number; mediaType: string };
 			const messageData = new Map<string, MessagePart[]>();
 			for (const part of parts) {
 				const messageId = stepToMessage.get(part.stepId);
@@ -400,70 +402,37 @@ export class MessageRepository {
 						type: "file-ref",
 						fileContentId: content.fileContentId,
 						relativePath: content.relativePath,
+						size: content.size,
+						mediaType: content.mediaType,
 					});
 				}
 			}
 
-			// Get file contents for all file refs
-			const allFileRefs = Array.from(messageData.values())
-				.flatMap((parts) => parts.filter((p): p is Extract<MessagePart, { type: "file-ref" }> => p.type === "file-ref"))
-				.map((p) => p.fileContentId);
-			const fileContentsMap = new Map<string, { relativePath: string; content: Buffer; mediaType: string; size: number }>();
-
-			console.log("[getRecentUserMessages] Total file refs:", allFileRefs.length);
-			console.log("[getRecentUserMessages] File refs:", allFileRefs);
-
-			if (allFileRefs.length > 0) {
-				console.log("[getRecentUserMessages] Fetching file contents from storage...");
-
-				// Fetch files from object storage via FileRepository
-				for (const fileId of allFileRefs) {
-					try {
-						const fileRecord = await this.fileRepo.getFileContent(fileId);
-						if (fileRecord) {
-							fileContentsMap.set(fileId, {
-								relativePath: fileRecord.relativePath,
-								content: fileRecord.content,
-								mediaType: fileRecord.mediaType,
-								size: fileRecord.size,
-							});
-						}
-					} catch (error) {
-						console.error(`[getRecentUserMessages] Failed to fetch file ${fileId}:`, error);
-					}
-				}
-
-				console.log("[getRecentUserMessages] File contents fetched:", fileContentsMap.size);
-			}
-
 			// Build result in timestamp order (most recent first)
-			// Reconstruct full text with image tags in correct positions
-			const result: Array<{ text: string; files: Array<{ relativePath: string; base64: string; mediaType: string; size: number }> }> = [];
+			// Return fileId references, not content (ChatGPT-style architecture)
+			const result: Array<{ text: string; files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }> }> = [];
 			for (const msg of messagesToReturn) {
 				const parts = messageData.get(msg.messageId);
 				if (!parts) continue;
 
 				// Reconstruct text by iterating parts in order
 				const textParts: string[] = [];
-				const files: Array<{ relativePath: string; base64: string; mediaType: string; size: number }> = [];
+				const files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }> = [];
 
 				for (const part of parts) {
 					if (part.type === "text") {
 						textParts.push(part.content);
 					} else if (part.type === "file-ref") {
-						// Add image tag to text (e.g. "[Image #1]")
+						// Add file reference to text
 						textParts.push(part.relativePath);
 
-						// Add file to attachments
-						const fileData = fileContentsMap.get(part.fileContentId);
-						if (fileData) {
-							files.push({
-								relativePath: fileData.relativePath,
-								base64: fileData.content.toString("base64"),
-								mediaType: fileData.mediaType,
-								size: fileData.size,
-							});
-						}
+						// Add fileId reference (no content fetching - ChatGPT-style)
+						files.push({
+							fileId: part.fileContentId,
+							relativePath: part.relativePath,
+							mediaType: part.mediaType,
+							size: part.size,
+						});
 					}
 				}
 
