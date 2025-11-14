@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
 import type { MCPServerConfig } from "@sylphx/code-core";
+import { MCPAddWizard } from "./MCPAddWizard.js";
 
 interface MCPManagementProps {
 	onComplete?: () => void;
@@ -124,8 +125,6 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 	// Handle server selection
 	const handleServerSelect = async (value: string) => {
 		if (value === "__add__") {
-			// Import and show add server wizard
-			const { MCPAddWizard } = await import("./MCPAddWizard.js");
 			setStep("add-server");
 			return;
 		}
@@ -228,9 +227,8 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 		);
 	}
 
-	// Step 3: Add server wizard (imported component)
+	// Step 3: Add server wizard
 	if (step === "add-server") {
-		const { MCPAddWizard } = require("./MCPAddWizard.js");
 		return (
 			<MCPAddWizard
 				onComplete={async () => {
