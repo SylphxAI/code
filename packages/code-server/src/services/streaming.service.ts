@@ -140,16 +140,17 @@ export type StreamEvent =
 	| { type: "error"; error: string };
 
 /**
- * Parsed content part from frontend
+ * Parsed content part from frontend (ChatGPT-style architecture)
+ * Files uploaded immediately on paste/select, only fileId reference sent
  */
 type ParsedContentPart =
 	| { type: "text"; content: string }
 	| {
 			type: "file";
-			path: string;
+			fileId: string; // Reference to uploaded file in object storage
 			relativePath: string;
-			size?: number;
-			mimeType?: string;
+			size: number;
+			mimeType: string;
 	  };
 
 export interface StreamAIResponseOptions {
@@ -267,14 +268,11 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				const providerInstance = getProvider(provider);
 				console.log(`[streamAIResponse] Provider instance created: ${providerInstance.name}`);
 
-				// 3. Read and freeze file content (immutable history)
-				// Only if userMessageContent is provided
+				// 3. Fetch file content from storage (ChatGPT-style architecture)
+				// Files uploaded immediately on paste/select, only fileId reference sent
 				let frozenContent: MessagePart[] = [];
 
 				if (userMessageContent) {
-					const fs = await import("node:fs/promises");
-					const { lookup } = await import("mime-types");
-
 					for (const part of userMessageContent) {
 						if (part.type === "text") {
 							frozenContent.push({
@@ -284,45 +282,35 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 							});
 						} else if (part.type === "file") {
 							try {
-								// Check if imageData is already provided (for pasted images and history)
-								let base64Data: string;
-								let mimeType: string;
-								let size: number;
+								// Fetch file content from object storage using fileId
+								console.log(
+									`[streamAIResponse] Fetching file from storage: ${part.relativePath} (${part.fileId})`,
+								);
+								const fileRepo = messageRepository.getFileRepository();
+								const fileRecord = await fileRepo.getFileContent(part.fileId);
 
-								if ('imageData' in part && part.imageData) {
-									// Image data already provided - use it directly
-									console.log(`[streamAIResponse] Using preloaded imageData for ${part.relativePath}`);
-									base64Data = part.imageData;
-									mimeType = part.mimeType || "image/png";
-									size = Buffer.from(part.imageData, 'base64').length;
-								} else if (part.path) {
-									// READ NOW and freeze - never re-read from disk
-									console.log(`[streamAIResponse] Reading file from disk: ${part.path}`);
-									const buffer = await fs.readFile(part.path);
-									base64Data = buffer.toString("base64");
-									mimeType = part.mimeType || lookup(part.path) || "application/octet-stream";
-									size = buffer.length;
-								} else {
-									// No imageData and no path - cannot proceed
-									throw new Error(`File part missing both imageData and path: ${part.relativePath}`);
+								if (!fileRecord) {
+									throw new Error(`File not found in storage: ${part.fileId}`);
 								}
 
-								// LEGACY format for backward compatibility
-								// New messages will migrate to file-ref after step creation
+								// Convert Buffer to base64 for MessagePart
+								const base64Data = fileRecord.content.toString("base64");
+
+								// Create file part (will be migrated to file-ref by addMessage)
 								frozenContent.push({
 									type: "file",
 									relativePath: part.relativePath,
-									size,
-									mediaType: mimeType,
+									size: part.size,
+									mediaType: part.mimeType,
 									base64: base64Data, // Temporary - will be moved to file_contents
 									status: "completed",
 								});
 							} catch (error) {
-								// File read failed - save error
-								console.error("[streamAIResponse] File read failed:", error);
+								// File fetch failed - save error
+								console.error("[streamAIResponse] File fetch failed:", error);
 								frozenContent.push({
 									type: "error",
-									error: `Failed to read file: ${part.relativePath}`,
+									error: `Failed to fetch file: ${part.relativePath}`,
 									status: "completed",
 								});
 							}
