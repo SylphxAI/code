@@ -144,10 +144,10 @@ export default function StatusBar({
 	}
 
 	return (
-		<Box width="100%" justifyContent="space-between" marginBottom={1}>
+		<Box width="100%" justifyContent="space-between" marginBottom={1} flexWrap="nowrap">
 			{/* Left side */}
-			<Box>
-				<Text dimColor>
+			<Box flexShrink={1} flexWrap="nowrap">
+				<Text dimColor wrap="truncate-end">
 					{agentName && `${agentName} · `}
 					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
 					{mcpStatus.total > 0 && ` · MCP ${mcpStatus.connected}/${mcpStatus.total}`}
@@ -159,7 +159,7 @@ export default function StatusBar({
 			</Box>
 
 			{/* Right side - context usage */}
-			<Box>
+			<Box flexShrink={0}>
 				{!loading && contextLength && totalTokensSSOT > 0 && (
 					<Text dimColor>
 						{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
