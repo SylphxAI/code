@@ -48,12 +48,26 @@ export function useInputState(): InputState {
 				});
 				// Extract messages array from paginated result
 				const messages = Array.isArray(result) ? result : result?.messages || [];
-				// Convert string messages to MessageHistoryEntry format
-				// DB messages don't have attachments (only in-session messages will)
-				const entries: MessageHistoryEntry[] = messages.map((text: string) => ({
-					text,
-					attachments: [],
-				}));
+
+				// Convert DB messages to MessageHistoryEntry format
+				const entries: MessageHistoryEntry[] = messages.map((msg: { text: string; files: Array<{ relativePath: string; base64: string; mediaType: string; size: number }> }) => {
+					// Convert DB files to FileAttachment format
+					const attachments: FileAttachment[] = msg.files.map((file) => ({
+						// ASSUMPTION: DB files are permanent, no disk path needed
+						path: "", // No temp path for DB-loaded files
+						relativePath: file.relativePath,
+						size: file.size,
+						mimeType: file.mediaType,
+						type: file.mediaType.startsWith("image/") ? "image" : "file",
+						imageData: file.mediaType.startsWith("image/") ? file.base64 : undefined,
+					}));
+
+					return {
+						text: msg.text,
+						attachments,
+					};
+				});
+
 				// Reverse to get oldest-first order (for bash-like navigation)
 				setMessageHistory(entries.reverse());
 			} catch (error) {

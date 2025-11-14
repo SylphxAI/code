@@ -12,7 +12,7 @@ import { eq, desc, and, sql, inArray, lt, sum } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { sessions, messages, messageSteps, stepParts, stepUsage } from "./schema.js";
+import { sessions, messages, messageSteps, stepParts, stepUsage, fileContents } from "./schema.js";
 import type { MessagePart, TokenUsage, MessageMetadata } from "../types/session.types.js";
 import type { Todo as TodoType } from "../types/todo.types.js";
 import { retryDatabase } from "../utils/retry.js";
@@ -303,7 +303,7 @@ export class MessageRepository {
 		limit = 100,
 		cursor?: number,
 	): Promise<{
-		messages: string[];
+		messages: Array<{ text: string; files: Array<{ relativePath: string; base64: string; mediaType: string; size: number }> }>;
 		nextCursor: number | null;
 	}> {
 		return retryDatabase(async () => {
@@ -351,10 +351,12 @@ export class MessageRepository {
 			}
 
 			const stepIds = steps.map((s) => s.id);
+
+			// Get all parts (text and file-ref)
 			const parts = await this.db
 				.select()
 				.from(stepParts)
-				.where(and(inArray(stepParts.stepId, stepIds), eq(stepParts.type, "text")))
+				.where(inArray(stepParts.stepId, stepIds))
 				.orderBy(stepParts.ordering);
 
 			// Map step IDs to message IDs
@@ -363,37 +365,75 @@ export class MessageRepository {
 				stepToMessage.set(step.id, step.messageId);
 			}
 
-			// Group parts by message and extract text content
-			const messageTexts = new Map<string, string[]>();
+			// Group parts by message
+			const messageData = new Map<string, { texts: string[]; fileRefs: string[] }>();
 			for (const part of parts) {
 				const messageId = stepToMessage.get(part.stepId);
 				if (!messageId) continue;
 
 				// Parse and validate MessagePart content
-			const parsed = MessagePartSchema.safeParse(JSON.parse(part.content));
-			if (!parsed.success) {
-				// Skip corrupted part data
-				continue;
-			}
-			const content = parsed.data as MessagePart;
-				const text = content.content || "";
-				if (text.trim()) {
-					if (!messageTexts.has(messageId)) {
-						messageTexts.set(messageId, []);
+				const parsed = MessagePartSchema.safeParse(JSON.parse(part.content));
+				if (!parsed.success) {
+					// Skip corrupted part data
+					continue;
+				}
+				const content = parsed.data as MessagePart;
+
+				if (!messageData.has(messageId)) {
+					messageData.set(messageId, { texts: [], fileRefs: [] });
+				}
+				const data = messageData.get(messageId)!;
+
+				if (content.type === "text") {
+					const text = content.content || "";
+					if (text.trim()) {
+						data.texts.push(text);
 					}
-					messageTexts.get(messageId)!.push(text);
+				} else if (content.type === "file-ref") {
+					data.fileRefs.push(content.fileContentId);
+				}
+			}
+
+			// Get file contents for all file refs
+			const allFileRefs = Array.from(messageData.values()).flatMap((d) => d.fileRefs);
+			const fileContentsMap = new Map<string, { relativePath: string; content: Buffer; mediaType: string; size: number }>();
+
+			if (allFileRefs.length > 0) {
+				const fileContentsRows = await this.db
+					.select()
+					.from(fileContents)
+					.where(inArray(fileContents.id, allFileRefs));
+
+				for (const row of fileContentsRows) {
+					fileContentsMap.set(row.id, {
+						relativePath: row.relativePath,
+						content: row.content as Buffer,
+						mediaType: row.mediaType,
+						size: row.size,
+					});
 				}
 			}
 
 			// Build result in timestamp order (most recent first)
-			const result: string[] = [];
+			const result: Array<{ text: string; files: Array<{ relativePath: string; base64: string; mediaType: string; size: number }> }> = [];
 			for (const msg of messagesToReturn) {
-				const texts = messageTexts.get(msg.messageId);
-				if (texts && texts.length > 0) {
-					const fullText = texts.join(" ").trim();
-					if (fullText) {
-						result.push(fullText);
-					}
+				const data = messageData.get(msg.messageId);
+				if (!data) continue;
+
+				const fullText = data.texts.join(" ").trim();
+				const files = data.fileRefs.map((fileId) => {
+					const fileData = fileContentsMap.get(fileId);
+					if (!fileData) return null;
+					return {
+						relativePath: fileData.relativePath,
+						base64: fileData.content.toString("base64"),
+						mediaType: fileData.mediaType,
+						size: fileData.size,
+					};
+				}).filter((f): f is NonNullable<typeof f> => f !== null);
+
+				if (fullText || files.length > 0) {
+					result.push({ text: fullText, files });
 				}
 			}
 
