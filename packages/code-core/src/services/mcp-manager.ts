@@ -52,11 +52,6 @@ export class MCPManager {
 					return;
 				}
 
-				logger.info("Connecting to MCP server", {
-					serverId: server.id,
-					name: server.name,
-					transport: server.transport.type,
-				});
 
 				// Create MCP client based on transport type
 				const client = await experimental_createMCPClient({ transport: server.transport });
@@ -72,10 +67,6 @@ export class MCPManager {
 
 				this.clients.set(server.id, instance);
 
-				logger.info("Connected to MCP server", {
-					serverId: server.id,
-					name: server.name,
-				});
 
 				// Emit status change event
 				this.emitStatusChange();
@@ -99,18 +90,10 @@ export class MCPManager {
 					return;
 				}
 
-				logger.info("Disconnecting from MCP server", {
-					serverId,
-					name: instance.config.name,
-				});
 
 				// Remove client
 				this.clients.delete(serverId);
 
-				logger.info("Disconnected from MCP server", {
-					serverId,
-					name: instance.config.name,
-				});
 
 				// Emit status change event
 				this.emitStatusChange();
@@ -126,9 +109,6 @@ export class MCPManager {
 	 * Disconnect all MCP servers
 	 */
 	async disconnectAll(): Promise<void> {
-		logger.info("Disconnecting all MCP servers", {
-			count: this.clients.size,
-		});
 
 		const disconnectPromises = Array.from(this.clients.keys()).map((serverId) =>
 			this.disconnect(serverId),
@@ -136,7 +116,6 @@ export class MCPManager {
 
 		await Promise.all(disconnectPromises);
 
-		logger.info("Disconnected all MCP servers");
 	}
 
 	/**
@@ -301,9 +280,6 @@ export class MCPManager {
 		}
 
 		const servers = result.data;
-		logger.info("Auto-connecting to enabled MCP servers", {
-			count: servers.length,
-		});
 
 		// Connect to all servers in parallel
 		const connectPromises = servers.map(async (server) => {
@@ -316,10 +292,6 @@ export class MCPManager {
 				});
 				return { serverId: server.id, success: false, error: connectResult.error };
 			} else {
-				logger.info("Auto-connected to server", {
-					serverId: server.id,
-					name: server.name,
-				});
 				return { serverId: server.id, success: true };
 			}
 		});
@@ -328,18 +300,11 @@ export class MCPManager {
 		const successful = results.filter((r) => r.status === "fulfilled" && r.value.success).length;
 		const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.success)).length;
 
-		logger.info("Auto-connect completed", {
-			total: servers.length,
-			successful,
-			failed,
-			connected: this.getConnectionCount(),
-		});
 
 		// Load tools from all connected servers
 		if (successful > 0) {
 			const { loadMCPTools } = await import("../registry/mcp-tool-integration.js");
 			await loadMCPTools();
-			logger.info("Loaded MCP tools from connected servers");
 		}
 
 		// Emit final status after all connections
@@ -383,10 +348,6 @@ export class MCPManager {
 					throw connectResult.error;
 				}
 
-				logger.info("Reconnected to MCP server", {
-					serverId,
-					name: server.name,
-				});
 			},
 			(error: unknown) =>
 				new Error(

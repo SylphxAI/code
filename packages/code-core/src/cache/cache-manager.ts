@@ -84,8 +84,6 @@ class CacheManager {
 			hits: 0,
 			misses: 0,
 		});
-
-		console.log(`[CacheManager] Registered cache: ${name} (${description})`);
 	}
 
 	/**
@@ -195,7 +193,6 @@ class CacheManager {
 		entry.cache.clear();
 		entry.hits = 0;
 		entry.misses = 0;
-		console.log(`[CacheManager] Cleared cache: ${name}`);
 		return true;
 	}
 
@@ -208,7 +205,6 @@ class CacheManager {
 			entry.hits = 0;
 			entry.misses = 0;
 		}
-		console.log(`[CacheManager] Cleared all ${this.caches.size} caches`);
 	}
 
 	/**

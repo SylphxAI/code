@@ -88,10 +88,6 @@ async function initEmbeddedServer(options: { quiet?: boolean } = {}): Promise<Co
 		return embeddedServer;
 	}
 
-	if (!options.quiet) {
-		console.error(chalk.dim("Initializing embedded server..."));
-	}
-
 	embeddedServer = new CodeServer();
 	await embeddedServer.initialize();
 
@@ -105,10 +101,6 @@ async function initEmbeddedServer(options: { quiet?: boolean } = {}): Promise<Co
 	mcpManager.connectToEnabledServers().catch((error) => {
 		console.error(chalk.red("Failed to auto-connect MCP servers:"), error);
 	});
-
-	if (!options.quiet) {
-		console.error(chalk.green("✓ Server ready"));
-	}
 
 	return embeddedServer;
 }
