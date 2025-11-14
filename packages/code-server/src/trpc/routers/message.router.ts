@@ -555,6 +555,10 @@ export const messageRouter = router({
 
 						// Publish all events to event stream for client subscriptions
 						if (eventSessionId) {
+							// DEBUG: Log step-start events at publish point
+							if (event.type === "step-start") {
+								console.log("[TriggerStream] Publishing step-start event:", JSON.stringify(event, null, 2));
+							}
 							if (event.type === "message-status-updated") {
 								console.log("[TriggerStream] Publishing message-status-updated event:", event);
 							}
@@ -563,6 +567,9 @@ export const messageRouter = router({
 								.catch((err) => {
 									console.error("[TriggerStream] Event publish error:", err);
 								});
+							if (event.type === "step-start") {
+								console.log("[TriggerStream] step-start event published to channel: session:" + eventSessionId);
+							}
 							if (event.type === "message-status-updated") {
 								console.log("[TriggerStream] message-status-updated event published");
 							}
@@ -723,8 +730,16 @@ export const messageRouter = router({
 					.subscribeWithHistory(channel, input.replayLast)
 					.subscribe({
 						next: (storedEvent) => {
+							// DEBUG: Log step-start events at subscription receive point
+							if (storedEvent.payload.type === "step-start") {
+								console.log("[Subscribe] Received step-start event from event bus:", JSON.stringify(storedEvent.payload, null, 2));
+							}
 							// Unwrap StoredEvent and emit the actual SessionEvent
 							emit.next(storedEvent.payload);
+							// DEBUG: Log after emitting to client
+							if (storedEvent.payload.type === "step-start") {
+								console.log("[Subscribe] step-start event emitted to client");
+							}
 						},
 						error: (err) => emit.error(err),
 						complete: () => emit.complete(),
