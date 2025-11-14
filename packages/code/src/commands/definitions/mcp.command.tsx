@@ -39,7 +39,7 @@ export const mcpCommand: Command = {
 
 				const { listMCPServers } = await import("@sylphx/code-core");
 				const result = await listMCPServers();
-				if (!result.ok) {
+				if (!result.success) {
 					return [];
 				}
 
@@ -58,7 +58,10 @@ export const mcpCommand: Command = {
 		// If no action, show interactive UI
 		if (!action) {
 			const { MCPManagement } = await import("../../screens/chat/components/MCPManagement.js");
-			context.setInputComponent(<MCPManagement />, "MCP Server Management");
+			context.setInputComponent(
+				<MCPManagement onComplete={() => context.setInputComponent(null)} />,
+				"MCP Server Management"
+			);
 			return;
 		}
 
@@ -75,7 +78,7 @@ export const mcpCommand: Command = {
 		// Handle actions
 		if (action === "list") {
 			const result = await listMCPServers();
-			if (!result.ok) {
+			if (!result.success) {
 				await context.sendMessage(`❌ Failed to list MCP servers: ${result.error.message}`);
 				return;
 			}
@@ -86,21 +89,33 @@ export const mcpCommand: Command = {
 			}
 
 			const mcpManager = getMCPManager();
-			const serverList = result.data
-				.map((server) => {
+			const serverListItems = await Promise.all(
+				result.data.map(async (server) => {
 					const connected = mcpManager.isConnected(server.id);
 					const status = server.enabled ? (connected ? "🟢 Connected" : "⚪ Enabled") : "⚫ Disabled";
-					return `${status} **${server.name}** (${server.id})\n  ${server.description || "No description"}\n  Transport: ${server.transport.type}`;
-				})
-				.join("\n\n");
 
-			await context.sendMessage(`**MCP Servers:**\n\n${serverList}`);
+					let toolInfo = "";
+					if (connected) {
+						const state = await mcpManager.getServerState(server.id);
+						if (state) {
+							toolInfo = `\n  Tools: ${state.toolCount}`;
+						}
+					}
+
+					return `${status} **${server.name}** (${server.id})\n  ${server.description || "No description"}\n  Transport: ${server.transport.type}${toolInfo}`;
+				})
+			);
+
+			await context.sendMessage(`**MCP Servers:**\n\n${serverListItems.join("\n\n")}`);
 			return;
 		}
 
 		if (action === "add") {
 			const { MCPManagement } = await import("../../screens/chat/components/MCPManagement.js");
-			context.setInputComponent(<MCPManagement />, "Add MCP Server");
+			context.setInputComponent(
+				<MCPManagement onComplete={() => context.setInputComponent(null)} />,
+				"Add MCP Server"
+			);
 			return;
 		}
 
@@ -114,7 +129,7 @@ export const mcpCommand: Command = {
 
 		// Verify server exists
 		const serverResult = await getMCPServer(serverId);
-		if (!serverResult.ok) {
+		if (!serverResult.success) {
 			await context.sendMessage(`❌ Failed to get server: ${serverResult.error.message}`);
 			return;
 		}
@@ -134,7 +149,7 @@ export const mcpCommand: Command = {
 			}
 
 			const result = await removeMCPServer(serverId);
-			if (!result.ok) {
+			if (!result.success) {
 				await context.sendMessage(`❌ Failed to remove server: ${result.error.message}`);
 				return;
 			}
@@ -145,7 +160,7 @@ export const mcpCommand: Command = {
 
 		if (action === "enable") {
 			const result = await enableMCPServer(serverId);
-			if (!result.ok) {
+			if (!result.success) {
 				await context.sendMessage(`❌ Failed to enable server: ${result.error.message}`);
 				return;
 			}
@@ -162,7 +177,7 @@ export const mcpCommand: Command = {
 			}
 
 			const result = await disableMCPServer(serverId);
-			if (!result.ok) {
+			if (!result.success) {
 				await context.sendMessage(`❌ Failed to disable server: ${result.error.message}`);
 				return;
 			}
@@ -180,7 +195,7 @@ export const mcpCommand: Command = {
 			}
 
 			const connectResult = await mcpManager.connect(server);
-			if (!connectResult.ok) {
+			if (!connectResult.success) {
 				await context.sendMessage(
 					`❌ Failed to connect to server: ${connectResult.error.message}`,
 				);
@@ -210,7 +225,7 @@ export const mcpCommand: Command = {
 			}
 
 			const result = await mcpManager.disconnect(serverId);
-			if (!result.ok) {
+			if (!result.success) {
 				await context.sendMessage(`❌ Failed to disconnect: ${result.error.message}`);
 				return;
 			}

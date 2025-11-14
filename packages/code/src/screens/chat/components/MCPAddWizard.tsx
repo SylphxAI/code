@@ -69,6 +69,11 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 
 	// Handle add server
 	const handleAddServer = async () => {
+		console.log("[MCPAddWizard] handleAddServer START");
+		console.log("[MCPAddWizard] serverId:", serverId);
+		console.log("[MCPAddWizard] serverName:", serverName);
+		console.log("[MCPAddWizard] transportType:", transportType);
+
 		const { addMCPServer } = await import("@sylphx/code-core");
 
 		let transport: any;
@@ -82,15 +87,26 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 		}
 
 		const serverConfig: MCPServerConfig = {
-			id: serverId,
-			name: serverName,
+			name: serverName || serverId,
 			description: serverDescription || undefined,
 			transport,
-			enabled: true,
 		};
 
-		await addMCPServer(serverConfig);
+		console.log("[MCPAddWizard] serverId:", serverId);
+		console.log("[MCPAddWizard] serverConfig:", JSON.stringify(serverConfig, null, 2));
+
+		const result = await addMCPServer(serverId, serverConfig);
+		console.log("[MCPAddWizard] addMCPServer result:", result);
+
+		if (!result.success) {
+			console.error("[MCPAddWizard] ERROR:", result.error);
+		} else {
+			console.log("[MCPAddWizard] SUCCESS");
+		}
+
+		console.log("[MCPAddWizard] Calling onComplete");
 		onComplete();
+		console.log("[MCPAddWizard] onComplete called");
 	};
 
 	// ESC key handling

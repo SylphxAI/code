@@ -51,11 +51,8 @@ export type MCPTransport = MCPTransportHTTP | MCPTransportSSE | MCPTransportStdi
  * User-defined server config stored in .sylphx-code/mcp-servers.json
  */
 export interface MCPServerConfig {
-	/** Unique server ID (user-defined) */
-	id: string;
-
 	/** Display name */
-	name: string;
+	name?: string;
 
 	/** Description */
 	description?: string;
@@ -63,8 +60,8 @@ export interface MCPServerConfig {
 	/** Transport configuration */
 	transport: MCPTransport;
 
-	/** Whether server is enabled */
-	enabled: boolean;
+	/** Whether server is enabled (defaults to true) */
+	enabled?: boolean;
 
 	/** Tags for organization */
 	tags?: string[];
@@ -176,14 +173,24 @@ export interface MCPPromptInfo {
 /**
  * MCP Servers Configuration File
  * Stored in .sylphx-code/mcp-servers.json
+ *
+ * Format matches Claude Desktop and industry standards:
+ * {
+ *   "mcpServers": {
+ *     "server-id": { ...config },
+ *     "another-server": { ...config }
+ *   }
+ * }
  */
 export interface MCPServersConfig {
-	/** Format version for migrations */
-	version: string;
+	/** Configured servers (keyed by server ID) */
+	mcpServers: Record<string, MCPServerConfig>;
+}
 
-	/** Configured servers */
-	servers: MCPServerConfig[];
-
-	/** Last updated timestamp */
-	updatedAt?: number;
+/**
+ * MCP Server with ID
+ * Helper type for when we need both the ID and config
+ */
+export interface MCPServerWithId extends MCPServerConfig {
+	id: string;
 }

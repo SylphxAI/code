@@ -12,6 +12,7 @@ import { type Result, success, tryCatchAsync } from "../ai/result.js";
 import type {
 	MCPServerConfig,
 	MCPServersConfig,
+	MCPServerWithId,
 	MCPTransport,
 	MCPTransportHTTP,
 	MCPTransportSSE,
@@ -51,30 +52,22 @@ const mcpTransportSchema = z.discriminatedUnion("type", [
 ]) satisfies z.ZodType<MCPTransport>;
 
 const mcpServerConfigSchema = z.object({
-	id: z.string().min(1).regex(/^[a-zA-Z0-9_-]+$/, "Server ID must contain only alphanumeric characters, hyphens, and underscores"),
-	name: z.string().min(1),
+	name: z.string().min(1).optional(),
 	description: z.string().optional(),
 	transport: mcpTransportSchema,
-	enabled: z.boolean(),
+	enabled: z.boolean().optional(),
 	tags: z.array(z.string()).optional(),
 	metadata: z.record(z.unknown()).optional(),
 }) satisfies z.ZodType<MCPServerConfig>;
 
 const mcpServersConfigSchema = z.object({
-	version: z.string(),
-	servers: z.array(mcpServerConfigSchema),
-	updatedAt: z.number().optional(),
+	mcpServers: z.record(z.string(), mcpServerConfigSchema),
 }) satisfies z.ZodType<MCPServersConfig>;
 
 /**
  * Configuration file path
  */
 const MCP_CONFIG_FILE = ".sylphx-code/mcp-servers.json";
-
-/**
- * Current configuration version
- */
-const CONFIG_VERSION = "1.0.0";
 
 /**
  * Get MCP config file path
@@ -102,8 +95,7 @@ export const loadMCPConfig = async (
 				if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
 					// File doesn't exist, return empty config
 					return {
-						version: CONFIG_VERSION,
-						servers: [],
+						mcpServers: {},
 					};
 				}
 				throw error; // Re-throw other errors
@@ -129,15 +121,8 @@ export const saveMCPConfig = async (
 			const dir = path.dirname(configPath);
 			await fs.mkdir(dir, { recursive: true });
 
-			// Set version and timestamp
-			const configToSave: MCPServersConfig = {
-				...config,
-				version: CONFIG_VERSION,
-				updatedAt: Date.now(),
-			};
-
 			// Validate config
-			const validated = mcpServersConfigSchema.parse(configToSave);
+			const validated = mcpServersConfigSchema.parse(config);
 
 			// Write config
 			const jsonString = JSON.stringify(validated, null, 2) + "\n";
@@ -168,38 +153,66 @@ export const mcpConfigExists = async (cwd: string = process.cwd()): Promise<bool
  * Add MCP server to configuration
  */
 export const addMCPServer = async (
-	server: MCPServerConfig,
+	id: string,
+	serverConfig: MCPServerConfig,
 	cwd: string = process.cwd(),
 ): Promise<Result<void, Error>> => {
+	console.log("[addMCPServer] ENTER - id:", id, "config:", serverConfig);
+	console.log("[addMCPServer] cwd:", cwd);
+
 	return tryCatchAsync(
 		async () => {
+			// Validate server ID
+			const idRegex = /^[a-zA-Z0-9_-]+$/;
+			if (!id || !idRegex.test(id)) {
+				throw new Error("Server ID must contain only alphanumeric characters, hyphens, and underscores");
+			}
+
 			// Validate server config
-			mcpServerConfigSchema.parse(server);
+			console.log("[addMCPServer] Validating...");
+			mcpServerConfigSchema.parse(serverConfig);
+			console.log("[addMCPServer] Validation passed");
 
 			// Load current config
+			console.log("[addMCPServer] Loading config...");
 			const configResult = await loadMCPConfig(cwd);
+			console.log("[addMCPServer] loadMCPConfig result:", configResult);
+
 			if (!configResult.success) {
+				console.error("[addMCPServer] Load failed:", configResult.error);
 				throw configResult.error;
 			}
 
 			const config = configResult.data;
+			console.log("[addMCPServer] Current servers:", Object.keys(config.mcpServers).length);
 
 			// Check if server ID already exists
-			const existingIndex = config.servers.findIndex((s) => s.id === server.id);
-			if (existingIndex !== -1) {
-				throw new Error(`Server with ID '${server.id}' already exists`);
+			if (config.mcpServers[id]) {
+				console.log("[addMCPServer] Server already exists");
+				throw new Error(`Server with ID '${id}' already exists`);
 			}
 
-			// Add server
-			config.servers.push(server);
+			// Add server with enabled defaulting to true
+			config.mcpServers[id] = {
+				...serverConfig,
+				enabled: serverConfig.enabled ?? true,
+			};
+			console.log("[addMCPServer] Server added, total now:", Object.keys(config.mcpServers).length);
 
 			// Save config
+			console.log("[addMCPServer] Saving config...");
 			const saveResult = await saveMCPConfig(config, cwd);
+			console.log("[addMCPServer] saveMCPConfig result:", saveResult);
+
 			if (!saveResult.success) {
+				console.error("[addMCPServer] Save failed:", saveResult.error);
 				throw saveResult.error;
 			}
+
+			console.log("[addMCPServer] SUCCESS - saved");
 		},
 		(error: unknown) => {
+			console.error("[addMCPServer] CATCH ERROR:", error);
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			return new Error(`Failed to add MCP server: ${errorMessage}`);
 		},
@@ -210,8 +223,8 @@ export const addMCPServer = async (
  * Update MCP server in configuration
  */
 export const updateMCPServer = async (
-	serverId: string,
-	updates: Partial<Omit<MCPServerConfig, "id">>,
+	id: string,
+	updates: Partial<MCPServerConfig>,
 	cwd: string = process.cwd(),
 ): Promise<Result<void, Error>> => {
 	return tryCatchAsync(
@@ -225,14 +238,13 @@ export const updateMCPServer = async (
 			const config = configResult.data;
 
 			// Find server
-			const serverIndex = config.servers.findIndex((s) => s.id === serverId);
-			if (serverIndex === -1) {
-				throw new Error(`Server with ID '${serverId}' not found`);
+			if (!config.mcpServers[id]) {
+				throw new Error(`Server with ID '${id}' not found`);
 			}
 
 			// Update server
 			const updatedServer = {
-				...config.servers[serverIndex],
+				...config.mcpServers[id],
 				...updates,
 			};
 
@@ -240,7 +252,7 @@ export const updateMCPServer = async (
 			mcpServerConfigSchema.parse(updatedServer);
 
 			// Replace server
-			config.servers[serverIndex] = updatedServer;
+			config.mcpServers[id] = updatedServer;
 
 			// Save config
 			const saveResult = await saveMCPConfig(config, cwd);
@@ -257,7 +269,7 @@ export const updateMCPServer = async (
  * Remove MCP server from configuration
  */
 export const removeMCPServer = async (
-	serverId: string,
+	id: string,
 	cwd: string = process.cwd(),
 ): Promise<Result<void, Error>> => {
 	return tryCatchAsync(
@@ -271,13 +283,12 @@ export const removeMCPServer = async (
 			const config = configResult.data;
 
 			// Find server
-			const serverIndex = config.servers.findIndex((s) => s.id === serverId);
-			if (serverIndex === -1) {
-				throw new Error(`Server with ID '${serverId}' not found`);
+			if (!config.mcpServers[id]) {
+				throw new Error(`Server with ID '${id}' not found`);
 			}
 
 			// Remove server
-			config.servers.splice(serverIndex, 1);
+			delete config.mcpServers[id];
 
 			// Save config
 			const saveResult = await saveMCPConfig(config, cwd);
@@ -294,7 +305,7 @@ export const removeMCPServer = async (
  * Get MCP server by ID
  */
 export const getMCPServer = async (
-	serverId: string,
+	id: string,
 	cwd: string = process.cwd(),
 ): Promise<Result<MCPServerConfig | null, Error>> => {
 	return tryCatchAsync(
@@ -304,8 +315,7 @@ export const getMCPServer = async (
 				throw configResult.error;
 			}
 
-			const server = configResult.data.servers.find((s) => s.id === serverId);
-			return server || null;
+			return configResult.data.mcpServers[id] || null;
 		},
 		(error: unknown) =>
 			new Error(`Failed to get MCP server: ${error instanceof Error ? error.message : String(error)}`),
@@ -317,7 +327,7 @@ export const getMCPServer = async (
  */
 export const listMCPServers = async (
 	cwd: string = process.cwd(),
-): Promise<Result<MCPServerConfig[], Error>> => {
+): Promise<Result<MCPServerWithId[], Error>> => {
 	return tryCatchAsync(
 		async () => {
 			const configResult = await loadMCPConfig(cwd);
@@ -325,7 +335,11 @@ export const listMCPServers = async (
 				throw configResult.error;
 			}
 
-			return configResult.data.servers;
+			return Object.entries(configResult.data.mcpServers).map(([id, server]) => ({
+				id,
+				...server,
+				enabled: server.enabled ?? true,
+			}));
 		},
 		(error: unknown) =>
 			new Error(`Failed to list MCP servers: ${error instanceof Error ? error.message : String(error)}`),
@@ -337,15 +351,15 @@ export const listMCPServers = async (
  */
 export const listEnabledMCPServers = async (
 	cwd: string = process.cwd(),
-): Promise<Result<MCPServerConfig[], Error>> => {
+): Promise<Result<MCPServerWithId[], Error>> => {
 	return tryCatchAsync(
 		async () => {
-			const configResult = await loadMCPConfig(cwd);
-			if (!configResult.success) {
-				throw configResult.error;
+			const serversResult = await listMCPServers(cwd);
+			if (!serversResult.success) {
+				throw serversResult.error;
 			}
 
-			return configResult.data.servers.filter((s) => s.enabled);
+			return serversResult.data.filter((s) => s.enabled);
 		},
 		(error: unknown) =>
 			new Error(

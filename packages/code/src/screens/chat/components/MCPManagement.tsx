@@ -1,47 +1,68 @@
 /**
- * MCP Management Component (V2 - Redesigned)
- * Shows list of MCP servers with actions
+ * MCP Management Component (V3 - Streamlined)
+ * Shows list of MCP servers with direct access to details
  *
- * ARCHITECTURE: Two-step flow
+ * ARCHITECTURE: Direct flow
  * 1. List all servers with status badges (connected/enabled/disabled)
- * 2. Select action for chosen server (connect/disconnect/configure/remove)
+ * 2. Click server → view details with all tools and actions
+ * 3. Add wizard for new servers
  */
 
 import { Box, Text } from "ink";
 import { useState, useEffect } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
-import type { MCPServerConfig } from "@sylphx/code-core";
+import type { MCPServerWithId } from "@sylphx/code-core";
 import { MCPAddWizard } from "./MCPAddWizard.js";
+import { MCPServerDetails } from "./MCPServerDetails.js";
 
 interface MCPManagementProps {
 	onComplete?: () => void;
 }
 
-type Step = "list-servers" | "server-actions" | "add-server";
+type Step = "list-servers" | "add-server" | "server-details";
 
 export function MCPManagement({ onComplete }: MCPManagementProps) {
+	console.log("[MCPManagement] Component render, onComplete:", !!onComplete);
 	const [step, setStep] = useState<Step>("list-servers");
-	const [servers, setServers] = useState<MCPServerConfig[]>([]);
-	const [selectedServer, setSelectedServer] = useState<MCPServerConfig | null>(null);
+	const [servers, setServers] = useState<MCPServerWithId[]>([]);
+	const [selectedServer, setSelectedServer] = useState<MCPServerWithId | null>(null);
 	const [connectedServers, setConnectedServers] = useState<Set<string>>(new Set());
+	const [toolCounts, setToolCounts] = useState<Map<string, number>>(new Map());
 
 	// Load servers and connection states
 	const loadServers = async () => {
+		console.log("[MCPManagement] loadServers START");
 		const { listMCPServers, getMCPManager } = await import("@sylphx/code-core");
 		const result = await listMCPServers();
-		if (result.ok) {
+		console.log("[MCPManagement] listMCPServers result:", result);
+
+		if (result.success) {
+			console.log("[MCPManagement] Setting servers:", result.data.length);
 			setServers(result.data);
 
-			// Get connection states
+			// Get connection states and tool counts
 			const mcpManager = getMCPManager();
 			const connected = new Set<string>();
+			const counts = new Map<string, number>();
+
 			for (const server of result.data) {
 				if (mcpManager.isConnected(server.id)) {
 					connected.add(server.id);
+
+					// Get tool count for connected servers
+					const state = await mcpManager.getServerState(server.id);
+					if (state) {
+						counts.set(server.id, state.toolCount);
+					}
 				}
 			}
+
 			setConnectedServers(connected);
+			setToolCounts(counts);
+			console.log("[MCPManagement] loadServers DONE, servers:", result.data.length, "connected:", connected.size);
+		} else {
+			console.error("[MCPManagement] loadServers FAILED:", result.error);
 		}
 	};
 
@@ -59,11 +80,20 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 		...servers.map((server) => {
 			const isConnected = connectedServers.has(server.id);
 			const status = server.enabled ? (isConnected ? "🟢" : "⚪") : "⚫";
+			const toolCount = toolCounts.get(server.id);
+
+			let description = server.description || `${server.transport.type} transport`;
+			if (isConnected && toolCount !== undefined) {
+				description += ` • ${toolCount} tool${toolCount === 1 ? "" : "s"}`;
+			}
+			if (!server.enabled) {
+				description = "Disabled • " + description;
+			}
 
 			return {
 				label: `${status} ${server.name}`,
 				value: server.id,
-				description: server.description || `${server.transport.type} transport`,
+				description,
 				badge: isConnected
 					? { text: "Connected", color: "green" as const }
 					: server.enabled
@@ -73,56 +103,7 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 		}),
 	];
 
-	// Action options for selected server
-	const getServerActionOptions = (server: MCPServerConfig): SelectionOption[] => {
-		const isConnected = connectedServers.has(server.id);
-
-		const actions: SelectionOption[] = [];
-
-		if (isConnected) {
-			actions.push({
-				label: "Disconnect",
-				value: "disconnect",
-				description: "Disconnect from this server",
-			});
-		} else if (server.enabled) {
-			actions.push({
-				label: "Connect",
-				value: "connect",
-				description: "Connect to this server",
-			});
-		}
-
-		if (server.enabled) {
-			actions.push({
-				label: "Disable",
-				value: "disable",
-				description: "Disable this server",
-			});
-		} else {
-			actions.push({
-				label: "Enable",
-				value: "enable",
-				description: "Enable this server",
-			});
-		}
-
-		actions.push({
-			label: "View details",
-			value: "details",
-			description: "Show server configuration",
-		});
-
-		actions.push({
-			label: "Remove",
-			value: "remove",
-			description: "Delete this server",
-		});
-
-		return actions;
-	};
-
-	// Handle server selection
+	// Handle server selection - go directly to details
 	const handleServerSelect = async (value: string) => {
 		if (value === "__add__") {
 			setStep("add-server");
@@ -132,68 +113,7 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 		const server = servers.find((s) => s.id === value);
 		if (server) {
 			setSelectedServer(server);
-			setStep("server-actions");
-		}
-	};
-
-	// Handle action selection
-	const handleActionSelect = async (action: string) => {
-		if (!selectedServer) return;
-
-		const { getMCPManager, removeMCPServer, enableMCPServer, disableMCPServer, reloadMCPServerTools } =
-			await import("@sylphx/code-core");
-		const mcpManager = getMCPManager();
-
-		switch (action) {
-			case "connect": {
-				const connectResult = await mcpManager.connect(selectedServer);
-				if (connectResult.ok) {
-					await reloadMCPServerTools(selectedServer.id);
-				}
-				await loadServers();
-				setStep("list-servers");
-				break;
-			}
-
-			case "disconnect": {
-				await mcpManager.disconnect(selectedServer.id);
-				await loadServers();
-				setStep("list-servers");
-				break;
-			}
-
-			case "enable": {
-				await enableMCPServer(selectedServer.id);
-				await loadServers();
-				setStep("list-servers");
-				break;
-			}
-
-			case "disable": {
-				if (mcpManager.isConnected(selectedServer.id)) {
-					await mcpManager.disconnect(selectedServer.id);
-				}
-				await disableMCPServer(selectedServer.id);
-				await loadServers();
-				setStep("list-servers");
-				break;
-			}
-
-			case "details": {
-				// Show details (could be a separate component later)
-				setStep("list-servers");
-				break;
-			}
-
-			case "remove": {
-				if (mcpManager.isConnected(selectedServer.id)) {
-					await mcpManager.disconnect(selectedServer.id);
-				}
-				await removeMCPServer(selectedServer.id);
-				await loadServers();
-				setStep("list-servers");
-				break;
-			}
+			setStep("server-details");
 		}
 	};
 
@@ -202,40 +122,88 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 		return (
 			<InlineSelection
 				options={serverOptions}
-				subtitle="Manage MCP servers and their connections"
+				subtitle="Select a server to view details or add a new one"
 				placeholder="Select a server or add new..."
 				onSelect={handleServerSelect}
-				onCancel={onComplete}
+				onCancel={() => {
+					console.log("[MCPManagement] ESC pressed on list-servers");
+					if (onComplete) {
+						onComplete();
+					}
+				}}
 				showSearch={servers.length > 5}
 			/>
 		);
 	}
 
-	// Step 2: Server actions
-	if (step === "server-actions" && selectedServer) {
-		const actionOptions = getServerActionOptions(selectedServer);
-
-		return (
-			<InlineSelection
-				options={actionOptions}
-				subtitle={`Actions for ${selectedServer.name}`}
-				placeholder="Select an action..."
-				onSelect={handleActionSelect}
-				onCancel={() => setStep("list-servers")}
-				showSearch={false}
-			/>
-		);
-	}
-
-	// Step 3: Add server wizard
+	// Step 2: Add server wizard
 	if (step === "add-server") {
 		return (
 			<MCPAddWizard
 				onComplete={async () => {
+					console.log("[MCPManagement] MCPAddWizard onComplete called");
+					await loadServers();
+					console.log("[MCPManagement] Servers reloaded");
+					setStep("list-servers");
+					console.log("[MCPManagement] Step set to list-servers");
+				}}
+				onCancel={() => {
+					console.log("[MCPManagement] MCPAddWizard onCancel called");
+					setStep("list-servers");
+				}}
+			/>
+		);
+	}
+
+	// Step 3: Server details view
+	if (step === "server-details" && selectedServer) {
+		return (
+			<MCPServerDetails
+				server={selectedServer}
+				onBack={() => setStep("list-servers")}
+				onConnect={async () => {
+					const { getMCPManager, reloadMCPServerTools } = await import("@sylphx/code-core");
+					const mcpManager = getMCPManager();
+					const connectResult = await mcpManager.connect(selectedServer);
+					if (connectResult.success) {
+						await reloadMCPServerTools(selectedServer.id);
+					}
 					await loadServers();
 					setStep("list-servers");
 				}}
-				onCancel={() => setStep("list-servers")}
+				onDisconnect={async () => {
+					const { getMCPManager } = await import("@sylphx/code-core");
+					const mcpManager = getMCPManager();
+					await mcpManager.disconnect(selectedServer.id);
+					await loadServers();
+					setStep("list-servers");
+				}}
+				onEnable={async () => {
+					const { enableMCPServer } = await import("@sylphx/code-core");
+					await enableMCPServer(selectedServer.id);
+					await loadServers();
+					setStep("list-servers");
+				}}
+				onDisable={async () => {
+					const { getMCPManager, disableMCPServer } = await import("@sylphx/code-core");
+					const mcpManager = getMCPManager();
+					if (mcpManager.isConnected(selectedServer.id)) {
+						await mcpManager.disconnect(selectedServer.id);
+					}
+					await disableMCPServer(selectedServer.id);
+					await loadServers();
+					setStep("list-servers");
+				}}
+				onRemove={async () => {
+					const { getMCPManager, removeMCPServer } = await import("@sylphx/code-core");
+					const mcpManager = getMCPManager();
+					if (mcpManager.isConnected(selectedServer.id)) {
+						await mcpManager.disconnect(selectedServer.id);
+					}
+					await removeMCPServer(selectedServer.id);
+					await loadServers();
+					setStep("list-servers");
+				}}
 			/>
 		);
 	}

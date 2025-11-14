@@ -99,6 +99,11 @@ async function initEmbeddedServer(options: { quiet?: boolean } = {}): Promise<Co
 	const { setEmbeddedServer } = await import("./embedded-context.js");
 	setEmbeddedServer(embeddedServer);
 
+	// Auto-connect to enabled MCP servers
+	const { getMCPManager } = await import("@sylphx/code-core");
+	const mcpManager = getMCPManager();
+	await mcpManager.connectToEnabledServers();
+
 	if (!options.quiet) {
 		console.error(chalk.green("✓ Server ready"));
 	}
