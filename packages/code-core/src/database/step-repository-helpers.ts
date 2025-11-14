@@ -46,6 +46,8 @@ export async function createMessageStep(
 	metadata?: MessageMetadata,
 	_todoSnapshot?: TodoType[],
 	systemMessages?: SystemMessage[],
+	provider?: string,
+	model?: string,
 ): Promise<string> {
 	const stepId = `${messageId}-step-${stepIndex}`;
 	const now = Date.now();
@@ -63,8 +65,8 @@ export async function createMessageStep(
 				metadata: metadata ? JSON.stringify(metadata) : null,
 				startTime: now,
 				endTime: null,
-				provider: null,
-				model: null,
+				provider: provider || null,
+				model: model || null,
 				duration: null,
 				finishReason: null,
 			};

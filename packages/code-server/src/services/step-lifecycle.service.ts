@@ -101,7 +101,8 @@ export async function prepareStep(
 					}))
 				: [];
 
-		// 5. Create step record in database
+		// 5. Create step record in database with provider/model
+		// IMPORTANT: Set provider/model at creation time for real-time UI sync
 		const stepId = `${assistantMessageId}-step-${stepNumber}`;
 		try {
 			await createMessageStep(
@@ -111,6 +112,11 @@ export async function prepareStep(
 				undefined, // metadata
 				undefined, // todoSnapshot (deprecated)
 				systemMessages.length > 0 ? systemMessages : undefined,
+				currentSession.provider, // provider from session
+				currentSession.model, // model from session
+			);
+			console.log(
+				`[StepLifecycle] Created step ${stepNumber} with provider: ${currentSession.provider}, model: ${currentSession.model}`,
 			);
 		} catch (stepError) {
 			console.error("[StepLifecycle] Failed to create step:", stepError);

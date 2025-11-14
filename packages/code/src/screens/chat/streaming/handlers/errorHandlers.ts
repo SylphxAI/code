@@ -71,6 +71,10 @@ export function handleMessageStatusUpdated(
 		event.status,
 		"for message:",
 		event.messageId,
+		"streamingMessageId:",
+		context.streamingMessageIdRef.current,
+		"currentSessionId:",
+		currentSessionId,
 	);
 	context.addLog(`[StreamEvent] Message status updated to: ${event.status}`);
 
