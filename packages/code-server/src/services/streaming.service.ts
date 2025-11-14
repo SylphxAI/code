@@ -284,22 +284,27 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 							});
 						} else if (part.type === "file") {
 							try {
-								// Check if imageData is already provided (for pasted images)
+								// Check if imageData is already provided (for pasted images and history)
 								let base64Data: string;
 								let mimeType: string;
 								let size: number;
 
 								if ('imageData' in part && part.imageData) {
 									// Image data already provided - use it directly
+									console.log(`[streamAIResponse] Using preloaded imageData for ${part.relativePath}`);
 									base64Data = part.imageData;
 									mimeType = part.mimeType || "image/png";
 									size = Buffer.from(part.imageData, 'base64').length;
-								} else {
+								} else if (part.path) {
 									// READ NOW and freeze - never re-read from disk
+									console.log(`[streamAIResponse] Reading file from disk: ${part.path}`);
 									const buffer = await fs.readFile(part.path);
 									base64Data = buffer.toString("base64");
 									mimeType = part.mimeType || lookup(part.path) || "application/octet-stream";
 									size = buffer.length;
+								} else {
+									// No imageData and no path - cannot proceed
+									throw new Error(`File part missing both imageData and path: ${part.relativePath}`);
 								}
 
 								// LEGACY format for backward compatibility
