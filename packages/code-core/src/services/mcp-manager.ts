@@ -335,6 +335,13 @@ export class MCPManager {
 			connected: this.getConnectionCount(),
 		});
 
+		// Load tools from all connected servers
+		if (successful > 0) {
+			const { loadMCPTools } = await import("../registry/mcp-tool-integration.js");
+			await loadMCPTools();
+			logger.info("Loaded MCP tools from connected servers");
+		}
+
 		// Emit final status after all connections
 		this.emitStatusChange();
 	}

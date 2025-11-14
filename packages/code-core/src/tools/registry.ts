@@ -8,6 +8,7 @@ import { shellTools } from "./shell.js";
 import { searchTools } from "./search.js";
 import { interactionTools } from "./interaction.js";
 import { createTodoTool, type TodoToolContext } from "./todo.js";
+import { convertAllMCPToolsToAISDK } from "../registry/mcp-tool-integration.js";
 
 /**
  * Options for getting AI SDK tools
@@ -53,15 +54,29 @@ export function getAISDKTools(options: GetToolsOptions = {}): Record<string, any
 		...(interactive ? interactionTools : {}),
 	};
 
+	// Convert MCP tools array to Record
+	const mcpToolsArray = convertAllMCPToolsToAISDK();
+	const mcpTools = mcpToolsArray.reduce(
+		(acc, tool) => {
+			acc[tool.name] = tool;
+			return acc;
+		},
+		{} as Record<string, any>,
+	);
+
 	// Add todo tools if context is provided
 	if (todoContext) {
 		return {
 			...baseTools,
+			...mcpTools,
 			updateTodos: createTodoTool(todoContext),
 		};
 	}
 
-	return baseTools;
+	return {
+		...baseTools,
+		...mcpTools,
+	};
 }
 
 /**

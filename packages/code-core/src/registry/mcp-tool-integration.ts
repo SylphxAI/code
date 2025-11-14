@@ -44,8 +44,10 @@ export function convertMCPToolToAISDK(mcpTool: MCPToolInfo): CoreTool {
 					throw new Error(`MCP server '${mcpTool.serverId}' not connected`);
 				}
 
-				// Call the tool through the MCP client
-				const tool = client.tools?.find((t) => t.name === mcpTool.name);
+				// Get tools from MCP client (returns Record<string, Tool>)
+				const toolsRecord = await client.tools();
+				const tool = toolsRecord[mcpTool.name];
+
 				if (!tool || !tool.execute) {
 					throw new Error(`Tool '${mcpTool.name}' not found on server '${mcpTool.serverId}'`);
 				}
