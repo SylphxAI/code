@@ -1,6 +1,6 @@
 /**
  * MCP Server Details Component
- * Shows detailed information about an MCP server including tools list
+ * Shows detailed information about an MCP server with layered navigation
  */
 
 import { Box, Text } from "ink";
@@ -19,6 +19,8 @@ interface MCPServerDetailsProps {
 	onRemove?: () => void;
 }
 
+type View = "overview" | "tools-list" | "tool-detail";
+
 export function MCPServerDetails({
 	server,
 	onBack,
@@ -28,7 +30,9 @@ export function MCPServerDetails({
 	onDisable,
 	onRemove,
 }: MCPServerDetailsProps) {
+	const [view, setView] = useState<View>("overview");
 	const [tools, setTools] = useState<MCPToolInfo[]>([]);
+	const [selectedTool, setSelectedTool] = useState<MCPToolInfo | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [isConnected, setIsConnected] = useState(false);
 	const [connectionInfo, setConnectionInfo] = useState<{
@@ -85,18 +89,27 @@ export function MCPServerDetails({
 		return date.toLocaleString();
 	};
 
-	// Action options - dynamically build based on server state
-	const actionOptions: SelectionOption[] = [];
+	// Overview action options
+	const overviewActionOptions: SelectionOption[] = [];
+
+	// View tools action
+	if (isConnected && tools.length > 0) {
+		overviewActionOptions.push({
+			label: `View tools (${tools.length})`,
+			value: "view-tools",
+			description: "Browse available tools",
+		});
+	}
 
 	// Connection actions
 	if (isConnected && onDisconnect) {
-		actionOptions.push({
+		overviewActionOptions.push({
 			label: "Disconnect",
 			value: "disconnect",
 			description: "Disconnect from this server",
 		});
 	} else if (!isConnected && server.enabled && onConnect) {
-		actionOptions.push({
+		overviewActionOptions.push({
 			label: "Connect",
 			value: "connect",
 			description: "Connect to this server",
@@ -105,13 +118,13 @@ export function MCPServerDetails({
 
 	// Enable/Disable actions
 	if (server.enabled && onDisable) {
-		actionOptions.push({
+		overviewActionOptions.push({
 			label: "Disable",
 			value: "disable",
 			description: "Disable this server (will disconnect if connected)",
 		});
 	} else if (!server.enabled && onEnable) {
-		actionOptions.push({
+		overviewActionOptions.push({
 			label: "Enable",
 			value: "enable",
 			description: "Enable this server",
@@ -119,7 +132,7 @@ export function MCPServerDetails({
 	}
 
 	// Refresh
-	actionOptions.push({
+	overviewActionOptions.push({
 		label: "Refresh",
 		value: "refresh",
 		description: "Reload server information",
@@ -127,7 +140,7 @@ export function MCPServerDetails({
 
 	// Remove
 	if (onRemove) {
-		actionOptions.push({
+		overviewActionOptions.push({
 			label: "Remove",
 			value: "remove",
 			description: "Remove this server configuration",
@@ -135,15 +148,17 @@ export function MCPServerDetails({
 	}
 
 	// Back
-	actionOptions.push({
+	overviewActionOptions.push({
 		label: "Back",
 		value: "back",
 		description: "Return to server list",
 	});
 
-	const handleAction = async (action: string) => {
+	const handleOverviewAction = async (action: string) => {
 		if (action === "back") {
 			onBack();
+		} else if (action === "view-tools") {
+			setView("tools-list");
 		} else if (action === "connect" && onConnect) {
 			await onConnect();
 		} else if (action === "disconnect" && onDisconnect) {
@@ -186,6 +201,94 @@ export function MCPServerDetails({
 		}
 	};
 
+	// Tools list view
+	const toolListOptions: SelectionOption[] = tools.map((tool) => ({
+		label: tool.name,
+		value: tool.name,
+		description: tool.description ? tool.description.split("\n")[0].substring(0, 100) + "..." : "",
+	}));
+
+	const handleToolSelect = (toolName: string) => {
+		const tool = tools.find((t) => t.name === toolName);
+		if (tool) {
+			setSelectedTool(tool);
+			setView("tool-detail");
+		}
+	};
+
+	// View: Tools List
+	if (view === "tools-list") {
+		return (
+			<Box flexDirection="column" paddingX={2}>
+				<Box marginBottom={1}>
+					<Text bold color="cyan">
+						▌ {server.name || server.id} - Tools ({tools.length})
+					</Text>
+				</Box>
+
+				<InlineSelection
+					options={toolListOptions}
+					subtitle="Select a tool to view details"
+					placeholder="Select tool..."
+					onSelect={handleToolSelect}
+					onCancel={() => setView("overview")}
+					showSearch={tools.length > 10}
+				/>
+			</Box>
+		);
+	}
+
+	// View: Tool Detail
+	if (view === "tool-detail" && selectedTool) {
+		return (
+			<Box flexDirection="column" paddingX={2}>
+				<Box marginBottom={1}>
+					<Text bold color="cyan">
+						▌ {selectedTool.name}
+					</Text>
+				</Box>
+
+				<Box flexDirection="column" gap={1}>
+					{selectedTool.description && (
+						<Box flexDirection="column">
+							<Text bold>Description:</Text>
+							<Box paddingLeft={2}>
+								<Text>{selectedTool.description}</Text>
+							</Box>
+						</Box>
+					)}
+
+					{selectedTool.inputSchema && (
+						<Box flexDirection="column" marginTop={1}>
+							<Text bold>Input Schema:</Text>
+							<Box paddingLeft={2}>
+								<Text dimColor>{JSON.stringify(selectedTool.inputSchema, null, 2)}</Text>
+							</Box>
+						</Box>
+					)}
+
+					<Box marginTop={2}>
+						<InlineSelection
+							options={[
+								{
+									label: "Back to tools list",
+									value: "back",
+									description: "Return to tools list",
+								},
+							]}
+							subtitle="Navigation"
+							placeholder="Select action..."
+							onSelect={() => setView("tools-list")}
+							onCancel={() => setView("tools-list")}
+							showSearch={false}
+						/>
+					</Box>
+				</Box>
+			</Box>
+		);
+	}
+
+	// View: Overview (default)
 	return (
 		<Box flexDirection="column" paddingX={2}>
 			<Box marginBottom={1}>
@@ -214,26 +317,9 @@ export function MCPServerDetails({
 						</Box>
 					</Box>
 
-					{/* Tools Section */}
+					{/* Tools Count */}
 					<Box flexDirection="column" marginTop={1}>
-						<Text bold>Tools ({tools.length}):</Text>
-						{!isConnected ? (
-							<Box paddingLeft={2}>
-								<Text dimColor>Server not connected. Connect to view available tools.</Text>
-							</Box>
-						) : tools.length === 0 ? (
-							<Box paddingLeft={2}>
-								<Text dimColor>No tools available</Text>
-							</Box>
-						) : (
-							<Box flexDirection="column" paddingLeft={2}>
-								{tools.map((tool) => (
-									<Box key={tool.name} marginTop={1}>
-										<Text bold>{tool.name}</Text>
-									</Box>
-								))}
-							</Box>
-						)}
+						<Text bold>Tools: {tools.length}</Text>
 					</Box>
 
 					{/* Connection Info */}
@@ -250,10 +336,10 @@ export function MCPServerDetails({
 					{/* Actions */}
 					<Box marginTop={2}>
 						<InlineSelection
-							options={actionOptions}
+							options={overviewActionOptions}
 							subtitle="Choose an action"
 							placeholder="Select action..."
-							onSelect={handleAction}
+							onSelect={handleOverviewAction}
 							onCancel={onBack}
 							showSearch={false}
 						/>
