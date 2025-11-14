@@ -59,7 +59,7 @@ export const fileRouter = router({
 			// Use null for orphaned files (ChatGPT-style immediate upload)
 			const fileId = await fileRepo.storeFileContent(
 				{
-					stepId: null, // Orphaned file - will be linked when message created
+					stepId: undefined as any, // Orphaned file - will be linked when message created
 					ordering: 0,
 					relativePath: input.relativePath,
 					mediaType: input.mediaType,

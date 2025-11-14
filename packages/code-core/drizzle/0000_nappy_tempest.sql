@@ -30,7 +30,7 @@ CREATE INDEX `idx_events_timestamp` ON `events` (`timestamp`);--> statement-brea
 CREATE INDEX `idx_events_channel` ON `events` (`channel`);--> statement-breakpoint
 CREATE TABLE `file_contents` (
 	`id` text PRIMARY KEY NOT NULL,
-	`step_id` text NOT NULL,
+	`step_id` text,
 	`ordering` integer NOT NULL,
 	`relative_path` text NOT NULL,
 	`media_type` text NOT NULL,

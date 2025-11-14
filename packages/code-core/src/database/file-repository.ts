@@ -90,7 +90,7 @@ export class FileRepository {
 		const dbOrTx = tx || this.db;
 		await dbOrTx.insert(fileContents).values({
 			id: fileId,
-			stepId: input.stepId,
+			...(input.stepId ? { stepId: input.stepId } : {}), // Omit stepId if null/undefined (orphaned upload)
 			ordering: input.ordering,
 			relativePath: input.relativePath,
 			mediaType: input.mediaType,
