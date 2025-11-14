@@ -143,25 +143,25 @@ export default function StatusBar({
 		}
 	}
 
-	// Format MCP status
+	// Format MCP status (compact)
 	let mcpStatusText = "";
 	if (mcpStatus.total > 0) {
 		if (mcpStatus.connected > 0) {
-			mcpStatusText = `MCP: ${mcpStatus.connected}/${mcpStatus.total} (${mcpStatus.toolCount} tools)`;
+			mcpStatusText = `${mcpStatus.connected}/${mcpStatus.total} (${mcpStatus.toolCount}🔧)`;
 		} else if (mcpStatus.failed > 0) {
-			mcpStatusText = `MCP: 0/${mcpStatus.total} (failed)`;
+			mcpStatusText = `0/${mcpStatus.total}`;
 		} else {
-			mcpStatusText = `MCP: 0/${mcpStatus.total} (connecting...)`;
+			mcpStatusText = `0/${mcpStatus.total}...`;
 		}
 	}
 
 	return (
 		<Box flexGrow={1} justifyContent="space-between" marginBottom={1}>
-			{/* Left side: Agent, Rules, MCP, Provider and Model */}
+			{/* Left side: Agent, Rules, Provider and Model */}
 			<Box>
 				<Text dimColor>
 					{agentName && `${agentName} · `}
-					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
+					{enabledRulesCount}{enabledRulesCount === 1 ? "r" : "r"}
 					{mcpStatusText && ` · ${mcpStatusText}`} · {provider} ·{" "}
 				</Text>
 				<Text
