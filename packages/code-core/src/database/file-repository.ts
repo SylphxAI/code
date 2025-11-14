@@ -2,8 +2,9 @@
  * File Repository
  * Database operations for frozen file content
  *
- * Design: Frozen file storage for conversation history
- * - Files stored as BLOB in file_contents table
+ * Design: Hybrid storage for conversation history
+ * - Local/embedded: Files stored as BLOB in file_contents table
+ * - Cloud/serverless: Files stored in object storage (S3/R2), storageKey in DB
  * - Immutable (never changes - preserves prompt cache)
  * - Searchable (FTS5 on text content)
  * - Supports rewind/checkpoint restore
@@ -14,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { fileContents } from "./schema.js";
+import type { StorageOps } from "../storage/functional.js";
 
 export interface FileContentInput {
 	stepId: string;
@@ -38,11 +40,18 @@ export interface FileContentRecord {
 }
 
 export class FileRepository {
-	constructor(private db: LibSQLDatabase) {}
+	constructor(
+		private db: LibSQLDatabase,
+		private storage?: StorageOps,
+	) {}
 
 	/**
-	 * Store file content in database
+	 * Store file content (hybrid: DB BLOB or cloud storage)
 	 * Returns fileContentId for creating file-ref MessagePart
+	 *
+	 * Storage mode:
+	 * - If storage provided → store in cloud, save storageKey in DB
+	 * - If no storage → store in DB BLOB (embedded/local mode)
 	 *
 	 * @param input File content to store
 	 * @param tx Optional transaction context (if called within a transaction)
@@ -70,6 +79,29 @@ export class FileRepository {
 		// Use transaction if provided, otherwise use db instance
 		const dbOrTx = tx || this.db;
 
+		// Determine storage mode and store file
+		let storageKey: string | null = null;
+		let content: Buffer | null = input.content;
+
+		if (this.storage) {
+			// Cloud storage mode: Upload to object storage
+			storageKey = `files/${sha256}${this.getExtension(input.relativePath)}`;
+			const putResult = await this.storage.put(storageKey, input.content, {
+				contentType: input.mediaType,
+				metadata: {
+					stepId: input.stepId,
+					relativePath: input.relativePath,
+				},
+			});
+
+			if (!putResult.success) {
+				throw putResult.error || new Error("Failed to upload file to storage");
+			}
+
+			// Don't store in DB BLOB when using cloud storage
+			content = null;
+		}
+
 		await dbOrTx.insert(fileContents).values({
 			id: fileId,
 			stepId: input.stepId,
@@ -77,7 +109,8 @@ export class FileRepository {
 			relativePath: input.relativePath,
 			mediaType: input.mediaType,
 			size: input.content.length,
-			content: input.content,
+			content, // null for cloud storage, Buffer for DB BLOB
+			storageKey, // non-null for cloud storage, null for DB BLOB
 			isText: isTextFile ? 1 : 0,
 			textContent,
 			sha256,
@@ -88,7 +121,7 @@ export class FileRepository {
 	}
 
 	/**
-	 * Get file content by ID
+	 * Get file content by ID (hybrid: from DB BLOB or cloud storage)
 	 */
 	async getFileContent(fileId: string): Promise<FileContentRecord | null> {
 		const [record] = await this.db
@@ -101,10 +134,25 @@ export class FileRepository {
 			return null;
 		}
 
-		// BLOB columns from SQLite are Uint8Array, convert to Buffer
-		const content = Buffer.isBuffer(record.content)
-			? record.content
-			: Buffer.from(record.content as Uint8Array);
+		let content: Buffer;
+
+		if (record.storageKey && this.storage) {
+			// Cloud storage mode: Fetch from object storage
+			const getResult = await this.storage.get(record.storageKey);
+
+			if (!getResult.success || !getResult.data) {
+				throw getResult.error || new Error(`Failed to fetch file from storage: ${record.storageKey}`);
+			}
+
+			content = getResult.data as Buffer;
+		} else if (record.content) {
+			// DB BLOB mode: Convert Uint8Array to Buffer
+			content = Buffer.isBuffer(record.content)
+				? record.content
+				: Buffer.from(record.content as Uint8Array);
+		} else {
+			throw new Error(`File ${fileId} has neither content nor storageKey`);
+		}
 
 		return {
 			...record,
@@ -123,18 +171,42 @@ export class FileRepository {
 			.where(eq(fileContents.stepId, stepId))
 			.orderBy(fileContents.ordering);
 
-		return records.map((r) => {
-			// BLOB columns from SQLite are Uint8Array, convert to Buffer
-			const content = Buffer.isBuffer(r.content)
-				? r.content
-				: Buffer.from(r.content as Uint8Array);
+		// Fetch content for each record (from DB BLOB or cloud storage)
+		return Promise.all(
+			records.map(async (r) => {
+				let content: Buffer;
 
-			return {
-				...r,
-				isText: r.isText === 1,
-				content,
-			};
-		});
+				if (r.storageKey && this.storage) {
+					// Cloud storage mode: Fetch from object storage
+					const getResult = await this.storage.get(r.storageKey);
+
+					if (!getResult.success || !getResult.data) {
+						throw getResult.error || new Error(`Failed to fetch file from storage: ${r.storageKey}`);
+					}
+
+					content = getResult.data as Buffer;
+				} else if (r.content) {
+					// DB BLOB mode: Convert Uint8Array to Buffer
+					content = Buffer.isBuffer(r.content) ? r.content : Buffer.from(r.content as Uint8Array);
+				} else {
+					throw new Error(`File ${r.id} has neither content nor storageKey`);
+				}
+
+				return {
+					...r,
+					isText: r.isText === 1,
+					content,
+				};
+			}),
+		);
+	}
+
+	/**
+	 * Get file extension from path
+	 */
+	private getExtension(path: string): string {
+		const match = path.match(/\.[^.]+$/);
+		return match ? match[0] : "";
 	}
 
 	/**
