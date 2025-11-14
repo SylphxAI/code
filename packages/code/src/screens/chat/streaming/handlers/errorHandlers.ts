@@ -3,14 +3,7 @@
  * Handles error events and message status updates
  */
 
-import {
-	getCurrentSessionId,
-	$currentSession,
-	set as setSignal,
-	get as getSignal,
-	getTRPCClient,
-	setCurrentSession,
-} from "@sylphx/code-client";
+import { getCurrentSessionId, $currentSession, set as setSignal, get as getSignal } from "@sylphx/code-client";
 import type { MessagePart } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
 import type { StreamEvent } from "@sylphx/code-server";
@@ -124,25 +117,5 @@ export function handleMessageStatusUpdated(
 			"[handleMessageStatusUpdated] Cleared streaming state for message:",
 			event.messageId,
 		);
-
-		// BUG FIX: Refetch session to load full message data with steps
-		// During streaming, optimistic messages don't have steps populated.
-		// After streaming ends, we need to fetch from database to get steps with provider/model.
-		if (currentSessionId && event.status === "completed") {
-			console.log("[handleMessageStatusUpdated] Refetching session to load steps data...");
-			const client = getTRPCClient();
-			client.session.getById
-				.query({ sessionId: currentSessionId })
-				.then((session) => {
-					console.log(
-						"[handleMessageStatusUpdated] Refetch complete, updating session with steps data",
-					);
-					// Update session with full data from server (includes steps)
-					setCurrentSession(session);
-				})
-				.catch((err) => {
-					console.error("[handleMessageStatusUpdated] Failed to refetch session:", err);
-				});
-		}
 	}
 }
