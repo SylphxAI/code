@@ -97,12 +97,12 @@ export default function StatusBar({
 	if (!provider) {
 		return (
 			<Box width="100%" flexDirection="row" marginBottom={1}>
-				<Text dimColor wrap="truncate-end">
+				<Text dimColor>
 					{agentName && `${agentName} · `}
 					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
 				</Text>
 				<Spacer />
-				<Text color="yellow" wrap="truncate-start">⚠ No AI provider selected - use /provider to select one</Text>
+				<Text color="yellow">⚠ No AI provider selected - use /provider to select one</Text>
 			</Box>
 		);
 	}
@@ -110,12 +110,12 @@ export default function StatusBar({
 	if (!model) {
 		return (
 			<Box width="100%" flexDirection="row" marginBottom={1}>
-				<Text dimColor wrap="truncate-end">
+				<Text dimColor>
 					{agentName && `${agentName} · `}
 					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"} · {provider}
 				</Text>
 				<Spacer />
-				<Text color="yellow" wrap="truncate-start">
+				<Text color="yellow">
 					⚠ No model selected - type "/model" to select a model
 				</Text>
 			</Box>
@@ -140,7 +140,7 @@ export default function StatusBar({
 	return (
 		<Box width="100%" flexDirection="row" marginBottom={1}>
 			{/* Left side - all metadata in one text block */}
-			<Text dimColor wrap="truncate-end">
+			<Text dimColor>
 				{agentName && `${agentName} · `}
 				{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
 				{mcpStatus.total > 0 && ` · MCP ${mcpStatus.connected}/${mcpStatus.total}`}
@@ -154,13 +154,13 @@ export default function StatusBar({
 
 			{/* Right side - context usage */}
 			{!loading && contextLength && totalTokensSSOT > 0 && (
-				<Text dimColor wrap="truncate-start">
+				<Text dimColor>
 					{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
 					{usagePercent}%)
 				</Text>
 			)}
 			{!loading && contextLength && totalTokensSSOT === 0 && (
-				<Text dimColor wrap="truncate-start">{formatTokenCount(contextLength)}</Text>
+				<Text dimColor>{formatTokenCount(contextLength)}</Text>
 			)}
 		</Box>
 	);
