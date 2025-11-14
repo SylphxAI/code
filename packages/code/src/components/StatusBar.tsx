@@ -58,28 +58,18 @@ export default function StatusBar({
 	// Subscribe to MCP status
 	const mcpStatus = useMCPStatus();
 
-	// SSOT: Calculate total tokens using SAME logic as /context
-	// - Uses buildModelMessages + calculateModelMessagesTokens
-	// - Recalculates on agent/rules change (not cached in DB)
-	// "點解右下角仍然要殿開邏輯？唔係同 /context 一致咩？ssot吖嘛？"
-	const totalTokensSSOT = useTotalTokens(
-		sessionId,
-		provider,
-		model,
-		selectedAgentId,
-		enabledRuleIds,
-	);
+	// Real-time tokens from $currentSession signal
+	// Updated live during streaming via session-tokens-updated events
+	const totalTokens = useTotalTokens();
 
 	// Fetch model details from server
 	const { details, loading } = useModelDetails(provider, model);
 	const contextLength = details.contextLength;
 	const capabilities = details.capabilities;
 
-	// Calculate usage percentage using SSOT value
+	// Calculate usage percentage
 	const usagePercent =
-		contextLength && totalTokensSSOT > 0
-			? Math.round((totalTokensSSOT / contextLength) * 100)
-			: 0;
+		contextLength && totalTokens > 0 ? Math.round((totalTokens / contextLength) * 100) : 0;
 
 	// Handle unconfigured states
 	if (!provider) {
@@ -147,9 +137,9 @@ export default function StatusBar({
 			`MCP ${mcpStatus.connected}/${mcpStatus.total}${mcpStatus.connected > 0 ? ` (${mcpStatus.toolCount})` : ""}`,
 	].filter(Boolean);
 
-	if (!loading && contextLength && totalTokensSSOT > 0) {
-		rightParts.push(`${formatTokenCount(totalTokensSSOT)} / ${formatTokenCount(contextLength)} (${usagePercent}%)`);
-	} else if (!loading && contextLength && totalTokensSSOT === 0) {
+	if (!loading && contextLength && totalTokens > 0) {
+		rightParts.push(`${formatTokenCount(totalTokens)} / ${formatTokenCount(contextLength)} (${usagePercent}%)`);
+	} else if (!loading && contextLength && totalTokens === 0) {
 		rightParts.push(formatTokenCount(contextLength));
 	}
 
