@@ -318,9 +318,9 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 						<TextInputWithHint
 							value={url}
 							onChange={setUrl}
-							onSubmit={() => {
+							onSubmit={async () => {
 								if (url.trim()) {
-									handleAddServer();
+									await handleAddServer();
 								}
 							}}
 							placeholder="e.g., https://api.example.com/mcp"
@@ -350,8 +350,8 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 						<TextInputWithHint
 							value={args}
 							onChange={setArgs}
-							onSubmit={() => {
-								handleAddServer();
+							onSubmit={async () => {
+								await handleAddServer();
 							}}
 							placeholder="e.g., -y, @modelcontextprotocol/server-everything"
 						/>
