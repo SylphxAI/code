@@ -83,9 +83,8 @@ export default function StatusBar({
 
 	// Handle unconfigured states
 	if (!provider) {
-		const leftContent = [agentName, `${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`]
-			.filter(Boolean)
-			.join(" · ");
+		const leftContent = agentName || "";
+		const rightContent = `${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`;
 
 		return (
 			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
@@ -94,6 +93,9 @@ export default function StatusBar({
 				</Box>
 				<Spacer />
 				<Box flexShrink={0}>
+					<Text dimColor>{rightContent}</Text>
+				</Box>
+				<Box flexShrink={0} marginLeft={1}>
 					<Text color="yellow">⚠ No AI provider selected - use /provider to select one</Text>
 				</Box>
 			</Box>
@@ -101,9 +103,8 @@ export default function StatusBar({
 	}
 
 	if (!model) {
-		const leftContent = [agentName, `${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`, provider]
-			.filter(Boolean)
-			.join(" · ");
+		const leftContent = [agentName, provider].filter(Boolean).join(" · ");
+		const rightContent = `${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`;
 
 		return (
 			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
@@ -112,6 +113,9 @@ export default function StatusBar({
 				</Box>
 				<Spacer />
 				<Box flexShrink={0}>
+					<Text dimColor>{rightContent}</Text>
+				</Box>
+				<Box flexShrink={0} marginLeft={1}>
 					<Text color="yellow">⚠ No model selected - type "/model" to select a model</Text>
 				</Box>
 			</Box>
@@ -133,40 +137,37 @@ export default function StatusBar({
 		}
 	}
 
-	// Build left content as single string to prevent internal wrapping
-	const leftContent = [
-		agentName && `${agentName}`,
+	// Build left content (agent, provider, model)
+	const leftContent = [agentName, provider, model + capabilityLabel].filter(Boolean).join(" · ");
+
+	// Build right content (rules, MCP, context)
+	const rightParts = [
 		`${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`,
-		mcpStatus.total > 0 && `MCP ${mcpStatus.connected}/${mcpStatus.total}${mcpStatus.connected > 0 ? ` (${mcpStatus.toolCount})` : ""}`,
-		provider,
-		model + capabilityLabel,
-	]
-		.filter(Boolean)
-		.join(" · ");
+		mcpStatus.total > 0 &&
+			`MCP ${mcpStatus.connected}/${mcpStatus.total}${mcpStatus.connected > 0 ? ` (${mcpStatus.toolCount})` : ""}`,
+	].filter(Boolean);
+
+	if (!loading && contextLength && totalTokensSSOT > 0) {
+		rightParts.push(`${formatTokenCount(totalTokensSSOT)} / ${formatTokenCount(contextLength)} (${usagePercent}%)`);
+	} else if (!loading && contextLength && totalTokensSSOT === 0) {
+		rightParts.push(formatTokenCount(contextLength));
+	}
+
+	const rightContent = rightParts.join(" · ");
 
 	return (
 		<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
-			{/* Left side - all metadata in one text block */}
+			{/* Left side - agent, provider, model */}
 			<Box flexShrink={0}>
 				<Text dimColor>{leftContent}</Text>
 			</Box>
 
 			<Spacer />
 
-			{/* Right side - context usage */}
-			{!loading && contextLength && totalTokensSSOT > 0 && (
-				<Box flexShrink={0}>
-					<Text dimColor>
-						{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
-						{usagePercent}%)
-					</Text>
-				</Box>
-			)}
-			{!loading && contextLength && totalTokensSSOT === 0 && (
-				<Box flexShrink={0}>
-					<Text dimColor>{formatTokenCount(contextLength)}</Text>
-				</Box>
-			)}
+			{/* Right side - rules, MCP, context */}
+			<Box flexShrink={0}>
+				<Text dimColor>{rightContent}</Text>
+			</Box>
 		</Box>
 	);
 }
