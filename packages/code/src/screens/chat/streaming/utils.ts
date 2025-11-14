@@ -50,12 +50,8 @@ export function updateActiveMessageContent(
 	);
 
 	// Update signal with new session object
-	const newSession = {
+	setSignal($currentSession, {
 		...session,
 		messages: updatedMessages,
-	};
-
-	console.log("[updateActiveMessageContent] Updating signal, message content length:", updatedMessages.find(m => m.id === activeMessage.id)?.content?.length || 0);
-
-	setSignal($currentSession, newSession);
+	});
 }

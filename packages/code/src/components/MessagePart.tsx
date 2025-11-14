@@ -50,7 +50,7 @@ type StreamingPart =
 	| { type: "file"; mediaType: string; base64: string; status: "completed" }
 	| { type: "error"; error: string; status: "completed" };
 
-export const MessagePart = React.memo(function MessagePart({ part }: MessagePartProps) {
+export function MessagePart({ part }: MessagePartProps) {
 	if (part.type === "text") {
 		return (
 			<Box flexDirection="column" marginLeft={3} marginBottom={1}>
@@ -198,4 +198,4 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
 	}
 
 	return null;
-});
+}
