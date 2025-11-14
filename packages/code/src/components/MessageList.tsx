@@ -43,7 +43,49 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 								);
 							})()
 						) : (
-							<Text color="green">▌ SYLPHX</Text>
+							(() => {
+								// Extract provider and model from steps
+								// Check if all steps use the same provider and model
+								const steps = msg.steps && msg.steps.length > 0 ? msg.steps : [];
+								const stepsWithModel = steps.filter((s) => s.provider && s.model);
+
+								if (stepsWithModel.length === 0) {
+									// No model info available
+									return <Text color="green">▌ SYLPHX</Text>;
+								}
+
+								// Check if all steps use the same provider and model
+								const firstProvider = stepsWithModel[0].provider;
+								const firstModel = stepsWithModel[0].model;
+								const allSame = stepsWithModel.every(
+									(s) => s.provider === firstProvider && s.model === firstModel,
+								);
+
+								if (allSame) {
+									// All steps use the same model
+									return (
+										<Box flexDirection="row">
+											<Text color="green">▌ SYLPHX</Text>
+											<Text dimColor>
+												{" "}
+												· {firstProvider} · {firstModel}
+											</Text>
+										</Box>
+									);
+								} else {
+									// Multiple different models used
+									const uniqueModels = new Set(stepsWithModel.map((s) => `${s.provider}/${s.model}`));
+									return (
+										<Box flexDirection="row">
+											<Text color="green">▌ SYLPHX</Text>
+											<Text dimColor>
+												{" "}
+												· Mixed {uniqueModels.size} models
+											</Text>
+										</Box>
+									);
+								}
+							})()
 						)}
 					</Box>
 
