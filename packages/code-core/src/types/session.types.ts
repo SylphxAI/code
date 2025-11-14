@@ -125,30 +125,7 @@ export interface MessageStep {
 	stepIndex: number; // 0, 1, 2, ... (order)
 	parts: MessagePart[]; // Content parts for this step
 
-	// System messages to insert BEFORE this step (for LLM context)
-	// When building model messages, these become 'user' role messages inserted before step content
-	// Multiple messages can fire simultaneously (e.g., context + memory warnings)
 	systemMessages?: SystemMessage[];
-
-	// Per-step context (captured at step start time)
-	metadata?: MessageMetadata; // System status at THIS step's start time
-
-	/**
-	 * @deprecated No longer stored per-step (REMOVED for performance)
-	 *
-	 * Rationale:
-	 * - User reported 100+ steps per message being common
-	 * - Storing todos on every step is excessive and wasteful
-	 * - Todos are managed at session level (session.todos)
-	 *
-	 * Current Status:
-	 * - NOT stored in database (no column exists)
-	 * - MAY appear in runtime events (step-start event)
-	 * - NOT injected into LLM context (buildUserMessage check never executes)
-	 *
-	 * See: TODOSNAPSHOT-REALITY.md for complete analysis
-	 */
-	todoSnapshot?: Todo[]; // ❌ DEPRECATED - Not stored, not used
 
 	// Per-step execution metadata
 	usage?: TokenUsage;
@@ -205,28 +182,6 @@ export interface TokenUsage {
 	totalTokens: number;
 }
 
-/**
- * Message metadata - system information at message creation time
- *
- * IMPORTANT: This metadata is captured ONCE when the message is created and NEVER changes.
- * This is critical for prompt cache effectiveness - historical messages must remain immutable.
- *
- * Design decisions:
- * 1. Stored separately from content - not shown in UI, only sent to LLM
- * 2. Captured at creation time - never updated to preserve prompt cache
- * 3. Used to build system status context when constructing ModelMessage for LLM
- *
- * What goes in metadata vs top-level fields:
- * - metadata: Info for LLM but NOT shown in UI (cpu, memory, future: sessionId, requestId)
- * - usage/finishReason: Info for UI/monitoring but NOT sent to LLM
- * - timestamp: Shown in UI AND used to construct metadata for LLM
- * - content: Shown in UI AND sent to LLM
- */
-export interface MessageMetadata {
-	cpu?: string; // CPU usage at creation time (e.g., "45.3% (8 cores)")
-	memory?: string; // Memory usage at creation time (e.g., "4.2GB/16.0GB")
-	// Future: add more fields as needed (sessionId, requestId, modelVersion, etc.)
-}
 
 /**
  * Session message - Container for steps representing a conversation turn
