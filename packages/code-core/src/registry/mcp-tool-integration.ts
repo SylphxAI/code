@@ -234,17 +234,6 @@ export async function loadMCPTools(): Promise<void> {
 	const mcpManager = getMCPManager();
 	const allTools = await mcpManager.getAllTools();
 
-	logger.info("Loading MCP tools", { count: allTools.length });
-
-	// Clear existing MCP tools
-	mcpToolRegistry.clear();
-
-	// Register all tools
-	for (const mcpTool of allTools) {
-		registerMCPTool(mcpTool);
-	}
-
-	logger.info("Loaded MCP tools", { count: allTools.length });
 }
 
 /**
@@ -264,10 +253,6 @@ export async function reloadMCPServerTools(serverId: string): Promise<void> {
 
 	const tools = result.data;
 
-	logger.info("Reloading MCP server tools", {
-		serverId,
-		count: tools.length,
-	});
 
 	// Unregister existing tools from this server
 	unregisterMCPServerTools(serverId);
@@ -277,10 +262,6 @@ export async function reloadMCPServerTools(serverId: string): Promise<void> {
 		registerMCPTool(mcpTool);
 	}
 
-	logger.info("Reloaded MCP server tools", {
-		serverId,
-		count: tools.length,
-	});
 }
 
 /**
