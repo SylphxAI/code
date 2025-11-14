@@ -128,14 +128,14 @@ export class MessageRepository {
 								// Convert base64 back to Buffer
 								const buffer = Buffer.from(part.base64, "base64");
 
-								// Store in file_contents table
+								// Store in file_contents table (pass tx to avoid SQLITE_BUSY)
 								const fileId = await this.fileRepo.storeFileContent({
 									stepId,
 									ordering: i,
 									relativePath: part.relativePath,
 									mediaType: part.mediaType,
 									content: buffer,
-								});
+								}, tx);
 
 								// Create file-ref part instead of full file part
 								partToStore = {

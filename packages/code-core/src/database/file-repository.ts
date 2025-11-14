@@ -43,8 +43,11 @@ export class FileRepository {
 	/**
 	 * Store file content in database
 	 * Returns fileContentId for creating file-ref MessagePart
+	 *
+	 * @param input File content to store
+	 * @param tx Optional transaction context (if called within a transaction)
 	 */
-	async storeFileContent(input: FileContentInput): Promise<string> {
+	async storeFileContent(input: FileContentInput, tx?: any): Promise<string> {
 		const fileId = randomUUID();
 		const now = Date.now();
 
@@ -64,7 +67,10 @@ export class FileRepository {
 			}
 		}
 
-		await this.db.insert(fileContents).values({
+		// Use transaction if provided, otherwise use db instance
+		const dbOrTx = tx || this.db;
+
+		await dbOrTx.insert(fileContents).values({
 			id: fileId,
 			stepId: input.stepId,
 			ordering: input.ordering,
