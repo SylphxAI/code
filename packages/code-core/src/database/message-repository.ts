@@ -13,7 +13,7 @@ import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { sessions, messages, messageSteps, stepParts, stepUsage, fileContents } from "./schema.js";
-import type { MessagePart, TokenUsage, MessageMetadata } from "../types/session.types.js";
+import type { MessagePart, TokenUsage } from "../types/session.types.js";
 import type { Todo as TodoType } from "../types/todo.types.js";
 import { retryDatabase } from "../utils/retry.js";
 import { FileRepository } from "./file-repository.js";

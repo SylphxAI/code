@@ -138,7 +138,6 @@ export async function prepareStep(
 			type: "step-start",
 			stepId,
 			stepIndex: stepNumber,
-			metadata: { cpu: "N/A", memory: "N/A" },
 			todoSnapshot: [],
 			systemMessages: systemMessages.length > 0 ? systemMessages : undefined,
 			provider: currentSession.provider,

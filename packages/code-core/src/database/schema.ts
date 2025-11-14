@@ -226,9 +226,6 @@ export const messageSteps = sqliteTable(
 		finishReason: text("finish_reason"), // 'stop' | 'tool-calls' | 'length' | 'error'
 		status: text("status").notNull().default("completed"), // 'active' | 'completed' | 'error' | 'abort'
 
-		// Per-step context (captured at step start time)
-		metadata: text("metadata"), // JSON: { cpu?: string, memory?: string }
-
 		// Timestamps
 		startTime: integer("start_time"), // Unix timestamp (ms)
 		endTime: integer("end_time"), // Unix timestamp (ms)

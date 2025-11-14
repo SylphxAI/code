@@ -15,7 +15,6 @@ import type {
 	MessageStep,
 	MessagePart,
 	TokenUsage,
-	MessageMetadata,
 	SystemMessage,
 } from "../types/session.types.js";
 import type { Todo as TodoType } from "../types/todo.types.js";
@@ -26,24 +25,19 @@ import { retryDatabase } from "../utils/retry.js";
  */
 const MessagePartSchema: z.ZodType<MessagePart> = z.any(); // ASSUMPTION: MessagePart already validated when inserted
 const SystemMessageSchema: z.ZodType<SystemMessage> = z.any(); // ASSUMPTION: SystemMessage already validated when inserted
-const MessageMetadataSchema = z.object({
-	cpu: z.string().optional(),
-	memory: z.string().optional(),
-}).passthrough(); // Allow additional fields for future extensions
 
 /**
  * Create a new step in a message
  *
  * @param systemMessages Optional system messages to insert BEFORE this step (for LLM context)
- * @param todoSnapshot DEPRECATED - No longer stored per-step
- *   Todos are only sent on first user message after /compact
- *   This parameter is kept for backward compatibility but ignored
+ * @param _todoSnapshot DEPRECATED - No longer stored per-step
+ * @param _metadata DEPRECATED - No longer stored per-step
  */
 export async function createMessageStep(
 	db: LibSQLDatabase,
 	messageId: string,
 	stepIndex: number,
-	metadata?: MessageMetadata,
+	_metadata?: unknown,
 	_todoSnapshot?: TodoType[],
 	systemMessages?: SystemMessage[],
 	provider?: string,
@@ -62,7 +56,6 @@ export async function createMessageStep(
 				systemMessages:
 					systemMessages && systemMessages.length > 0 ? JSON.stringify(systemMessages) : null,
 				status: "active",
-				metadata: metadata ? JSON.stringify(metadata) : null,
 				startTime: now,
 				endTime: null,
 				provider: provider || null,
@@ -74,7 +67,7 @@ export async function createMessageStep(
 			await tx.insert(messageSteps).values(newStep);
 
 			// REMOVED: stepTodoSnapshots - no longer stored per-step
-			// Todos are only sent on first user message after /compact
+			// REMOVED: metadata - no longer stored per-step
 		}),
 	);
 
@@ -234,18 +227,8 @@ export async function loadMessageSteps(
 			}
 		}
 
-		if (step.metadata) {
-			const parsedMeta = MessageMetadataSchema.safeParse(JSON.parse(step.metadata));
-		if (parsedMeta.success) {
-			messageStep.metadata = parsedMeta.data;
-		} else {
-			// Skip corrupted metadata - use empty object as fallback
-			messageStep.metadata = {};
-		}
-		}
-
 		// REMOVED: todoSnapshot - no longer stored per-step
-		// Todos are only sent on first user message after /compact
+		// REMOVED: metadata - no longer stored per-step
 
 		if (usage) {
 			messageStep.usage = {

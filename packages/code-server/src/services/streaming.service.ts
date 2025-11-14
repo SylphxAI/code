@@ -93,7 +93,6 @@ export type StreamEvent =
 			type: "step-start";
 			stepId: string;
 			stepIndex: number;
-			metadata: { cpu: string; memory: string };
 			todoSnapshot: any[];
 			systemMessages?: Array<{
 				type: string;

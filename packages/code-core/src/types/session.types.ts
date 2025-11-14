@@ -104,9 +104,9 @@ export type StreamingPart = MessagePart;
  * - See: TODOSNAPSHOT-REALITY.md
  *
  * Example multi-step flow:
- * Step 0 (t=0): metadata={cpu:20%, memory:2GB}
+ * Step 0 (t=0) at 10:00:00
  *   → Tool calls to read files
- * Step 1 (t=5s): metadata={cpu:45%, memory:3GB}
+ * Step 1 (t=5s) at 10:00:05
  *   → Process tool results, generate response
  *
  * Step lifecycle:
