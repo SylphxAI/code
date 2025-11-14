@@ -396,14 +396,24 @@ console.log("[executeCommand] RESULT:", typeof result, result ? result.substring
 			throw error;
 		}
 
-		// Add to message history (append since we store oldest-first)
+		// Add to message history with attachments (append since we store oldest-first)
 		setMessageHistory((prev) => {
 			// Don't add if it's the same as the last entry (most recent)
-			if (prev.length > 0 && prev[prev.length - 1] === userMessage) {
+			if (
+				prev.length > 0 &&
+				prev[prev.length - 1].text === userMessage &&
+				prev[prev.length - 1].attachments.length === attachmentsForMessage.length
+			) {
 				return prev;
 			}
-			// Append new message and keep last 100
-			const newHistory = [...prev, userMessage];
+			// Append new message entry and keep last 100
+			const newHistory = [
+				...prev,
+				{
+					text: userMessage,
+					attachments: attachmentsForMessage,
+				},
+			];
 			if (newHistory.length > 100) {
 				return newHistory.slice(-100); // Keep most recent 100
 			}

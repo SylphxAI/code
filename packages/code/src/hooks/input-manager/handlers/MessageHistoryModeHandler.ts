@@ -7,23 +7,29 @@
 
 import type { Key } from "ink";
 import type React from "react";
+import type { FileAttachment } from "@sylphx/code-core";
 import { InputMode, type InputModeContext } from "../types.js";
 import { BaseInputHandler } from "./BaseHandler.js";
 import type { FilteredFile, FilteredCommand } from "@sylphx/code-client";
+import type { MessageHistoryEntry } from "../../../screens/chat/hooks/useInputState.js";
 
 export interface MessageHistoryModeHandlerDeps {
-	messageHistory: string[];
+	messageHistory: MessageHistoryEntry[];
 	historyIndex: number;
 	tempInput: string;
+	tempAttachments: FileAttachment[];
 	input: string;
 	isStreaming: boolean;
 	inputComponent: React.ReactNode | null;
 	filteredCommands: FilteredCommand[];
 	filteredFileInfo: FilteredFile | null;
+	pendingAttachments: FileAttachment[];
 	setInput: (value: string) => void;
 	setCursor: (value: number) => void;
 	setHistoryIndex: React.Dispatch<React.SetStateAction<number>>;
 	setTempInput: (value: string) => void;
+	setTempAttachments: (attachments: FileAttachment[]) => void;
+	setPendingAttachments: (attachments: FileAttachment[]) => void;
 }
 
 /**
@@ -97,11 +103,15 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 			messageHistory,
 			historyIndex,
 			tempInput,
+			tempAttachments,
 			input,
+			pendingAttachments,
 			setInput,
 			setCursor,
 			setHistoryIndex,
 			setTempInput,
+			setTempAttachments,
+			setPendingAttachments,
 		} = this.deps;
 
 		// Arrow up - navigate to previous message in history
@@ -110,17 +120,22 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 				if (messageHistory.length === 0) return;
 
 				if (historyIndex === -1) {
-					// First time going up - save current input
+					// First time going up - save current input and attachments
 					setTempInput(input);
+					setTempAttachments(pendingAttachments);
 					const newIndex = messageHistory.length - 1;
+					const entry = messageHistory[newIndex];
 					setHistoryIndex(newIndex);
-					setInput(messageHistory[newIndex]);
+					setInput(entry.text);
+					setPendingAttachments(entry.attachments);
 					setCursor(0);
 				} else if (historyIndex > 0) {
 					// Navigate up in history
 					const newIndex = historyIndex - 1;
+					const entry = messageHistory[newIndex];
 					setHistoryIndex(newIndex);
-					setInput(messageHistory[newIndex]);
+					setInput(entry.text);
+					setPendingAttachments(entry.attachments);
 					setCursor(0);
 				}
 			});
@@ -132,15 +147,20 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 				if (historyIndex === -1) return;
 
 				if (historyIndex === messageHistory.length - 1) {
-					// Reached end - restore original input
+					// Reached end - restore original input and attachments
 					setHistoryIndex(-1);
 					setInput(tempInput);
+					setPendingAttachments(tempAttachments);
+					setTempInput("");
+					setTempAttachments([]);
 					setCursor(0);
 				} else {
 					// Navigate down in history
 					const newIndex = historyIndex + 1;
+					const entry = messageHistory[newIndex];
 					setHistoryIndex(newIndex);
-					setInput(messageHistory[newIndex]);
+					setInput(entry.text);
+					setPendingAttachments(entry.attachments);
 					setCursor(0);
 				}
 			});
@@ -151,6 +171,7 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 		if (historyIndex !== -1) {
 			setHistoryIndex(-1);
 			setTempInput("");
+			setTempAttachments([]);
 		}
 
 		return false; // Not consumed - let other handlers process

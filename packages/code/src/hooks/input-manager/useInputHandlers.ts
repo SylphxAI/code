@@ -70,13 +70,17 @@ export interface InputHandlerDeps {
 	skipNextSubmit: React.MutableRefObject<boolean>;
 
 	// Message history mode dependencies
-	messageHistory: string[];
+	messageHistory: import("../../screens/chat/hooks/useInputState.js").MessageHistoryEntry[];
 	historyIndex: number;
 	tempInput: string;
+	tempAttachments: import("@sylphx/code-core").FileAttachment[];
+	pendingAttachments: import("@sylphx/code-core").FileAttachment[];
 	isStreaming: boolean;
 	inputComponent: React.ReactNode | null;
 	setHistoryIndex: React.Dispatch<React.SetStateAction<number>>;
 	setTempInput: (value: string) => void;
+	setTempAttachments: (attachments: import("@sylphx/code-core").FileAttachment[]) => void;
+	setPendingAttachments: (attachments: import("@sylphx/code-core").FileAttachment[]) => void;
 }
 
 /**
@@ -152,10 +156,14 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 		messageHistory,
 		historyIndex,
 		tempInput,
+		tempAttachments,
+		pendingAttachments,
 		isStreaming,
 		inputComponent,
 		setHistoryIndex,
 		setTempInput,
+		setTempAttachments,
+		setPendingAttachments,
 	} = deps;
 
 	// Selection mode handler
@@ -295,7 +303,9 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 				messageHistory,
 				historyIndex,
 				tempInput,
+				tempAttachments,
 				input,
+				pendingAttachments,
 				isStreaming,
 				inputComponent,
 				filteredCommands,
@@ -304,12 +314,16 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 				setCursor,
 				setHistoryIndex,
 				setTempInput,
+				setTempAttachments,
+				setPendingAttachments,
 			}),
 		[
 			messageHistory,
 			historyIndex,
 			tempInput,
+			tempAttachments,
 			input,
+			pendingAttachments,
 			isStreaming,
 			inputComponent,
 			filteredCommands,
@@ -318,6 +332,8 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 			setCursor,
 			setHistoryIndex,
 			setTempInput,
+			setTempAttachments,
+			setPendingAttachments,
 		],
 	);
 

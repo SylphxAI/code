@@ -4,7 +4,16 @@
  */
 
 import { getTRPCClient } from "@sylphx/code-client";
+import type { FileAttachment } from "@sylphx/code-core";
 import { useEffect, useMemo, useState } from "react";
+
+/**
+ * Message history entry with text and attachments
+ */
+export interface MessageHistoryEntry {
+	text: string;
+	attachments: FileAttachment[];
+}
 
 export interface InputState {
 	input: string;
@@ -12,8 +21,10 @@ export interface InputState {
 	cursor: number;
 	setCursor: (cursor: number) => void;
 	normalizedCursor: number;
-	messageHistory: string[];
-	setMessageHistory: (history: string[] | ((prev: string[]) => string[])) => void;
+	messageHistory: MessageHistoryEntry[];
+	setMessageHistory: (
+		history: MessageHistoryEntry[] | ((prev: MessageHistoryEntry[]) => MessageHistoryEntry[]),
+	) => void;
 	historyIndex: number;
 	setHistoryIndex: (index: number) => void;
 	tempInput: string;
@@ -23,7 +34,7 @@ export interface InputState {
 export function useInputState(): InputState {
 	const [input, setInput] = useState("");
 	const [cursor, setCursor] = useState(0);
-	const [messageHistory, setMessageHistory] = useState<string[]>([]);
+	const [messageHistory, setMessageHistory] = useState<MessageHistoryEntry[]>([]);
 	const [historyIndex, setHistoryIndex] = useState(-1);
 	const [tempInput, setTempInput] = useState("");
 
@@ -37,8 +48,14 @@ export function useInputState(): InputState {
 				});
 				// Extract messages array from paginated result
 				const messages = Array.isArray(result) ? result : result?.messages || [];
+				// Convert string messages to MessageHistoryEntry format
+				// DB messages don't have attachments (only in-session messages will)
+				const entries: MessageHistoryEntry[] = messages.map((text: string) => ({
+					text,
+					attachments: [],
+				}));
 				// Reverse to get oldest-first order (for bash-like navigation)
-				setMessageHistory(messages.reverse());
+				setMessageHistory(entries.reverse());
 			} catch (error) {
 				console.error("Failed to load message history:", error);
 			}

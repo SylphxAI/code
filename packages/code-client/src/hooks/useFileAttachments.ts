@@ -49,6 +49,7 @@ export function useFileAttachments(input: string) {
 
 	return {
 		pendingAttachments,
+		setPendingAttachments,
 		attachmentTokens,
 		validTags,
 		addAttachment,

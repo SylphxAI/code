@@ -44,6 +44,7 @@ import {
 	// Message signals
 	addMessageAsync as addMessage,
 } from "@sylphx/code-client";
+import type { FileAttachment } from "@sylphx/code-core";
 import { Box, useInput } from "ink";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { commands } from "../commands/registry.js";
@@ -208,12 +209,16 @@ export default function Chat(_props: ChatProps) {
 	// File attachment hook
 	const {
 		pendingAttachments,
+		setPendingAttachments,
 		attachmentTokens,
 		validTags,
 		addAttachment,
 		clearAttachments,
 		setAttachmentTokenCount,
 	} = useFileAttachments(input);
+
+	// History restoration state - saved when navigating history
+	const [tempAttachments, setTempAttachments] = useState<FileAttachment[]>([]);
 
 	const { projectFiles, filesLoading } = useProjectFiles();
 
@@ -506,10 +511,14 @@ export default function Chat(_props: ChatProps) {
 		messageHistory,
 		historyIndex,
 		tempInput,
+		tempAttachments,
+		pendingAttachments,
 		isStreaming,
 		inputComponent,
 		setHistoryIndex,
 		setTempInput,
+		setTempAttachments,
+		setPendingAttachments,
 	});
 
 	// Setup input mode manager (only active when feature flag is enabled)
