@@ -115,10 +115,12 @@ export async function calculateBaseContextTokens(
 	const cached = baseContextCache.get(cacheKey);
 	if (cached !== undefined) {
 		cacheManager.recordHit("base-context");
+		console.log(`[BaseContextCache HIT] ${cacheKey.slice(0, 32)}... → ${cached} tokens`);
 		return cached;
 	}
 
 	cacheManager.recordMiss("base-context");
+	console.log(`[BaseContextCache MISS] ${cacheKey.slice(0, 32)}... (calculating...)`);
 
 	// Build system prompt
 	const systemPrompt = buildSystemPrompt(agentId, allAgents, enabledRules);
@@ -142,6 +144,7 @@ export async function calculateBaseContextTokens(
 
 	// Cache result
 	baseContextCache.set(cacheKey, totalTokens);
+	console.log(`[BaseContextCache CACHED] ${cacheKey.slice(0, 32)}... → ${totalTokens} tokens`);
 
 	return totalTokens;
 }

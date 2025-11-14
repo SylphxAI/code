@@ -584,6 +584,7 @@ export const sessionRouter = router({
 
 			const pending = pendingTokenRequests.get(requestKey);
 			if (pending) {
+				console.log("[getTotalTokens] Dedup: waiting for in-flight request");
 				return pending;
 			}
 
@@ -608,6 +609,7 @@ export const sessionRouter = router({
 						? (settingsResult.data.useAccurateTokenizer ?? true)
 						: true; // Default: accurate mode
 
+					console.log("[getTotalTokens] Request:", {
 						sessionId: input.sessionId,
 						model: input.model,
 						agentId,
@@ -624,9 +626,11 @@ export const sessionRouter = router({
 						{ useAccurate },
 					);
 
+					console.log("[getTotalTokens] Base context calculated:", baseContextTokens);
 
 				// If no session, return base context only
 				if (!input.sessionId) {
+					console.log("[getTotalTokens] No session, returning base context only");
 					return {
 						success: true as const,
 						totalTokens: baseContextTokens,
