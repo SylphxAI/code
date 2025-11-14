@@ -48,6 +48,8 @@ export interface EventStreamCallbacks {
 		metadata: any,
 		todoSnapshot: any[],
 		systemMessages?: any[],
+		provider?: string,
+		model?: string,
 	) => void;
 	onStepComplete?: (stepId: string, usage: any, duration: number, finishReason: string) => void;
 
@@ -222,6 +224,8 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 								event.metadata,
 								event.todoSnapshot,
 								event.systemMessages,
+								event.provider,
+								event.model,
 							);
 							break;
 
