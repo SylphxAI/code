@@ -377,7 +377,7 @@ export class MessageRepository {
 			}
 
 			// Group parts by message
-			const messageData = new Map<string, { texts: string[]; fileRefs: string[]; legacyFiles: Array<{ relativePath: string; base64: string; mediaType: string; size: number }> }>();
+			const messageData = new Map<string, { texts: string[]; fileRefs: string[] }>();
 			for (const part of parts) {
 				const messageId = stepToMessage.get(part.stepId);
 				if (!messageId) continue;
@@ -391,7 +391,7 @@ export class MessageRepository {
 				const content = parsed.data as MessagePart;
 
 				if (!messageData.has(messageId)) {
-					messageData.set(messageId, { texts: [], fileRefs: [], legacyFiles: [] });
+					messageData.set(messageId, { texts: [], fileRefs: [] });
 				}
 				const data = messageData.get(messageId)!;
 
@@ -402,14 +402,6 @@ export class MessageRepository {
 					}
 				} else if (content.type === "file-ref") {
 					data.fileRefs.push(content.fileContentId);
-				} else if (content.type === "file" && "base64" in content && content.base64) {
-					// Handle legacy file parts with inline base64 (for backward compatibility)
-					data.legacyFiles.push({
-						relativePath: content.relativePath,
-						base64: content.base64,
-						mediaType: content.mediaType,
-						size: content.size,
-					});
 				}
 			}
 
@@ -445,9 +437,7 @@ export class MessageRepository {
 				if (!data) continue;
 
 				const fullText = data.texts.join(" ").trim();
-
-				// Combine files from both file_contents (file-ref) and legacy inline base64 (file)
-				const filesFromRefs = data.fileRefs.map((fileId) => {
+				const files = data.fileRefs.map((fileId) => {
 					const fileData = fileContentsMap.get(fileId);
 					if (!fileData) return null;
 					return {
@@ -458,13 +448,10 @@ export class MessageRepository {
 					};
 				}).filter((f): f is NonNullable<typeof f> => f !== null);
 
-				const files = [...filesFromRefs, ...data.legacyFiles];
-
 				console.log("[getRecentUserMessages] Message:", {
 					text: fullText.substring(0, 50),
 					fileRefsCount: data.fileRefs.length,
-					legacyFilesCount: data.legacyFiles.length,
-					totalFilesCount: files.length,
+					filesCount: files.length,
 				});
 
 				if (fullText || files.length > 0) {

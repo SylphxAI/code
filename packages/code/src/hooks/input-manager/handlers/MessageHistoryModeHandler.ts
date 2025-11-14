@@ -121,10 +121,26 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 
 				if (historyIndex === -1) {
 					// First time going up - save current input and attachments
+					console.log("[MessageHistory] First up - saving current:", {
+						input: input.substring(0, 50),
+						attachments: pendingAttachments.length,
+					});
 					setTempInput(input);
 					setTempAttachments(pendingAttachments);
 					const newIndex = messageHistory.length - 1;
 					const entry = messageHistory[newIndex];
+					console.log("[MessageHistory] Loading entry:", {
+						index: newIndex,
+						text: entry.text.substring(0, 50),
+						attachments: entry.attachments.length,
+					});
+					if (entry.attachments.length > 0) {
+						console.log("[MessageHistory] First attachment:", {
+							relativePath: entry.attachments[0].relativePath,
+							type: entry.attachments[0].type,
+							hasImageData: !!entry.attachments[0].imageData,
+						});
+					}
 					setHistoryIndex(newIndex);
 					setInput(entry.text);
 					setPendingAttachments(entry.attachments);
@@ -133,6 +149,11 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 					// Navigate up in history
 					const newIndex = historyIndex - 1;
 					const entry = messageHistory[newIndex];
+					console.log("[MessageHistory] Navigate up:", {
+						newIndex,
+						text: entry.text.substring(0, 50),
+						attachments: entry.attachments.length,
+					});
 					setHistoryIndex(newIndex);
 					setInput(entry.text);
 					setPendingAttachments(entry.attachments);

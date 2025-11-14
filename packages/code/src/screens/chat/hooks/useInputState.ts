@@ -49,6 +49,9 @@ export function useInputState(): InputState {
 				// Extract messages array from paginated result
 				const messages = Array.isArray(result) ? result : result?.messages || [];
 
+				console.log("[useInputState] Loaded messages from DB:", messages.length);
+				console.log("[useInputState] First message:", messages[0]);
+
 				// Convert DB messages to MessageHistoryEntry format
 				const entries: MessageHistoryEntry[] = messages.map((msg: { text: string; files: Array<{ relativePath: string; base64: string; mediaType: string; size: number }> }) => {
 					// Convert DB files to FileAttachment format
@@ -62,6 +65,18 @@ export function useInputState(): InputState {
 						imageData: file.mediaType.startsWith("image/") ? file.base64 : undefined,
 					}));
 
+					console.log("[useInputState] Message text:", msg.text.substring(0, 50));
+					console.log("[useInputState] Files:", msg.files.length);
+					console.log("[useInputState] Attachments:", attachments.length);
+					if (attachments.length > 0) {
+						console.log("[useInputState] First attachment:", {
+							relativePath: attachments[0].relativePath,
+							type: attachments[0].type,
+							hasImageData: !!attachments[0].imageData,
+							imageDataLength: attachments[0].imageData?.length,
+						});
+					}
+
 					return {
 						text: msg.text,
 						attachments,
@@ -70,6 +85,7 @@ export function useInputState(): InputState {
 
 				// Reverse to get oldest-first order (for bash-like navigation)
 				setMessageHistory(entries.reverse());
+				console.log("[useInputState] Total history entries:", entries.length);
 			} catch (error) {
 				console.error("Failed to load message history:", error);
 			}
