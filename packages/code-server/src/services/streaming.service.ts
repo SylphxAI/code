@@ -264,9 +264,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				if (!providerConfig) {
 					throw new Error(`Provider ${provider} is not configured`);
 				}
-				console.log(`[streamAIResponse] Provider: ${provider}, Model: ${modelName}`);
 				const providerInstance = getProvider(provider);
-				console.log(`[streamAIResponse] Provider instance created: ${providerInstance.name}`);
 
 				// 3. Fetch file content from storage (ChatGPT-style architecture)
 				// Files uploaded immediately on paste/select, only fileId reference sent
@@ -283,9 +281,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 						} else if (part.type === "file") {
 							try {
 								// Fetch file content from object storage using fileId
-								console.log(
-									`[streamAIResponse] Fetching file from storage: ${part.relativePath} (${part.fileId})`,
-								);
 								const fileRepo = messageRepository.getFileRepository();
 								const fileRecord = await fileRepo.getFileContent(part.fileId);
 
@@ -375,9 +370,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				const systemPrompt = buildSystemPrompt(agentId, agents, enabledRules);
 
 				// 8. Create AI model
-				console.log(`[streamAIResponse] Creating model client for ${provider} with model: ${modelName}`);
 				const model = providerInstance.createClient(providerConfig, modelName);
-				console.log(`[streamAIResponse] Model client created successfully:`, model.constructor.name);
 
 				// 9. Determine tool support from capabilities and load tools if supported
 				const supportsTools = modelCapabilities.has("tools");
@@ -400,8 +393,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 				let currentStepParts: MessagePart[] = [];
 				let lastCompletedStepNumber = -1;
-
-				console.log(`[streamAIResponse] Starting streamText with provider: ${provider}, model: ${modelName}`);
 
 				// Add timeout safeguard to prevent UI from hanging
 				const STREAM_TIMEOUT_MS = 45000; // 45 seconds - generous timeout for slow providers
@@ -970,8 +961,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 						status: "completed",
 					});
 					observer.next({ type: "error", error: timeoutError });
-				} else if (!hasEmittedAnyEvent) {
-					console.log(`[streamAIResponse] WARNING: No events emitted but stream completed within ${elapsedMs}ms`);
 				}
 
 				// 13. Emit error event if no valid response (onStepFinish handles step completion)
