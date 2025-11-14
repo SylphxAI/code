@@ -47,14 +47,15 @@ const FileAttachmentSchema = z.object({
 });
 
 // Parsed content part schema (from frontend parseUserInput)
+// ChatGPT-style: fileId reference to uploaded file in object storage
 const ParsedContentPartSchema = z.discriminatedUnion("type", [
 	z.object({ type: z.literal("text"), content: z.string() }),
 	z.object({
 		type: z.literal("file"),
-		path: z.string(),
+		fileId: z.string(), // Reference to uploaded file in object storage
 		relativePath: z.string(),
-		size: z.number().optional(),
-		mimeType: z.string().optional(),
+		size: z.number(),
+		mimeType: z.string(),
 	}),
 ]);
 
