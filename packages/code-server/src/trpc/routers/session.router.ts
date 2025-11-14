@@ -492,7 +492,7 @@ export const sessionRouter = router({
 			};
 
 			// Tools tokens
-			const tools = getAISDKTools();
+			const tools = await getAISDKTools();
 			const toolTokens: Record<string, number> = {};
 			let toolsTokensTotal = 0;
 

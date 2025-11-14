@@ -23,6 +23,9 @@ const mcpToolRegistry = new Map<string, MCPToolInfo>();
  * Tool ID format: serverId__toolName (e.g., "github__create-issue")
  * IMPORTANT: Use double underscore (__) instead of colon (:) for OpenAI compatibility
  * OpenAI only allows tool names matching: ^[a-zA-Z0-9_-]+
+ *
+ * @deprecated This function is no longer used. Use convertAllMCPToolsToAISDK() instead,
+ * which directly uses AI SDK's native tools() method without manual execute wrapper.
  */
 export function convertMCPToolToAISDK(mcpTool: MCPToolInfo): CoreTool {
 	const toolId = `${mcpTool.serverId}__${mcpTool.name}`;
@@ -176,16 +179,39 @@ export function getMCPToolsByServerId(serverId: string): MCPToolInfo[] {
 }
 
 /**
- * Convert all MCP tools to AI SDK tools
+ * Convert all MCP tools to AI SDK tools (native format with prefixed names)
+ * Uses AI SDK's native tools() method and only renames for collision avoidance
  */
-export function convertAllMCPToolsToAISDK(): CoreTool[] {
-	const tools: CoreTool[] = [];
+export async function convertAllMCPToolsToAISDK(): Promise<Record<string, CoreTool>> {
+	const mcpManager = getMCPManager();
+	const allTools: Record<string, CoreTool> = {};
 
-	for (const mcpTool of mcpToolRegistry.values()) {
-		tools.push(convertMCPToolToAISDK(mcpTool));
+	// Get all connected MCP servers
+	const serverIds = mcpManager.getConnectedServerIds();
+
+	for (const serverId of serverIds) {
+		const client = mcpManager.getClient(serverId);
+		if (!client) continue;
+
+		try {
+			// Get tools from MCP client (AI SDK native format with execute)
+			const tools = await client.tools();
+
+			// Rename tools to avoid conflicts: serverId__toolName
+			// ASSUMPTION: AI SDK tools already have proper execute functions
+			for (const [toolName, tool] of Object.entries(tools)) {
+				const prefixedName = `${serverId}__${toolName}`;
+				allTools[prefixedName] = tool;
+			}
+		} catch (error) {
+			logger.error("Failed to get tools from MCP server", {
+				serverId,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
 	}
 
-	return tools;
+	return allTools;
 }
 
 /**

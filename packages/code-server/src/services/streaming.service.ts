@@ -375,7 +375,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				// 9. Determine tool support from capabilities and load tools if supported
 				const supportsTools = modelCapabilities.has("tools");
 				const tools = supportsTools
-					? getAISDKTools({ interactive: hasUserInputHandler() })
+					? await getAISDKTools({ interactive: hasUserInputHandler() })
 					: undefined;
 
 				// 9.5. Check if title generation is needed (before creating streams)

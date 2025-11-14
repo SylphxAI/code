@@ -33,10 +33,10 @@ export interface GetToolsOptions {
  * @example
  * ```typescript
  * // Without todo tools (headless mode)
- * const tools = getAISDKTools();
+ * const tools = await getAISDKTools();
  *
  * // With todo tools (requires session context)
- * const tools = getAISDKTools({
+ * const tools = await getAISDKTools({
  *   todoContext: {
  *     getCurrentSession: async () => await db.getCurrentSession(),
  *     updateTodos: async (sessionId, todos, nextId) => await db.updateTodos(...)
@@ -44,7 +44,7 @@ export interface GetToolsOptions {
  * });
  * ```
  */
-export function getAISDKTools(options: GetToolsOptions = {}): Record<string, any> {
+export async function getAISDKTools(options: GetToolsOptions = {}): Promise<Record<string, any>> {
 	const { interactive = true, todoContext } = options;
 
 	const baseTools = {
@@ -54,15 +54,8 @@ export function getAISDKTools(options: GetToolsOptions = {}): Record<string, any
 		...(interactive ? interactionTools : {}),
 	};
 
-	// Convert MCP tools array to Record
-	const mcpToolsArray = convertAllMCPToolsToAISDK();
-	const mcpTools = mcpToolsArray.reduce(
-		(acc, tool) => {
-			acc[tool.name] = tool;
-			return acc;
-		},
-		{} as Record<string, any>,
-	);
+	// Get MCP tools (AI SDK native format, already a Record)
+	const mcpTools = await convertAllMCPToolsToAISDK();
 
 	// Add todo tools if context is provided
 	if (todoContext) {
@@ -102,6 +95,7 @@ export function getToolCategories(options: GetToolsOptions = {}): Record<string,
 /**
  * Get all tool names
  */
-export function getAllToolNames(options: GetToolsOptions = {}): string[] {
-	return Object.keys(getAISDKTools(options));
+export async function getAllToolNames(options: GetToolsOptions = {}): Promise<string[]> {
+	const tools = await getAISDKTools(options);
+	return Object.keys(tools);
 }

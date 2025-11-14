@@ -104,7 +104,7 @@ export async function calculateBaseContextTokens(
 	const allAgents = await loadAllAgents(cwd);
 	const allRules = await loadAllRules(cwd);
 	const enabledRules = allRules.filter((rule) => enabledRuleIds.includes(rule.id));
-	const tools = getAISDKTools();
+	const tools = await getAISDKTools();
 
 	// Generate content hash for cache key
 	const contentHash = generateBaseContextHash(agentId, allAgents, enabledRules, tools);
