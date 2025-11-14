@@ -16,7 +16,7 @@ export interface FileAutocompleteHandlersDeps {
 	setInput: (value: string) => void;
 	setCursor: (value: number) => void;
 	setSelectedFileIndex: React.Dispatch<React.SetStateAction<number>>;
-	addAttachment: (file: { path: string; relativePath: string; size: number }) => void;
+	addAttachment: (file: { path: string; relativePath: string; size: number }) => Promise<void>;
 }
 
 export interface FileAutocompleteHandlers {
@@ -63,17 +63,17 @@ export function useFileAutocompleteHandlers(
 	} = deps;
 
 	/**
-	 * Handle file selection
+	 * Handle file selection (ChatGPT-style: immediate upload)
 	 * Adds the selected file to attachments and updates the input
 	 */
-	const handleSelect = useCallback(() => {
+	const handleSelect = useCallback(async () => {
 		if (filteredFileInfo.files.length === 0) return;
 
 		const selectedFile = filteredFileInfo.files[selectedFileIndex];
 		if (!selectedFile) return;
 
-		// Add file to attachments
-		addAttachment({
+		// Add file to attachments (uploads immediately to get fileId)
+		await addAttachment({
 			path: selectedFile.path,
 			relativePath: selectedFile.relativePath,
 			size: selectedFile.size,

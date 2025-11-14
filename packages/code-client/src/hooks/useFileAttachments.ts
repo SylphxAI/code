@@ -1,11 +1,15 @@
 /**
- * File Attachments Hook
+ * File Attachments Hook (ChatGPT-style architecture)
  * Manages file attachments and synchronization with @file references in input
+ * Files are uploaded immediately on paste/select, stored by fileId
  */
 
 import { useState, useEffect, useMemo } from "react";
 import type { FileAttachment } from "@sylphx/code-core";
 import { extractFileReferences } from "../utils/text-rendering-utils.js";
+import { getTRPCClient } from "../trpc.js";
+import { readFile } from "node:fs/promises";
+import { lookup } from "mime-types";
 
 export function useFileAttachments(input: string) {
 	const [pendingAttachments, setPendingAttachments] = useState<FileAttachment[]>([]);
@@ -26,15 +30,71 @@ export function useFileAttachments(input: string) {
 		return new Set(pendingAttachments.map((att) => att.relativePath));
 	}, [pendingAttachments]);
 
-	// Add attachment
-	const addAttachment = (attachment: FileAttachment) => {
-		setPendingAttachments((prev) => {
-			// Check if already attached
-			if (prev.some((a) => a.path === attachment.path)) {
-				return prev;
+	// Add attachment (ChatGPT-style: immediate upload)
+	const addAttachment = async (attachment: Omit<FileAttachment, "fileId"> & { fileId?: string; path?: string; imageData?: string }) => {
+		// If fileId already provided, just add to state
+		if (attachment.fileId) {
+			setPendingAttachments((prev) => {
+				// Check if already attached
+				if (prev.some((a) => a.fileId === attachment.fileId)) {
+					return prev;
+				}
+				return [...prev, attachment as FileAttachment];
+			});
+			return;
+		}
+
+		// Otherwise, upload file immediately to get fileId
+		try {
+			const client = await getTRPCClient();
+
+			// Read file content
+			let base64Content: string;
+			let mimeType: string;
+			let size: number;
+
+			if (attachment.imageData) {
+				// Image from clipboard
+				base64Content = attachment.imageData;
+				mimeType = attachment.mimeType || "image/png";
+				size = attachment.size || Buffer.from(attachment.imageData, "base64").length;
+			} else if (attachment.path) {
+				// File from disk
+				const buffer = await readFile(attachment.path);
+				base64Content = buffer.toString("base64");
+				mimeType = attachment.mimeType || lookup(attachment.path) || "application/octet-stream";
+				size = attachment.size || buffer.length;
+			} else {
+				console.error("[addAttachment] No fileId, path, or imageData provided");
+				return;
 			}
-			return [...prev, attachment];
-		});
+
+			// Upload to server
+			const result = await client.file.upload.mutate({
+				relativePath: attachment.relativePath,
+				mediaType: mimeType,
+				size,
+				content: base64Content,
+			});
+
+			// Add to state with fileId
+			setPendingAttachments((prev) => {
+				// Check if already attached
+				if (prev.some((a) => a.fileId === result.fileId)) {
+					return prev;
+				}
+				return [...prev, {
+					fileId: result.fileId,
+					relativePath: attachment.relativePath,
+					size,
+					mimeType,
+					type: attachment.type,
+				}];
+			});
+		} catch (error) {
+			console.error("[addAttachment] Failed to upload file:", error);
+			// Don't add to state if upload fails
+		}
 	};
 
 	// Clear all attachments
