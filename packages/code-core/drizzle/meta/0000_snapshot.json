@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d71bfb34-755a-409e-bfb4-ceb8a2e9afc1",
+  "id": "a5a71581-3eb2-41fc-9286-4c920471f1eb",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "codebase_files": {
@@ -230,8 +230,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "content": {
-          "name": "content",
+        "storage_key": {
+          "name": "storage_key",
           "type": "text",
           "primaryKey": false,
           "notNull": true,

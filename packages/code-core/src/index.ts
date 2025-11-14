@@ -90,6 +90,12 @@ export {
 export { events } from "./database/schema.js";
 export type { Event, NewEvent } from "./database/schema.js";
 
+// ============================================================================
+// Storage (Functional)
+// ============================================================================
+export type { StorageOps } from "./storage/functional.js";
+export { createStorageOps, getStorageConfigFromEnv } from "./storage/index.js";
+
 // Use DatabaseService from code-server/src/context.ts for database access
 
 // ============================================================================

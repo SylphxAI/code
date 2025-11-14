@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1763044060769,
-      "tag": "0000_charming_tyrannus",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1763125777242,
-      "tag": "0001_sturdy_violations",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1763126264597,
-      "tag": "0002_equal_daredevil",
+      "when": 1763126957186,
+      "tag": "0000_nappy_tempest",
       "breakpoints": true
     }
   ]

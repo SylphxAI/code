@@ -19,6 +19,8 @@ import {
 	loadAllAgents,
 	loadAllRules,
 	DEFAULT_AGENT_ID,
+	createStorageOps,
+	getStorageConfigFromEnv,
 } from "@sylphx/code-core";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { AppEventStream, initializeEventStream } from "./services/app-event-stream.service.js";
@@ -62,7 +64,12 @@ function createDatabaseService(config: DatabaseConfig): DatabaseService {
 
 		db = await initializeDatabase(() => {});
 		repository = new SessionRepository(db);
-		messageRepository = new MessageRepository(db);
+
+		// Create storage for file handling
+		const storageConfig = getStorageConfigFromEnv();
+		const storage = createStorageOps(storageConfig);
+		messageRepository = new MessageRepository(db, storage);
+
 		todoRepository = new TodoRepository(db);
 		initialized = true;
 	};

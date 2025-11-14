@@ -35,7 +35,7 @@ CREATE TABLE `file_contents` (
 	`relative_path` text NOT NULL,
 	`media_type` text NOT NULL,
 	`size` integer NOT NULL,
-	`content` text NOT NULL,
+	`storage_key` text NOT NULL,
 	`is_text` integer NOT NULL,
 	`text_content` text,
 	`sha256` text,

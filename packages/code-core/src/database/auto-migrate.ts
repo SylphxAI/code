@@ -10,7 +10,8 @@
  * 5. Completely transparent to user
  */
 
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import { readdir, mkdir, readFile as fsReadFile, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -20,7 +21,6 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 import { sql } from "drizzle-orm";
 import { SessionRepository } from "./session-repository.js";
 import { loadSession } from "../utils/legacy-session-manager.js";
-import { findPackageRoot } from "../utils/paths.js";
 
 const SESSION_DIR = join(homedir(), ".sylphx", "sessions");
 const DB_DIR = join(homedir(), ".sylphx-code");
@@ -112,10 +112,12 @@ async function runSchemaMigrations(db: LibSQLDatabase): Promise<void> {
 	// Ensure database directory exists
 	await mkdir(DB_DIR, { recursive: true });
 
-	// Run Drizzle migrations using package root to find migrations
-	// This works with npm global install
-	const packageRoot = findPackageRoot("drizzle migrations");
-	const migrationsPath = join(packageRoot, "drizzle");
+	// FIXED: Find migrations relative to this file, not relative to execution context
+	// When running from node_modules: dist/database/auto-migrate.js -> ../../drizzle
+	// When running from source: src/database/auto-migrate.ts -> ../../drizzle
+	const __filename = fileURLToPath(import.meta.url);
+	const __dirname = dirname(__filename);
+	const migrationsPath = join(__dirname, "..", "..", "drizzle");
 
 	if (!existsSync(migrationsPath)) {
 		throw new Error(`Drizzle migrations not found at ${migrationsPath}`);
