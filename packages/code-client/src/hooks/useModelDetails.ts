@@ -38,10 +38,7 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		console.log("[useModelDetails] Called with:", { providerId, modelId });
-
 		if (!providerId || !modelId) {
-			console.log("[useModelDetails] Missing provider or model, returning null");
 			setDetails({
 				contextLength: null,
 				capabilities: null,
@@ -59,15 +56,11 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 				setLoading(true);
 				setError(null);
 
-				console.log("[useModelDetails] Fetching details for:", { providerId, modelId });
-
 				// Fetch model details and tokenizer info in parallel
 				const [detailsResult, tokInfo] = await Promise.all([
 					trpc.config.getModelDetails.query({ providerId, modelId }),
 					trpc.config.getTokenizerInfo.query({ model: modelId }),
 				]);
-
-				console.log("[useModelDetails] Received results:", { detailsResult, tokInfo });
 
 				if (mounted) {
 					const contextLength =

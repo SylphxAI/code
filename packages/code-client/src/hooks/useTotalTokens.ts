@@ -40,7 +40,6 @@ export function useTotalTokens(
 	useEffect(() => {
 		// Only calculate if we have provider and model
 		if (!provider || !model) {
-			console.log("[useTotalTokens] No provider/model selected");
 			setTotalTokens(0);
 			return;
 		}
@@ -51,15 +50,6 @@ export function useTotalTokens(
 			try {
 				setLoading(true);
 
-				console.log("[useTotalTokens] Fetching for:", {
-					sessionId,
-					provider,
-					model,
-					agentId: agentId || "coder",
-					enabledRuleIds,
-					ruleCount: enabledRuleIds.length,
-				});
-
 				const result = await trpc.session.getTotalTokens.query({
 					sessionId,
 					model,
@@ -67,23 +57,13 @@ export function useTotalTokens(
 					enabledRuleIds: enabledRuleIds || [],
 				});
 
-				console.log("[useTotalTokens] Raw result:", JSON.stringify(result, null, 2));
-
 				if (mounted) {
 					if (result.success) {
-						console.log("[useTotalTokens] Success, updating state to:", result.totalTokens);
 						setTotalTokens(result.totalTokens);
-						console.log("[useTotalTokens] State updated, breakdown:", {
-							totalTokens: result.totalTokens,
-							baseContextTokens: result.baseContextTokens,
-							messagesTokens: result.messagesTokens,
-						});
 					} else {
 						console.error("[useTotalTokens] Failed:", result.error);
 						setTotalTokens(0);
 					}
-				} else {
-					console.log("[useTotalTokens] Component unmounted, skipping state update");
 				}
 			} catch (error) {
 				if (mounted) {
@@ -114,7 +94,6 @@ export function useTotalTokens(
 
 		const unsubscribe = eventBus.on("streaming:completed", () => {
 			// Refetch tokens after streaming completes
-			console.log("[useTotalTokens] Streaming completed, refetching...");
 			if (provider && model) {
 				trpc.session
 					.getTotalTokens.query({
