@@ -17,6 +17,7 @@ import type { MessagePart, TokenUsage, MessageMetadata } from "../types/session.
 import type { Todo as TodoType } from "../types/todo.types.js";
 import { retryDatabase } from "../utils/retry.js";
 import { FileRepository } from "./file-repository.js";
+import type { StorageOps } from "../storage/functional.js";
 
 /**
  * Zod schema for validating MessagePart JSON data from database
@@ -26,8 +27,11 @@ const MessagePartSchema: z.ZodType<MessagePart> = z.any(); // ASSUMPTION: Messag
 export class MessageRepository {
 	private fileRepo: FileRepository;
 
-	constructor(private db: LibSQLDatabase) {
-		this.fileRepo = new FileRepository(db);
+	constructor(
+		private db: LibSQLDatabase,
+		storage?: StorageOps,
+	) {
+		this.fileRepo = new FileRepository(db, storage);
 	}
 
 	/**
