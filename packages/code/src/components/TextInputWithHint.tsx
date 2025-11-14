@@ -26,6 +26,7 @@ interface TextInputWithHintProps {
 	onUpArrow?: () => void; // Callback when Up Arrow is pressed (for autocomplete)
 	onDownArrow?: () => void; // Callback when Down Arrow is pressed (for autocomplete)
 	onEscape?: () => void; // Callback when ESC is pressed (for abort/cancel)
+	onPasteImage?: () => void | Promise<void>; // Callback when Ctrl+V is pressed (for image paste)
 	maxLines?: number; // Maximum lines to display (default: 10, use 1 for single-line)
 }
 
@@ -46,6 +47,7 @@ function TextInputWithHint({
 	onUpArrow,
 	onDownArrow,
 	onEscape,
+	onPasteImage,
 	maxLines = 10,
 }: TextInputWithHintProps) {
 	// Internal cursor state (used when not controlled from parent)
@@ -100,6 +102,7 @@ function TextInputWithHint({
 				onUpArrow={onUpArrow}
 				onDownArrow={onDownArrow}
 				onEscape={onEscape}
+				onPasteImage={onPasteImage}
 				maxLines={maxLines}
 			/>
 			{hint && value.length > 0 ? <Text color="gray">{hint}</Text> : null}

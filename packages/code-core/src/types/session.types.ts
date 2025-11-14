@@ -168,9 +168,11 @@ export interface MessageStep {
  */
 export interface FileAttachmentInput {
 	path: string; // Absolute path (for reading file content)
-	relativePath: string; // Display path (e.g., "src/app.ts")
+	relativePath: string; // Display path (e.g., "src/app.ts" or "Image #1")
 	size?: number; // File size in bytes (optional)
 	mimeType?: string; // MIME type (optional, will be detected if not provided)
+	type?: "file" | "image"; // Attachment type (default: "file")
+	imageData?: string; // Base64 encoded image data (for image type)
 }
 
 /**

@@ -32,6 +32,7 @@ export interface ControlledTextInputProps {
 	onUpArrow?: () => void; // Callback when Up Arrow is pressed (for autocomplete)
 	onDownArrow?: () => void; // Callback when Down Arrow is pressed (for autocomplete)
 	onEscape?: () => void; // Callback when ESC is pressed (for abort/cancel)
+	onPasteImage?: () => void | Promise<void>; // Callback when Ctrl+V is pressed (for image paste)
 }
 
 function ControlledTextInput({
@@ -51,6 +52,7 @@ function ControlledTextInput({
 	onUpArrow,
 	onDownArrow,
 	onEscape,
+	onPasteImage,
 }: ControlledTextInputProps) {
 	// Kill buffer for Ctrl+K, Ctrl+U, Ctrl+W → Ctrl+Y
 	const killBufferRef = useRef("");
@@ -80,6 +82,12 @@ function ControlledTextInput({
 			// ESC - abort/cancel (highest priority)
 			if (key.escape && onEscape) {
 				onEscape();
+				return;
+			}
+
+			// Ctrl+V - paste image from clipboard
+			if (key.ctrl && input?.toLowerCase() === "v" && onPasteImage) {
+				onPasteImage();
 				return;
 			}
 

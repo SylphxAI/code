@@ -164,17 +164,24 @@ export function renderTextWithTags(
 }
 
 /**
- * Extract @file references from text
+ * Extract @file references and [Image #N] tags from text
  */
 export function extractFileReferences(text: string): string[] {
 	const refs: string[] = [];
-	const regex = /@([^\s]+)/g;
-	let match;
 
-	while ((match = regex.exec(text)) !== null) {
+	// Extract @file references
+	const fileRegex = /@([^\s]+)/g;
+	let match;
+	while ((match = fileRegex.exec(text)) !== null) {
 		if (match[1]) {
 			refs.push(match[1]);
 		}
+	}
+
+	// Extract [Image #N] tags
+	const imageRegex = /\[Image #\d+\]/g;
+	while ((match = imageRegex.exec(text)) !== null) {
+		refs.push(match[0]); // Push the full tag like "[Image #1]"
 	}
 
 	return refs;

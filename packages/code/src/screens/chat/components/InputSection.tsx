@@ -34,6 +34,7 @@ interface InputSectionProps {
 	onFileAutocompleteEnter?: () => void;
 	onFileAutocompleteUpArrow?: () => void;
 	onFileAutocompleteDownArrow?: () => void;
+	onPasteImage?: () => void | Promise<void>;
 
 	// Selection mode
 	pendingInput: WaitForInputOptions | null;
@@ -143,6 +144,7 @@ export function InputSection({
 	inputComponentTitle,
 	isStreaming,
 	abortControllerRef,
+	onPasteImage,
 }: InputSectionProps) {
 	// Use ref to always have the latest isStreaming value in onEscape callback
 	// This avoids stale closure issues with React.memo

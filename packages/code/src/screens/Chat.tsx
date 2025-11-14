@@ -78,6 +78,8 @@ import {
 // Streaming utilities
 import { createSubscriptionSendUserMessageToAI } from "./chat/streaming/subscriptionAdapter.js";
 import { handleStreamEvent } from "./chat/streaming/streamEventHandlers.js";
+// Clipboard utilities
+import { hasClipboardImage, readClipboardImage, imageToBase64 } from "../utils/clipboard.js";
 
 // Note: useMessageHistory not needed - using useInputState which includes history management
 
@@ -541,6 +543,40 @@ export default function Chat(_props: ChatProps) {
 		addAttachment,
 	});
 
+	// Image paste handler
+	const handlePasteImage = useCallback(async () => {
+		// Check if clipboard contains an image
+		const hasImage = await hasClipboardImage();
+		if (!hasImage) return;
+
+		// Read image from clipboard
+		const imagePath = await readClipboardImage();
+		if (!imagePath) return;
+
+		// Convert to base64
+		const base64Data = await imageToBase64(imagePath);
+
+		// Count existing image attachments to generate tag
+		const imageCount = pendingAttachments.filter((att) => att.type === "image").length;
+		const imageTag = `[Image #${imageCount + 1}]`;
+
+		// Add image to attachments
+		addAttachment({
+			path: imagePath,
+			relativePath: imageTag,
+			type: "image",
+			imageData: base64Data,
+		});
+
+		// Insert tag at cursor position
+		const before = input.slice(0, cursor);
+		const after = input.slice(cursor);
+		const newInput = `${before}${imageTag}${after}`;
+
+		setInput(newInput);
+		setCursor(cursor + imageTag.length);
+	}, [input, cursor, setInput, setCursor, addAttachment, pendingAttachments]);
+
 	// Message history navigation - now handled by MessageHistoryModeHandler in InputModeManager
 
 	// Reset selected indices when filtered lists change
@@ -635,6 +671,7 @@ export default function Chat(_props: ChatProps) {
 						inputComponentTitle={inputComponentTitle}
 						isStreaming={isStreaming}
 						abortControllerRef={abortControllerRef}
+						onPasteImage={handlePasteImage}
 					/>
 				</Box>
 
