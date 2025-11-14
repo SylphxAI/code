@@ -85,10 +85,19 @@ function ControlledTextInput({
 				return;
 			}
 
+			// DEBUG: Log Ctrl key presses
+			if (key.ctrl) {
+				console.log("[ControlledTextInput] Ctrl pressed, input:", JSON.stringify(input), "onPasteImage:", !!onPasteImage);
+			}
+
 			// Ctrl+V - paste image from clipboard
-			if (key.ctrl && input?.toLowerCase() === "v" && onPasteImage) {
-				onPasteImage();
-				return;
+			if (key.ctrl && input?.toLowerCase() === "v") {
+				console.log("[ControlledTextInput] Ctrl+V detected, onPasteImage:", !!onPasteImage);
+				if (onPasteImage) {
+					console.log("[ControlledTextInput] Calling onPasteImage");
+					onPasteImage();
+					return;
+				}
 			}
 
 			// ===========================================
@@ -307,6 +316,7 @@ function ControlledTextInput({
 			availableWidth,
 			disableUpDownArrows,
 			onEscape,
+			onPasteImage,
 		],
 	);
 

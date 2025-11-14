@@ -326,6 +326,7 @@ export function InputSection({
 											abortControllerRef.current.abort();
 										}
 									}}
+								onPasteImage={onPasteImage}
 								/>
 							</Box>
 
