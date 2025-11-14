@@ -143,48 +143,46 @@ export default function StatusBar({
 		}
 	}
 
-	// Format MCP status (compact)
-	let mcpStatusText = "";
-	if (mcpStatus.total > 0) {
-		if (mcpStatus.connected > 0) {
-			mcpStatusText = `${mcpStatus.connected}/${mcpStatus.total} (${mcpStatus.toolCount}🔧)`;
-		} else if (mcpStatus.failed > 0) {
-			mcpStatusText = `0/${mcpStatus.total}`;
-		} else {
-			mcpStatusText = `0/${mcpStatus.total}...`;
-		}
-	}
-
 	return (
-		<Box flexGrow={1} justifyContent="space-between" marginBottom={1}>
-			{/* Left side: Agent, Rules, Provider and Model */}
+		<Box flexDirection="column" marginBottom={1}>
+			{/* Top row: Agent, Rules, MCP */}
 			<Box>
 				<Text dimColor>
 					{agentName && `${agentName} · `}
-					{enabledRulesCount}{enabledRulesCount === 1 ? "r" : "r"}
-					{mcpStatusText && ` · ${mcpStatusText}`} · {provider} ·{" "}
+					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
+					{mcpStatus.total > 0 && ` · MCP: ${mcpStatus.connected}/${mcpStatus.total}`}
+					{mcpStatus.connected > 0 && ` (${mcpStatus.toolCount} tools)`}
 				</Text>
-				<Text
-					color={modelStatus === "unavailable" ? "red" : undefined}
-					dimColor={modelStatus !== "unavailable"}
-				>
-					{model}
-					{modelStatus === "unavailable" && " (unavailable)"}
-				</Text>
-				{capabilityLabel && <Text dimColor>{capabilityLabel}</Text>}
 			</Box>
 
-			{/* Right side: Context usage (SSOT - same as /context) */}
-			<Box>
-				{!loading && contextLength && totalTokensSSOT > 0 ? (
+			{/* Bottom row: Provider, Model, Capabilities, Context */}
+			<Box justifyContent="space-between">
+				<Box>
 					<Text dimColor>
-						{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
-						{usagePercent}%)
+						{provider} ·{" "}
 					</Text>
-				) : null}
-				{!loading && contextLength && totalTokensSSOT === 0 ? (
-					<Text dimColor>{formatTokenCount(contextLength)}</Text>
-				) : null}
+					<Text
+						color={modelStatus === "unavailable" ? "red" : undefined}
+						dimColor={modelStatus !== "unavailable"}
+					>
+						{model}
+						{modelStatus === "unavailable" && " (unavailable)"}
+					</Text>
+					{capabilityLabel && <Text dimColor>{capabilityLabel}</Text>}
+				</Box>
+
+				{/* Context usage (SSOT - same as /context) */}
+				<Box>
+					{!loading && contextLength && totalTokensSSOT > 0 ? (
+						<Text dimColor>
+							{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
+							{usagePercent}%)
+						</Text>
+					) : null}
+					{!loading && contextLength && totalTokensSSOT === 0 ? (
+						<Text dimColor>{formatTokenCount(contextLength)}</Text>
+					) : null}
+				</Box>
 			</Box>
 		</Box>
 	);
