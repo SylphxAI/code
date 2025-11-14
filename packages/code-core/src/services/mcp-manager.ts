@@ -281,7 +281,7 @@ export class MCPManager {
 	}
 
 	/**
-	 * Connect to all enabled servers
+	 * Connect to all enabled servers (parallel, non-blocking)
 	 */
 	async connectToEnabledServers(): Promise<void> {
 		const { listEnabledMCPServers } = await import("../config/mcp-config.js");
@@ -299,29 +299,33 @@ export class MCPManager {
 			count: servers.length,
 		});
 
-		// Connect to each enabled server
-		for (const server of servers) {
-			console.log("[connectToEnabledServers] Server before connect:", JSON.stringify(server, null, 2));
-			console.log("[connectToEnabledServers] Transport:", JSON.stringify(server.transport, null, 2));
-
+		// Connect to all servers in parallel
+		const connectPromises = servers.map(async (server) => {
 			const connectResult = await this.connect(server);
-			console.log("[connectToEnabledServers] Connect result:", connectResult);
 
 			if (!connectResult.success) {
 				logger.error("Failed to auto-connect to server", {
 					serverId: server.id,
 					error: connectResult.error?.message || String(connectResult.error),
 				});
+				return { serverId: server.id, success: false, error: connectResult.error };
 			} else {
 				logger.info("Auto-connected to server", {
 					serverId: server.id,
 					name: server.name,
 				});
+				return { serverId: server.id, success: true };
 			}
-		}
+		});
+
+		const results = await Promise.allSettled(connectPromises);
+		const successful = results.filter((r) => r.status === "fulfilled" && r.value.success).length;
+		const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.success)).length;
 
 		logger.info("Auto-connect completed", {
 			total: servers.length,
+			successful,
+			failed,
 			connected: this.getConnectionCount(),
 		});
 	}

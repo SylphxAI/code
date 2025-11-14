@@ -13,7 +13,7 @@ import { useState, useEffect } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
 import type { MCPServerWithId } from "@sylphx/code-core";
-import { MCPAddWizard } from "./MCPAddWizard.js";
+import { MCPAddForm } from "./MCPAddForm.js";
 import { MCPServerDetails } from "./MCPServerDetails.js";
 
 interface MCPManagementProps {
@@ -130,19 +130,19 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 		);
 	}
 
-	// Step 2: Add server wizard
+	// Step 2: Add server form
 	if (step === "add-server") {
 		return (
-			<MCPAddWizard
+			<MCPAddForm
 				onComplete={async () => {
-					console.log("[MCPManagement] MCPAddWizard onComplete called");
+					console.log("[MCPManagement] MCPAddForm onComplete called");
 					await loadServers();
 					console.log("[MCPManagement] Servers reloaded");
 					setStep("list-servers");
 					console.log("[MCPManagement] Step set to list-servers");
 				}}
 				onCancel={() => {
-					console.log("[MCPManagement] MCPAddWizard onCancel called");
+					console.log("[MCPManagement] MCPAddForm onCancel called");
 					setStep("list-servers");
 				}}
 			/>
