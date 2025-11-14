@@ -264,7 +264,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 					hasSession: !!sessionId,
 				});
 
-				// Build MessagePart[] from content and attachments
+				// Build MessagePart[] from content and attachments (ChatGPT-style: fileId)
 				const messageParts: MessagePart[] = content.map((part) => {
 					if (part.type === "text") {
 						return {
@@ -274,17 +274,15 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 						};
 					} else if (part.type === "file") {
 						// For optimistic update, create file part WITHOUT base64
-						// Server will handle actual file reading and freezing
+						// Server will fetch from storage using fileId and freeze content
 						// We just need to display it correctly in UI
-						const attachment = attachments?.find((a) => a.relativePath === part.relativePath);
-
 						return {
 							type: "file",
 							relativePath: part.relativePath,
-							mediaType: attachment?.mimeType || "application/octet-stream",
+							mediaType: part.mimeType,
 							// Use empty base64 for optimistic display - server will provide real data
 							base64: "",
-							size: part.size || attachment?.size || 0,
+							size: part.size,
 							status: "completed" as const,
 						};
 					}

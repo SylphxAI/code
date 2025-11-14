@@ -6,17 +6,17 @@
 import type { FileAttachment } from "@sylphx/code-core";
 
 /**
- * Content part from parsing user input
+ * Content part from parsing user input (ChatGPT-style architecture)
+ * Files uploaded immediately on paste/select, only fileId reference sent
  */
 export type ParsedContentPart =
 	| { type: "text"; content: string }
 	| {
 			type: "file";
-			path: string;
+			fileId: string; // Reference to uploaded file in object storage
 			relativePath: string;
-			size?: number;
-			mimeType?: string;
-			imageData?: string; // Base64 encoded image data for images
+			size: number;
+			mimeType: string;
 	  };
 
 /**
@@ -27,22 +27,23 @@ export interface ParsedUserInput {
 }
 
 /**
- * Parse user input into ordered content parts
+ * Parse user input into ordered content parts (ChatGPT-style architecture)
  *
  * Converts:
- * - "I share @file.pdf to you" + attachments=[{relativePath: "file.pdf", ...}]
- * - "[Image #1] what is it?" + attachments=[{relativePath: "[Image #1]", type: "image", imageData: "..."}]
+ * - "I share @file.pdf to you" + attachments=[{fileId: "abc123", relativePath: "file.pdf", ...}]
+ * - "[Image #1] what is it?" + attachments=[{fileId: "xyz789", relativePath: "[Image #1]", ...}]
  * Into:
- * - [{type: 'text', content: 'I share '}, {type: 'file', ...}, {type: 'text', content: ' to you'}]
- * - [{type: 'file', imageData: "...", ...}, {type: 'text', content: ' what is it?'}]
+ * - [{type: 'text', content: 'I share '}, {type: 'file', fileId: "abc123", ...}, {type: 'text', content: ' to you'}]
+ * - [{type: 'file', fileId: "xyz789", ...}, {type: 'text', content: ' what is it?'}]
  *
  * Benefits:
  * - Preserves order of text and files/images
  * - Semantic correctness
  * - Backend just needs to transform, not parse
+ * - Files already uploaded to object storage (immediate on paste/select)
  *
  * @param input - User input string with @file and [Image #N] references
- * @param pendingAttachments - Files and images that user selected
+ * @param pendingAttachments - Files and images that user selected (already uploaded, with fileId)
  * @returns Ordered content parts
  */
 export function parseUserInput(
@@ -117,22 +118,15 @@ export function parseUserInput(
 			}
 		}
 
-		// Add file/image part if attachment exists
+		// Add file/image part if attachment exists (ChatGPT-style: fileId only)
 		if (tagMatch.attachment) {
-			const filePart: ParsedContentPart = {
+			parts.push({
 				type: "file",
-				path: tagMatch.attachment.path,
+				fileId: tagMatch.attachment.fileId,
 				relativePath: tagMatch.attachment.relativePath,
 				size: tagMatch.attachment.size,
 				mimeType: tagMatch.attachment.mimeType,
-			};
-
-			// Include imageData for image attachments
-			if (tagMatch.attachment.type === "image" && tagMatch.attachment.imageData) {
-				filePart.imageData = tagMatch.attachment.imageData;
-			}
-
-			parts.push(filePart);
+			});
 		} else {
 			// Invalid reference (no matching attachment) - keep as text
 			parts.push({ type: "text", content: tagMatch.tag });
