@@ -144,30 +144,32 @@ export default function StatusBar({
 	}
 
 	return (
-		<Box marginBottom={1}>
-			{/* All info in single line with space padding */}
-			<Text dimColor>
-				{agentName && `${agentName} · `}
-				{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
-				{mcpStatus.total > 0 && ` · MCP ${mcpStatus.connected}/${mcpStatus.total}`}
-				{mcpStatus.connected > 0 && ` (${mcpStatus.toolCount})`}
-				{" · "}
-				{provider} · {model}
-			</Text>
-			{capabilityLabel && <Text dimColor>{capabilityLabel}</Text>}
-			{!loading && contextLength && totalTokensSSOT > 0 && (
+		<Box width="100%" justifyContent="space-between" marginBottom={1}>
+			{/* Left side */}
+			<Box>
 				<Text dimColor>
+					{agentName && `${agentName} · `}
+					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
+					{mcpStatus.total > 0 && ` · MCP ${mcpStatus.connected}/${mcpStatus.total}`}
+					{mcpStatus.connected > 0 && ` (${mcpStatus.toolCount})`}
 					{" · "}
-					{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
-					{usagePercent}%)
+					{provider} · {model}
 				</Text>
-			)}
-			{!loading && contextLength && totalTokensSSOT === 0 && (
-				<Text dimColor>
-					{" · "}
-					{formatTokenCount(contextLength)}
-				</Text>
-			)}
+				{capabilityLabel && <Text dimColor>{capabilityLabel}</Text>}
+			</Box>
+
+			{/* Right side - context usage */}
+			<Box>
+				{!loading && contextLength && totalTokensSSOT > 0 && (
+					<Text dimColor>
+						{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
+						{usagePercent}%)
+					</Text>
+				)}
+				{!loading && contextLength && totalTokensSSOT === 0 && (
+					<Text dimColor>{formatTokenCount(contextLength)}</Text>
+				)}
+			</Box>
 		</Box>
 	);
 }
