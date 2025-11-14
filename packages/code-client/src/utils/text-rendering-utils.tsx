@@ -6,9 +6,20 @@
 import React from "react";
 import { Text } from "ink";
 
+// Tag match interface
+interface TagMatch {
+	type: "file" | "image";
+	matchText: string; // Full match text (e.g., "@file.ts" or "[Image #1]")
+	tagValue: string; // Tag value for validation (e.g., "file.ts" or "[Image #1]")
+	start: number;
+	end: number;
+}
+
 /**
- * Render text with @file tags highlighted
- * Valid tags (in validTags set) are shown with green background
+ * Render text with @file and [Image #N] tags highlighted
+ * Valid tags (in validTags set) are shown with colored backgrounds
+ * - @file tags: green background
+ * - [Image #N] tags: blue background
  * Invalid tags are rendered as normal text
  */
 export function renderTextWithTags(
@@ -26,16 +37,48 @@ export function renderTextWithTags(
 		return <Text> </Text>;
 	}
 
-	const parts: React.ReactNode[] = [];
-	const regex = /@([^\s]+)/g;
-	let lastIndex = 0;
+	// Find all tag matches (both @file and [Image #N])
+	const matches: TagMatch[] = [];
+
+	// Find @file tags
+	const fileRegex = /@([^\s]+)/g;
 	let match;
+	while ((match = fileRegex.exec(text)) !== null) {
+		if (match[1]) {
+			matches.push({
+				type: "file",
+				matchText: match[0],
+				tagValue: match[1],
+				start: match.index,
+				end: match.index + match[0].length,
+			});
+		}
+	}
+
+	// Find [Image #N] tags
+	const imageRegex = /\[Image #\d+\]/g;
+	while ((match = imageRegex.exec(text)) !== null) {
+		matches.push({
+			type: "image",
+			matchText: match[0],
+			tagValue: match[0],
+			start: match.index,
+			end: match.index + match[0].length,
+		});
+	}
+
+	// Sort matches by position
+	matches.sort((a, b) => a.start - b.start);
+
+	const parts: React.ReactNode[] = [];
+	let lastIndex = 0;
 	let partIndex = 0;
 	let cursorRendered = cursorPos === undefined;
 
-	while ((match = regex.exec(text)) !== null) {
-		const matchStart = match.index;
-		const matchEnd = matchStart + match[0].length;
+	// Process each match in order
+	for (const tagMatch of matches) {
+		const matchStart = tagMatch.start;
+		const matchEnd = tagMatch.end;
 
 		// Add text before match
 		if (matchStart > lastIndex) {
@@ -65,11 +108,13 @@ export function renderTextWithTags(
 		}
 
 		// Check if this tag is valid
-		const fileName = match[1];
-		if (!fileName) continue;
-		const isValidTag = validTags ? validTags.has(fileName) : false;
+		const isValidTag = validTags ? validTags.has(tagMatch.tagValue) : false;
 
-		// Add @file tag (with or without highlighting)
+		// Determine colors based on tag type
+		const bgColor = tagMatch.type === "image" ? "#1a2a47" : "#1a472a"; // Blue for images, green for files
+		const fgColor = tagMatch.type === "image" ? "#5599FF" : "#00FF88"; // Light blue for images, light green for files
+
+		// Add tag (with or without highlighting)
 		if (
 			!cursorRendered &&
 			cursorPos !== undefined &&
@@ -77,20 +122,21 @@ export function renderTextWithTags(
 			cursorPos < matchEnd
 		) {
 			// Cursor is inside the tag
-			const tagText = match[0];
+			const tagText = tagMatch.matchText;
 			const leftPart = tagText.slice(0, cursorPos - matchStart);
 			const rightPart = tagText.slice(cursorPos - matchStart);
 
-			if (isValidTag) {
+			if (isValidTag || tagMatch.type === "image") {
+				// Image tags are always highlighted (no validation needed)
 				parts.push(
-					<Text key={`tag-${partIndex}`} backgroundColor="#1a472a" color="#00FF88">
+					<Text key={`tag-${partIndex}`} backgroundColor={bgColor} color={fgColor}>
 						{leftPart}
 						{showCursor && <Text inverse>{rightPart.length > 0 ? rightPart[0] : " "}</Text>}
 						{rightPart.slice(1)}
 					</Text>,
 				);
 			} else {
-				// Invalid tag - render as normal text with cursor
+				// Invalid file tag - render as normal text with cursor
 				parts.push(
 					<Text key={`tag-${partIndex}`}>
 						{leftPart}
@@ -101,15 +147,16 @@ export function renderTextWithTags(
 			}
 			cursorRendered = true;
 		} else {
-			if (isValidTag) {
+			if (isValidTag || tagMatch.type === "image") {
+				// Image tags are always highlighted (no validation needed)
 				parts.push(
-					<Text key={`tag-${partIndex}`} backgroundColor="#1a472a" color="#00FF88">
-						{match[0]}
+					<Text key={`tag-${partIndex}`} backgroundColor={bgColor} color={fgColor}>
+						{tagMatch.matchText}
 					</Text>,
 				);
 			} else {
-				// Invalid tag - render as normal text
-				parts.push(<Text key={`tag-${partIndex}`}>{match[0]}</Text>);
+				// Invalid file tag - render as normal text
+				parts.push(<Text key={`tag-${partIndex}`}>{tagMatch.matchText}</Text>);
 			}
 		}
 		partIndex++;
