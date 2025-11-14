@@ -7,7 +7,7 @@
 import { useState, useEffect, useMemo } from "react";
 import type { FileAttachment } from "@sylphx/code-core";
 import { extractFileReferences } from "../utils/text-rendering-utils.js";
-import { getTRPCClient } from "../trpc.js";
+import { getTRPCClient } from "../trpc-provider.js";
 import { readFile } from "node:fs/promises";
 import { lookup } from "mime-types";
 
