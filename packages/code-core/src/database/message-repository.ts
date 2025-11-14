@@ -107,12 +107,23 @@ export class MessageRepository {
 					});
 
 					// 3. Insert step parts (with file migration to file_contents)
+					console.log(`[MessageRepository] addMessage - inserting ${content.length} parts for message ${messageId}`);
 					for (let i = 0; i < content.length; i++) {
 						const part = content[i];
 						let partToStore: MessagePart = part;
 
+						// DEBUG: Log incoming part structure
+						console.log(`[MessageRepository] Processing part ${i}:`, {
+							type: part.type,
+							hasBase64: "base64" in part,
+							base64Length: "base64" in part ? (part as any).base64?.length : 0,
+							relativePath: "relativePath" in part ? (part as any).relativePath : "N/A",
+						});
+
 						// Migrate file parts to file_contents table
-						if (part.type === "file" && "base64" in part && part.base64) {
+						const shouldMigrate = part.type === "file" && "base64" in part && part.base64;
+						console.log(`[MessageRepository] Should migrate: ${shouldMigrate}`);
+						if (shouldMigrate) {
 							try {
 								// Convert base64 back to Buffer
 								const buffer = Buffer.from(part.base64, "base64");
@@ -366,7 +377,7 @@ export class MessageRepository {
 			}
 
 			// Group parts by message
-			const messageData = new Map<string, { texts: string[]; fileRefs: string[] }>();
+			const messageData = new Map<string, { texts: string[]; fileRefs: string[]; legacyFiles: Array<{ relativePath: string; base64: string; mediaType: string; size: number }> }>();
 			for (const part of parts) {
 				const messageId = stepToMessage.get(part.stepId);
 				if (!messageId) continue;
@@ -380,7 +391,7 @@ export class MessageRepository {
 				const content = parsed.data as MessagePart;
 
 				if (!messageData.has(messageId)) {
-					messageData.set(messageId, { texts: [], fileRefs: [] });
+					messageData.set(messageId, { texts: [], fileRefs: [], legacyFiles: [] });
 				}
 				const data = messageData.get(messageId)!;
 
@@ -391,6 +402,14 @@ export class MessageRepository {
 					}
 				} else if (content.type === "file-ref") {
 					data.fileRefs.push(content.fileContentId);
+				} else if (content.type === "file" && "base64" in content && content.base64) {
+					// Handle legacy file parts with inline base64 (for backward compatibility)
+					data.legacyFiles.push({
+						relativePath: content.relativePath,
+						base64: content.base64,
+						mediaType: content.mediaType,
+						size: content.size,
+					});
 				}
 			}
 
@@ -398,11 +417,16 @@ export class MessageRepository {
 			const allFileRefs = Array.from(messageData.values()).flatMap((d) => d.fileRefs);
 			const fileContentsMap = new Map<string, { relativePath: string; content: Buffer; mediaType: string; size: number }>();
 
+			console.log("[getRecentUserMessages] Total file refs:", allFileRefs.length);
+			console.log("[getRecentUserMessages] File refs:", allFileRefs);
+
 			if (allFileRefs.length > 0) {
 				const fileContentsRows = await this.db
 					.select()
 					.from(fileContents)
 					.where(inArray(fileContents.id, allFileRefs));
+
+				console.log("[getRecentUserMessages] File contents rows found:", fileContentsRows.length);
 
 				for (const row of fileContentsRows) {
 					fileContentsMap.set(row.id, {
@@ -421,7 +445,9 @@ export class MessageRepository {
 				if (!data) continue;
 
 				const fullText = data.texts.join(" ").trim();
-				const files = data.fileRefs.map((fileId) => {
+
+				// Combine files from both file_contents (file-ref) and legacy inline base64 (file)
+				const filesFromRefs = data.fileRefs.map((fileId) => {
 					const fileData = fileContentsMap.get(fileId);
 					if (!fileData) return null;
 					return {
@@ -432,10 +458,21 @@ export class MessageRepository {
 					};
 				}).filter((f): f is NonNullable<typeof f> => f !== null);
 
+				const files = [...filesFromRefs, ...data.legacyFiles];
+
+				console.log("[getRecentUserMessages] Message:", {
+					text: fullText.substring(0, 50),
+					fileRefsCount: data.fileRefs.length,
+					legacyFilesCount: data.legacyFiles.length,
+					totalFilesCount: files.length,
+				});
+
 				if (fullText || files.length > 0) {
 					result.push({ text: fullText, files });
 				}
 			}
+
+			console.log("[getRecentUserMessages] Returning", result.length, "messages");
 
 			return { messages: result, nextCursor };
 		});
