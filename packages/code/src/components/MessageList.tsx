@@ -297,11 +297,22 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 						(() => {
 							// Flatten all parts with globally unique index
 							let globalPartIndex = 0;
-							return msg.steps.flatMap((step) =>
+							const parts = msg.steps.flatMap((step) =>
 								step.parts.map((part) => (
 									<MessagePart key={`${msg.id}-part-${globalPartIndex++}`} part={part} />
 								)),
 							);
+
+							// If message is active but no parts yet, show spinner
+							if (parts.length === 0 && msg.status === "active") {
+								return (
+									<Box paddingX={1} marginLeft={3}>
+										<Text dimColor>...</Text>
+									</Box>
+								);
+							}
+
+							return parts;
 						})()
 					) : msg.content && msg.content.length > 0 ? (
 						msg.content.map((part, partIdx) => (
