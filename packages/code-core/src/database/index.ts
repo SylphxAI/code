@@ -253,6 +253,10 @@ export {
 export { FileRepository } from "./file-repository.js";
 export type { FileContentInput, FileContentRecord } from "./file-repository.js";
 
+// Export storage layer
+export type { StorageOps } from "../storage/functional.js";
+export { createStorageOps, getStorageConfigFromEnv } from "../storage/index.js";
+
 // Re-export commonly used database functions (these will be added when memory-db is fully implemented)
 // export {
 //   storeMemory,
