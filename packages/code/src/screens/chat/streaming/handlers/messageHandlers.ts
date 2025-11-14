@@ -182,9 +182,6 @@ export function handleStepStart(
 	const currentSessionId = getCurrentSessionId();
 	const currentSession = getSignal($currentSession);
 
-	// DEBUG: Log raw event to verify provider/model are present
-	console.log("[handleStepStart] RAW EVENT:", JSON.stringify(event, null, 2));
-
 	logMessage(
 		"Step started:",
 		event.stepId,
