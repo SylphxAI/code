@@ -20,10 +20,12 @@ const mcpToolRegistry = new Map<string, MCPToolInfo>();
 
 /**
  * Convert MCP tool to AI SDK tool
- * Tool ID format: serverId:toolName (e.g., "github:create-issue")
+ * Tool ID format: serverId__toolName (e.g., "github__create-issue")
+ * IMPORTANT: Use double underscore (__) instead of colon (:) for OpenAI compatibility
+ * OpenAI only allows tool names matching: ^[a-zA-Z0-9_-]+
  */
 export function convertMCPToolToAISDK(mcpTool: MCPToolInfo): CoreTool {
-	const toolId = `${mcpTool.serverId}:${mcpTool.name}`;
+	const toolId = `${mcpTool.serverId}__${mcpTool.name}`;
 	const mcpManager = getMCPManager();
 
 	return {
@@ -78,9 +80,10 @@ export function convertMCPToolToAISDK(mcpTool: MCPToolInfo): CoreTool {
 /**
  * Convert MCP tool to tool metadata
  * For display in tool registry UI
+ * Tool ID format: serverId__toolName (double underscore for OpenAI compatibility)
  */
 export function convertMCPToolToMetadata(mcpTool: MCPToolInfo): Tool {
-	const toolId = `${mcpTool.serverId}:${mcpTool.name}`;
+	const toolId = `${mcpTool.serverId}__${mcpTool.name}`;
 
 	return {
 		id: toolId,
