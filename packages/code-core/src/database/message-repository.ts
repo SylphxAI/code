@@ -438,18 +438,12 @@ export class MessageRepository {
 
 				const fullText = textParts.join(" ").trim();
 
-				console.log("[getRecentUserMessages] Message:", {
-					text: fullText.substring(0, 50),
-					partsCount: parts.length,
-					filesCount: files.length,
-				});
 
 				if (fullText || files.length > 0) {
 					result.push({ text: fullText, files });
 				}
 			}
 
-			console.log("[getRecentUserMessages] Returning", result.length, "messages");
 
 			return { messages: result, nextCursor };
 		});

@@ -65,12 +65,6 @@ export function useInputState(): InputState {
 							type: file.mediaType.startsWith("image/") ? "image" : "file",
 						}));
 
-						if (attachments.length > 0) {
-								fileId: attachments[0].fileId,
-								relativePath: attachments[0].relativePath,
-								type: attachments[0].type,
-							});
-						}
 
 						return {
 							text: msg.text,
