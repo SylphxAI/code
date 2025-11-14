@@ -56,10 +56,10 @@ export const fileRouter = router({
 
 			// Store file to object storage
 			// ORPHAN: stepId is temporary UUID, will be replaced when associated with message
-			const orphanStepId = `orphan-${randomUUID()}`;
+			// Use null for orphaned files (ChatGPT-style immediate upload)
 			const fileId = await fileRepo.storeFileContent(
 				{
-					stepId: orphanStepId,
+					stepId: null as any, // Orphaned file - will be linked when message created
 					ordering: 0,
 					relativePath: input.relativePath,
 					mediaType: input.mediaType,

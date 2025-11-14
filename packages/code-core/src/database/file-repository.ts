@@ -18,7 +18,7 @@ import { fileContents } from "./schema.js";
 import type { StorageOps } from "../storage/functional.js";
 
 export interface FileContentInput {
-	stepId: string;
+	stepId: string | null; // Null for orphaned uploads (ChatGPT-style immediate upload)
 	ordering: number;
 	relativePath: string;
 	mediaType: string;
