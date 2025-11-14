@@ -107,6 +107,23 @@ export {
 export type { AIConfig } from "./config/ai-config.js";
 export type { ProviderConfig } from "./ai/providers/base-provider.js";
 
+// MCP Configuration
+export {
+	loadMCPConfig,
+	saveMCPConfig,
+	mcpConfigExists,
+	addMCPServer,
+	updateMCPServer,
+	removeMCPServer,
+	getMCPServer,
+	listMCPServers,
+	listEnabledMCPServers,
+	enableMCPServer,
+	disableMCPServer,
+	validateMCPServerConfig,
+	getMCPConfigPath,
+} from "./config/mcp-config.js";
+
 // Tool Display Settings
 export {
 	DEFAULT_TOOL_DISPLAY_SETTINGS,
@@ -180,6 +197,7 @@ export type * from "./types/interaction.types.js";
 export type * from "./types/todo.types.js";
 export type * from "./types/model.types.js";
 export type * from "./types/tool.types.js";
+export type * from "./types/mcp.types.js";
 
 // ============================================================================
 // Model Registry (Normalized Model System)
@@ -237,6 +255,25 @@ export {
 	getDangerousTools,
 	getSafeTools,
 } from "./registry/tool-registry.js";
+
+// MCP Tool Integration
+export {
+	convertMCPToolToAISDK,
+	convertMCPToolToMetadata,
+	registerMCPTool,
+	unregisterMCPTool,
+	unregisterMCPServerTools,
+	getMCPTool,
+	getAllMCPTools,
+	getMCPToolsByServerId,
+	convertAllMCPToolsToAISDK,
+	convertAllMCPToolsToMetadata,
+	loadMCPTools,
+	reloadMCPServerTools,
+	isMCPTool,
+	parseMCPToolId,
+	getMCPToolCountByServer,
+} from "./registry/mcp-tool-integration.js";
 
 
 // ============================================================================
@@ -346,6 +383,16 @@ export { createTodoTool, type TodoToolContext } from "./tools/todo.js";
 
 export { scanProjectFiles } from "./utils/file-scanner.js";
 export { sendNotification } from "./utils/notifications.js";
+
+// ============================================================================
+// MCP Manager Service
+// ============================================================================
+export { getMCPManager, resetMCPManager, MCPManager } from "./services/mcp-manager.js";
+
+// ============================================================================
+// MCP Commands
+// ============================================================================
+export { MCP_COMMANDS } from "./commands/mcp-commands.js";
 
 // ============================================================================
 // Version

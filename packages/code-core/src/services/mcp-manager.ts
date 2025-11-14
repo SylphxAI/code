@@ -1,0 +1,339 @@
+/**
+ * MCP Manager Service
+ *
+ * Manages MCP server connections and tool/resource/prompt discovery
+ * Lifecycle: connect → discover → convert → cleanup
+ */
+
+import { experimental_createMCPClient } from "@ai-sdk/mcp";
+import type { LanguageModelV1 } from "ai";
+import type {
+	MCPServerConfig,
+	MCPServerState,
+	MCPServerStatus,
+	MCPToolInfo,
+	MCPResourceInfo,
+	MCPPromptInfo,
+} from "../types/mcp.types.js";
+import { createLogger } from "../utils/logger.js";
+import { type Result, success, tryCatchAsync } from "../ai/result.js";
+
+const logger = createLogger("MCPManager");
+
+/**
+ * MCP Client Instance
+ * Wraps AI SDK MCP client with additional metadata
+ */
+interface MCPClientInstance {
+	serverId: string;
+	config: MCPServerConfig;
+	client: ReturnType<typeof experimental_createMCPClient>;
+	connectedAt: number;
+	lastActivity: number;
+}
+
+/**
+ * MCP Manager
+ * Singleton service managing all MCP connections
+ */
+export class MCPManager {
+	private clients = new Map<string, MCPClientInstance>();
+
+	/**
+	 * Connect to MCP server
+	 */
+	async connect(config: MCPServerConfig): Promise<Result<void, Error>> {
+		return tryCatchAsync(
+			async () => {
+				// Check if already connected
+				if (this.clients.has(config.id)) {
+					logger.warn("MCP server already connected", { serverId: config.id });
+					return;
+				}
+
+				logger.info("Connecting to MCP server", {
+					serverId: config.id,
+					name: config.name,
+					transport: config.transport.type,
+				});
+
+				// Create MCP client based on transport type
+				const client = experimental_createMCPClient(config.transport);
+
+				// Store client instance
+				const instance: MCPClientInstance = {
+					serverId: config.id,
+					config,
+					client,
+					connectedAt: Date.now(),
+					lastActivity: Date.now(),
+				};
+
+				this.clients.set(config.id, instance);
+
+				logger.success("Connected to MCP server", {
+					serverId: config.id,
+					name: config.name,
+				});
+			},
+			(error: unknown) =>
+				new Error(
+					`Failed to connect to MCP server '${config.id}': ${error instanceof Error ? error.message : String(error)}`,
+				),
+		);
+	}
+
+	/**
+	 * Disconnect from MCP server
+	 */
+	async disconnect(serverId: string): Promise<Result<void, Error>> {
+		return tryCatchAsync(
+			async () => {
+				const instance = this.clients.get(serverId);
+				if (!instance) {
+					logger.warn("MCP server not connected", { serverId });
+					return;
+				}
+
+				logger.info("Disconnecting from MCP server", {
+					serverId,
+					name: instance.config.name,
+				});
+
+				// Remove client
+				this.clients.delete(serverId);
+
+				logger.success("Disconnected from MCP server", {
+					serverId,
+					name: instance.config.name,
+				});
+			},
+			(error: unknown) =>
+				new Error(
+					`Failed to disconnect from MCP server '${serverId}': ${error instanceof Error ? error.message : String(error)}`,
+				),
+		);
+	}
+
+	/**
+	 * Disconnect all MCP servers
+	 */
+	async disconnectAll(): Promise<void> {
+		logger.info("Disconnecting all MCP servers", {
+			count: this.clients.size,
+		});
+
+		const disconnectPromises = Array.from(this.clients.keys()).map((serverId) =>
+			this.disconnect(serverId),
+		);
+
+		await Promise.all(disconnectPromises);
+
+		logger.success("Disconnected all MCP servers");
+	}
+
+	/**
+	 * Get MCP client for server
+	 */
+	getClient(serverId: string): ReturnType<typeof experimental_createMCPClient> | null {
+		const instance = this.clients.get(serverId);
+		if (!instance) {
+			return null;
+		}
+
+		// Update last activity
+		instance.lastActivity = Date.now();
+
+		return instance.client;
+	}
+
+	/**
+	 * Get server state
+	 */
+	async getServerState(serverId: string): Promise<MCPServerState | null> {
+		const instance = this.clients.get(serverId);
+		if (!instance) {
+			return null;
+		}
+
+		try {
+			// Get tools, resources, prompts from client
+			const tools = instance.client.tools || [];
+			const resources: unknown[] = []; // Resources not yet exposed in AI SDK MCP
+			const prompts: unknown[] = []; // Prompts not yet exposed in AI SDK MCP
+
+			return {
+				config: instance.config,
+				status: "connected",
+				toolCount: tools.length,
+				resourceCount: resources.length,
+				promptCount: prompts.length,
+				connectedAt: instance.connectedAt,
+				lastActivity: instance.lastActivity,
+			};
+		} catch (error) {
+			logger.error("Failed to get server state", {
+				serverId,
+				error: error instanceof Error ? error.message : String(error),
+			});
+
+			return {
+				config: instance.config,
+				status: "error",
+				error: error instanceof Error ? error.message : String(error),
+				toolCount: 0,
+				resourceCount: 0,
+				promptCount: 0,
+				connectedAt: instance.connectedAt,
+				lastActivity: instance.lastActivity,
+			};
+		}
+	}
+
+	/**
+	 * List all server states
+	 */
+	async listServerStates(): Promise<MCPServerState[]> {
+		const states: MCPServerState[] = [];
+
+		for (const serverId of this.clients.keys()) {
+			const state = await this.getServerState(serverId);
+			if (state) {
+				states.push(state);
+			}
+		}
+
+		return states;
+	}
+
+	/**
+	 * Get tools from MCP server
+	 */
+	async getTools(serverId: string): Promise<Result<MCPToolInfo[], Error>> {
+		return tryCatchAsync(
+			async () => {
+				const instance = this.clients.get(serverId);
+				if (!instance) {
+					throw new Error(`MCP server '${serverId}' not connected`);
+				}
+
+				const tools = instance.client.tools || [];
+
+				// Convert to MCPToolInfo
+				const toolInfos: MCPToolInfo[] = tools.map((tool) => ({
+					serverId,
+					name: tool.name,
+					description: tool.description || "",
+					inputSchema: tool.parameters || {},
+				}));
+
+				return toolInfos;
+			},
+			(error: unknown) =>
+				new Error(
+					`Failed to get tools from MCP server '${serverId}': ${error instanceof Error ? error.message : String(error)}`,
+				),
+		);
+	}
+
+	/**
+	 * Get all tools from all connected servers
+	 */
+	async getAllTools(): Promise<MCPToolInfo[]> {
+		const allTools: MCPToolInfo[] = [];
+
+		for (const serverId of this.clients.keys()) {
+			const result = await this.getTools(serverId);
+			if (result.ok) {
+				allTools.push(...result.data);
+			} else {
+				logger.error("Failed to get tools from server", {
+					serverId,
+					error: result.error.message,
+				});
+			}
+		}
+
+		return allTools;
+	}
+
+	/**
+	 * Check if server is connected
+	 */
+	isConnected(serverId: string): boolean {
+		return this.clients.has(serverId);
+	}
+
+	/**
+	 * Get connected server IDs
+	 */
+	getConnectedServerIds(): string[] {
+		return Array.from(this.clients.keys());
+	}
+
+	/**
+	 * Get connection count
+	 */
+	getConnectionCount(): number {
+		return this.clients.size;
+	}
+
+	/**
+	 * Reconnect to MCP server
+	 */
+	async reconnect(serverId: string): Promise<Result<void, Error>> {
+		return tryCatchAsync(
+			async () => {
+				const instance = this.clients.get(serverId);
+				if (!instance) {
+					throw new Error(`MCP server '${serverId}' not connected`);
+				}
+
+				const config = instance.config;
+
+				// Disconnect
+				const disconnectResult = await this.disconnect(serverId);
+				if (!disconnectResult.ok) {
+					throw disconnectResult.error;
+				}
+
+				// Reconnect
+				const connectResult = await this.connect(config);
+				if (!connectResult.ok) {
+					throw connectResult.error;
+				}
+
+				logger.success("Reconnected to MCP server", {
+					serverId,
+					name: config.name,
+				});
+			},
+			(error: unknown) =>
+				new Error(
+					`Failed to reconnect to MCP server '${serverId}': ${error instanceof Error ? error.message : String(error)}`,
+				),
+		);
+	}
+}
+
+/**
+ * Global MCP manager instance
+ */
+let mcpManagerInstance: MCPManager | null = null;
+
+/**
+ * Get MCP manager instance (singleton)
+ */
+export function getMCPManager(): MCPManager {
+	if (!mcpManagerInstance) {
+		mcpManagerInstance = new MCPManager();
+	}
+	return mcpManagerInstance;
+}
+
+/**
+ * Reset MCP manager instance (for testing)
+ */
+export function resetMCPManager(): void {
+	mcpManagerInstance = null;
+}
