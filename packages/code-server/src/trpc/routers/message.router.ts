@@ -186,6 +186,48 @@ const StreamEventSchema = z.discriminatedUnion("type", [
 		),
 	}),
 
+	// Step events (AI SDK v5 multi-step streaming)
+	z.object({
+		type: z.literal("step-start"),
+		stepId: z.string(),
+		stepIndex: z.number(),
+		metadata: z.object({
+			cpu: z.string(),
+			memory: z.string(),
+		}),
+		todoSnapshot: z.array(z.unknown()),
+		systemMessages: z
+			.array(
+				z.object({
+					type: z.string(),
+					content: z.string(),
+					timestamp: z.number(),
+				}),
+			)
+			.optional(),
+		provider: z.string().optional(),
+		model: z.string().optional(),
+	}),
+	z.object({
+		type: z.literal("step-complete"),
+		stepId: z.string(),
+		usage: TokenUsageSchema,
+		duration: z.number(),
+		finishReason: z.string(),
+	}),
+
+	// User/system message creation events
+	z.object({
+		type: z.literal("user-message-created"),
+		messageId: z.string(),
+		content: z.string(),
+	}),
+	z.object({
+		type: z.literal("system-message-created"),
+		messageId: z.string(),
+		content: z.string(),
+	}),
+
 	// Completion
 	z.object({
 		type: z.literal("complete"),
