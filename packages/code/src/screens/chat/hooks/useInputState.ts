@@ -49,8 +49,6 @@ export function useInputState(): InputState {
 				// Extract messages array from paginated result
 				const messages = Array.isArray(result) ? result : result?.messages || [];
 
-				console.log("[useInputState] Loaded messages from DB:", messages.length);
-				console.log("[useInputState] First message:", messages[0]);
 
 				// Convert DB messages to MessageHistoryEntry format (ChatGPT-style fileId architecture)
 				const entries: MessageHistoryEntry[] = messages.map(
@@ -67,11 +65,7 @@ export function useInputState(): InputState {
 							type: file.mediaType.startsWith("image/") ? "image" : "file",
 						}));
 
-						console.log("[useInputState] Message text:", msg.text.substring(0, 50));
-						console.log("[useInputState] Files:", msg.files.length);
-						console.log("[useInputState] Attachments:", attachments.length);
 						if (attachments.length > 0) {
-							console.log("[useInputState] First attachment:", {
 								fileId: attachments[0].fileId,
 								relativePath: attachments[0].relativePath,
 								type: attachments[0].type,
@@ -87,7 +81,6 @@ export function useInputState(): InputState {
 
 				// Reverse to get oldest-first order (for bash-like navigation)
 				setMessageHistory(entries.reverse());
-				console.log("[useInputState] Total history entries:", entries.length);
 			} catch (error) {
 				console.error("Failed to load message history:", error);
 			}
