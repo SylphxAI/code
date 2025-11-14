@@ -144,45 +144,31 @@ export default function StatusBar({
 	}
 
 	return (
-		<Box flexDirection="column" marginBottom={1}>
-			{/* Top row: Agent, Rules, MCP */}
+		<Box flexGrow={1} justifyContent="space-between" marginBottom={1}>
+			{/* Left side: All metadata */}
 			<Box>
 				<Text dimColor>
 					{agentName && `${agentName} · `}
 					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
-					{mcpStatus.total > 0 && ` · MCP: ${mcpStatus.connected}/${mcpStatus.total}`}
-					{mcpStatus.connected > 0 && ` (${mcpStatus.toolCount} tools)`}
+					{mcpStatus.total > 0 && ` · MCP ${mcpStatus.connected}/${mcpStatus.total}`}
+					{mcpStatus.connected > 0 && ` (${mcpStatus.toolCount})`}
+					{" · "}
+					{provider} · {model}
 				</Text>
+				{capabilityLabel && <Text dimColor>{capabilityLabel}</Text>}
 			</Box>
 
-			{/* Bottom row: Provider, Model, Capabilities, Context */}
-			<Box justifyContent="space-between">
-				<Box>
+			{/* Right side: Context usage */}
+			<Box>
+				{!loading && contextLength && totalTokensSSOT > 0 ? (
 					<Text dimColor>
-						{provider} ·{" "}
+						{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
+						{usagePercent}%)
 					</Text>
-					<Text
-						color={modelStatus === "unavailable" ? "red" : undefined}
-						dimColor={modelStatus !== "unavailable"}
-					>
-						{model}
-						{modelStatus === "unavailable" && " (unavailable)"}
-					</Text>
-					{capabilityLabel && <Text dimColor>{capabilityLabel}</Text>}
-				</Box>
-
-				{/* Context usage (SSOT - same as /context) */}
-				<Box>
-					{!loading && contextLength && totalTokensSSOT > 0 ? (
-						<Text dimColor>
-							{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
-							{usagePercent}%)
-						</Text>
-					) : null}
-					{!loading && contextLength && totalTokensSSOT === 0 ? (
-						<Text dimColor>{formatTokenCount(contextLength)}</Text>
-					) : null}
-				</Box>
+				) : null}
+				{!loading && contextLength && totalTokensSSOT === 0 ? (
+					<Text dimColor>{formatTokenCount(contextLength)}</Text>
+				) : null}
 			</Box>
 		</Box>
 	);
