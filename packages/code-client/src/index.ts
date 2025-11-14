@@ -97,6 +97,7 @@ export {
 	type SessionListSyncCallbacks,
 	type UseSessionListSyncOptions,
 } from "./hooks/useSessionListSync.js";
+export { useMCPStatus, type MCPStatus } from "./hooks/useMCPStatus.js";
 
 // ============================================================================
 // Utilities

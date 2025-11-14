@@ -8,6 +8,7 @@ import {
 	useSelectedAgentId,
 	useEnabledRuleIds,
 	useTotalTokens,
+	useMCPStatus,
 } from "@sylphx/code-client";
 import { formatTokenCount } from "@sylphx/code-core";
 import { getAgentById } from "../embedded-context.js";
@@ -53,6 +54,9 @@ export default function StatusBar({
 	// Subscribe to enabled rules count
 	const enabledRuleIds = useEnabledRuleIds();
 	const enabledRulesCount = enabledRuleIds.length;
+
+	// Subscribe to MCP status
+	const mcpStatus = useMCPStatus();
 
 	// SSOT: Calculate total tokens using SAME logic as /context
 	// - Uses buildModelMessages + calculateModelMessagesTokens
@@ -139,13 +143,26 @@ export default function StatusBar({
 		}
 	}
 
+	// Format MCP status
+	let mcpStatusText = "";
+	if (mcpStatus.total > 0) {
+		if (mcpStatus.connected > 0) {
+			mcpStatusText = `MCP: ${mcpStatus.connected}/${mcpStatus.total} (${mcpStatus.toolCount} tools)`;
+		} else if (mcpStatus.failed > 0) {
+			mcpStatusText = `MCP: 0/${mcpStatus.total} (failed)`;
+		} else {
+			mcpStatusText = `MCP: 0/${mcpStatus.total} (connecting...)`;
+		}
+	}
+
 	return (
 		<Box flexGrow={1} justifyContent="space-between" marginBottom={1}>
-			{/* Left side: Agent, Rules, Provider and Model */}
+			{/* Left side: Agent, Rules, MCP, Provider and Model */}
 			<Box>
 				<Text dimColor>
 					{agentName && `${agentName} · `}
-					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"} · {provider} ·{" "}
+					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
+					{mcpStatusText && ` · ${mcpStatusText}`} · {provider} ·{" "}
 				</Text>
 				<Text
 					color={modelStatus === "unavailable" ? "red" : undefined}
