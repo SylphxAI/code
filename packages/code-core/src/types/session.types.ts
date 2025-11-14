@@ -163,16 +163,21 @@ export interface MessageStep {
 }
 
 /**
- * File attachment input (from frontend before persistence)
- * Used during message creation to tag files that will be read and frozen
+ * File attachment input (from frontend)
+ * REFACTORED: Files uploaded immediately on paste/select, referenced by fileId
+ *
+ * Correct Flow (ChatGPT-style):
+ * 1. User pastes/selects file → Frontend uploads immediately to /file/upload
+ * 2. Server returns { fileId, url } → Frontend stores fileId + metadata
+ * 3. User submits message → Send fileId (NOT content!)
+ * 4. Other clients fetch file on-demand via /file/download?fileId=xxx
  */
 export interface FileAttachmentInput {
-	path: string; // Absolute path (for reading file content)
-	relativePath: string; // Display path (e.g., "src/app.ts" or "Image #1")
-	size?: number; // File size in bytes (optional)
-	mimeType?: string; // MIME type (optional, will be detected if not provided)
+	fileId: string; // Reference to uploaded file in object storage
+	relativePath: string; // Display name (e.g., "image.png" or "src/app.ts")
+	size: number; // File size in bytes
+	mimeType: string; // MIME type (e.g., "image/png")
 	type?: "file" | "image"; // Attachment type (default: "file")
-	imageData?: string; // Base64 encoded image data (for image type)
 }
 
 /**
