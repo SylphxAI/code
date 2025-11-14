@@ -117,7 +117,6 @@ export class MessageRepository {
 
 						// Migrate file parts to file_contents table
 						if (part.type === "file" && "base64" in part && part.base64) {
-							console.log(`[MessageRepository] Migrating file part ${i}: ${(part as any).relativePath} (${(part as any).base64?.length} bytes)`);
 							try {
 								// Convert base64 back to Buffer
 								const buffer = Buffer.from(part.base64, "base64");
@@ -438,7 +437,6 @@ export class MessageRepository {
 
 				const fullText = textParts.join(" ").trim();
 
-				console.log("[getRecentUserMessages] Message:", {
 					text: fullText.substring(0, 50),
 					partsCount: parts.length,
 					filesCount: files.length,
@@ -449,7 +447,6 @@ export class MessageRepository {
 				}
 			}
 
-			console.log("[getRecentUserMessages] Returning", result.length, "messages");
 
 			return { messages: result, nextCursor };
 		});
