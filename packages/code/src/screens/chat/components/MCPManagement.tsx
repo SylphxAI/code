@@ -73,32 +73,26 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 	// Server list options with status badges
 	const serverOptions: SelectionOption[] = [
 		{
-			label: "➕ Add new server",
+			label: "Add new server",
 			value: "__add__",
 			description: "Configure a new MCP server",
 		},
 		...servers.map((server) => {
 			const isConnected = connectedServers.has(server.id);
-			const status = server.enabled ? (isConnected ? "🟢" : "⚪") : "⚫";
 			const toolCount = toolCounts.get(server.id);
 
 			let description = server.description || `${server.transport.type} transport`;
 			if (isConnected && toolCount !== undefined) {
 				description += ` • ${toolCount} tool${toolCount === 1 ? "" : "s"}`;
 			}
-			if (!server.enabled) {
-				description = "Disabled • " + description;
-			}
+
+			// Status prefix
+			const statusPrefix = isConnected ? "[Connected] " : server.enabled ? "[Enabled] " : "[Disabled] ";
 
 			return {
-				label: `${status} ${server.name}`,
+				label: statusPrefix + server.name,
 				value: server.id,
 				description,
-				badge: isConnected
-					? { text: "Connected", color: "green" as const }
-					: server.enabled
-						? { text: "Enabled", color: "white" as const }
-						: { text: "Disabled", color: "gray" as const },
 			};
 		}),
 	];

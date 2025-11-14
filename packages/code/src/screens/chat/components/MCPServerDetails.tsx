@@ -91,13 +91,13 @@ export function MCPServerDetails({
 	// Connection actions
 	if (isConnected && onDisconnect) {
 		actionOptions.push({
-			label: "🔌 Disconnect",
+			label: "Disconnect",
 			value: "disconnect",
 			description: "Disconnect from this server",
 		});
 	} else if (!isConnected && server.enabled && onConnect) {
 		actionOptions.push({
-			label: "🔌 Connect",
+			label: "Connect",
 			value: "connect",
 			description: "Connect to this server",
 		});
@@ -106,13 +106,13 @@ export function MCPServerDetails({
 	// Enable/Disable actions
 	if (server.enabled && onDisable) {
 		actionOptions.push({
-			label: "⏸️  Disable",
+			label: "Disable",
 			value: "disable",
 			description: "Disable this server (will disconnect if connected)",
 		});
 	} else if (!server.enabled && onEnable) {
 		actionOptions.push({
-			label: "▶️  Enable",
+			label: "Enable",
 			value: "enable",
 			description: "Enable this server",
 		});
@@ -120,7 +120,7 @@ export function MCPServerDetails({
 
 	// Refresh
 	actionOptions.push({
-		label: "🔄 Refresh",
+		label: "Refresh",
 		value: "refresh",
 		description: "Reload server information",
 	});
@@ -128,7 +128,7 @@ export function MCPServerDetails({
 	// Remove
 	if (onRemove) {
 		actionOptions.push({
-			label: "🗑️  Remove",
+			label: "Remove",
 			value: "remove",
 			description: "Remove this server configuration",
 		});
@@ -136,7 +136,7 @@ export function MCPServerDetails({
 
 	// Back
 	actionOptions.push({
-		label: "← Back",
+		label: "Back",
 		value: "back",
 		description: "Return to server list",
 	});
@@ -205,7 +205,7 @@ export function MCPServerDetails({
 						<Text bold>Status:</Text>
 						<Box paddingLeft={2}>
 							<Text>
-								{isConnected ? "🟢 Connected" : server.enabled ? "⚪ Enabled" : "⚫ Disabled"} •{" "}
+								{isConnected ? "Connected" : server.enabled ? "Enabled" : "Disabled"} •{" "}
 								{server.transport.type.toUpperCase()}
 								{server.transport.type === "http" && ` • ${(server.transport as any).url}`}
 								{server.transport.type === "stdio" &&
@@ -216,7 +216,7 @@ export function MCPServerDetails({
 
 					{/* Tools Section */}
 					<Box flexDirection="column" marginTop={1}>
-						<Text bold>📦 Tools ({tools.length}):</Text>
+						<Text bold>Tools ({tools.length}):</Text>
 						{!isConnected ? (
 							<Box paddingLeft={2}>
 								<Text dimColor>Server not connected. Connect to view available tools.</Text>
@@ -227,16 +227,9 @@ export function MCPServerDetails({
 							</Box>
 						) : (
 							<Box flexDirection="column" paddingLeft={2}>
-								{tools.map((tool, index) => (
-									<Box key={tool.name} flexDirection="column" marginTop={index > 0 ? 1 : 0}>
-										<Text>
-											{index + 1}. <Text bold>{tool.name}</Text>
-										</Text>
-										{tool.description && (
-											<Box paddingLeft={3}>
-												<Text dimColor>→ {tool.description}</Text>
-											</Box>
-										)}
+								{tools.map((tool) => (
+									<Box key={tool.name} marginTop={1}>
+										<Text bold>{tool.name}</Text>
 									</Box>
 								))}
 							</Box>
@@ -244,12 +237,12 @@ export function MCPServerDetails({
 					</Box>
 
 					{/* Connection Info */}
-					{connectionInfo && (
+					{connectionInfo && isConnected && (
 						<Box flexDirection="column" marginTop={1}>
-							<Text bold>⏰ Connection:</Text>
+							<Text bold>Connection:</Text>
 							<Box flexDirection="column" paddingLeft={2}>
-								<Text>• Connected: {formatTime(connectionInfo.connectedAt)}</Text>
-								<Text>• Last active: {formatTime(connectionInfo.lastActivity)}</Text>
+								<Text>Connected: {formatTime(connectionInfo.connectedAt)}</Text>
+								<Text>Last active: {formatTime(connectionInfo.lastActivity)}</Text>
 							</Box>
 						</Box>
 					)}
