@@ -145,31 +145,27 @@ export default function StatusBar({
 
 	return (
 		<Box width="100%" justifyContent="space-between" marginBottom={1}>
-			{/* Left side */}
-			<Box>
-				<Text dimColor>
-					{agentName && `${agentName} · `}
-					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
-					{mcpStatus.total > 0 && ` · MCP ${mcpStatus.connected}/${mcpStatus.total}`}
-					{mcpStatus.connected > 0 && ` (${mcpStatus.toolCount})`}
-					{" · "}
-					{provider} · {model}
-				</Text>
-				{capabilityLabel && <Text dimColor>{capabilityLabel}</Text>}
-			</Box>
+			{/* Left side - all metadata in one text block */}
+			<Text dimColor>
+				{agentName && `${agentName} · `}
+				{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
+				{mcpStatus.total > 0 && ` · MCP ${mcpStatus.connected}/${mcpStatus.total}`}
+				{mcpStatus.connected > 0 && ` (${mcpStatus.toolCount})`}
+				{" · "}
+				{provider} · {model}
+				{capabilityLabel}
+			</Text>
 
 			{/* Right side - context usage */}
-			<Box>
-				{!loading && contextLength && totalTokensSSOT > 0 && (
-					<Text dimColor>
-						{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
-						{usagePercent}%)
-					</Text>
-				)}
-				{!loading && contextLength && totalTokensSSOT === 0 && (
-					<Text dimColor>{formatTokenCount(contextLength)}</Text>
-				)}
-			</Box>
+			{!loading && contextLength && totalTokensSSOT > 0 && (
+				<Text dimColor>
+					{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
+					{usagePercent}%)
+				</Text>
+			)}
+			{!loading && contextLength && totalTokensSSOT === 0 && (
+				<Text dimColor>{formatTokenCount(contextLength)}</Text>
+			)}
 		</Box>
 	);
 }
