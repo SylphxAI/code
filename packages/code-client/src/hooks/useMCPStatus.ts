@@ -1,10 +1,15 @@
 /**
  * MCP Status Hook
- * Track MCP server connection status via embedded context
+ * Track MCP server connection status via event bus (event-driven, no polling)
+ *
+ * ARCHITECTURE: Pure UI Client
+ * - No business logic in client
+ * - Listens to events from core
+ * - Core calculates and emits status
  */
 
 import { useState, useEffect } from "react";
-import { getMCPManager } from "@sylphx/code-core";
+import { eventBus } from "../lib/event-bus.js";
 
 export interface MCPStatus {
 	total: number;
@@ -15,7 +20,7 @@ export interface MCPStatus {
 
 /**
  * Hook to get MCP connection status
- * Updates every 2 seconds
+ * Event-driven - updates when core emits status change events
  */
 export function useMCPStatus(): MCPStatus {
 	const [status, setStatus] = useState<MCPStatus>({
@@ -26,48 +31,12 @@ export function useMCPStatus(): MCPStatus {
 	});
 
 	useEffect(() => {
-		const updateStatus = async () => {
-			try {
-				const { listMCPServers } = await import("@sylphx/code-core");
-				const mcpManager = getMCPManager();
+		// Subscribe to MCP status change events
+		const unsubscribe = eventBus.on("mcp:statusChanged", (data) => {
+			setStatus(data);
+		});
 
-				// Get all servers
-				const serversResult = await listMCPServers();
-				if (!serversResult.success) {
-					return;
-				}
-
-				const servers = serversResult.data;
-				const enabledServers = servers.filter((s) => s.enabled);
-				const connectedServerIds = mcpManager.getConnectedServerIds();
-
-				// Count tools across all connected servers
-				let totalTools = 0;
-				for (const serverId of connectedServerIds) {
-					const state = await mcpManager.getServerState(serverId);
-					if (state) {
-						totalTools += state.toolCount;
-					}
-				}
-
-				setStatus({
-					total: enabledServers.length,
-					connected: connectedServerIds.length,
-					failed: enabledServers.length - connectedServerIds.length,
-					toolCount: totalTools,
-				});
-			} catch (error) {
-				console.error("[useMCPStatus] Error:", error);
-			}
-		};
-
-		// Initial update
-		updateStatus();
-
-		// Poll every 2 seconds
-		const interval = setInterval(updateStatus, 2000);
-
-		return () => clearInterval(interval);
+		return unsubscribe;
 	}, []);
 
 	return status;

@@ -76,6 +76,9 @@ export class MCPManager {
 					serverId: server.id,
 					name: server.name,
 				});
+
+				// Emit status change event
+				this.emitStatusChange();
 			},
 			(error: unknown) =>
 				new Error(
@@ -108,6 +111,9 @@ export class MCPManager {
 					serverId,
 					name: instance.config.name,
 				});
+
+				// Emit status change event
+				this.emitStatusChange();
 			},
 			(error: unknown) =>
 				new Error(
@@ -327,6 +333,21 @@ export class MCPManager {
 			successful,
 			failed,
 			connected: this.getConnectionCount(),
+		});
+
+		// Emit final status after all connections
+		this.emitStatusChange();
+	}
+
+	/**
+	 * Emit MCP status change event
+	 */
+	private emitStatusChange(): void {
+		// Dynamic import to avoid circular dependency
+		import("./mcp-event-emitter.js").then(({ emitMCPStatus }) => {
+			emitMCPStatus().catch((error) => {
+				logger.error("Failed to emit MCP status", { error });
+			});
 		});
 	}
 

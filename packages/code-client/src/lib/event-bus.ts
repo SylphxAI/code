@@ -32,6 +32,14 @@ export interface AppEvents {
 	// Settings events
 	"settings:agentChanged": { agentId: string };
 	"settings:rulesChanged": { ruleIds: string[] };
+
+	// MCP events
+	"mcp:statusChanged": {
+		total: number;
+		connected: number;
+		failed: number;
+		toolCount: number;
+	};
 }
 
 class EventBus {
