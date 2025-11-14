@@ -46,6 +46,18 @@ export const sessionRouter = router({
 				return null;
 			}
 
+			// DEBUG: Log steps info for investigating model display issue
+			console.log(`[session.getById] Session ${session.id} has ${session.messages.length} messages`);
+			const assistantMessages = session.messages.filter(m => m.role === 'assistant');
+			if (assistantMessages.length > 0) {
+				const firstAssistant = assistantMessages[0];
+				console.log(`[session.getById] First assistant message has ${firstAssistant.steps?.length || 0} steps`);
+				if (firstAssistant.steps && firstAssistant.steps.length > 0) {
+					const firstStep = firstAssistant.steps[0];
+					console.log(`[session.getById] First step provider: ${firstStep.provider}, model: ${firstStep.model}`);
+				}
+			}
+
 			// Validate model availability (server-side autonomous)
 			// Uses TTL cache (1 hour) - no API call if cache fresh
 			let modelStatus: "available" | "unavailable" | "unknown" = "unknown";

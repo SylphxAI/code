@@ -47,6 +47,7 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 								// Extract provider and model from steps
 								// Check if all steps use the same provider and model
 								const steps = msg.steps && msg.steps.length > 0 ? msg.steps : [];
+								console.log('[MessageList] Assistant header - steps:', steps.length, 'steps with model:', steps.filter((s) => s.provider && s.model).length);
 								const stepsWithModel = steps.filter((s) => s.provider && s.model);
 
 								if (stepsWithModel.length === 0) {
