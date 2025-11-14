@@ -144,32 +144,30 @@ export default function StatusBar({
 	}
 
 	return (
-		<Box flexGrow={1} justifyContent="space-between" marginBottom={1}>
-			{/* Left side: All metadata */}
-			<Box>
+		<Box marginBottom={1}>
+			{/* All info in single line with space padding */}
+			<Text dimColor>
+				{agentName && `${agentName} · `}
+				{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
+				{mcpStatus.total > 0 && ` · MCP ${mcpStatus.connected}/${mcpStatus.total}`}
+				{mcpStatus.connected > 0 && ` (${mcpStatus.toolCount})`}
+				{" · "}
+				{provider} · {model}
+			</Text>
+			{capabilityLabel && <Text dimColor>{capabilityLabel}</Text>}
+			{!loading && contextLength && totalTokensSSOT > 0 && (
 				<Text dimColor>
-					{agentName && `${agentName} · `}
-					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
-					{mcpStatus.total > 0 && ` · MCP ${mcpStatus.connected}/${mcpStatus.total}`}
-					{mcpStatus.connected > 0 && ` (${mcpStatus.toolCount})`}
 					{" · "}
-					{provider} · {model}
+					{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
+					{usagePercent}%)
 				</Text>
-				{capabilityLabel && <Text dimColor>{capabilityLabel}</Text>}
-			</Box>
-
-			{/* Right side: Context usage */}
-			<Box>
-				{!loading && contextLength && totalTokensSSOT > 0 ? (
-					<Text dimColor>
-						{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
-						{usagePercent}%)
-					</Text>
-				) : null}
-				{!loading && contextLength && totalTokensSSOT === 0 ? (
-					<Text dimColor>{formatTokenCount(contextLength)}</Text>
-				) : null}
-			</Box>
+			)}
+			{!loading && contextLength && totalTokensSSOT === 0 && (
+				<Text dimColor>
+					{" · "}
+					{formatTokenCount(contextLength)}
+				</Text>
+			)}
 		</Box>
 	);
 }
