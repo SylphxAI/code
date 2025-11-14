@@ -384,6 +384,13 @@ export class SessionRepository {
 			.where(inArray(messageSteps.messageId, messageIds))
 			.orderBy(messageSteps.stepIndex);
 
+		// DEBUG: Log steps loading
+		console.log(`[getSessionMessages] Loaded ${allSteps.length} steps from database`);
+		if (allSteps.length > 0) {
+			const firstStep = allSteps[0];
+			console.log(`[getSessionMessages] First step: messageId=${firstStep.messageId}, provider=${firstStep.provider}, model=${firstStep.model}`);
+		}
+
 		const stepIds = allSteps.map((s) => s.id);
 
 		// Fetch all step-related data in parallel
@@ -430,6 +437,11 @@ export class SessionRepository {
 		// Assemble messages using grouped data
 		const fullMessages = messageRecords.map((msg) => {
 			const steps = stepsByMessage.get(msg.id) || [];
+
+			// DEBUG: Log steps for each message
+			if (msg.role === 'assistant') {
+				console.log(`[getSessionMessages] Message ${msg.id}: ${steps.length} steps, first step has provider=${steps[0]?.provider}, model=${steps[0]?.model}`);
+			}
 
 			// Compute message usage from step usage
 			let messageUsage: TokenUsage | undefined;
