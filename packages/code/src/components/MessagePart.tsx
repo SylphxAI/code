@@ -53,7 +53,7 @@ type StreamingPart =
 export const MessagePart = React.memo(function MessagePart({ part }: MessagePartProps) {
 	if (part.type === "text") {
 		return (
-			<Box flexDirection="column" marginLeft={2} marginBottom={1}>
+			<Box flexDirection="column" marginLeft={3} marginBottom={1}>
 				<MarkdownText>{part.content}</MarkdownText>
 			</Box>
 		);
@@ -75,7 +75,7 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
 		if (isActive) {
 			// Still streaming - show spinner with real-time duration
 			return (
-				<Box flexDirection="column" marginLeft={2} marginBottom={1}>
+				<Box flexDirection="column" marginLeft={3} marginBottom={1}>
 					<Box>
 						<Spinner color="yellow" />
 						<Text dimColor> Thinking... {durationDisplay}</Text>
@@ -86,7 +86,7 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
 			// Show completed/aborted reasoning with humanized duration
 			// durationDisplay uses same format as active state (e.g., "523ms", "5.2s", "45s", "1m11s")
 			return (
-				<Box flexDirection="column" marginLeft={2} marginBottom={1}>
+				<Box flexDirection="column" marginLeft={3} marginBottom={1}>
 					<Box>
 						<Text dimColor>Thought {durationDisplay}</Text>
 					</Box>
@@ -97,7 +97,7 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
 
 	if (part.type === "error") {
 		return (
-			<Box marginLeft={2} marginBottom={1}>
+			<Box marginLeft={3} marginBottom={1}>
 				<Text color="red">{part.error}</Text>
 			</Box>
 		);
@@ -138,7 +138,7 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
 
 			if (!tempPath) {
 				return (
-					<Box flexDirection="column" marginLeft={2} marginBottom={1}>
+					<Box flexDirection="column" marginLeft={3} marginBottom={1}>
 						<Text dimColor>Image ({part.mediaType}):</Text>
 						<Text color="red">Failed to save image</Text>
 					</Box>
@@ -148,7 +148,7 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
 			const fileSize = Math.round((part.base64.length * 3) / 4 / 1024); // Convert base64 to KB
 
 			return (
-				<Box flexDirection="column" marginLeft={2} marginBottom={1}>
+				<Box flexDirection="column" marginLeft={3} marginBottom={1}>
 					<Text dimColor>
 						Image ({part.mediaType}) - {fileSize}KB
 					</Text>
@@ -159,7 +159,7 @@ export const MessagePart = React.memo(function MessagePart({ part }: MessagePart
 		} else {
 			// Render non-image file info
 			return (
-				<Box flexDirection="column" marginLeft={2} marginBottom={1}>
+				<Box flexDirection="column" marginLeft={3} marginBottom={1}>
 					<Text dimColor>File: {part.mediaType}</Text>
 					<Text dimColor>Size: {Math.round(part.base64.length * 0.75)} bytes</Text>
 				</Box>

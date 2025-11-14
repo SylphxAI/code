@@ -51,7 +51,7 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 					{msg.role === "user" || msg.role === "system" ? (
 						// User/System message: reconstruct original text with inline @file highlighting
 						msg.steps && msg.steps.length > 0 ? (
-							<Box marginLeft={2} paddingY={1} flexDirection="column">
+							<Box marginLeft={3} paddingY={1} flexDirection="column">
 								{(() => {
 									// Reconstruct original text from parts
 									const parts = msg.steps.flatMap((step) => step.parts);
@@ -155,7 +155,7 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 								})()}
 							</Box>
 						) : msg.content && msg.content.length > 0 ? (
-							<Box marginLeft={2} paddingY={1} flexDirection="column">
+							<Box marginLeft={3} paddingY={1} flexDirection="column">
 								{(() => {
 									// Same logic for legacy content array
 									let fullText = "";
@@ -267,7 +267,7 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 							<MessagePart key={`${msg.id}-part-${partIdx}`} part={part} />
 						))
 					) : msg.status === "active" ? (
-						<Box paddingX={1} marginLeft={2}>
+						<Box paddingX={1} marginLeft={3}>
 							<Text dimColor>...</Text>
 						</Box>
 					) : null}
@@ -284,7 +284,7 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 										: [];
 
 							return fileParts.map((filePart, idx) => (
-								<Box key={`${msg.id}-file-${idx}`} marginLeft={2} marginBottom={1}>
+								<Box key={`${msg.id}-file-${idx}`} marginLeft={3} marginBottom={1}>
 									<Text color="green">✓ </Text>
 									<Text bold>Read {filePart.relativePath}</Text>
 								</Box>
@@ -297,17 +297,17 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 						(msg.status === "abort" || msg.status === "error" || msg.usage) && (
 							<Box flexDirection="column">
 								{msg.status === "abort" && (
-									<Box marginLeft={2} marginBottom={1}>
+									<Box marginLeft={3} marginBottom={1}>
 										<Text color="yellow">[Aborted]</Text>
 									</Box>
 								)}
 								{msg.status === "error" && (
-									<Box marginLeft={2} marginBottom={1}>
+									<Box marginLeft={3} marginBottom={1}>
 										<Text color="red">[Error]</Text>
 									</Box>
 								)}
 								{msg.usage && (
-									<Box marginLeft={2}>
+									<Box marginLeft={3}>
 										<Text dimColor>
 											{msg.usage.promptTokens.toLocaleString()} →{" "}
 											{msg.usage.completionTokens.toLocaleString()}
