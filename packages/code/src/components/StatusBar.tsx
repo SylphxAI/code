@@ -97,12 +97,16 @@ export default function StatusBar({
 	if (!provider) {
 		return (
 			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
-				<Text dimColor wrap="truncate">
-					{agentName && `${agentName} · `}
-					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
-				</Text>
+				<Box flexShrink={0}>
+					<Text dimColor>
+						{agentName && `${agentName} · `}
+						{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
+					</Text>
+				</Box>
 				<Spacer />
-				<Text color="yellow" wrap="truncate">⚠ No AI provider selected - use /provider to select one</Text>
+				<Box flexShrink={0}>
+					<Text color="yellow">⚠ No AI provider selected - use /provider to select one</Text>
+				</Box>
 			</Box>
 		);
 	}
@@ -110,14 +114,18 @@ export default function StatusBar({
 	if (!model) {
 		return (
 			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
-				<Text dimColor wrap="truncate">
-					{agentName && `${agentName} · `}
-					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"} · {provider}
-				</Text>
+				<Box flexShrink={0}>
+					<Text dimColor>
+						{agentName && `${agentName} · `}
+						{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"} · {provider}
+					</Text>
+				</Box>
 				<Spacer />
-				<Text color="yellow" wrap="truncate">
-					⚠ No model selected - type "/model" to select a model
-				</Text>
+				<Box flexShrink={0}>
+					<Text color="yellow">
+						⚠ No model selected - type "/model" to select a model
+					</Text>
+				</Box>
 			</Box>
 		);
 	}
@@ -140,27 +148,33 @@ export default function StatusBar({
 	return (
 		<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
 			{/* Left side - all metadata in one text block */}
-			<Text dimColor wrap="truncate">
-				{agentName && `${agentName} · `}
-				{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
-				{mcpStatus.total > 0 && ` · MCP ${mcpStatus.connected}/${mcpStatus.total}`}
-				{mcpStatus.connected > 0 && ` (${mcpStatus.toolCount})`}
-				{" · "}
-				{provider} · {model}
-				{capabilityLabel}
-			</Text>
+			<Box flexShrink={0}>
+				<Text dimColor>
+					{agentName && `${agentName} · `}
+					{enabledRulesCount} {enabledRulesCount === 1 ? "rule" : "rules"}
+					{mcpStatus.total > 0 && ` · MCP ${mcpStatus.connected}/${mcpStatus.total}`}
+					{mcpStatus.connected > 0 && ` (${mcpStatus.toolCount})`}
+					{" · "}
+					{provider} · {model}
+					{capabilityLabel}
+				</Text>
+			</Box>
 
 			<Spacer />
 
 			{/* Right side - context usage */}
 			{!loading && contextLength && totalTokensSSOT > 0 && (
-				<Text dimColor wrap="truncate">
-					{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
-					{usagePercent}%)
-				</Text>
+				<Box flexShrink={0}>
+					<Text dimColor>
+						{formatTokenCount(totalTokensSSOT)} / {formatTokenCount(contextLength)} (
+						{usagePercent}%)
+					</Text>
+				</Box>
 			)}
 			{!loading && contextLength && totalTokensSSOT === 0 && (
-				<Text dimColor wrap="truncate">{formatTokenCount(contextLength)}</Text>
+				<Box flexShrink={0}>
+					<Text dimColor>{formatTokenCount(contextLength)}</Text>
+				</Box>
 			)}
 		</Box>
 	);
