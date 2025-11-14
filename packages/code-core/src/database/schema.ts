@@ -284,9 +284,7 @@ export const stepParts = sqliteTable(
 	"step_parts",
 	{
 		id: text("id").primaryKey(),
-		stepId: text("step_id")
-			.notNull()
-			.references(() => messageSteps.id, { onDelete: "cascade" }),
+		stepId: text("step_id").references(() => messageSteps.id, { onDelete: "cascade" }), // Nullable for orphaned uploads (ChatGPT-style immediate upload)
 		ordering: integer("ordering").notNull(), // Order within step
 		type: text("type").notNull(), // 'text' | 'reasoning' | 'tool' | 'error'
 		// Content structure (JSON) - ALL parts include status field:
@@ -449,9 +447,7 @@ export const fileContents = sqliteTable(
 	"file_contents",
 	{
 		id: text("id").primaryKey(),
-		stepId: text("step_id")
-			.notNull()
-			.references(() => messageSteps.id, { onDelete: "cascade" }),
+		stepId: text("step_id").references(() => messageSteps.id, { onDelete: "cascade" }), // Nullable for orphaned uploads (ChatGPT-style immediate upload)
 		ordering: integer("ordering").notNull(), // Position within step (preserves text-to-file order)
 
 		// File metadata
