@@ -43,6 +43,7 @@ export function handleReasoningDelta(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
+	console.log("[handleReasoningDelta] Received delta, length:", event.text.length);
 
 	updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
 		const newParts = [...prev];
@@ -104,6 +105,7 @@ export function handleTextDelta(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
+	console.log("[handleTextDelta] Received delta, length:", event.text.length);
 
 	updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
 		const newParts = [...prev];

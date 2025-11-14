@@ -14,6 +14,8 @@ interface ChatMessagesProps {
 }
 
 export function ChatMessages({ hasSession, messages = [], attachmentTokens }: ChatMessagesProps) {
+	console.log("[ChatMessages] Render, messages count:", messages.length, "active message content parts:", messages.find(m => m.status === "active")?.content?.length || 0);
+
 	if (!hasSession) {
 		return (
 			<Box paddingY={1} flexDirection="column">

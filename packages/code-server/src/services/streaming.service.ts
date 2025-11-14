@@ -472,6 +472,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					},
 					onTextDelta: (text) => {
 						hasEmittedAnyEvent = true;
+						console.log("[StreamingService] Emitting text-delta, length:", text.length);
 						observer.next({ type: "text-delta", text });
 					},
 					onTextEnd: () => {
@@ -484,6 +485,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					},
 					onReasoningDelta: (text) => {
 						hasEmittedAnyEvent = true;
+						console.log("[StreamingService] Emitting reasoning-delta, length:", text.length);
 						observer.next({ type: "reasoning-delta", text });
 					},
 					onReasoningEnd: (duration) => {
