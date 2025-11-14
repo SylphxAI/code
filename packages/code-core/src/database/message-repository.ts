@@ -366,8 +366,9 @@ export class MessageRepository {
 				stepToMessage.set(step.id, step.messageId);
 			}
 
-			// Group parts by message
-			const messageData = new Map<string, { texts: string[]; fileRefs: string[] }>();
+			// Group parts by message, preserving order
+			type MessagePart = { type: "text"; content: string } | { type: "file-ref"; fileContentId: string; relativePath: string };
+			const messageData = new Map<string, MessagePart[]>();
 			for (const part of parts) {
 				const messageId = stepToMessage.get(part.stepId);
 				if (!messageId) continue;
@@ -378,25 +379,31 @@ export class MessageRepository {
 					// Skip corrupted part data
 					continue;
 				}
-				const content = parsed.data as MessagePart;
+				const content = parsed.data as any;
 
 				if (!messageData.has(messageId)) {
-					messageData.set(messageId, { texts: [], fileRefs: [] });
+					messageData.set(messageId, []);
 				}
 				const data = messageData.get(messageId)!;
 
 				if (content.type === "text") {
 					const text = content.content || "";
 					if (text.trim()) {
-						data.texts.push(text);
+						data.push({ type: "text", content: text });
 					}
 				} else if (content.type === "file-ref") {
-					data.fileRefs.push(content.fileContentId);
+					data.push({
+						type: "file-ref",
+						fileContentId: content.fileContentId,
+						relativePath: content.relativePath,
+					});
 				}
 			}
 
 			// Get file contents for all file refs
-			const allFileRefs = Array.from(messageData.values()).flatMap((d) => d.fileRefs);
+			const allFileRefs = Array.from(messageData.values())
+				.flatMap((parts) => parts.filter((p): p is Extract<MessagePart, { type: "file-ref" }> => p.type === "file-ref"))
+				.map((p) => p.fileContentId);
 			const fileContentsMap = new Map<string, { relativePath: string; content: Buffer; mediaType: string; size: number }>();
 
 			console.log("[getRecentUserMessages] Total file refs:", allFileRefs.length);
@@ -426,26 +433,41 @@ export class MessageRepository {
 			}
 
 			// Build result in timestamp order (most recent first)
+			// Reconstruct full text with image tags in correct positions
 			const result: Array<{ text: string; files: Array<{ relativePath: string; base64: string; mediaType: string; size: number }> }> = [];
 			for (const msg of messagesToReturn) {
-				const data = messageData.get(msg.messageId);
-				if (!data) continue;
+				const parts = messageData.get(msg.messageId);
+				if (!parts) continue;
 
-				const fullText = data.texts.join(" ").trim();
-				const files = data.fileRefs.map((fileId) => {
-					const fileData = fileContentsMap.get(fileId);
-					if (!fileData) return null;
-					return {
-						relativePath: fileData.relativePath,
-						base64: fileData.content.toString("base64"),
-						mediaType: fileData.mediaType,
-						size: fileData.size,
-					};
-				}).filter((f): f is NonNullable<typeof f> => f !== null);
+				// Reconstruct text by iterating parts in order
+				const textParts: string[] = [];
+				const files: Array<{ relativePath: string; base64: string; mediaType: string; size: number }> = [];
+
+				for (const part of parts) {
+					if (part.type === "text") {
+						textParts.push(part.content);
+					} else if (part.type === "file-ref") {
+						// Add image tag to text (e.g. "[Image #1]")
+						textParts.push(part.relativePath);
+
+						// Add file to attachments
+						const fileData = fileContentsMap.get(part.fileContentId);
+						if (fileData) {
+							files.push({
+								relativePath: fileData.relativePath,
+								base64: fileData.content.toString("base64"),
+								mediaType: fileData.mediaType,
+								size: fileData.size,
+							});
+						}
+					}
+				}
+
+				const fullText = textParts.join(" ").trim();
 
 				console.log("[getRecentUserMessages] Message:", {
 					text: fullText.substring(0, 50),
-					fileRefsCount: data.fileRefs.length,
+					partsCount: parts.length,
 					filesCount: files.length,
 				});
 
