@@ -220,15 +220,14 @@ export class MCPManager {
 				}
 
 				const toolSet = await instance.client.tools();
-			const tools = Object.values(toolSet);
 
-				// Convert to MCPToolInfo
-				const toolInfos: MCPToolInfo[] = tools.map((tool) => ({
-					serverId,
-					name: tool.name,
-					description: tool.description || "",
-					inputSchema: tool.parameters || {},
-				}));
+			// Convert toolSet object to array with names from keys
+			const toolInfos: MCPToolInfo[] = Object.entries(toolSet).map(([name, tool]) => ({
+				serverId,
+				name,
+				description: tool.description || "",
+				inputSchema: tool.inputSchema || {},
+			}));
 
 				return toolInfos;
 			},

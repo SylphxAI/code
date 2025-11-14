@@ -213,7 +213,7 @@ export async function loadMCPTools(): Promise<void> {
 		registerMCPTool(mcpTool);
 	}
 
-	logger.success("Loaded MCP tools", { count: allTools.length });
+	logger.info("Loaded MCP tools", { count: allTools.length });
 }
 
 /**
@@ -223,7 +223,7 @@ export async function reloadMCPServerTools(serverId: string): Promise<void> {
 	const mcpManager = getMCPManager();
 	const result = await mcpManager.getTools(serverId);
 
-	if (!result.ok) {
+	if (!result.success) {
 		logger.error("Failed to reload MCP server tools", {
 			serverId,
 			error: result.error.message,
@@ -246,7 +246,7 @@ export async function reloadMCPServerTools(serverId: string): Promise<void> {
 		registerMCPTool(mcpTool);
 	}
 
-	logger.success("Reloaded MCP server tools", {
+	logger.info("Reloaded MCP server tools", {
 		serverId,
 		count: tools.length,
 	});
