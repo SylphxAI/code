@@ -16,37 +16,7 @@ import type {
 import { hasRequiredFields } from "./base-provider.js";
 
 import { getModelMetadata } from "../../utils/models-dev.js";
-
-const OPENAI_MODELS: ModelInfo[] = [
-	{ id: "gpt-4o", name: "GPT-4o" },
-	{ id: "gpt-4o-mini", name: "GPT-4o Mini" },
-	{ id: "gpt-4-turbo", name: "GPT-4 Turbo" },
-	{ id: "gpt-4", name: "GPT-4" },
-	{ id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo" },
-];
-
-const MODEL_DETAILS: Record<string, ProviderModelDetails> = {
-	"gpt-4o": {
-		contextLength: 128000,
-		maxOutput: 16384,
-	},
-	"gpt-4o-mini": {
-		contextLength: 128000,
-		maxOutput: 16384,
-	},
-	"gpt-4-turbo": {
-		contextLength: 128000,
-		maxOutput: 4096,
-	},
-	"gpt-4": {
-		contextLength: 8192,
-		maxOutput: 8192,
-	},
-	"gpt-3.5-turbo": {
-		contextLength: 16384,
-		maxOutput: 4096,
-	},
-};
+import { MODEL_REGISTRY, getProviderConsoleUrl } from "../models/model-registry.js";
 
 export class OpenAIProvider implements AIProvider {
 	readonly id = "openai" as const;
@@ -54,6 +24,7 @@ export class OpenAIProvider implements AIProvider {
 	readonly description = "GPT models by OpenAI";
 
 	getConfigSchema(): ConfigField[] {
+		const consoleUrl = getProviderConsoleUrl("openai") || "https://platform.openai.com";
 		return [
 			{
 				key: "apiKey",
@@ -61,7 +32,7 @@ export class OpenAIProvider implements AIProvider {
 				type: "string",
 				required: true,
 				secret: true,
-				description: "Get your API key from https://platform.openai.com",
+				description: `Get your API key from ${consoleUrl}`,
 				placeholder: "sk-...",
 			},
 			{
@@ -83,7 +54,7 @@ export class OpenAIProvider implements AIProvider {
 		const apiKey = config.apiKey as string | undefined;
 		if (!apiKey) {
 			// No API key - return known models (can't fetch from API without auth)
-			return OPENAI_MODELS;
+			return MODEL_REGISTRY.openai.models;
 		}
 
 		const baseUrl = (config.baseUrl as string) || "https://api.openai.com/v1";
@@ -116,8 +87,9 @@ export class OpenAIProvider implements AIProvider {
 		_config?: ProviderConfig,
 	): Promise<ProviderModelDetails | null> {
 		// Try provider knowledge first
-		if (MODEL_DETAILS[modelId]) {
-			return MODEL_DETAILS[modelId];
+		const staticDetails = MODEL_REGISTRY.openai.details[modelId];
+		if (staticDetails) {
+			return staticDetails;
 		}
 
 		// Fall back to models.dev

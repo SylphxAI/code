@@ -14,6 +14,7 @@ import {
 	splitLink,
 } from "@trpc/client";
 import { EventSource } from "eventsource";
+import { getServerURL } from "@sylphx/code-core/constants/config";
 
 /**
  * Create HTTP tRPC client for remote connections
@@ -28,7 +29,7 @@ import { EventSource } from "eventsource";
  * Set SYLPHX_API_KEY environment variable to authenticate
  */
 export function createHTTPClient(serverUrl?: string, apiKey?: string) {
-	const url = serverUrl || process.env.CODE_SERVER_URL || "http://localhost:3000";
+	const url = serverUrl || process.env.CODE_SERVER_URL || getServerURL();
 	const key = apiKey || process.env.SYLPHX_API_KEY;
 
 	// Prepare headers with optional API key

@@ -17,27 +17,7 @@ import type {
 import { hasRequiredFields } from "./base-provider.js";
 
 import { getModelMetadata } from "../../utils/models-dev.js";
-
-const GOOGLE_MODELS: ModelInfo[] = [
-	{ id: "gemini-2.0-flash-exp", name: "Gemini 2.0 Flash (Experimental)" },
-	{ id: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
-	{ id: "gemini-1.5-flash", name: "Gemini 1.5 Flash" },
-];
-
-const MODEL_DETAILS: Record<string, ProviderModelDetails> = {
-	"gemini-2.0-flash-exp": {
-		contextLength: 1000000,
-		maxOutput: 8192,
-	},
-	"gemini-1.5-pro": {
-		contextLength: 2000000,
-		maxOutput: 8192,
-	},
-	"gemini-1.5-flash": {
-		contextLength: 1000000,
-		maxOutput: 8192,
-	},
-};
+import { MODEL_REGISTRY, getProviderConsoleUrl } from "../models/model-registry.js";
 
 export class GoogleProvider implements AIProvider {
 	readonly id = "google" as const;
@@ -52,7 +32,7 @@ export class GoogleProvider implements AIProvider {
 				type: "string",
 				required: false,
 				secret: true,
-				description: "Get your API key from https://aistudio.google.com",
+				description: `Get your API key from ${getProviderConsoleUrl("google") || "https://aistudio.google.com"}`,
 				placeholder: "AIza...",
 			},
 			{
@@ -82,7 +62,7 @@ export class GoogleProvider implements AIProvider {
 	}
 
 	async fetchModels(_config: ProviderConfig): Promise<ModelInfo[]> {
-		return GOOGLE_MODELS;
+		return MODEL_REGISTRY.google.models;
 	}
 
 	async getModelDetails(
@@ -90,8 +70,9 @@ export class GoogleProvider implements AIProvider {
 		_config?: ProviderConfig,
 	): Promise<ProviderModelDetails | null> {
 		// Try provider knowledge first
-		if (MODEL_DETAILS[modelId]) {
-			return MODEL_DETAILS[modelId];
+		const staticDetails = MODEL_REGISTRY.google.details[modelId];
+		if (staticDetails) {
+			return staticDetails;
 		}
 
 		// Fall back to models.dev

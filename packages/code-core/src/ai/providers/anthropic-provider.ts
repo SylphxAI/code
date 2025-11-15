@@ -16,37 +16,7 @@ import type {
 import { hasRequiredFields } from "./base-provider.js";
 
 import { getModelMetadata } from "../../utils/models-dev.js";
-
-const ANTHROPIC_MODELS: ModelInfo[] = [
-	{ id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet (Latest)" },
-	{ id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku" },
-	{ id: "claude-3-opus-20240229", name: "Claude 3 Opus" },
-	{ id: "claude-3-sonnet-20240229", name: "Claude 3 Sonnet" },
-	{ id: "claude-3-haiku-20240307", name: "Claude 3 Haiku" },
-];
-
-const MODEL_DETAILS: Record<string, ProviderModelDetails> = {
-	"claude-3-5-sonnet-20241022": {
-		contextLength: 200000,
-		maxOutput: 8192,
-	},
-	"claude-3-5-haiku-20241022": {
-		contextLength: 200000,
-		maxOutput: 8192,
-	},
-	"claude-3-opus-20240229": {
-		contextLength: 200000,
-		maxOutput: 4096,
-	},
-	"claude-3-sonnet-20240229": {
-		contextLength: 200000,
-		maxOutput: 4096,
-	},
-	"claude-3-haiku-20240307": {
-		contextLength: 200000,
-		maxOutput: 4096,
-	},
-};
+import { MODEL_REGISTRY, getProviderConsoleUrl } from "../models/model-registry.js";
 
 export class AnthropicProvider implements AIProvider {
 	readonly id = "anthropic" as const;
@@ -54,6 +24,7 @@ export class AnthropicProvider implements AIProvider {
 	readonly description = "Claude models by Anthropic";
 
 	getConfigSchema(): ConfigField[] {
+		const consoleUrl = getProviderConsoleUrl("anthropic") || "https://console.anthropic.com";
 		return [
 			{
 				key: "apiKey",
@@ -61,7 +32,7 @@ export class AnthropicProvider implements AIProvider {
 				type: "string",
 				required: true,
 				secret: true,
-				description: "Get your API key from https://console.anthropic.com",
+				description: `Get your API key from ${consoleUrl}`,
 				placeholder: "sk-ant-...",
 			},
 		];
@@ -72,7 +43,7 @@ export class AnthropicProvider implements AIProvider {
 	}
 
 	async fetchModels(_config: ProviderConfig): Promise<ModelInfo[]> {
-		return ANTHROPIC_MODELS;
+		return MODEL_REGISTRY.anthropic.models;
 	}
 
 	async getModelDetails(
@@ -80,8 +51,9 @@ export class AnthropicProvider implements AIProvider {
 		_config?: ProviderConfig,
 	): Promise<ProviderModelDetails | null> {
 		// Try provider knowledge first
-		if (MODEL_DETAILS[modelId]) {
-			return MODEL_DETAILS[modelId];
+		const staticDetails = MODEL_REGISTRY.anthropic.details[modelId];
+		if (staticDetails) {
+			return staticDetails;
 		}
 
 		// Fall back to models.dev

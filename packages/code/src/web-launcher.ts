@@ -5,6 +5,7 @@
 
 import chalk from "chalk";
 import { ensureServer } from "./server-manager.js";
+import { getServerURL } from "@sylphx/code-core/constants/config";
 
 /**
  * Launch Web GUI mode
@@ -26,7 +27,7 @@ export async function launchWeb(): Promise<void> {
 	}
 
 	// 2. Open browser
-	const url = process.env.CODE_SERVER_URL || "http://localhost:3000";
+	const url = process.env.CODE_SERVER_URL || getServerURL();
 	console.error(chalk.cyan(`\nOpening browser: ${url}`));
 
 	try {
