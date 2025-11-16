@@ -234,7 +234,19 @@ export const getProviderConfigWithApiKey = async (
 	config: AIConfig,
 	providerId: string,
 ): Promise<ProviderConfigValue | undefined> => {
+	console.log("[getProviderConfigWithApiKey] Input:", {
+		providerId,
+		hasProviders: !!config.providers,
+		providerIds: config.providers ? Object.keys(config.providers) : [],
+	});
+
 	const providerConfig = config.providers?.[providerId];
+	console.log("[getProviderConfigWithApiKey] Found config:", {
+		hasConfig: !!providerConfig,
+		hasApiKey: !!(providerConfig as any)?.apiKey,
+		hasCredentialId: !!(providerConfig as any)?.credentialId,
+	});
+
 	if (!providerConfig) {
 		return undefined;
 	}
@@ -248,6 +260,7 @@ export const getProviderConfigWithApiKey = async (
 		};
 	}
 
+	console.log("[getProviderConfigWithApiKey] Returning:", providerConfig);
 	return providerConfig;
 };
 

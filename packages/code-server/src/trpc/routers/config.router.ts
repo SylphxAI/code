@@ -688,8 +688,8 @@ export const configRouter = router({
 				let config: any = undefined;
 				try {
 					const aiConfigResult = await loadAIConfig(input.cwd);
-					if (aiConfigResult.ok) {
-						const aiConfig = aiConfigResult.value;
+					if (aiConfigResult.success) {
+						const aiConfig = aiConfigResult.data;
 						config = await getProviderConfigWithApiKey(aiConfig, input.providerId);
 					}
 				} catch {
