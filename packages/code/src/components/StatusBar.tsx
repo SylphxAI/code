@@ -1,6 +1,8 @@
 /**
  * Status Bar Component
  * Display important session info at the bottom
+ *
+ * PERFORMANCE: Memoized to prevent re-renders when unrelated props change
  */
 
 import {
@@ -13,7 +15,7 @@ import {
 import { formatTokenCount } from "@sylphx/code-core";
 import { getAgentById } from "../embedded-context.js";
 import { Box, Text, Spacer } from "ink";
-import React from "react";
+import React, { useMemo } from "react";
 
 interface StatusBarProps {
 	provider: string | null;
@@ -39,7 +41,7 @@ interface StatusBarPropsInternal extends StatusBarProps {
 	sessionId: string | null;
 }
 
-export default function StatusBar({
+function StatusBarInternal({
 	sessionId,
 	provider,
 	model,
@@ -67,9 +69,11 @@ export default function StatusBar({
 	const contextLength = details.contextLength;
 	const capabilities = details.capabilities;
 
-	// Calculate usage percentage
-	const usagePercent =
-		contextLength && totalTokens > 0 ? Math.round((totalTokens / contextLength) * 100) : 0;
+	// Memoize usage percentage to avoid recalculating on every render
+	const usagePercent = useMemo(
+		() => (contextLength && totalTokens > 0 ? Math.round((totalTokens / contextLength) * 100) : 0),
+		[contextLength, totalTokens],
+	);
 
 	// Handle unconfigured states
 	if (!provider) {
@@ -112,9 +116,10 @@ export default function StatusBar({
 		);
 	}
 
-	// Format capabilities with emoji
-	let capabilityLabel = "";
-	if (!loading && capabilities && capabilities.size > 0) {
+	// Memoize capability label to avoid recalculating on every render
+	const capabilityLabel = useMemo(() => {
+		if (loading || !capabilities || capabilities.size === 0) return "";
+
 		const caps: string[] = [];
 		if (capabilities.has("image-input")) caps.push("👁️");
 		if (capabilities.has("file-input")) caps.push("📎");
@@ -122,28 +127,31 @@ export default function StatusBar({
 		if (capabilities.has("tools")) caps.push("🔧");
 		if (capabilities.has("reasoning")) caps.push("🧠");
 
-		if (caps.length > 0) {
-			capabilityLabel = ` ${caps.join("")}`;
+		return caps.length > 0 ? ` ${caps.join("")}` : "";
+	}, [loading, capabilities]);
+
+	// Memoize left content to avoid rebuilding on every render
+	const leftContent = useMemo(
+		() => [agentName, provider, model + capabilityLabel].filter(Boolean).join(" · "),
+		[agentName, provider, model, capabilityLabel],
+	);
+
+	// Memoize right content to avoid rebuilding on every render
+	const rightContent = useMemo(() => {
+		const rightParts = [
+			`${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`,
+			mcpStatus.total > 0 &&
+				`MCP ${mcpStatus.connected}/${mcpStatus.total}${mcpStatus.connected > 0 ? ` (${mcpStatus.toolCount})` : ""}`,
+		].filter(Boolean);
+
+		if (!loading && contextLength && totalTokens > 0) {
+			rightParts.push(`${formatTokenCount(totalTokens)} / ${formatTokenCount(contextLength)} (${usagePercent}%)`);
+		} else if (!loading && contextLength && totalTokens === 0) {
+			rightParts.push(formatTokenCount(contextLength));
 		}
-	}
 
-	// Build left content (agent, provider, model)
-	const leftContent = [agentName, provider, model + capabilityLabel].filter(Boolean).join(" · ");
-
-	// Build right content (rules, MCP, context)
-	const rightParts = [
-		`${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`,
-		mcpStatus.total > 0 &&
-			`MCP ${mcpStatus.connected}/${mcpStatus.total}${mcpStatus.connected > 0 ? ` (${mcpStatus.toolCount})` : ""}`,
-	].filter(Boolean);
-
-	if (!loading && contextLength && totalTokens > 0) {
-		rightParts.push(`${formatTokenCount(totalTokens)} / ${formatTokenCount(contextLength)} (${usagePercent}%)`);
-	} else if (!loading && contextLength && totalTokens === 0) {
-		rightParts.push(formatTokenCount(contextLength));
-	}
-
-	const rightContent = rightParts.join(" · ");
+		return rightParts.join(" · ");
+	}, [enabledRulesCount, mcpStatus, loading, contextLength, totalTokens, usagePercent]);
 
 	return (
 		<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
@@ -161,3 +169,16 @@ export default function StatusBar({
 		</Box>
 	);
 }
+
+// Memoize component to prevent unnecessary re-renders
+const StatusBar = React.memo(StatusBarInternal, (prevProps, nextProps) => {
+	return (
+		prevProps.sessionId === nextProps.sessionId &&
+		prevProps.provider === nextProps.provider &&
+		prevProps.model === nextProps.model &&
+		prevProps.modelStatus === nextProps.modelStatus &&
+		prevProps.usedTokens === nextProps.usedTokens
+	);
+});
+
+export default StatusBar;

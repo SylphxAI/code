@@ -1,10 +1,13 @@
 /**
  * ChatMessages Component
  * Displays welcome message or message list based on session state
+ *
+ * PERFORMANCE: Memoized to prevent re-renders when parent updates
  */
 
 import { Box, Text } from "ink";
 import type { SessionMessage } from "@sylphx/code-core";
+import React from "react";
 import { MessageList } from "../../../components/MessageList.js";
 
 interface ChatMessagesProps {
@@ -13,7 +16,7 @@ interface ChatMessagesProps {
 	attachmentTokens: Map<string, number>;
 }
 
-export function ChatMessages({ hasSession, messages = [], attachmentTokens }: ChatMessagesProps) {
+function ChatMessagesInternal({ hasSession, messages = [], attachmentTokens }: ChatMessagesProps) {
 	if (!hasSession) {
 		return (
 			<Box paddingY={1} flexDirection="column">
@@ -48,3 +51,12 @@ export function ChatMessages({ hasSession, messages = [], attachmentTokens }: Ch
 		</Box>
 	);
 }
+
+// Memoize component to prevent re-renders when props haven't changed
+export const ChatMessages = React.memo(ChatMessagesInternal, (prevProps, nextProps) => {
+	return (
+		prevProps.hasSession === nextProps.hasSession &&
+		prevProps.messages === nextProps.messages &&
+		prevProps.attachmentTokens === nextProps.attachmentTokens
+	);
+});

@@ -1,6 +1,8 @@
 /**
  * TodoList Component
  * Displays LLM task progress above the input area
+ *
+ * PERFORMANCE: Memoized to prevent re-renders when parent updates
  */
 
 import {
@@ -18,7 +20,7 @@ import React, { useMemo } from "react";
 
 const MAX_VISIBLE_LINES = 5;
 
-export default function TodoList() {
+function TodoListInternal() {
 	// Get current session's todos (tRPC: cached in store)
 	const { currentSession } = useCurrentSession();
 	const todos = currentSession?.todos || [];
@@ -107,3 +109,8 @@ export default function TodoList() {
 		</Box>
 	);
 }
+
+// Memoize component to prevent re-renders when todos haven't changed
+const TodoList = React.memo(TodoListInternal);
+
+export default TodoList;

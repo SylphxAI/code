@@ -2,12 +2,14 @@
  * MessageList Component
  *
  * Simple nested rendering - each message renders its own header + parts
+ *
+ * PERFORMANCE: Memoized message items to prevent re-renders when parent updates
  */
 
 import type { SessionMessage } from "@sylphx/code-core";
 import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Text } from "ink";
-import React from "react";
+import React, { useMemo } from "react";
 import { MessagePart } from "./MessagePart.js";
 import MarkdownText from "./MarkdownText.js";
 
@@ -16,6 +18,69 @@ interface MessageListProps {
 	attachmentTokens: Map<string, number>;
 }
 
+// Memoized message header component to prevent re-renders
+const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
+	if (msg.role === "user") {
+		return <Text color="cyan">▌ YOU</Text>;
+	}
+
+	if (msg.role === "system") {
+		// Extract system message type from <system_message type="..."> tag
+		const content = msg.content?.[0]?.type === "text" ? msg.content[0].content : "";
+		const typeMatch = content.match(/<system_message type="([^"]+)">/);
+		const messageType = typeMatch ? typeMatch[1] : "info";
+
+		return (
+			<Box flexDirection="row">
+				<Text color="yellow">▌ SYSTEM</Text>
+				<Text color="yellow" dimColor>
+					{" "}
+					· {messageType}
+				</Text>
+			</Box>
+		);
+	}
+
+	// Assistant message
+	const steps = msg.steps && msg.steps.length > 0 ? msg.steps : [];
+	const stepsWithModel = steps.filter((s) => s.provider && s.model);
+
+	if (stepsWithModel.length === 0) {
+		return <Text color="green">▌ SYLPHX</Text>;
+	}
+
+	const firstProvider = stepsWithModel[0].provider;
+	const firstModel = stepsWithModel[0].model;
+	const allSame = stepsWithModel.every(
+		(s) => s.provider === firstProvider && s.model === firstModel,
+	);
+
+	if (allSame) {
+		return (
+			<Box flexDirection="row">
+				<Text color="green">▌ SYLPHX</Text>
+				<Text dimColor>
+					{" "}
+					· {firstProvider} · {firstModel}
+				</Text>
+			</Box>
+		);
+	}
+
+	const uniqueModels = new Set(stepsWithModel.map((s) => `${s.provider}/${s.model}`));
+	return (
+		<Box flexDirection="row">
+			<Text color="green">▌ SYLPHX</Text>
+			<Text dimColor>
+				{" "}
+				· Mixed {uniqueModels.size} models
+			</Text>
+		</Box>
+	);
+});
+
+MessageHeader.displayName = "MessageHeader";
+
 export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 	return (
 		<>
@@ -23,69 +88,7 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 				<Box key={msg.id} flexDirection="column">
 					{/* Message Header */}
 					<Box paddingTop={1} paddingX={1}>
-						{msg.role === "user" ? (
-							<Text color="cyan">▌ YOU</Text>
-						) : msg.role === "system" ? (
-							(() => {
-								// Extract system message type from <system_message type="..."> tag
-								const content = msg.content?.[0]?.type === "text" ? msg.content[0].content : "";
-								const typeMatch = content.match(/<system_message type="([^"]+)">/);
-								const messageType = typeMatch ? typeMatch[1] : "info";
-
-								return (
-									<Box flexDirection="row">
-										<Text color="yellow">▌ SYSTEM</Text>
-										<Text color="yellow" dimColor>
-											{" "}
-											· {messageType}
-										</Text>
-									</Box>
-								);
-							})()
-						) : (
-							(() => {
-								// Extract provider and model from steps
-								const steps = msg.steps && msg.steps.length > 0 ? msg.steps : [];
-								const stepsWithModel = steps.filter((s) => s.provider && s.model);
-
-								if (stepsWithModel.length === 0) {
-									// No model info available
-									return <Text color="green">▌ SYLPHX</Text>;
-								}
-
-								// Check if all steps use the same provider and model
-								const firstProvider = stepsWithModel[0].provider;
-								const firstModel = stepsWithModel[0].model;
-								const allSame = stepsWithModel.every(
-									(s) => s.provider === firstProvider && s.model === firstModel,
-								);
-
-								if (allSame) {
-									// All steps use the same model
-									return (
-										<Box flexDirection="row">
-											<Text color="green">▌ SYLPHX</Text>
-											<Text dimColor>
-												{" "}
-												· {firstProvider} · {firstModel}
-											</Text>
-										</Box>
-									);
-								} else {
-									// Multiple different models used
-									const uniqueModels = new Set(stepsWithModel.map((s) => `${s.provider}/${s.model}`));
-									return (
-										<Box flexDirection="row">
-											<Text color="green">▌ SYLPHX</Text>
-											<Text dimColor>
-												{" "}
-												· Mixed {uniqueModels.size} models
-											</Text>
-										</Box>
-									);
-								}
-							})()
-						)}
+						<MessageHeader msg={msg} />
 					</Box>
 
 					{/* Message Content (Step-based or fallback to content array) */}

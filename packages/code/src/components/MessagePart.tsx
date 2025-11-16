@@ -50,7 +50,7 @@ type StreamingPart =
 	| { type: "file"; mediaType: string; base64: string; status: "completed" }
 	| { type: "error"; error: string; status: "completed" };
 
-export function MessagePart({ part }: MessagePartProps) {
+function MessagePartInternal({ part }: MessagePartProps) {
 	if (part.type === "text") {
 		return (
 			<Box flexDirection="column" marginLeft={3} marginBottom={1}>
@@ -199,3 +199,51 @@ export function MessagePart({ part }: MessagePartProps) {
 
 	return null;
 }
+
+// Memoize component to prevent re-rendering unchanged message parts
+export const MessagePart = React.memo(MessagePartInternal, (prevProps, nextProps) => {
+	const prevPart = prevProps.part;
+	const nextPart = nextProps.part;
+
+	// Compare based on part type
+	if (prevPart.type !== nextPart.type) return false;
+
+	// Type-specific comparisons
+	if (prevPart.type === "text" && nextPart.type === "text") {
+		return prevPart.content === nextPart.content;
+	}
+
+	if (prevPart.type === "reasoning" && nextPart.type === "reasoning") {
+		const prevStatus = "status" in prevPart ? prevPart.status : "completed";
+		const nextStatus = "status" in nextPart ? nextPart.status : "completed";
+		return (
+			prevPart.content === nextPart.content &&
+			prevStatus === nextStatus &&
+			prevPart.duration === nextPart.duration &&
+			prevPart.startTime === nextPart.startTime
+		);
+	}
+
+	if (prevPart.type === "tool" && nextPart.type === "tool") {
+		return (
+			prevPart.name === nextPart.name &&
+			prevPart.status === nextPart.status &&
+			prevPart.duration === nextPart.duration &&
+			prevPart.startTime === nextPart.startTime &&
+			prevPart.input === nextPart.input &&
+			prevPart.result === nextPart.result &&
+			prevPart.error === nextPart.error
+		);
+	}
+
+	if (prevPart.type === "file" && nextPart.type === "file") {
+		return prevPart.mediaType === nextPart.mediaType && prevPart.base64 === nextPart.base64;
+	}
+
+	if (prevPart.type === "error" && nextPart.type === "error") {
+		return prevPart.error === nextPart.error;
+	}
+
+	// Default: re-render if we can't determine equality
+	return false;
+});
