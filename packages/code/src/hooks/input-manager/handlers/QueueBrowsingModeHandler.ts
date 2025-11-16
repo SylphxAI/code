@@ -113,6 +113,11 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 	 * Handle keyboard input for queue retrieval
 	 */
 	async handleInput(_char: string, key: Key, _context: InputModeContext): Promise<boolean> {
+		console.log("[QueueBrowsing] handleInput called with key:", {
+			upArrow: key.upArrow,
+			downArrow: key.downArrow,
+		});
+
 		const {
 			queuedMessages,
 			currentSessionId,
@@ -124,8 +129,15 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 
 		// Arrow up - pop last queued message into input
 		if (key.upArrow) {
+			console.log("[QueueBrowsing] UP arrow detected, queue length:", queuedMessages.length);
 			return this.handleArrowUp(async () => {
-				if (queuedMessages.length === 0 || !currentSessionId) return;
+				if (queuedMessages.length === 0 || !currentSessionId) {
+					console.log("[QueueBrowsing] Skipping - no messages or no session:", {
+						queueLength: queuedMessages.length,
+						sessionId: currentSessionId,
+					});
+					return;
+				}
 
 				// Get the last (most recent) queued message
 				const lastMessage = queuedMessages[queuedMessages.length - 1];
@@ -147,6 +159,7 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 		}
 
 		// Don't consume other keys
+		console.log("[QueueBrowsing] Not handling this key, returning false");
 		return false;
 	}
 }

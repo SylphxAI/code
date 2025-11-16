@@ -53,7 +53,12 @@ export function useInputModeManager(props: UseInputModeManagerProps) {
 
 	// Sort handlers by priority (highest first)
 	const sortedHandlers = useMemo(() => {
-		return [...handlers].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+		const sorted = [...handlers].sort((a, b) => (b.priority || 0) - (a.priority || 0));
+		console.log(
+			"[InputModeManager] Sorted handlers:",
+			sorted.map((h) => `${h.constructor.name}(${h.priority})`),
+		);
+		return sorted;
 	}, [handlers]);
 
 	// Check if there's any active handler for current context
@@ -61,11 +66,26 @@ export function useInputModeManager(props: UseInputModeManagerProps) {
 
 	useInput(
 		async (char, key) => {
+			if (debug || key.upArrow) {
+				console.log("[InputModeManager] Input event:", {
+					char,
+					upArrow: key.upArrow,
+					mode: context.mode,
+					handlersCount: sortedHandlers.length,
+				});
+			}
+
 			// Find active handler
-			const activeHandler = sortedHandlers.find((h) => h.isActive(context));
+			const activeHandler = sortedHandlers.find((h) => {
+				const isActive = h.isActive(context);
+				if (debug || key.upArrow) {
+					console.log(`[InputModeManager] Checking ${h.constructor.name}:`, isActive);
+				}
+				return isActive;
+			});
 
 			if (!activeHandler) {
-				if (debug) {
+				if (debug || key.upArrow) {
 					console.warn(`[InputModeManager] No active handler for mode: ${context.mode}`, {
 						char,
 						key,
@@ -73,6 +93,10 @@ export function useInputModeManager(props: UseInputModeManagerProps) {
 				}
 				eventCountRef.current.unhandled++;
 				return false;
+			}
+
+			if (debug || key.upArrow) {
+				console.log(`[InputModeManager] Active handler: ${activeHandler.constructor.name}`);
 			}
 
 			// Delegate to handler
