@@ -130,7 +130,7 @@ export function useInputModeManager(props: UseInputModeManagerProps) {
 				return false;
 			}
 		},
-		{ isActive: hasActiveHandler }, // Only active when there's a handler for current mode
+		{ isActive: true }, // Always active - let handlers decide what to handle
 	);
 
 	// Expose event counts in debug mode
