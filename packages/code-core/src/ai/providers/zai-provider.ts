@@ -119,6 +119,7 @@ export class ZaiProvider implements AIProvider {
 			});
 
 			if (!response.ok) {
+				console.error(`[ZaiProvider] API error: ${response.status} ${response.statusText}`);
 				return null;
 			}
 
@@ -133,10 +134,15 @@ export class ZaiProvider implements AIProvider {
 				}>;
 			};
 
+			console.log(`[ZaiProvider] /models response:`, JSON.stringify(data, null, 2));
+
 			const model = data.data?.find((m) => m.id === modelId);
 			if (!model) {
+				console.error(`[ZaiProvider] Model ${modelId} not found in API response`);
 				return null;
 			}
+
+			console.log(`[ZaiProvider] Found model ${modelId}:`, JSON.stringify(model, null, 2));
 
 			return {
 				contextLength: model.context_length || null,
