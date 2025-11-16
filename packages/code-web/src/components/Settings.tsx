@@ -106,7 +106,7 @@ export default function Settings({ onClose }: SettingsProps) {
 						<h2 className="text-2xl font-bold text-gray-100">Settings</h2>
 						<p className="text-sm text-gray-400 mt-1">Configure AI providers and models</p>
 					</div>
-					<button onClick={onClose} className="p-2 hover:bg-gray-700 rounded-lg transition-colors">
+					<button type="button" onClick={onClose} className="p-2 hover:bg-gray-700 rounded-lg transition-colors">
 						<svg
 							className="w-6 h-6 text-gray-400"
 							fill="none"
@@ -114,6 +114,8 @@ export default function Settings({ onClose }: SettingsProps) {
 							viewBox="0 0 24 24"
 						>
 							<path
+						<title>Close</title>
+						<title>Close</title>
 								strokeLinecap="round"
 								strokeLinejoin="round"
 								strokeWidth={2}
@@ -128,7 +130,7 @@ export default function Settings({ onClose }: SettingsProps) {
 					<div className="w-64 bg-gray-800/30 border-r border-gray-700 overflow-y-auto p-4">
 						<div className="text-xs font-semibold text-gray-500 uppercase mb-3">AI Providers</div>
 						{providers.map((provider) => (
-							<button
+							<button type="button"
 								key={provider.id}
 								onClick={() => setActiveProvider(provider.id)}
 								className={`
@@ -234,6 +236,7 @@ export default function Settings({ onClose }: SettingsProps) {
 										stroke="currentColor"
 										viewBox="0 0 24 24"
 									>
+							<title>Information</title>
 										<path
 											strokeLinecap="round"
 											strokeLinejoin="round"
@@ -309,13 +312,13 @@ export default function Settings({ onClose }: SettingsProps) {
 
 				{/* Footer */}
 				<div className="flex items-center justify-between p-6 bg-gray-800/50 border-t border-gray-700">
-					<button
+					<button type="button"
 						onClick={onClose}
 						className="px-6 py-2 text-gray-400 hover:text-gray-200 transition-colors"
 					>
 						Cancel
 					</button>
-					<button
+					<button type="button"
 						onClick={handleSave}
 						disabled={isSaving}
 						className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

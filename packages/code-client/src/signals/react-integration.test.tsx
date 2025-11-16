@@ -273,7 +273,7 @@ describe("React Integration with Zen Signals", () => {
 					<div>
 						<div data-testid="screen">{screen}</div>
 						<div data-testid="count">{localCount}</div>
-						<button onClick={() => setLocalCount(localCount + 1)}>Increment</button>
+						<button type="button" onClick={() => setLocalCount(localCount + 1)}>Increment</button>
 					</div>
 				);
 			};

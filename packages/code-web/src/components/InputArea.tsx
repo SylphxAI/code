@@ -368,6 +368,7 @@ export default function InputArea({
 								className="flex items-center gap-2 px-3 py-2 bg-blue-600/20 text-blue-300 rounded-lg text-sm"
 							>
 								<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<title>Icon</title>
 									<path
 										strokeLinecap="round"
 										strokeLinejoin="round"
@@ -381,12 +382,12 @@ export default function InputArea({
 										({(file.size / 1024).toFixed(1)} KB)
 									</span>
 								)}
-								<button
-									onClick={() => removeAttachment(index)}
+								<button type="button" onClick={() => removeAttachment(index)}
 									className="ml-1 hover:text-red-400 transition-colors"
 									disabled={isStreaming}
 								>
 									<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<title>Icon</title>
 										<path
 											strokeLinecap="round"
 											strokeLinejoin="round"
@@ -411,13 +412,13 @@ export default function InputArea({
 					/>
 
 					{/* Attach file button */}
-					<button
-						onClick={handleFileSelect}
+					<button type="button" onClick={handleFileSelect}
 						disabled={isStreaming}
 						className="p-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-400 hover:text-gray-200 rounded-xl transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
 						title="Attach files (@file)"
 					>
 						<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<title>Icon</title>
 							<path
 								strokeLinecap="round"
 								strokeLinejoin="round"
@@ -439,8 +440,7 @@ export default function InputArea({
 						style={{ maxHeight: "200px" }}
 					/>
 
-					<button
-						onClick={handleSubmit}
+					<button type="button" onClick={handleSubmit}
 						disabled={isStreaming || !input.trim()}
 						className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600"
 					>
