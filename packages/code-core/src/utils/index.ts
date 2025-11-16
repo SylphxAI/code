@@ -15,66 +15,120 @@
 // ============================================================================
 // Direct exports for backward compatibility - @deprecated
 
-export * from "./cache-storage.js";
-export * from "./database-errors.js";
+// Database errors
+export {
+	DatabaseError,
+	ValidationError,
+	ConnectionError,
+	MigrationError,
+	isDatabaseError,
+	isValidationError,
+	isConnectionError,
+	isMigrationError,
+	createMigrationError,
+	createConnectionError,
+} from "./database-errors.js";
+
 // Diff formatting utilities
-export * from "./diff-formatter.js";
-// Database utilities
-export * from "./drizzle-storage.js";
+export { formatDiffLine, formatDiffLines } from "./diff-formatter.js";
+
 // Error handling
-export * from "./error-handler.js";
+export {
+	CLIError,
+	handleError,
+	createAsyncHandler,
+} from "./error-handler.js";
+
 // File operations
-export * from "./file-operations.js";
+export type {
+	FileReadOptions,
+	FileWriteOptions,
+	FileCopyOptions,
+	FileInfo,
+} from "./file-operations.js";
+export {
+	formatFileSize,
+	validateFilePath,
+} from "./file-operations.js";
+
 // JSONC utilities
-export * from "./jsonc.js";
+export { parseJSONC, stringifyJSONC } from "./jsonc.js";
+
 // Logger utilities
-export * from "./logger.js";
-export * from "./memory-storage.js";
+export type { LogLevel, LogEntry, LoggerConfig, Logger } from "./logger.js";
+export { createLogger, logger, log } from "./logger.js";
+
 // Path utilities
-export * from "./paths.js";
+export {
+	findPackageRoot,
+	getAgentsDir,
+	getTemplatesDir,
+	getRulesDir,
+	getKnowledgeDir,
+	getOutputStylesDir,
+	getSlashCommandsDir,
+	getRuleFile,
+	getPathsInfo,
+} from "./paths.js";
+
 // Security utilities
-export * from "./security.js";
-export * from "./simplified-errors.js";
-// Target configuration
-export * from "./target-config.js";
+export {
+	securitySchemas,
+	pathSecurity,
+	commandSecurity,
+	sanitize,
+	envSecurity,
+	cryptoUtils,
+	RateLimiter,
+	securityMiddleware,
+} from "./security.js";
 
-// Search and indexing - moved to services/search/
+// Simplified errors
+export {
+	ErrorSeverity,
+	ErrorCategory,
+	AppError,
+	ValidationError as SimplifiedValidationError,
+	ConfigurationError,
+	DatabaseError as SimplifiedDatabaseError,
+	NetworkError,
+	FilesystemError,
+	AuthenticationError,
+	ErrorFactory,
+	ErrorHandler,
+	createValidationError,
+	createConfigurationError,
+	createDatabaseError,
+	createNetworkError,
+	createFilesystemError,
+	createAuthenticationError,
+	createError,
+} from "./simplified-errors.js";
+export type { ErrorInfo } from "./simplified-errors.js";
 
-// Command builder
-export * from "./command-builder.js";
 // Console UI utilities
-export * from "./console-ui.js";
-// Prompt utilities
-export * from "./prompts.js";
-// Secret utilities
-export * from "./secret-utils.js";
-// Template engine
-export * from "./template-engine.js";
+export { ui } from "./console-ui.js";
 
-// Embeddings and TF-IDF - moved to services/search/
+// Secret utilities
+export { secretUtils } from "./secret-utils.js";
+
+// Template engine
+export type { TemplateData } from "./template-engine.js";
+export { TemplateEngine } from "./template-engine.js";
 
 // Help utilities
-export * from "./help.js";
+export { showDefaultHelp } from "./help.js";
 
-// Target utilities
-export * from "./target-utils.js";
-
-// Migration examples - removed (obsolete)
-// Test utilities - removed (obsolete)
-
-// Shared utilities
-export * from "../shared/index.js";
-
-// Base indexer - moved to services/search/
-
-// LanceDB vector storage
-export * from "./lancedb-vector-storage.js";
-// Separated storage
-export * from "./separated-storage.js";
 // Settings utilities
-export * from "./settings.js";
-
-// Target config types
-export * from "./target-config.js";
-// Vector storage
-export * from "./vector-storage.js";
+export type { ProjectSettings as ProjectSettingsType } from "./settings.js";
+export {
+	getSettingsPath,
+	settingsExists,
+	loadSettings,
+	saveSettings,
+	updateSettings,
+	getDefaultTarget,
+	setDefaultTarget,
+	ProjectSettings,
+	projectSettings,
+} from "./settings.js";

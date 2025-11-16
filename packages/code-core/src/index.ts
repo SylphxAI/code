@@ -311,9 +311,8 @@ export { buildTodoContext } from "./utils/todo-context.js";
 export {
 	generateSessionTitleWithStreaming,
 	generateSessionTitle,
-	cleanAITitle,
-	formatSessionDisplay,
 } from "./utils/session-title.js";
+export { cleanAITitle, formatSessionDisplay } from "./session/utils/index.js";
 // NOTE: formatTodoChange and formatTodoCount are used internally by tools/todo.ts
 // Exporting them here causes duplicate exports in the bundle. Keep them internal.
 export {
@@ -338,9 +337,27 @@ export type { CacheStats } from "./cache/cache-manager.js";
 export { filterFiles, type FileInfo } from "./utils/file-scanner.js";
 export { fetchModels, type ModelInfo } from "./utils/ai-model-fetcher.js";
 export { debugLog, createLogger } from "./utils/debug-logger.js";
-export * from "./utils/cursor-utils.js";
-export * from "./utils/scroll-viewport.js";
-export * from "./utils/tool-formatters.js";
+export {
+	getCursorLinePosition,
+	getAbsoluteCursorPosition,
+	moveCursorUp,
+	moveCursorDown,
+	clampCursor,
+	type LinePosition,
+} from "./utils/cursor-utils.js";
+export {
+	calculateScrollViewport,
+	type ScrollViewportResult,
+} from "./utils/scroll-viewport.js";
+export {
+	truncateString,
+	getRelativePath,
+	isDefaultCwd,
+	pluralize,
+	type InputFormatter,
+	type ResultFormatter,
+	type FormattedResult,
+} from "./utils/tool-formatters.js";
 export { formatDiffLine, formatDiffLines } from "./utils/diff-formatter.js";
 
 // ============================================================================

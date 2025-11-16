@@ -5,17 +5,7 @@
 
 import { streamText } from "ai";
 import type { ProviderId } from "../types/config.types.js";
-import { cleanAITitle } from "../session/utils/title.js";
-
-// Re-export pure functions from session feature
-export {
-	generateSessionTitle as generateSimpleTitle,
-	formatSessionDisplay,
-	formatRelativeTime,
-	cleanTitle,
-	truncateTitle,
-	cleanAITitle,
-} from "../session/utils/title.js";
+import { cleanAITitle } from "../session/utils/index.js";
 
 /**
  * Generate a session title using LLM with streaming (collects full text)
@@ -77,7 +67,7 @@ Now generate the title:`,
 	} catch (error) {
 		console.error("[generateSessionTitle] Error:", error);
 		// Fallback to simple title generation on any error
-		const { generateSessionTitle: fallback } = await import("../session/utils/title.js");
+		const { generateSessionTitle: fallback } = await import("../session/utils/fallback.js");
 		return fallback(firstMessage);
 	}
 }

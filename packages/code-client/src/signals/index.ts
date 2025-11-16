@@ -1,22 +1,25 @@
 /**
  * Zen Signals Public API
  * Main entry point for all signal functionality
+ *
+ * NOTE: This internal barrel file is kept for backwards compatibility.
+ * External packages should import from the main package index which uses explicit exports.
  */
 
 // Domain signals
-export * from "./domain/ui";
-export * from "./domain/ai";
-export * from "./domain/session";
-export * from "./domain/settings";
+export * from "./domain/ui/index.js";
+export * from "./domain/ai/index.js";
+export * from "./domain/session/index.js";
+export * from "./domain/settings/index.js";
 
 // Cross-domain computed signals
-export * from "./computed";
+export * from "./computed/index.js";
 
 // Event system
-export * from "./events";
+export * from "./events/index.js";
 
 // Effects and side effects
-export * from "./effects";
+export * from "./effects/index.js";
 
 // Persistence: DISABLED - Client should not persist any state
 // All state comes from server via tRPC

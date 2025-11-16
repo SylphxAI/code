@@ -238,8 +238,26 @@ export class DrizzleDatabase {
 }
 
 // Export schema and types
-export * from "./schema.js";
-export { schema };
+export {
+	sessions,
+	messages,
+	messageSteps,
+	stepUsage,
+	stepParts,
+	todos,
+	events,
+	SystemMessageSchema,
+	MessagePartSchema,
+	StringArraySchema,
+	schema,
+} from "./schema.js";
+export type { Session, NewSession } from "./schema.js";
+export type { Message, NewMessage } from "./schema.js";
+export type { MessageStep, NewMessageStep } from "./schema.js";
+export type { StepUsage, NewStepUsage } from "./schema.js";
+export type { StepPart, NewStepPart } from "./schema.js";
+export type { Todo, NewTodo } from "./schema.js";
+export type { Event, NewEvent } from "./schema.js";
 
 // Export step repository helpers
 export {

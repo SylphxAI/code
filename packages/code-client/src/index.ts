@@ -37,7 +37,23 @@ export {
 // ============================================================================
 // State Management (Zen Signals)
 // ============================================================================
-export * from "./signals/index.js";
+// Domain signals
+export * from "./signals/domain/ui/index.js";
+export * from "./signals/domain/ai/index.js";
+export * from "./signals/domain/session/index.js";
+export * from "./signals/domain/settings/index.js";
+
+// Cross-domain computed signals
+export * from "./signals/computed/index.js";
+
+// Event system
+export * from "./signals/events/index.js";
+
+// Effects
+export * from "./signals/effects/index.js";
+
+// Core zen exports
+export { zen, computed, subscribe, get, set } from "@sylphx/zen";
 
 // ============================================================================
 // Screen Type (for backwards compatibility in component imports)
@@ -102,10 +118,11 @@ export { useMCPStatus, type MCPStatus } from "./hooks/useMCPStatus.js";
 // ============================================================================
 // Utilities
 // ============================================================================
-export * from "./utils/config.js";
+export type { ProviderModelResult } from "./utils/config.js";
+export { resolveProviderAndModel } from "./utils/config.js";
 
 // API functions
-export * from "./api/sessions.js";
+export { getRecentSessions, getLastSession } from "./api/sessions.js";
 
 // Re-export shared utilities from @sylphx/code-core (via main export)
 export {
@@ -127,10 +144,27 @@ export {
 } from "@sylphx/code-core";
 
 // Client-specific utilities
-export * from "./utils/parse-user-input.js";
-export * from "./utils/text-rendering-utils.js";
-export * from "./utils/todo-formatters.js";
-export * from "./utils/tool-configs.js";
+export type { ParsedContentPart, ParsedUserInput } from "./utils/parse-user-input.js";
+export { parseUserInput } from "./utils/parse-user-input.js";
+
+export {
+	getTodoIcon,
+	getTodoColor,
+	getTodoDisplayText,
+	isTodoDimmed,
+	isTodoBold,
+	isTodoStrikethrough,
+	formatTodoChange,
+	formatTodoCount,
+} from "./utils/todo-formatters.js";
+
+export type { ToolDisplayProps, ToolConfig } from "./types/tool.types.js";
+export {
+	toolConfigs,
+	getToolComponent,
+	isBuiltInTool,
+	registerTool,
+} from "./utils/tool-configs.js";
 
 // ============================================================================
 // Version
