@@ -63,6 +63,7 @@ function StatusBarInternal({
 	// Real-time tokens from $currentSession signal
 	// Updated live during streaming via session-tokens-updated events
 	const totalTokens = useTotalTokens();
+	console.log("[StatusBar] Render - totalTokens:", totalTokens, "contextLength:", contextLength);
 
 	// Fetch model details from server
 	const { details, loading } = useModelDetails(provider, model);

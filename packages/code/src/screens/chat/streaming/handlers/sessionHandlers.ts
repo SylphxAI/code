@@ -193,6 +193,8 @@ export function handleSessionTokensUpdated(
 		baseContextTokens: event.baseContextTokens,
 	});
 
+	console.log("[handleSessionTokensUpdated] Signal updated - totalTokens:", event.totalTokens, "baseContextTokens:", event.baseContextTokens);
+
 	logSession("Session tokens updated successfully:", {
 		total: event.totalTokens,
 		base: event.baseContextTokens,
