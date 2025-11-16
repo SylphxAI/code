@@ -58,6 +58,7 @@ const STREAM_TIMEOUT_MS = 45000; // 45 seconds
 export function streamAIResponse(opts: StreamAIResponseOptions): Observable<StreamEvent, unknown> {
 	return observable<StreamEvent>((observer) => {
 		let askToolRegistered = false;
+		let sessionId: string | null = null;
 		const executionPromise = (async () => {
 			try {
 				const {
@@ -73,7 +74,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				} = opts;
 
 				// 1. Ensure session exists (create if needed)
-				let sessionId: string;
 				let isNewSession: boolean;
 
 				try {
