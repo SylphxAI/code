@@ -90,7 +90,15 @@ export const modelCommand: Command = {
 		}
 
 		// No args - show model selection UI
-		const aiConfig = get($aiConfig);
+		// Load config with API keys (direct filesystem access for CLI)
+		const { loadAIConfig } = await import("@sylphx/code-core");
+		const aiConfigResult = await loadAIConfig();
+
+		if (!aiConfigResult.success) {
+			return `Failed to load AI config: ${aiConfigResult.error.message}`;
+		}
+
+		const aiConfig = aiConfigResult.data;
 		if (!aiConfig?.providers) {
 			return "No providers configured. Please configure a provider first.";
 		}
@@ -98,7 +106,7 @@ export const modelCommand: Command = {
 		// Get current session's provider or selected provider from zen signals
 		const currentSession = get($currentSession);
 		const selectedProvider = get($selectedProvider);
-		const currentProviderId = currentSession?.provider || selectedProvider;
+		const currentProviderId = currentSession?.provider || selectedProvider || aiConfig.defaultProvider;
 
 		if (!currentProviderId) {
 			return "No provider selected. Use /provider to select a provider first.";
@@ -109,7 +117,7 @@ export const modelCommand: Command = {
 			return `Provider ${currentProviderId} is not configured.`;
 		}
 
-		// Fetch models from current provider
+		// Fetch models from current provider (config now includes API key)
 		let allModels: Array<{ id: string; name: string }> = [];
 		try {
 			const { fetchModels } = await import("@sylphx/code-core");
