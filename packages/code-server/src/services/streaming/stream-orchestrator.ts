@@ -382,7 +382,62 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					cwd,
 				);
 
-				// 25. Complete observable
+				// 25. Auto-send queued message (if any)
+				// Only auto-send if stream completed successfully (not tool-calls, not aborted, not error)
+				if (
+					finalStatus === "completed" &&
+					(finalFinishReason === "stop" || finalFinishReason === "length")
+				) {
+					const nextQueued = await sessionRepository.dequeueMessage(sessionId);
+
+					if (nextQueued) {
+						console.log("[StreamOrchestrator] Auto-sending queued message:", nextQueued.id);
+
+						// Broadcast dequeue event
+						observer.next({
+							type: "queue-message-removed",
+							sessionId,
+							messageId: nextQueued.id,
+						});
+
+						// Parse user input from queued message
+						const { parseUserInput } = await import("@sylphx/code-client");
+						const { parts } = parseUserInput(nextQueued.content, nextQueued.attachments);
+
+						// Trigger new stream with queued message
+						// This creates a recursive streaming cycle until queue is empty
+						const queuedStream = streamAIResponse({
+							appContext: opts.appContext,
+							sessionRepository,
+							messageRepository,
+							aiConfig,
+							sessionId, // Use existing session
+							userMessageContent: parts,
+							// No abortSignal - queued messages can't be aborted mid-flight
+							// User can only abort the current active stream, not queued ones
+						});
+
+						// Subscribe to queued stream and forward events
+						queuedStream.subscribe({
+							next: (event) => observer.next(event),
+							error: (err) => {
+								console.error("[StreamOrchestrator] Queued stream error:", err);
+								// Emit error but don't stop main stream
+								emitError(
+									observer,
+									`Queued message error: ${err instanceof Error ? err.message : String(err)}`,
+								);
+							},
+							// Note: Don't call observer.complete() here - let the outer stream manage completion
+							// The recursive queue processing will eventually complete when queue is empty
+						});
+
+						// Return early - don't complete yet, wait for queued stream
+						return;
+					}
+				}
+
+				// 26. Complete observable
 				observer.complete();
 			} catch (error) {
 				console.error("[StreamOrchestrator] Error in execution:", error);
