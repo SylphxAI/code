@@ -172,46 +172,29 @@ export function handleSessionTokensUpdated(
 	const currentSessionId = getCurrentSessionId();
 	const currentSession = getSignal($currentSession);
 
-	console.log("[handleSessionTokensUpdated] Called with:", {
-		eventSessionId: event.sessionId,
-		currentSessionId,
-		hasCurrentSession: !!currentSession,
-		currentSessionIdFromSession: currentSession?.id,
-	});
-
 	// Only handle if this is the current session
 	if (event.sessionId !== currentSessionId || !currentSession) {
-		console.log("[handleSessionTokensUpdated] Early return - session mismatch or no current session");
 		return;
 	}
 
 	// ARCHITECTURE: Send data on needed - event contains actual token data
 	// Client is pure UI - directly use data from server, no business logic
 	// Multi-client sync: All clients receive same data simultaneously
-	console.log("[handleSessionTokensUpdated] About to log and update signal");
 	logSession("Session tokens updated from event:", {
 		sessionId: event.sessionId,
 		totalTokens: event.totalTokens,
 		baseContextTokens: event.baseContextTokens,
 	});
 
-	console.log("[handleSessionTokensUpdated] About to call setSignal");
-	try {
-		// Update local state with data from event (no API call needed)
-		setSignal($currentSession, {
-			...currentSession,
-			totalTokens: event.totalTokens,
-			baseContextTokens: event.baseContextTokens,
-		});
-		console.log("[handleSessionTokensUpdated] setSignal completed successfully");
-	} catch (error) {
-		console.error("[handleSessionTokensUpdated] Error calling setSignal:", error);
-		throw error;
-	}
+	// Update local state with data from event (no API call needed)
+	setSignal($currentSession, {
+		...currentSession,
+		totalTokens: event.totalTokens,
+		baseContextTokens: event.baseContextTokens,
+	});
 
 	logSession("Session tokens updated successfully:", {
 		total: event.totalTokens,
 		base: event.baseContextTokens,
 	});
-	console.log("[handleSessionTokensUpdated] Function completed successfully");
 }

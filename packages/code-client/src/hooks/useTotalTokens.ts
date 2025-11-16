@@ -21,13 +21,5 @@ import { useCurrentSession } from "../signals/domain/session/index.js";
  */
 export function useTotalTokens(): number {
 	const currentSession = useCurrentSession();
-	const totalTokens = currentSession?.totalTokens || 0;
-
-	console.log("[useTotalTokens] Hook called, returning:", {
-		sessionId: currentSession?.id,
-		totalTokens,
-		hasSession: !!currentSession,
-	});
-
-	return totalTokens;
+	return currentSession?.totalTokens || 0;
 }
