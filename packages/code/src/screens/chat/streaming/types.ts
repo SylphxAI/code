@@ -20,6 +20,7 @@ export interface EventHandlerContext {
 	aiConfig: AIConfig | null;
 	userMessage: string;
 	notificationSettings: { notifyOnCompletion: boolean; notifyOnError: boolean };
+	setPendingInput: (input: any) => void; // For ask tool events
 }
 
 /**

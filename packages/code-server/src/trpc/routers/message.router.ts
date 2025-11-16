@@ -434,20 +434,16 @@ export const messageRouter = router({
 		.input(
 			z.object({
 				sessionId: z.string(),
-				questionId: z.string(),
-				answers: z.record(z.union([z.string(), z.array(z.string())])),
+				toolCallId: z.string(),
+				answer: z.string(),
 			}),
 		)
 		.mutation(async ({ input }) => {
-			// Import pending asks manager
-			const { resolvePendingAsk } = await import("../../services/ask-manager.service.js");
+			// Import ask queue service
+			const { answerAsk } = await import("../../services/ask-queue.service.js");
 
-			// Resolve the pending ask
-			const resolved = await resolvePendingAsk(input.questionId, input.answers);
-
-			if (!resolved) {
-				throw new Error("Question not found or already answered");
-			}
+			// Submit answer to ask queue
+			answerAsk(input.sessionId, input.toolCallId, input.answer);
 
 			return { success: true };
 		}),

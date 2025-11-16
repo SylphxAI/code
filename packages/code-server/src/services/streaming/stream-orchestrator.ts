@@ -186,9 +186,15 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 				// 11. Determine tool support and load tools
 				const supportsTools = modelCapabilities.has("tools");
-				const tools = supportsTools
-					? await getAISDKTools({ interactive: hasUserInputHandler() })
-					: undefined;
+				let tools: Record<string, any> | undefined;
+				if (supportsTools) {
+					const baseTools = await getAISDKTools({ interactive: false });
+					const { createAskTool } = await import("./ask-tool.js");
+					const askTool = createAskTool(sessionId, observer);
+					tools = { ...baseTools, ask: askTool };
+				} else {
+					tools = undefined;
+				}
 
 				// 12. Check if title generation is needed
 				const isFirstMessage =

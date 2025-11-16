@@ -64,6 +64,11 @@ export {
 	handleMessageStatusUpdated,
 } from "./handlers/errorHandlers.js";
 
+export {
+	handleAskQuestionStart,
+	handleAskQuestionAnswered,
+} from "./handlers/askHandlers.js";
+
 // Import all handlers for registry
 import {
 	handleSessionCreated,
@@ -108,6 +113,11 @@ import {
 	handleError,
 	handleMessageStatusUpdated,
 } from "./handlers/errorHandlers.js";
+
+import {
+	handleAskQuestionStart,
+	handleAskQuestionAnswered,
+} from "./handlers/askHandlers.js";
 
 import type { EventHandler } from "./types.js";
 
@@ -163,6 +173,10 @@ const eventHandlers: Record<StreamEvent["type"], EventHandler> = {
 
 	// File events
 	file: handleFile,
+
+	// Ask tool events
+	"ask-question-start": handleAskQuestionStart,
+	"ask-question-answered": handleAskQuestionAnswered,
 
 	// Error events
 	error: handleError,

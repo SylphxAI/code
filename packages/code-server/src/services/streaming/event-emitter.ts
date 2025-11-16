@@ -229,3 +229,51 @@ export function emitFile(
 ): void {
 	observer.next({ type: "file", mediaType, base64 });
 }
+
+/**
+ * Emit ask-question-start event
+ * Broadcasts to all clients that ask tool is waiting for user input
+ */
+export function emitAskQuestionStart(
+	observer: Observer<StreamEvent, unknown>,
+	sessionId: string,
+	toolCallId: string,
+	question: string,
+	options: Array<{
+		label: string;
+		value?: string;
+		description?: string;
+		freeText?: boolean;
+		placeholder?: string;
+	}>,
+	multiSelect?: boolean,
+	preSelected?: string[],
+): void {
+	observer.next({
+		type: "ask-question-start",
+		sessionId,
+		toolCallId,
+		question,
+		options,
+		multiSelect,
+		preSelected,
+	});
+}
+
+/**
+ * Emit ask-question-answered event
+ * Broadcasts to all clients that question has been answered
+ */
+export function emitAskQuestionAnswered(
+	observer: Observer<StreamEvent, unknown>,
+	sessionId: string,
+	toolCallId: string,
+	answer: string,
+): void {
+	observer.next({
+		type: "ask-question-answered",
+		sessionId,
+		toolCallId,
+		answer,
+	});
+}

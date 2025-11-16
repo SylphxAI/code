@@ -117,6 +117,7 @@ export function useChatEffects(state: ChatState) {
 		addLog: state.addLog,
 		aiConfig: state.aiConfig,
 		notificationSettings: DEFAULT_NOTIFICATION_SETTINGS,
+		setPendingInput: state.selectionState.setPendingInput,
 	});
 
 	// Event stream for multi-client sync

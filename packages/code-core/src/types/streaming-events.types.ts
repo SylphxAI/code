@@ -122,5 +122,28 @@ export type StreamEvent =
 	  }
 	| { type: "file"; mediaType: string; base64: string }
 
+	// Ask tool events (user input requests)
+	| {
+			type: "ask-question-start";
+			sessionId: string;
+			toolCallId: string;
+			question: string;
+			options: Array<{
+				label: string;
+				value?: string;
+				description?: string;
+				freeText?: boolean;
+				placeholder?: string;
+			}>;
+			multiSelect?: boolean;
+			preSelected?: string[];
+	  }
+	| {
+			type: "ask-question-answered";
+			sessionId: string;
+			toolCallId: string;
+			answer: string;
+	  }
+
 	// Error events
 	| { type: "error"; error: string };

@@ -26,6 +26,11 @@ export {
 export { type StreamEvent } from "./services/streaming.service.js";
 
 // ============================================================================
+// Ask Queue Service
+// ============================================================================
+export { registerAskObserver, enqueueAsk } from "./services/ask-queue.service.js";
+
+// ============================================================================
 // Version
 // ============================================================================
 export const version = "0.1.0";

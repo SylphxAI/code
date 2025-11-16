@@ -20,6 +20,7 @@ export interface EventStreamCallbacksDeps {
 	addLog: (message: string) => void;
 	aiConfig: AIConfig | null;
 	notificationSettings: { notifyOnCompletion: boolean; notifyOnError: boolean };
+	setPendingInput: (input: any) => void;
 }
 
 /**
@@ -57,6 +58,7 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 		addLog,
 		aiConfig,
 		notificationSettings,
+		setPendingInput,
 	} = deps;
 
 	// Event context parameters (memoized separately for better performance)
@@ -73,6 +75,7 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 			aiConfig,
 			userMessage: "", // Not used in event stream callbacks
 			notificationSettings,
+			setPendingInput,
 		}),
 		[
 			updateSessionTitle,
@@ -83,6 +86,7 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 			addLog,
 			aiConfig,
 			notificationSettings,
+			setPendingInput,
 		],
 	);
 
@@ -126,6 +130,35 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 			onSessionTokensUpdated: (sessionId: string, totalTokens: number, baseContextTokens: number) => {
 				handleStreamEvent(
 					{ type: "session-tokens-updated", sessionId, totalTokens, baseContextTokens },
+					eventContextParams,
+				);
+			},
+
+			// Ask tool events
+			onAskQuestionStart: (
+				sessionId: string,
+				toolCallId: string,
+				question: string,
+				options: any[],
+				multiSelect?: boolean,
+				preSelected?: string[],
+			) => {
+				handleStreamEvent(
+					{
+						type: "ask-question-start",
+						sessionId,
+						toolCallId,
+						question,
+						options,
+						multiSelect,
+						preSelected,
+					},
+					eventContextParams,
+				);
+			},
+			onAskQuestionAnswered: (sessionId: string, toolCallId: string, answer: string) => {
+				handleStreamEvent(
+					{ type: "ask-question-answered", sessionId, toolCallId, answer },
 					eventContextParams,
 				);
 			},
