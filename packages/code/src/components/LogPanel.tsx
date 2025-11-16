@@ -24,7 +24,7 @@ export default function LogPanel({ logs, maxLines = 10 }: LogPanelProps) {
 				<Text dimColor>No logs yet...</Text>
 			) : (
 				displayLogs.map((log, idx) => (
-					<Text key={idx} dimColor>
+					<Text key={`${idx}-${log.slice(0, 50)}`} dimColor>
 						{log}
 					</Text>
 				))

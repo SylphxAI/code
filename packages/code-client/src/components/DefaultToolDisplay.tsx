@@ -148,7 +148,7 @@ const ResultDisplay: React.FC<ResultDisplayPropsExtended> = ({
 							// Check for truncation messages (e.g., "... 10 lines omitted ...", "... 5 more lines")
 							if (line.includes("...") && (line.includes("omitted") || line.includes("more"))) {
 								return (
-									<Text key={i} dimColor>
+									<Text key={`line-${i}-truncation`} dimColor>
 										{line}
 									</Text>
 								);
@@ -159,25 +159,25 @@ const ResultDisplay: React.FC<ResultDisplayPropsExtended> = ({
 							// Colorize diff lines
 							if (diffType === "added") {
 								return (
-									<Text key={i} color="#00FF88">
+									<Text key={`line-${i}-${line.slice(0, 15)}`} color="#00FF88">
 										{line}
 									</Text>
 								);
 							} else if (diffType === "removed") {
 								return (
-									<Text key={i} color="#FF3366">
+									<Text key={`line-${i}-${line.slice(0, 15)}`} color="#FF3366">
 										{line}
 									</Text>
 								);
 							} else if (diffType === "context") {
 								return (
-									<Text key={i} dimColor>
+									<Text key={`line-${i}-context`} dimColor>
 										{line}
 									</Text>
 								);
 							} else {
 								// Regular line (not diff format)
-								return <Text key={i}>{line}</Text>;
+								return <Text key={`line-${i}-${line.slice(0, 15)}`}>{line}</Text>;
 							}
 						})}
 						{formattedResult.lines.length > 20 && (

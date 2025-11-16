@@ -233,34 +233,34 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 			{/* Visual grid - 25x4 */}
 			<Box flexDirection="column" paddingY={1}>
 				{createGrid().map((row, i) => (
-					<Box key={i}>
+					<Box key={`row-${i}`}>
 						{row.split("").map((block, j) => {
 							if (block === "S")
 								return (
-									<Text key={j} color="blue">
+									<Text key={`${i}-${j}-blue`} color="blue">
 										█
 									</Text>
 								);
 							if (block === "T")
 								return (
-									<Text key={j} color="green">
+									<Text key={`${i}-${j}-green`} color="green">
 										█
 									</Text>
 								);
 							if (block === "M")
 								return (
-									<Text key={j} color="yellow">
+									<Text key={`${i}-${j}-yellow`} color="yellow">
 										█
 									</Text>
 								);
 							if (block === "R")
 								return (
-									<Text key={j} color="magenta">
+									<Text key={`${i}-${j}-magenta`} color="magenta">
 										█
 									</Text>
 								);
 							return (
-								<Text key={j} dimColor>
+								<Text key={`${i}-${j}-dim`} dimColor>
 									░
 								</Text>
 							);
@@ -342,7 +342,7 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 						<Text dimColor>Tools ({data.toolCount})</Text>
 					</Box>
 					{data.tools.slice(0, 6).map((tool, i) => (
-						<Box key={i} flexDirection="row" paddingLeft={2}>
+						<Box key={`tool-${tool.name}-${i}`} flexDirection="row" paddingLeft={2}>
 							<Box width={26}>
 								<Text dimColor>{tool.name}</Text>
 							</Box>

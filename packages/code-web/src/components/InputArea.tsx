@@ -364,7 +364,7 @@ export default function InputArea({
 					<div className="mb-3 flex flex-wrap gap-2">
 						{attachments.map((file, index) => (
 							<div
-								key={index}
+								key={`attachment-${index}-${file.relativePath}`}
 								className="flex items-center gap-2 px-3 py-2 bg-blue-600/20 text-blue-300 rounded-lg text-sm"
 							>
 								<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

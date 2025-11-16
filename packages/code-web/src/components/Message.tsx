@@ -39,7 +39,7 @@ export default function Message({ message }: MessageProps) {
 				)}
 
 				{message.content.map((part, index) => (
-					<div key={index} className="mb-2 last:mb-0">
+					<div key={`part-${index}-${part.type}-${part.name || ""}`} className="mb-2 last:mb-0">
 						{part.type === "reasoning" && (
 							<div className="mb-3 p-3 bg-black/20 rounded-lg">
 								<div className="text-xs font-medium mb-1 opacity-70">🤔 Thinking...</div>

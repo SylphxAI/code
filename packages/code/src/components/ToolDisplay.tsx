@@ -98,7 +98,7 @@ function FallbackToolDisplay(props: ToolDisplayProps) {
 					{shouldShowDetails && formattedResult.lines.length > 0 && (
 						<Box flexDirection="column" marginTop={formattedResult.summary ? 1 : 0}>
 							{formattedResult.lines.slice(0, 20).map((line, i) => (
-								<Text key={i} dimColor>
+								<Text key={`${i}-${line.slice(0, 30)}`} dimColor>
 									{line}
 								</Text>
 							))}
