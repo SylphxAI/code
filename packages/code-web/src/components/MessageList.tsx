@@ -76,7 +76,10 @@ export default function MessageList({
 
 							{/* Render all streaming parts in order */}
 							{streamingParts.map((part, index) => (
-								<div key={`stream-${index}-${part.type}-${part.name || ""}`} className="mb-2 last:mb-0">
+								<div
+									key={`stream-${index}-${part.type}-${part.name || ""}`}
+									className="mb-2 last:mb-0"
+								>
 									{part.type === "reasoning" && (
 										<div className="pb-2 border-b border-gray-700 mb-2">
 											<div className="text-xs text-gray-500 mb-1 flex items-center gap-2">

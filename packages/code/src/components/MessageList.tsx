@@ -184,12 +184,17 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 														</Text>
 													) : msg.role === "system" ? (
 														// System messages: render plain text (no markdown to avoid Box nesting)
-														<Text key={`line-${lineIdx}-seg-${segIdx}-${seg.text.slice(0, 10)}`} color="yellow">
+														<Text
+															key={`line-${lineIdx}-seg-${segIdx}-${seg.text.slice(0, 10)}`}
+															color="yellow"
+														>
 															{seg.text}
 														</Text>
 													) : (
 														// User messages: use MarkdownText (safe because not nested in Text)
-														<MarkdownText key={`line-${lineIdx}-seg-${segIdx}-${seg.text.slice(0, 10)}`}>
+														<MarkdownText
+															key={`line-${lineIdx}-seg-${segIdx}-${seg.text.slice(0, 10)}`}
+														>
 															{seg.text}
 														</MarkdownText>
 													),
