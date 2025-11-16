@@ -384,9 +384,10 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 				// 25. Auto-send ALL queued messages after EVERY step completion
 				// Not just final completion - send after each step (including tool-calls)
+				// BUT only if completed successfully (not aborted or error)
 				const queuedMessages = await sessionRepository.getQueuedMessages(sessionId);
 
-				if (queuedMessages.length > 0) {
+				if (queuedMessages.length > 0 && finalStatus === "completed") {
 					console.log(
 						`[StreamOrchestrator] Auto-sending ${queuedMessages.length} queued messages`,
 					);
