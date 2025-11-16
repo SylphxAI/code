@@ -69,35 +69,16 @@ function StatusBarInternal({
 	const contextLength = details.contextLength;
 	const capabilities = details.capabilities;
 
+	// IMPORTANT: ALL HOOKS MUST BE CALLED BEFORE ANY EARLY RETURNS
+	// This ensures consistent hook order across all renders (React Rules of Hooks)
+
 	// Memoize usage percentage to avoid recalculating on every render
 	const usagePercent = useMemo(
 		() => (contextLength && totalTokens > 0 ? Math.round((totalTokens / contextLength) * 100) : 0),
 		[contextLength, totalTokens],
 	);
 
-	// Handle unconfigured states
-	if (!provider) {
-		const leftContent = agentName || "";
-		const rightContent = `${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`;
-
-		return (
-			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
-				<Box flexShrink={0}>
-					<Text dimColor>{leftContent}</Text>
-				</Box>
-				<Spacer />
-				<Box flexShrink={0}>
-					<Text dimColor>{rightContent}</Text>
-				</Box>
-				<Box flexShrink={0} marginLeft={1}>
-					<Text color="yellow">⚠ No AI provider selected - use /provider to select one</Text>
-				</Box>
-			</Box>
-		);
-	}
-
 	// Memoize capability label to avoid recalculating on every render
-	// IMPORTANT: Keep hooks BEFORE any early returns to maintain consistent hook order
 	const capabilityLabel = useMemo(() => {
 		if (loading || !capabilities || capabilities.size === 0) return "";
 
@@ -134,7 +115,26 @@ function StatusBarInternal({
 		return rightParts.join(" · ");
 	}, [enabledRulesCount, mcpStatus, loading, contextLength, totalTokens, usagePercent]);
 
-	// Early return for missing model - AFTER all hooks
+	// ALL EARLY RETURNS MUST COME AFTER ALL HOOKS
+	// Early return for missing provider
+	if (!provider) {
+		return (
+			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
+				<Box flexShrink={0}>
+					<Text dimColor>{leftContent}</Text>
+				</Box>
+				<Spacer />
+				<Box flexShrink={0}>
+					<Text dimColor>{rightContent}</Text>
+				</Box>
+				<Box flexShrink={0} marginLeft={1}>
+					<Text color="yellow">⚠ No AI provider selected - use /provider to select one</Text>
+				</Box>
+			</Box>
+		);
+	}
+
+	// Early return for missing model
 	if (!model) {
 		return (
 			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
