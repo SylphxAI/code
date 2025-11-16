@@ -382,63 +382,63 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					cwd,
 				);
 
-			// 25. Auto-send ALL queued messages (if any)
-			// Send all queued messages at once after step completes (regardless of finish reason)
-			if (finalStatus === "completed") {
-				const queuedMessages = await sessionRepository.getQueuedMessages(sessionId);
+				// 25. Auto-send ALL queued messages (if any)
+				// Send all queued messages at once after step completes (regardless of finish reason)
+				if (finalStatus === "completed") {
+					const queuedMessages = await sessionRepository.getQueuedMessages(sessionId);
 
-				if (queuedMessages.length > 0) {
-					console.log(
-						`[StreamOrchestrator] Auto-sending ${queuedMessages.length} queued messages`,
-					);
+					if (queuedMessages.length > 0) {
+						console.log(
+							`[StreamOrchestrator] Auto-sending ${queuedMessages.length} queued messages`,
+						);
 
-					// Clear the queue (all messages will be sent)
-					await sessionRepository.clearQueue(sessionId);
+						// Clear the queue (all messages will be sent)
+						await sessionRepository.clearQueue(sessionId);
 
-					// Broadcast queue-cleared event
-					observer.next({
-						type: "queue-cleared",
-						sessionId,
-					});
+						// Broadcast queue-cleared event
+						observer.next({
+							type: "queue-cleared",
+							sessionId,
+						});
 
-					// Combine all queued messages into a single message
-					const { parseUserInput } = await import("@sylphx/code-client");
-					const combinedContent = queuedMessages
-						.map((msg, idx) => `[Message ${idx + 1}]\n${msg.content}`)
-						.join("\n\n");
+						// Combine all queued messages into a single message
+						const { parseUserInput } = await import("@sylphx/code-client");
+						const combinedContent = queuedMessages
+							.map((msg, idx) => `[Message ${idx + 1}]\n${msg.content}`)
+							.join("\n\n");
 
-					// Collect all attachments
-					const allAttachments = queuedMessages.flatMap((msg) => msg.attachments);
+						// Collect all attachments
+						const allAttachments = queuedMessages.flatMap((msg) => msg.attachments);
 
-					// Parse combined input
-					const { parts } = parseUserInput(combinedContent, allAttachments);
+						// Parse combined input
+						const { parts } = parseUserInput(combinedContent, allAttachments);
 
-					// Trigger new stream with all queued messages combined
-					const queuedStream = streamAIResponse({
-						appContext: opts.appContext,
-						sessionRepository,
-						messageRepository,
-						aiConfig,
-						sessionId,
-						userMessageContent: parts,
-					});
+						// Trigger new stream with all queued messages combined
+						const queuedStream = streamAIResponse({
+							appContext: opts.appContext,
+							sessionRepository,
+							messageRepository,
+							aiConfig,
+							sessionId,
+							userMessageContent: parts,
+						});
 
-					// Subscribe to queued stream and forward events
-					queuedStream.subscribe({
-						next: (event) => observer.next(event),
-						error: (err) => {
-							console.error("[StreamOrchestrator] Queued stream error:", err);
-							emitError(
-								observer,
-								`Queued messages error: ${err instanceof Error ? err.message : String(err)}`,
-							);
-						},
-					});
+						// Subscribe to queued stream and forward events
+						queuedStream.subscribe({
+							next: (event) => observer.next(event),
+							error: (err) => {
+								console.error("[StreamOrchestrator] Queued stream error:", err);
+								emitError(
+									observer,
+									`Queued messages error: ${err instanceof Error ? err.message : String(err)}`,
+								);
+							},
+						});
 
-					// Return early - don't complete yet, wait for queued stream
-					return;
+						// Return early - don't complete yet, wait for queued stream
+						return;
+					}
 				}
-			}
 
 				// 26. Complete observable
 				observer.complete();
