@@ -28,6 +28,10 @@ export interface SelectionState {
 	setIsFreeTextMode: (mode: boolean) => void;
 	askQueueLength: number;
 	setAskQueueLength: (length: number) => void;
+	askToolContextRef: React.MutableRefObject<{
+		sessionId: string;
+		toolCallId: string;
+	} | null>;
 }
 
 export function useSelectionState(): SelectionState {
@@ -35,6 +39,7 @@ export function useSelectionState(): SelectionState {
 	const inputResolver = useRef<
 		((value: string | Record<string, string | string[]>) => void) | null
 	>(null);
+	const askToolContextRef = useRef<{ sessionId: string; toolCallId: string } | null>(null);
 	const [selectionFilter, setSelectionFilter] = useState("");
 	const [isFilterMode, setIsFilterMode] = useState(false);
 	const [multiSelectionPage, setMultiSelectionPage] = useState(0);
@@ -50,6 +55,7 @@ export function useSelectionState(): SelectionState {
 		pendingInput,
 		setPendingInput,
 		inputResolver,
+		askToolContextRef,
 		selectionFilter,
 		setSelectionFilter,
 		isFilterMode,

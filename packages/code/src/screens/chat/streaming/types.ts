@@ -21,6 +21,10 @@ export interface EventHandlerContext {
 	userMessage: string;
 	notificationSettings: { notifyOnCompletion: boolean; notifyOnError: boolean };
 	setPendingInput: (input: any) => void; // For ask tool events
+	askToolContextRef?: React.MutableRefObject<{
+		sessionId: string;
+		toolCallId: string;
+	} | null>; // For server-side ask tool
 }
 
 /**

@@ -16,6 +16,7 @@ import TextInputWithHint from "../../../components/TextInputWithHint.js";
 import type { FilteredCommand, FilteredFileInfo } from "../autocomplete/types.js";
 import type { SettingsMode } from "../types/settings-mode.js";
 import { ProviderSettings } from "./ProviderSettings.js";
+import { getTRPCClient } from "@sylphx/code-client";
 
 interface InputSectionProps {
 	// Input state
@@ -42,6 +43,10 @@ interface InputSectionProps {
 	inputResolver: React.MutableRefObject<
 		((value: string | Record<string, string | string[]>) => void) | null
 	>;
+	askToolContextRef: React.MutableRefObject<{
+		sessionId: string;
+		toolCallId: string;
+	} | null>;
 	multiSelectionPage: number;
 	multiSelectionAnswers: Record<string, string | string[]>;
 	multiSelectChoices: Set<string>;
@@ -118,6 +123,7 @@ export function InputSection({
 	pendingInput,
 	setPendingInput,
 	inputResolver,
+	askToolContextRef,
 	multiSelectionPage,
 	multiSelectionAnswers,
 	multiSelectChoices,
@@ -195,22 +201,44 @@ export function InputSection({
 					{pendingInput && pendingInput.type === "selection" ? (
 						<AskToolSelection
 							pendingInput={pendingInput}
-							onSelect={(value) => {
-								// Resolve the ask tool promise with the selected value
-								if (inputResolver.current) {
-									inputResolver.current(value);
-									inputResolver.current = null;
+							onSelect={async (value) => {
+							// Server-side ask tool: submit answer via mutation
+							if (askToolContextRef.current) {
+								const { sessionId, toolCallId } = askToolContextRef.current;
+								const answerString = typeof value === "string" ? value : String(value);
+
+								try {
+									const client = getTRPCClient();
+									await client.message.answerAsk.mutate({
+										sessionId,
+										toolCallId,
+										answer: answerString,
+									});
+									// Server will emit ask-question-answered event which clears pendingInput
+								} catch (error) {
+									console.error("[AskToolSelection] Failed to submit answer:", error);
+									// Fallback: clear UI manually
 									setPendingInput(null);
 								}
-							}}
+							}
+							// Legacy client-side ask tool: resolve promise
+							else if (inputResolver.current) {
+								inputResolver.current(value);
+								inputResolver.current = null;
+								setPendingInput(null);
+							}
+						}}
 							onCancel={() => {
-								// Cancel selection - resolve with empty string
-								if (inputResolver.current) {
-									inputResolver.current("");
-									inputResolver.current = null;
-									setPendingInput(null);
-								}
-							}}
+							// Clear ask tool context and pendingInput
+							if (askToolContextRef.current) {
+								askToolContextRef.current = null;
+							}
+							if (inputResolver.current) {
+								inputResolver.current("");
+								inputResolver.current = null;
+							}
+							setPendingInput(null);
+						}}
 						/>
 					) : /* Selection Mode - when a command is pending and needs args */
 					pendingCommand ? (

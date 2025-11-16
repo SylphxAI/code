@@ -118,6 +118,7 @@ export function useChatEffects(state: ChatState) {
 		aiConfig: state.aiConfig,
 		notificationSettings: DEFAULT_NOTIFICATION_SETTINGS,
 		setPendingInput: state.selectionState.setPendingInput,
+		askToolContextRef: state.selectionState.askToolContextRef,
 	});
 
 	// Event stream for multi-client sync

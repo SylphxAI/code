@@ -9,7 +9,7 @@ import { getCurrentSessionId } from "@sylphx/code-client";
 
 /**
  * Handle ask-question-start event
- * Sets pendingInput to display question UI
+ * Sets pendingInput to display question UI and stores context for answer submission
  */
 export const handleAskQuestionStart: EventHandler<
 	Extract<StreamEvent, { type: "ask-question-start" }>
@@ -21,7 +21,15 @@ export const handleAskQuestionStart: EventHandler<
 		return;
 	}
 
-	const { setPendingInput } = context;
+	const { setPendingInput, askToolContextRef } = context;
+
+	// Store ask tool context for answer submission
+	if (askToolContextRef) {
+		askToolContextRef.current = {
+			sessionId: event.sessionId,
+			toolCallId: event.toolCallId,
+		};
+	}
 
 	// Set pendingInput to show question UI
 	setPendingInput({
@@ -42,7 +50,7 @@ export const handleAskQuestionStart: EventHandler<
 
 /**
  * Handle ask-question-answered event
- * Clears pendingInput after answer is submitted
+ * Clears pendingInput and ask tool context after answer is submitted
  */
 export const handleAskQuestionAnswered: EventHandler<
 	Extract<StreamEvent, { type: "ask-question-answered" }>
@@ -54,7 +62,12 @@ export const handleAskQuestionAnswered: EventHandler<
 		return;
 	}
 
-	const { setPendingInput } = context;
+	const { setPendingInput, askToolContextRef } = context;
+
+	// Clear ask tool context
+	if (askToolContextRef) {
+		askToolContextRef.current = null;
+	}
 
 	// Clear pendingInput - answer was submitted
 	setPendingInput(null);

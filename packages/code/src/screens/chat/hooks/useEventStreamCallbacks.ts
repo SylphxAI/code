@@ -21,6 +21,10 @@ export interface EventStreamCallbacksDeps {
 	aiConfig: AIConfig | null;
 	notificationSettings: { notifyOnCompletion: boolean; notifyOnError: boolean };
 	setPendingInput: (input: any) => void;
+	askToolContextRef: React.MutableRefObject<{
+		sessionId: string;
+		toolCallId: string;
+	} | null>;
 }
 
 /**
@@ -59,6 +63,7 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 		aiConfig,
 		notificationSettings,
 		setPendingInput,
+		askToolContextRef,
 	} = deps;
 
 	// Event context parameters (memoized separately for better performance)
@@ -76,6 +81,7 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 			userMessage: "", // Not used in event stream callbacks
 			notificationSettings,
 			setPendingInput,
+			askToolContextRef,
 		}),
 		[
 			updateSessionTitle,
@@ -87,6 +93,7 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 			aiConfig,
 			notificationSettings,
 			setPendingInput,
+			askToolContextRef,
 		],
 	);
 
