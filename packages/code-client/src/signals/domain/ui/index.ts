@@ -67,10 +67,6 @@ export const abortCompact = () => {
 };
 
 export const addDebugLog = (message: string) => {
-	if (!process.env.DEBUG) {
-		return;
-	}
-
 	const timestamp = new Date().toLocaleTimeString();
 	const logs = get($debugLogs) || [];
 	const newLogs = [...logs, `[${timestamp}] ${message}`];
