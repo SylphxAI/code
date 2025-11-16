@@ -151,7 +151,9 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 	} = params;
 
 	return async (value: string) => {
+		console.log("[handleSubmit] ===== START =====", { value, trimmed: value.trim() });
 		if (!value.trim()) {
+			console.log("[handleSubmit] Empty value, returning");
 			return;
 		}
 
@@ -395,13 +397,17 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 		// Clear pending attachments after capturing them
 		clearAttachments();
 
+		console.log("[handleSubmit] Calling sendUserMessageToAI", { userMessage, attachmentsCount: attachmentsForMessage.length });
 		try {
 			// Regular message - send to AI using shared helper
 			await sendUserMessageToAI(userMessage, attachmentsForMessage);
+			console.log("[handleSubmit] sendUserMessageToAI completed successfully");
 		} catch (error) {
 			console.error("📤 [handleSubmit] sendUserMessageToAI threw error:", error);
+			console.error("[handleSubmit] Error stack:", error instanceof Error ? error.stack : 'No stack');
 			throw error;
 		}
+		console.log("[handleSubmit] ===== END =====");
 
 		// Add to message history with attachments (append since we store oldest-first)
 		setMessageHistory((prev) => {
