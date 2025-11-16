@@ -129,12 +129,15 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		logSession("User message length:", userMessage.length);
 		logSession("Provider:", selectedProvider, "Model:", selectedModel);
 
+		console.log("[sendUserMessageToAI] Checkpoint 1: About to check provider/model");
 		// Block if no provider configured
 		// Use selectedProvider and selectedModel from store (reactive state)
 		const provider = selectedProvider;
 		const model = selectedModel;
 
+		console.log("[sendUserMessageToAI] Checkpoint 2: Provider/model values:", { provider, model });
 		if (!provider || !model) {
+			console.log("[sendUserMessageToAI] No provider/model, returning early");
 			logSession("No provider or model configured!", { provider, model });
 			addLog("[subscriptionAdapter] No AI provider configured. Use /provider to configure.");
 
@@ -158,17 +161,20 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			return;
 		}
 
+		console.log("[sendUserMessageToAI] Checkpoint 3: Provider check passed, proceeding");
 		logSession("Provider configured, proceeding with streaming");
 
 		// LAZY SESSIONS: Server will create session if currentSessionId is null
 		// Client just passes null, server handles creation
 		const sessionId = currentSessionId;
+		console.log("[sendUserMessageToAI] Checkpoint 4: SessionId:", sessionId);
 
 		// Reset streaming state for new stream
 		streamingMessageIdRef.current = null;
 
 		// Create abort controller for this stream
 		abortControllerRef.current = new AbortController();
+		console.log("[sendUserMessageToAI] Checkpoint 5: AbortController created");
 
 		// CRITICAL: Register abort handler IMMEDIATELY after creating AbortController
 		// Must register before any async operations (getTRPCClient, mutation, etc.)
@@ -368,6 +374,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				messageLength: userMessage.length,
 				contentParts: content.length,
 			});
+			console.log("[sendUserMessageToAI] Checkpoint 6: About to call triggerStream mutation");
 
 			// MUTATION ARCHITECTURE: Trigger streaming via mutation, receive via event stream
 			// - Mutation triggers server to start streaming in background
