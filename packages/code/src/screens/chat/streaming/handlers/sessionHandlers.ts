@@ -172,8 +172,16 @@ export function handleSessionTokensUpdated(
 	const currentSessionId = getCurrentSessionId();
 	const currentSession = getSignal($currentSession);
 
+	console.log("[handleSessionTokensUpdated] Called with:", {
+		eventSessionId: event.sessionId,
+		currentSessionId,
+		hasCurrentSession: !!currentSession,
+		currentSessionIdFromSession: currentSession?.id,
+	});
+
 	// Only handle if this is the current session
 	if (event.sessionId !== currentSessionId || !currentSession) {
+		console.log("[handleSessionTokensUpdated] Early return - session mismatch or no current session");
 		return;
 	}
 
