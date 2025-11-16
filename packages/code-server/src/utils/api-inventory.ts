@@ -22,9 +22,7 @@ export interface APIInventory {
 
 /**
  * Current API inventory
- * Updated manually when endpoints change
- *
- * TODO: Auto-generate from tRPC router introspection
+ * Updated manually when endpoints change to ensure documentation accuracy
  */
 export const API_INVENTORY: APIInventory = {
 	version: "1.0.0",

@@ -206,8 +206,7 @@ export class FileRepository {
 			stepId: string;
 		}>
 	> {
-		// TODO: Implement FTS5 search when virtual table is created
-		// For now, use LIKE query (slower but works)
+		// LIKE query for text search (FTS5 virtual table not implemented yet)
 		const results = await this.db
 			.select({
 				fileId: fileContents.id,

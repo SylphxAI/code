@@ -214,6 +214,7 @@ export async function completeStep(
 	session: { provider: string; model: string },
 	cwd: string,
 ): Promise<number> {
+	const stepStartTime = Date.now();
 	try {
 		const stepId = `${assistantMessageId}-step-${stepNumber}`;
 
@@ -251,6 +252,7 @@ export async function completeStep(
 		}
 
 		// Emit step-complete event
+		const duration = Date.now() - stepStartTime;
 		observer.next({
 			type: "step-complete",
 			stepId,
@@ -259,7 +261,7 @@ export async function completeStep(
 				completionTokens: 0,
 				totalTokens: 0,
 			},
-			duration: 0, // TODO: track duration
+			duration,
 			finishReason: stepResult.finishReason || "unknown",
 		});
 

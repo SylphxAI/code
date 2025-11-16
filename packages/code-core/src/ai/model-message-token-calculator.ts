@@ -218,13 +218,9 @@ async function calculateContentPartTokens(
 		}
 
 		case "image": {
-			// Image content - images have fixed token cost depending on model
-			// For now, use a rough estimation
-			// TODO: Implement model-specific image token calculation
-			// - Claude: ~1600 tokens per image (depends on size)
-			// - GPT-4V: varies by size
-			// - Gemini: varies
-			// For now, conservative estimate: 1500 tokens per image
+			// Image content - fixed token cost estimation
+			// Conservative estimate: 1500 tokens per image
+			// Actual cost varies by model and image size but this provides reasonable approximation
 			return 1500;
 		}
 

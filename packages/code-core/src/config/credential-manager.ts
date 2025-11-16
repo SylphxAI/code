@@ -8,8 +8,8 @@
  * - Global: ~/.sylphx-code/credentials.json (user-wide API keys)
  * - Project: ./.sylphx-code/credentials.local.json (project-specific, gitignored)
  *
- * NOTE: Currently stores credentials in plaintext JSON.
- * TODO: Add encryption layer for production use.
+ * SECURITY: Plaintext storage with restrictive permissions (0600).
+ * See GitHub issue #1 for encryption implementation roadmap.
  */
 
 import fs from "node:fs/promises";
@@ -378,10 +378,5 @@ export async function migrateProviderConfigToCredentials(
 }
 
 // Re-export registry functions for convenience
-export {
-	getAllCredentials,
-	getCredential,
-	getCredentialsByProvider,
-	getDefaultCredential,
-	hasActiveCredential,
-};
+// Note: These are duplicates of registry exports, used only within credential-manager
+// Main exports come from index.ts which exports from credential-registry.ts directly

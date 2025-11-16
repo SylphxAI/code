@@ -4,8 +4,8 @@
  * Centralized registry for provider credentials (API keys).
  * Manages credential storage, retrieval, and validation.
  *
- * NOTE: Currently stores credentials in plaintext JSON files.
- * TODO: Add encryption layer (AES-256-GCM) for production use.
+ * SECURITY: Credentials stored in plaintext with restrictive file permissions (0600).
+ * See GitHub issue #1 for encryption implementation roadmap.
  */
 
 import type {

@@ -66,8 +66,7 @@ export class TokenCalculator {
 			}
 
 			case "file-ref":
-				// File-ref: content in file_contents table, not counted here
-				// TODO: Add support if needed
+				// File-ref: content in file_contents table, not counted in message tokens
 				return 0;
 
 			case "system-message":

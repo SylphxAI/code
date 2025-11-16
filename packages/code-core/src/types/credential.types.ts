@@ -36,7 +36,7 @@ export interface ProviderCredential {
 	/** Display label for this credential */
 	label?: string;
 
-	/** API key or secret (currently plaintext, TODO: add encryption) */
+	/** API key or secret (plaintext storage, see GitHub issue #1 for encryption) */
 	apiKey: string;
 
 	/** Credential scope */
