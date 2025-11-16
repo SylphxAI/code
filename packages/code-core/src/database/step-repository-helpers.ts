@@ -6,24 +6,21 @@
  * For now, they exist as standalone functions to avoid breaking existing code
  */
 
+import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { messageSteps, stepParts, stepUsage, type NewMessageStep } from "./schema.js";
+import { MessagePartSchema, SystemMessageSchema } from "../schemas/message.schemas.js";
 import type {
-	MessageStep,
 	MessagePart,
-	TokenUsage,
+	MessageStep,
 	SystemMessage,
+	TokenUsage,
 } from "../types/session.types.js";
 import type { Todo as TodoType } from "../types/todo.types.js";
-import { retryDatabase } from "../utils/retry.js";
-import {
-	MessagePartSchema,
-	SystemMessageSchema,
-} from "../schemas/message.schemas.js";
 import { logger } from "../utils/logger.js";
+import { retryDatabase } from "../utils/retry.js";
+import { messageSteps, type NewMessageStep, stepParts, stepUsage } from "./schema.js";
 
 /**
  * Create a new step in a message
@@ -191,7 +188,7 @@ export async function loadMessageSteps(
 		if (!partsByStep.has(part.stepId)) {
 			partsByStep.set(part.stepId, []);
 		}
-		partsByStep.get(part.stepId)!.push(part);
+		partsByStep.get(part.stepId)?.push(part);
 	}
 
 	for (const usage of allUsage) {

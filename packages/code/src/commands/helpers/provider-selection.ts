@@ -3,27 +3,24 @@
  * Extract duplicated provider selection and switching logic
  */
 
+import {
+	$aiConfig,
+	$currentSessionId,
+	get,
+	setAIConfig,
+	setSelectedModel,
+	setSelectedProvider,
+	updateSessionProvider,
+} from "@sylphx/code-client";
 import type { ProviderId } from "@sylphx/code-core";
 import type { CommandContext } from "../types.js";
 import { configureProvider } from "./provider-config.js";
-import {
-	get,
-	set,
-	$aiConfig,
-	$selectedProvider,
-	$selectedModel,
-	$currentSessionId,
-	setAIConfig,
-	setSelectedProvider,
-	setSelectedModel,
-	updateSessionProvider,
-} from "@sylphx/code-client";
 
 /**
  * Get provider options with configured status
  */
 export async function getProviderOptions(
-	context: CommandContext,
+	_context: CommandContext,
 ): Promise<Array<{ label: string; value: string }>> {
 	const { AI_PROVIDERS } = await import("@sylphx/code-core");
 	const { getProvider } = await import("@sylphx/code-core");
@@ -67,8 +64,7 @@ export async function askSelectProvider(
 		],
 	});
 
-	const providerId =
-		typeof answers === "object" && !Array.isArray(answers) ? answers["provider"] : "";
+	const providerId = typeof answers === "object" && !Array.isArray(answers) ? answers.provider : "";
 	return providerId || null;
 }
 
@@ -102,9 +98,7 @@ export async function ensureProviderConfigured(
 	}
 
 	// Ask if user wants to configure now
-	await context.sendMessage(
-		`${AI_PROVIDERS[providerId].name} is not configured yet.`,
-	);
+	await context.sendMessage(`${AI_PROVIDERS[providerId].name} is not configured yet.`);
 	const configureAnswers = await context.waitForInput({
 		type: "selection",
 		questions: [
@@ -121,7 +115,7 @@ export async function ensureProviderConfigured(
 
 	const shouldConfigure =
 		typeof configureAnswers === "object" && !Array.isArray(configureAnswers)
-			? configureAnswers["configure"] === "yes"
+			? configureAnswers.configure === "yes"
 			: false;
 
 	if (!shouldConfigure) {

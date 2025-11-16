@@ -23,9 +23,9 @@
 
 import { createHash } from "node:crypto";
 import type { ModelMessage } from "ai";
-import { countTokens, getTokenizerForModel } from "../utils/token-counter.js";
-import { LRUCache } from "../utils/lru-cache.js";
 import { cacheManager } from "../cache/cache-manager.js";
+import { LRUCache } from "../utils/lru-cache.js";
+import { countTokens, getTokenizerForModel } from "../utils/token-counter.js";
 
 // Message token cache: ${tokenizerName}:${messageHash} → tokens
 // Max 1000 entries (individual messages across sessions)
@@ -64,8 +64,8 @@ export async function calculateModelMessagesTokens(
 ): Promise<number> {
 	const tokenizerName = getTokenizerForModel(modelName);
 	let totalTokens = 0;
-	let cacheHits = 0;
-	let cacheMisses = 0;
+	let _cacheHits = 0;
+	let _cacheMisses = 0;
 
 	for (const message of modelMessages) {
 		// Generate cache key
@@ -77,13 +77,13 @@ export async function calculateModelMessagesTokens(
 		if (cached !== undefined) {
 			cacheManager.recordHit("message-tokens");
 			totalTokens += cached;
-			cacheHits++;
+			_cacheHits++;
 			continue;
 		}
 
 		// Cache miss - calculate
 		cacheManager.recordMiss("message-tokens");
-		cacheMisses++;
+		_cacheMisses++;
 		const tokens = await calculateModelMessageTokens(message, modelName, options);
 		messageTokenCache.set(cacheKey, tokens);
 		totalTokens += tokens;
@@ -139,10 +139,22 @@ async function calculateModelMessageTokens(
 type AISDKContentPart =
 	| { type: "text"; text: string }
 	| { type: "reasoning"; text: string }
-	| { type: "file"; data: Buffer | string; mimeType?: string; filename?: string; mediaType?: string }
+	| {
+			type: "file";
+			data: Buffer | string;
+			mimeType?: string;
+			filename?: string;
+			mediaType?: string;
+	  }
 	| { type: "image"; image: unknown; mimeType?: string }
 	| { type: "tool-call"; toolCallId: string; toolName: string; args: unknown; input?: unknown }
-	| { type: "tool-result"; toolCallId: string; toolName: string; result: unknown; output?: unknown };
+	| {
+			type: "tool-result";
+			toolCallId: string;
+			toolName: string;
+			result: unknown;
+			output?: unknown;
+	  };
 
 /**
  * Calculate tokens for a content part
@@ -190,7 +202,7 @@ async function calculateContentPartTokens(
 
 			// For text files, count actual tokens
 			// Include filename and mediaType in XML wrapper (as sent to model)
-			const wrappedContent = `<file path="${part.filename || 'file'}" type="${part.mediaType || 'unknown'}">\n${fileContent}\n</file>`;
+			const wrappedContent = `<file path="${part.filename || "file"}" type="${part.mediaType || "unknown"}">\n${fileContent}\n</file>`;
 			return await countTokens(wrappedContent, modelName, options);
 		}
 

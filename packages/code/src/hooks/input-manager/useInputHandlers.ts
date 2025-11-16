@@ -5,16 +5,16 @@
  * Extracted from Chat.tsx to improve modularity and testability.
  */
 
-import { useMemo } from "react";
-import type React from "react";
-import type { CommandContext, Command } from "../../commands/types.js";
 import type { FilteredFile } from "@sylphx/code-client";
+import type React from "react";
+import { useMemo } from "react";
+import type { Command, CommandContext } from "../../commands/types.js";
 import {
-	SelectionModeHandler,
 	CommandAutocompleteModeHandler,
-	PendingCommandModeHandler,
 	FileNavigationModeHandler,
 	MessageHistoryModeHandler,
+	PendingCommandModeHandler,
+	SelectionModeHandler,
 } from "./index.js";
 
 /**

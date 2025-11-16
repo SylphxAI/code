@@ -4,7 +4,6 @@
  */
 
 import { getCurrentSessionId } from "@sylphx/code-client";
-import type { MessagePart } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
 import type { StreamEvent } from "@sylphx/code-server";
 import type { EventHandlerContext } from "../types.js";
@@ -18,7 +17,7 @@ const logContent = createLogger("subscription:content");
 // ============================================================================
 
 export function handleReasoningStart(
-	event: Extract<StreamEvent, { type: "reasoning-start" }>,
+	_event: Extract<StreamEvent, { type: "reasoning-start" }>,
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
@@ -88,7 +87,7 @@ export function handleReasoningEnd(
 // ============================================================================
 
 export function handleTextStart(
-	event: Extract<StreamEvent, { type: "text-start" }>,
+	_event: Extract<StreamEvent, { type: "text-start" }>,
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
@@ -127,7 +126,7 @@ export function handleTextDelta(
 }
 
 export function handleTextEnd(
-	event: Extract<StreamEvent, { type: "text-end" }>,
+	_event: Extract<StreamEvent, { type: "text-end" }>,
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
@@ -157,7 +156,10 @@ export function handleTextEnd(
 // File Events
 // ============================================================================
 
-export function handleFile(event: Extract<StreamEvent, { type: "file" }>, context: EventHandlerContext) {
+export function handleFile(
+	event: Extract<StreamEvent, { type: "file" }>,
+	context: EventHandlerContext,
+) {
 	const currentSessionId = getCurrentSessionId();
 
 	logContent("File received, mediaType:", event.mediaType, "size:", event.base64.length);

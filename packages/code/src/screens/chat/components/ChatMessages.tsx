@@ -5,8 +5,8 @@
  * PERFORMANCE: Memoized to prevent re-renders when parent updates
  */
 
-import { Box, Text } from "ink";
 import type { SessionMessage } from "@sylphx/code-core";
+import { Box, Text } from "ink";
 import React from "react";
 import { MessageList } from "../../../components/MessageList.js";
 

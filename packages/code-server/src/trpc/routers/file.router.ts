@@ -5,10 +5,9 @@
  * SECURITY: Protected + moderate rate limiting (30 req/min)
  */
 
-import { z } from "zod";
-import { router, moderateProcedure, publicProcedure } from "../trpc.js";
-import { randomUUID } from "node:crypto";
 import { createHash } from "node:crypto";
+import { z } from "zod";
+import { moderateProcedure, publicProcedure, router } from "../trpc.js";
 
 /**
  * Upload file immediately (before message creation)
@@ -46,9 +45,7 @@ export const fileRouter = router({
 
 			// Validate size matches
 			if (buffer.length !== input.size) {
-				throw new Error(
-					`Size mismatch: expected ${input.size} bytes, got ${buffer.length} bytes`,
-				);
+				throw new Error(`Size mismatch: expected ${input.size} bytes, got ${buffer.length} bytes`);
 			}
 
 			// Calculate SHA256 for deduplication

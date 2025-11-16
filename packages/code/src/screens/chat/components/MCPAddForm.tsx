@@ -3,13 +3,13 @@
  * Single-page form for adding new MCP servers
  */
 
+import type { MCPServerConfig, MCPTransportType } from "@sylphx/code-core";
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
-import type { SelectionOption } from "../../../hooks/useSelection.js";
 import TextInputWithHint from "../../../components/TextInputWithHint.js";
+import type { SelectionOption } from "../../../hooks/useSelection.js";
 import { InputContentLayout } from "./InputContentLayout.js";
-import type { MCPServerConfig, MCPTransportType } from "@sylphx/code-core";
 
 interface MCPAddFormProps {
 	onComplete: () => void;
@@ -91,7 +91,7 @@ export function MCPAddForm({ onComplete, onCancel }: MCPAddFormProps) {
 	};
 
 	// ESC key handling
-	useInput((input, key) => {
+	useInput((_input, key) => {
 		if (key.escape) {
 			onCancel();
 		}
@@ -122,7 +122,9 @@ export function MCPAddForm({ onComplete, onCancel }: MCPAddFormProps) {
 				{/* Transport Type (Required) */}
 				{serverId && (
 					<Box flexDirection="column">
-						<Text bold>Transport: {transportType ? `✓ ${transportType.toUpperCase()}` : "(required)"}</Text>
+						<Text bold>
+							Transport: {transportType ? `✓ ${transportType.toUpperCase()}` : "(required)"}
+						</Text>
 						{currentField === "transport" && (
 							<Box paddingLeft={2}>
 								<InlineSelection
@@ -201,7 +203,9 @@ export function MCPAddForm({ onComplete, onCancel }: MCPAddFormProps) {
 				{/* Name (Optional) */}
 				{currentField !== "id" && currentField !== "transport" && (
 					<Box flexDirection="column">
-						<Text bold>Display Name: {serverName ? `✓ ${serverName}` : "(optional, defaults to ID)"}</Text>
+						<Text bold>
+							Display Name: {serverName ? `✓ ${serverName}` : "(optional, defaults to ID)"}
+						</Text>
 						{currentField === "name" && (
 							<Box paddingLeft={2}>
 								<TextInputWithHint
@@ -220,7 +224,9 @@ export function MCPAddForm({ onComplete, onCancel }: MCPAddFormProps) {
 				{/* Description (Optional) */}
 				{currentField === "description" && (
 					<Box flexDirection="column">
-						<Text bold>Description: {serverDescription ? `✓ ${serverDescription}` : "(optional)"}</Text>
+						<Text bold>
+							Description: {serverDescription ? `✓ ${serverDescription}` : "(optional)"}
+						</Text>
 						<Box paddingLeft={2}>
 							<TextInputWithHint
 								value={serverDescription}

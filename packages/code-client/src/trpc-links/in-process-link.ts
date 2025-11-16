@@ -22,10 +22,10 @@
  * ```
  */
 
-import type { TRPCLink, TRPCClientError } from "@trpc/client";
+import { createLogger } from "@sylphx/code-core";
+import type { TRPCClientError, TRPCLink } from "@trpc/client";
 import type { AnyRouter } from "@trpc/server";
 import { observable } from "@trpc/server/observable";
-import { createLogger } from "@sylphx/code-core";
 
 const log = createLogger("trpc:link");
 

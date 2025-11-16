@@ -4,11 +4,11 @@
  */
 
 import {
-	getCurrentSessionId,
-	setCurrentSessionId,
 	$currentSession,
-	set as setSignal,
+	getCurrentSessionId,
 	get as getSignal,
+	setCurrentSessionId,
+	set as setSignal,
 } from "@sylphx/code-client";
 import { createLogger } from "@sylphx/code-core";
 import type { StreamEvent } from "@sylphx/code-server";
@@ -167,7 +167,7 @@ export function handleSessionTitleUpdated(
  */
 export function handleSessionTokensUpdated(
 	event: Extract<StreamEvent, { type: "session-tokens-updated" }>,
-	context: EventHandlerContext,
+	_context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
 	const currentSession = getSignal($currentSession);

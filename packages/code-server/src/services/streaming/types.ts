@@ -3,13 +3,7 @@
  * All TypeScript types used across streaming modules
  */
 
-import type {
-	SessionRepository,
-	MessageRepository,
-	AIConfig,
-	ProviderId,
-	StreamEvent,
-} from "@sylphx/code-core";
+import type { AIConfig, MessageRepository, ProviderId, SessionRepository } from "@sylphx/code-core";
 import type { AppContext } from "../../context.js";
 
 // Re-export StreamEvent from code-core for backward compatibility

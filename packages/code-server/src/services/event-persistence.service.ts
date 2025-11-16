@@ -4,9 +4,9 @@
  * Similar to Redis Streams (XADD/XREAD/XREVRANGE)
  */
 
-import { and, asc, desc, eq, gt, or, lt } from "drizzle-orm";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { events } from "@sylphx/code-core";
+import { and, asc, desc, eq, gt, lt, or } from "drizzle-orm";
+import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 
 /**
  * Event cursor for position-based reading
@@ -50,7 +50,7 @@ async function retryOnBusy<T>(operation: () => Promise<T>, maxRetries = 5): Prom
 				error.cause?.message?.includes("SQLITE_BUSY");
 
 			if (isBusy) {
-				const delay = 50 * Math.pow(2, attempt);
+				const delay = 50 * 2 ** attempt;
 				await new Promise((resolve) => setTimeout(resolve, delay));
 				continue;
 			}
@@ -75,7 +75,7 @@ export class EventPersistence {
 	 * Save event to database (XADD equivalent)
 	 * Retries on SQLITE_BUSY errors with exponential backoff
 	 */
-	async save(channel: string, event: StoredEvent): Promise<void> {
+	async save(_channel: string, event: StoredEvent): Promise<void> {
 		await retryOnBusy(async () => {
 			await this.db.insert(events).values({
 				id: event.id,

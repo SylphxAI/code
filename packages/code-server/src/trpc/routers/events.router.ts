@@ -11,10 +11,10 @@
  * Similar to: Redis Streams XREAD
  */
 
-import { z } from "zod";
 import { observable } from "@trpc/server/observable";
-import { router, publicProcedure } from "../trpc.js";
-import type { StoredEvent, EventCursor } from "../../services/event-persistence.service.js";
+import { z } from "zod";
+import type { StoredEvent } from "../../services/event-persistence.service.js";
+import { publicProcedure, router } from "../trpc.js";
 
 /**
  * Event cursor schema for position-based reading
@@ -27,7 +27,7 @@ const EventCursorSchema = z.object({
 /**
  * Stored event schema (returned to client)
  */
-const StoredEventSchema = z.object({
+const _StoredEventSchema = z.object({
 	id: z.string(),
 	cursor: EventCursorSchema,
 	channel: z.string(),

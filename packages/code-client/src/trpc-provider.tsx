@@ -3,11 +3,11 @@
  * Provides type-safe tRPC client to all React components via Context
  */
 
-import { createContext, useContext, type ReactNode } from "react";
-import { createTRPCProxyClient } from "@trpc/client";
-import superjson from "superjson";
-import { inProcessLink, type InProcessLinkOptions } from "./trpc-links/index.js";
 import type { AppRouter } from "@sylphx/code-server";
+import { createTRPCProxyClient } from "@trpc/client";
+import { createContext, type ReactNode, useContext } from "react";
+import superjson from "superjson";
+import { type InProcessLinkOptions, inProcessLink } from "./trpc-links/index.js";
 
 /**
  * tRPC Client type (typed with AppRouter)

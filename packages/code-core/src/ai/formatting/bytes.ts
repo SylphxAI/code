@@ -35,7 +35,7 @@ export function formatBytes(bytes: number, options: ByteFormatOptions = {}): str
 	}
 
 	const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-	const value = bytes / Math.pow(1024, i);
+	const value = bytes / 1024 ** i;
 
 	// Format with specified decimal places
 	const formatted = value.toFixed(decimals);

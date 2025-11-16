@@ -23,32 +23,27 @@
  */
 
 import {
+	$currentSession,
+	get as getSignal,
 	getTRPCClient,
 	parseUserInput,
-	eventBus,
-	getCurrentSessionId,
 	setCurrentSessionId,
-	$currentSession,
 	set as setSignal,
-	get as getSignal,
 } from "@sylphx/code-client";
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
-import type { StreamEvent } from "@sylphx/code-server";
 import type React from "react";
-import { handleStreamEvent, updateActiveMessageContent } from "./streamEventHandlers.js";
+import { updateActiveMessageContent } from "./streamEventHandlers.js";
 
 // Create debug loggers for different components
 const logSession = createLogger("subscription:session");
-const logMessage = createLogger("subscription:message");
+const _logMessage = createLogger("subscription:message");
 
 /**
  * Options for triggering AI streaming
  * Currently no options needed - kept for future extensibility
  */
-export interface TriggerAIOptions {
-	// Reserved for future options
-}
+export type TriggerAIOptions = {};
 
 /**
  * Parameters for subscription adapter
@@ -121,7 +116,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 	return async (
 		userMessage: string,
 		attachments?: FileAttachment[],
-		options?: TriggerAIOptions,
+		_options?: TriggerAIOptions,
 	) => {
 		logSession("Send user message called");
 		logSession("User message length:", userMessage.length);
@@ -299,7 +294,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				// Add optimistic message to store (works for both existing and new sessions)
 				// IMPORTANT: Use get() to avoid triggering re-renders during subscription setup
 				const currentSession = getSignal($currentSession);
-				const shouldCreateTempSession =
+				const _shouldCreateTempSession =
 					!sessionId || !currentSession || currentSession.id !== sessionId;
 
 				// IMMUTABLE UPDATE: zen signals need immutable updates to trigger re-renders

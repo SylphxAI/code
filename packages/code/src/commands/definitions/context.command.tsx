@@ -15,7 +15,9 @@ export const contextCommand: Command = {
 			console.log("[Context] Command starting...");
 			commandContext.addLog("[Context] Starting context calculation...");
 
-			const { formatTokenCount, calculateReservedTokens, loadSettings } = await import("@sylphx/code-core");
+			const { formatTokenCount, calculateReservedTokens, loadSettings } = await import(
+				"@sylphx/code-core"
+			);
 			const { get, getTRPCClient } = await import("@sylphx/code-client");
 			const {
 				$currentSession,
@@ -53,7 +55,9 @@ export const contextCommand: Command = {
 			}
 
 			if (currentSession) {
-				commandContext.addLog(`[Context] Current session: ${currentSession.id}, model: ${modelName}`);
+				commandContext.addLog(
+					`[Context] Current session: ${currentSession.id}, model: ${modelName}`,
+				);
 			} else {
 				commandContext.addLog(`[Context] No active session, using selected model: ${modelName}`);
 			}
@@ -103,7 +107,9 @@ export const contextCommand: Command = {
 			}
 
 			// Calculate token counts (SERVER HANDLES ALL FILE I/O AND BUSINESS LOGIC)
-			console.log(`[Context] Model: ${modelName}, sessionId: ${sessionId}, contextLimit: ${contextLimit}`);
+			console.log(
+				`[Context] Model: ${modelName}, sessionId: ${sessionId}, contextLimit: ${contextLimit}`,
+			);
 			commandContext.addLog(
 				`[Context] Calculating token counts for ${modelName} (limit: ${formatTokenCount(contextLimit)})...`,
 			);
@@ -142,8 +148,8 @@ export const contextCommand: Command = {
 			const cwd = process.cwd();
 			const settingsResult = await loadSettings(cwd);
 			const reserveRatio = settingsResult.success
-				? (settingsResult.data.contextReserveRatio ?? 0.10)
-				: 0.10; // Default: 10%
+				? (settingsResult.data.contextReserveRatio ?? 0.1)
+				: 0.1; // Default: 10%
 
 			// Calculate totals and percentages
 			const usedTokens = systemPromptTokens + toolsTokensTotal + messagesTokens;

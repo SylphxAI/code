@@ -45,11 +45,11 @@ export function truncateTitle(title: string, maxLength = 50): string {
 	const minReasonableLength = Math.floor(maxLength * 0.6);
 
 	if (lastSpace > minReasonableLength) {
-		return truncated.substring(0, lastSpace) + "...";
+		return `${truncated.substring(0, lastSpace)}...`;
 	}
 
 	// Otherwise just truncate and add ellipsis
-	return truncated + "...";
+	return `${truncated}...`;
 }
 
 /**

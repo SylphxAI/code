@@ -4,8 +4,8 @@
  */
 
 import type { CommandOptions } from "../types/cli.types.js";
-import { setupGlobalErrorHandlers } from "./error-handling.js";
 import { logger } from "../utils/logger.js";
+import { setupGlobalErrorHandlers } from "./error-handling.js";
 
 /**
  * Application interface
@@ -276,7 +276,7 @@ const validationMiddleware: Middleware = {
 
 const corsMiddleware: Middleware = {
 	name: "cors",
-	before: async (options: CommandOptions) => {
+	before: async (_options: CommandOptions) => {
 		// CORS headers would be set here for web applications
 		logger.debug("CORS middleware applied");
 	},
@@ -292,7 +292,7 @@ export class ApplicationFactory {
 
 	static create(config: AppConfig): Application {
 		const finalConfig = {
-			...this.defaultConfig,
+			...ApplicationFactory.defaultConfig,
 			...config,
 		};
 
@@ -305,7 +305,7 @@ export class ApplicationFactory {
 			version: string;
 		},
 	): Application {
-		return this.create({
+		return ApplicationFactory.create({
 			...config,
 			commands: config.commands || new Map(),
 		});
@@ -317,7 +317,7 @@ export class ApplicationFactory {
 			version: string;
 		},
 	): Application {
-		return this.create({
+		return ApplicationFactory.create({
 			...config,
 			middleware: [loggingMiddleware, validationMiddleware, corsMiddleware],
 			...config,
@@ -332,7 +332,7 @@ export class ApplicationFactory {
 export const LoggingPlugin: Plugin = {
 	name: "logging",
 	version: "1.0.0",
-	async install(app: Application): Promise<void> {
+	async install(_app: Application): Promise<void> {
 		logger.info("Logging plugin installed");
 		// Additional logging setup could go here
 	},
@@ -341,7 +341,7 @@ export const LoggingPlugin: Plugin = {
 export const StoragePlugin: Plugin = {
 	name: "storage",
 	version: "1.0.0",
-	async install(app: Application): Promise<void> {
+	async install(_app: Application): Promise<void> {
 		// Initialize storage systems
 		logger.info("Storage plugin installed");
 	},
@@ -350,7 +350,7 @@ export const StoragePlugin: Plugin = {
 export const CachePlugin: Plugin = {
 	name: "cache",
 	version: "1.0.0",
-	async install(app: Application): Promise<void> {
+	async install(_app: Application): Promise<void> {
 		// Initialize cache systems
 		logger.info("Cache plugin installed");
 	},

@@ -3,7 +3,12 @@
  * Handles error events and message status updates
  */
 
-import { getCurrentSessionId, $currentSession, set as setSignal, get as getSignal } from "@sylphx/code-client";
+import {
+	$currentSession,
+	getCurrentSessionId,
+	get as getSignal,
+	set as setSignal,
+} from "@sylphx/code-client";
 import type { MessagePart } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
 import type { StreamEvent } from "@sylphx/code-server";
@@ -17,7 +22,10 @@ const logContent = createLogger("subscription:content");
 // Error Events
 // ============================================================================
 
-export function handleError(event: Extract<StreamEvent, { type: "error" }>, context: EventHandlerContext) {
+export function handleError(
+	event: Extract<StreamEvent, { type: "error" }>,
+	context: EventHandlerContext,
+) {
 	const currentSessionId = getCurrentSessionId();
 
 	logContent("Error event received:", event.error);
@@ -72,7 +80,7 @@ export function handleMessageStatusUpdated(
 	context.addLog(`[StreamEvent] Message status updated to: ${event.status}`);
 
 	// Update message status in session (server is source of truth)
-	if (currentSession && currentSession.messages.some((m) => m.id === event.messageId)) {
+	if (currentSession?.messages.some((m) => m.id === event.messageId)) {
 		const updatedMessages = currentSession.messages.map((msg) =>
 			msg.id === event.messageId
 				? {

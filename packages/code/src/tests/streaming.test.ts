@@ -3,10 +3,10 @@
  * Tests the complete streaming flow: tRPC subscription → events → UI updates
  */
 
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createInProcessClient } from "@sylphx/code-client";
 import type { AppContext } from "@sylphx/code-server";
-import { createAppContext, initializeAppContext, closeAppContext } from "@sylphx/code-server";
+import { closeAppContext, createAppContext, initializeAppContext } from "@sylphx/code-server";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 describe("Streaming Integration", () => {
 	let appContext: AppContext;

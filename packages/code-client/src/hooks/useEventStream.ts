@@ -15,11 +15,11 @@
  * - Automatically resubscribes when session changes
  */
 
+import { get as getSignal, set as setSignal } from "@sylphx/zen";
 import { useEffect, useRef } from "react";
-import { useCurrentSessionId, $currentSession } from "../signals/domain/session/index.js";
+import { $currentSession, useCurrentSessionId } from "../signals/domain/session/index.js";
 import { setError } from "../signals/domain/ui/index.js";
 import { getTRPCClient } from "../trpc-provider.js";
-import { get as getSignal, set as setSignal } from "@sylphx/zen";
 
 export interface EventStreamCallbacks {
 	// Session events
@@ -28,7 +28,11 @@ export interface EventStreamCallbacks {
 	onSessionTitleStart?: (sessionId: string) => void;
 	onSessionTitleDelta?: (sessionId: string, text: string) => void;
 	onSessionTitleComplete?: (sessionId: string, title: string) => void;
-	onSessionTokensUpdated?: (sessionId: string, totalTokens: number, baseContextTokens: number) => void;
+	onSessionTokensUpdated?: (
+		sessionId: string,
+		totalTokens: number,
+		baseContextTokens: number,
+	) => void;
 
 	// Message events
 	onUserMessageCreated?: (messageId: string, content: string) => void;
@@ -196,9 +200,9 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 							);
 							break;
 
-					case "user-message-created":
-						callbacksRef.current.onUserMessageCreated?.(event.messageId, event.content);
-						break;
+						case "user-message-created":
+							callbacksRef.current.onUserMessageCreated?.(event.messageId, event.content);
+							break;
 
 						case "assistant-message-created":
 							callbacksRef.current.onAssistantMessageCreated?.(event.messageId);

@@ -5,15 +5,15 @@
  * PERFORMANCE: Memoized to prevent re-rendering unchanged message parts
  */
 
+import { exec } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { useElapsedTime } from "@sylphx/code-client";
 import type { MessagePart as MessagePartType } from "@sylphx/code-core";
 import { Box, Text } from "ink";
-import React, { useMemo, useEffect } from "react";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { writeFileSync } from "node:fs";
-import { randomBytes } from "node:crypto";
-import { exec } from "node:child_process";
+import React, { useEffect, useMemo } from "react";
 import MarkdownText from "./MarkdownText.js";
 import Spinner from "./Spinner.js";
 import { ToolPart } from "./ToolPart.js";

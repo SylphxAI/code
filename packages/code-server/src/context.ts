@@ -12,18 +12,18 @@
 
 import type { Agent, Rule } from "@sylphx/code-core";
 import {
-	SessionRepository,
-	MessageRepository,
-	TodoRepository,
+	createStorageOps,
+	DEFAULT_AGENT_ID,
+	getStorageConfigFromEnv,
 	initializeDatabase,
 	loadAllAgents,
 	loadAllRules,
-	DEFAULT_AGENT_ID,
-	createStorageOps,
-	getStorageConfigFromEnv,
+	MessageRepository,
+	SessionRepository,
+	TodoRepository,
 } from "@sylphx/code-core";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
-import { AppEventStream, initializeEventStream } from "./services/app-event-stream.service.js";
+import { type AppEventStream, initializeEventStream } from "./services/app-event-stream.service.js";
 import { EventPersistence } from "./services/event-persistence.service.js";
 
 // ============================================================================
@@ -52,7 +52,7 @@ export interface DatabaseService {
 	getDB(): DrizzleD1Database<any>;
 }
 
-function createDatabaseService(config: DatabaseConfig): DatabaseService {
+function createDatabaseService(_config: DatabaseConfig): DatabaseService {
 	let db: any = null;
 	let repository: SessionRepository | null = null;
 	let messageRepository: MessageRepository | null = null;
@@ -243,7 +243,7 @@ export function createAppContext(config: AppConfig): AppContext {
 
 	// Event stream will be initialized in initializeAppContext
 	// after database is ready (needs DB for persistence)
-	let eventStream: AppEventStream | undefined = undefined;
+	let eventStream: AppEventStream | undefined;
 
 	return {
 		database,

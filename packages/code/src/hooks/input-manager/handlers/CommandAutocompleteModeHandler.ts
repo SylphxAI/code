@@ -7,9 +7,9 @@
 
 import type { Key } from "ink";
 import type React from "react";
+import type { Command, CommandContext } from "../../../commands/types.js";
 import { InputMode, type InputModeContext } from "../types.js";
 import { BaseInputHandler } from "./BaseHandler.js";
-import type { Command, CommandContext } from "../../../commands/types.js";
 
 export interface CommandAutocompleteModeHandlerDeps {
 	filteredCommands: Command[];
@@ -72,7 +72,7 @@ export class CommandAutocompleteModeHandler extends BaseInputHandler {
 	/**
 	 * Handle keyboard input for command autocomplete
 	 */
-	async handleInput(char: string, key: Key, _context: InputModeContext): Promise<boolean> {
+	async handleInput(_char: string, key: Key, _context: InputModeContext): Promise<boolean> {
 		const {
 			filteredCommands,
 			selectedCommandIndex,
@@ -86,9 +86,7 @@ export class CommandAutocompleteModeHandler extends BaseInputHandler {
 		// Arrow down - next command
 		if (key.downArrow) {
 			return this.handleArrowDown(() => {
-				setSelectedCommandIndex((prev) =>
-					prev < filteredCommands.length - 1 ? prev + 1 : prev,
-				);
+				setSelectedCommandIndex((prev) => (prev < filteredCommands.length - 1 ? prev + 1 : prev));
 			});
 		}
 

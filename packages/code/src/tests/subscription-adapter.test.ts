@@ -3,10 +3,10 @@
  * Tests event handling logic without full integration
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { set, get } from "@sylphx/zen";
-import { $currentSessionId, $currentSession, $messages } from "@sylphx/code-client";
+import { $currentSession, $currentSessionId, $messages } from "@sylphx/code-client";
 import type { StreamEvent } from "@sylphx/code-server";
+import { get, set } from "@sylphx/zen";
+import { beforeEach, describe, expect, it } from "vitest";
 
 describe("Subscription Adapter", () => {
 	beforeEach(() => {
@@ -65,7 +65,7 @@ describe("Subscription Adapter", () => {
 		};
 		set($currentSession, testSession);
 
-		const event: StreamEvent = {
+		const _event: StreamEvent = {
 			type: "assistant-message-created",
 			messageId: "msg-123",
 		};

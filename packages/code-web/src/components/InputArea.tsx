@@ -4,9 +4,9 @@
  * Supports @file attachments
  */
 
-import { useState, useRef, useEffect } from "react";
-import { trpc } from "../trpc";
 import type { MessagePart } from "@sylphx/code-client";
+import { useEffect, useRef, useState } from "react";
+import { trpc } from "../trpc";
 import type { UseToastReturn } from "./Toast";
 
 interface InputAreaProps {
@@ -351,7 +351,7 @@ export default function InputArea({
 			textareaRef.current.style.height = "auto";
 			textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
 		}
-	}, [input]);
+	}, []);
 
 	const isStreaming = streamRequest !== null;
 

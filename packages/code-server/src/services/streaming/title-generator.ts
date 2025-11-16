@@ -3,7 +3,7 @@
  * Handles parallel title generation with real-time streaming
  */
 
-import type { SessionRepository, AIConfig, Session } from "@sylphx/code-core";
+import type { AIConfig, Session, SessionRepository } from "@sylphx/code-core";
 import type { AppContext } from "../../context.js";
 import { publishTitleUpdate } from "../event-publisher.js";
 

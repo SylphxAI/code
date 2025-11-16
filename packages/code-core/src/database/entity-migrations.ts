@@ -9,12 +9,12 @@
  * - AIConfig: credential system
  */
 
-import type { Session, SessionMetadata, MessagePart } from "../types/session.types.js";
-import type { Todo } from "../types/todo.types.js";
-import type { AIConfig } from "../config/ai-config.js";
 import type { ProviderId } from "../ai/providers/index.js";
-import { migrateToModelId, getDefaultModelIdForProvider } from "../registry/model-migration.js";
+import type { AIConfig } from "../config/ai-config.js";
+import { getDefaultModelIdForProvider, migrateToModelId } from "../registry/model-migration.js";
 import { getTool } from "../registry/tool-registry.js";
+import type { MessagePart, Session, SessionMetadata } from "../types/session.types.js";
+import type { Todo } from "../types/todo.types.js";
 import { createLogger } from "../utils/logger.js";
 
 const logger = createLogger("EntityMigrations");

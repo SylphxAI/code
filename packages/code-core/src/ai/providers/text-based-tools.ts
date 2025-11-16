@@ -4,7 +4,6 @@
  * by converting tool calls to/from XML text format
  */
 
-import type { LanguageModelV2ToolChoice } from "@ai-sdk/provider";
 import { z } from "zod";
 import { logger } from "../../utils/logger.js";
 

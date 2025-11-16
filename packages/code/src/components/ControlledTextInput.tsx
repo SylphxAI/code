@@ -87,7 +87,12 @@ function ControlledTextInput({
 
 			// DEBUG: Log Ctrl key presses
 			if (key.ctrl) {
-				console.log("[ControlledTextInput] Ctrl pressed, input:", JSON.stringify(input), "onPasteImage:", !!onPasteImage);
+				console.log(
+					"[ControlledTextInput] Ctrl pressed, input:",
+					JSON.stringify(input),
+					"onPasteImage:",
+					!!onPasteImage,
+				);
 			}
 
 			// Ctrl+V - paste image from clipboard
@@ -307,17 +312,7 @@ function ControlledTextInput({
 				onCursorChange(result.cursor);
 			}
 		},
-		[
-			value,
-			cursor,
-			onChange,
-			onCursorChange,
-			onSubmit,
-			availableWidth,
-			disableUpDownArrows,
-			onEscape,
-			onPasteImage,
-		],
+		[value, cursor, onChange, onCursorChange, onEscape, onPasteImage],
 	);
 
 	useInput(handleInput, { isActive: focus });
@@ -326,7 +321,7 @@ function ControlledTextInput({
 	// If onTab/onEnter callbacks are provided, call them (autocomplete mode)
 	// Otherwise, perform default behavior (insert tab, submit)
 	useInput(
-		(input, key) => {
+		(_input, key) => {
 			if (key.tab) {
 				if (onTab) {
 					onTab();
@@ -358,7 +353,7 @@ function ControlledTextInput({
 	// Otherwise, perform default behavior (cursor movement accounting for wrapping)
 	// DISABLED when USE_NEW_INPUT_MANAGER is enabled (new system handles this)
 	useInput(
-		(input, key) => {
+		(_input, key) => {
 			if (key.upArrow) {
 				if (onUpArrow) {
 					onUpArrow();

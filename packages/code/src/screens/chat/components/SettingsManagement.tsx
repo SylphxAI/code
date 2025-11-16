@@ -3,11 +3,11 @@
  * UI for configuring tool display settings and other preferences
  */
 
-import { Box, Text } from "ink";
-import SelectInput from "ink-select-input";
-import React, { useState } from "react";
 import type { AIConfig } from "@sylphx/code-core";
 import { DEFAULT_TOOL_DISPLAY_SETTINGS } from "@sylphx/code-core";
+import { Box, Text } from "ink";
+import SelectInput from "ink-select-input";
+import { useState } from "react";
 
 interface SettingsManagementProps {
 	aiConfig: AIConfig | null;
@@ -30,7 +30,7 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 	const [toolDisplaySettings, setToolDisplaySettings] = useState<Record<string, boolean>>(
 		aiConfig?.toolDisplaySettings || {},
 	);
-	const [selectedToolIndex, setSelectedToolIndex] = useState(0);
+	const [_selectedToolIndex, _setSelectedToolIndex] = useState(0);
 
 	// Main menu options
 	const mainMenuItems = [
@@ -198,14 +198,14 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 
 				<Box marginBottom={1} flexDirection="column">
 					<Text dimColor>Choose how token counts are calculated:</Text>
-					<Text dimColor>{" "}</Text>
+					<Text dimColor> </Text>
 					<Text dimColor>• Accurate: BPE tokenizer (slow, 100% accurate)</Text>
-					<Text dimColor>  - First calculation: ~3-5s</Text>
-					<Text dimColor>  - Subsequent: &lt;100ms (cached)</Text>
-					<Text dimColor>{" "}</Text>
+					<Text dimColor> - First calculation: ~3-5s</Text>
+					<Text dimColor> - Subsequent: &lt;100ms (cached)</Text>
+					<Text dimColor> </Text>
 					<Text dimColor>• Fast: Mathematical estimation (instant, ~10% error)</Text>
-					<Text dimColor>  - All calculations: ~100ms</Text>
-					<Text dimColor>  - Good for large sessions</Text>
+					<Text dimColor> - All calculations: ~100ms</Text>
+					<Text dimColor> - Good for large sessions</Text>
 				</Box>
 
 				<SelectInput
@@ -256,9 +256,9 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 					<Text dimColor>Percentage of context to reserve for:</Text>
 					<Text dimColor>• Tokenizer error margin (~1% of total)</Text>
 					<Text dimColor>• AI summary during compact (~9% of total)</Text>
-					<Text dimColor>{" "}</Text>
+					<Text dimColor> </Text>
 					<Text dimColor>Examples (for 128K context):</Text>
-					<Text dimColor>• 5%:  6.4K reserved (minimal, more space, risk hitting limits)</Text>
+					<Text dimColor>• 5%: 6.4K reserved (minimal, more space, risk hitting limits)</Text>
 					<Text dimColor>• 10%: 12.8K reserved (balanced, recommended)</Text>
 					<Text dimColor>• 15%: 19.2K reserved (conservative, better summaries)</Text>
 					<Text dimColor>• 20%: 25.6K reserved (very safe, max quality)</Text>

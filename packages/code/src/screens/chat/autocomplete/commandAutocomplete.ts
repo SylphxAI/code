@@ -40,7 +40,7 @@ export function useCommandAutocomplete(
 		const matchedCommand = commands.find((cmd) => cmd.label === commandName);
 
 		// Multi-level autocomplete: if command has args and user is typing args
-		if (matchedCommand && matchedCommand.args && parts.length > 1) {
+		if (matchedCommand?.args && parts.length > 1) {
 			// Determine which arg we're currently on
 			const args = parts.slice(1).filter((p) => p.trim() !== "");
 			const lastPart = parts[parts.length - 1];
@@ -62,8 +62,7 @@ export function useCommandAutocomplete(
 						.filter(
 							(option) =>
 								option.label.toLowerCase().includes(currentArgInput?.toLowerCase() || "") ||
-								(option.value &&
-									option.value.toLowerCase().includes(currentArgInput?.toLowerCase() || "")),
+								option.value?.toLowerCase().includes(currentArgInput?.toLowerCase() || ""),
 						)
 						.map((option) => {
 							// Build the full command string with all args

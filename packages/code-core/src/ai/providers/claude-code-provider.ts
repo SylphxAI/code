@@ -4,17 +4,16 @@
  * Supports Vercel AI SDK tools (executed by framework, not CLI)
  */
 
+import { execSync } from "node:child_process";
 import type { LanguageModelV2 } from "@ai-sdk/provider";
 import type {
 	AIProvider,
-	ProviderModelDetails,
 	ConfigField,
-	ProviderConfig,
-	ModelInfo,
 	ModelCapability,
+	ModelInfo,
+	ProviderConfig,
+	ProviderModelDetails,
 } from "./base-provider.js";
-import which from "which";
-import { execSync } from "node:child_process";
 
 import { ClaudeCodeLanguageModel } from "./claude-code-language-model.js";
 

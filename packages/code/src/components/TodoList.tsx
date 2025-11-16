@@ -14,7 +14,6 @@ import {
 	isTodoStrikethrough,
 	useCurrentSession,
 } from "@sylphx/code-client";
-import type { Todo } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import React, { useMemo } from "react";
 

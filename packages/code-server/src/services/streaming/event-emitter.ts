@@ -3,9 +3,9 @@
  * Centralized event emission helpers for streaming service
  */
 
+import type { TokenUsage } from "@sylphx/code-core";
 import type { Observer } from "@trpc/server/observable";
 import type { StreamEvent } from "./types.js";
-import type { TokenUsage } from "@sylphx/code-core";
 
 /**
  * Emit session-created event

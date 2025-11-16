@@ -6,7 +6,6 @@
 import { navigateTo, useAIConfig } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
-import React, { useState } from "react";
 
 interface MenuItem {
 	label: string;

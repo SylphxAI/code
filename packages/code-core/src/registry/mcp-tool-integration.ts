@@ -5,10 +5,10 @@
  */
 
 import type { CoreTool } from "ai";
+import { getMCPManager } from "../services/mcp-manager.js";
 import type { MCPToolInfo } from "../types/mcp.types.js";
 import type { Tool } from "../types/tool.types.js";
 import { createLogger } from "../utils/logger.js";
-import { getMCPManager } from "../services/mcp-manager.js";
 
 const logger = createLogger("MCPToolIntegration");
 
@@ -232,8 +232,7 @@ export function convertAllMCPToolsToMetadata(): Tool[] {
  */
 export async function loadMCPTools(): Promise<void> {
 	const mcpManager = getMCPManager();
-	const allTools = await mcpManager.getAllTools();
-
+	const _allTools = await mcpManager.getAllTools();
 }
 
 /**
@@ -253,7 +252,6 @@ export async function reloadMCPServerTools(serverId: string): Promise<void> {
 
 	const tools = result.data;
 
-
 	// Unregister existing tools from this server
 	unregisterMCPServerTools(serverId);
 
@@ -261,7 +259,6 @@ export async function reloadMCPServerTools(serverId: string): Promise<void> {
 	for (const mcpTool of tools) {
 		registerMCPTool(mcpTool);
 	}
-
 }
 
 /**

@@ -6,7 +6,7 @@
  */
 
 import type { Key } from "ink";
-import { InputMode, type InputHandler, type InputModeContext } from "../types.js";
+import type { InputHandler, InputMode, InputModeContext } from "../types.js";
 
 /**
  * Abstract base class for input handlers
@@ -40,7 +40,11 @@ export abstract class BaseInputHandler implements InputHandler {
 	 * Handle keyboard input
 	 * Must be implemented by subclasses
 	 */
-	abstract handleInput(char: string, key: Key, context: InputModeContext): boolean | Promise<boolean>;
+	abstract handleInput(
+		char: string,
+		key: Key,
+		context: InputModeContext,
+	): boolean | Promise<boolean>;
 
 	// ============================================================================
 	// Common Utilities
@@ -94,11 +98,13 @@ export abstract class BaseInputHandler implements InputHandler {
 	protected handleEnter(callback: () => void | Promise<void>): boolean | Promise<boolean> {
 		const result = callback();
 		if (result instanceof Promise) {
-			return result.then(() => true).catch((error) => {
-				console.error("[BaseHandler] Unhandled error in handleEnter:", error);
-				console.error("[BaseHandler] Stack trace:", error?.stack);
-				return true; // Still consume the event
-			});
+			return result
+				.then(() => true)
+				.catch((error) => {
+					console.error("[BaseHandler] Unhandled error in handleEnter:", error);
+					console.error("[BaseHandler] Stack trace:", error?.stack);
+					return true; // Still consume the event
+				});
 		}
 		return true;
 	}

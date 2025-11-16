@@ -5,11 +5,10 @@
  */
 
 import {
-	detectAudioPlayer,
 	getAudioPlayerInfo,
+	getDefaultSystemSound,
 	playNotificationSound,
 	SYSTEM_SOUNDS,
-	getDefaultSystemSound,
 } from "./audio-player.js";
 
 async function testAudioPlayer() {

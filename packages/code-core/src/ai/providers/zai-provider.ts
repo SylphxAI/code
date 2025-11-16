@@ -6,12 +6,12 @@
 import type { LanguageModelV1 } from "ai";
 import type {
 	AIProvider,
-	ProviderModelDetails,
 	ConfigField,
-	ProviderConfig,
-	ModelInfo,
 	ModelCapabilities,
 	ModelCapability,
+	ModelInfo,
+	ProviderConfig,
+	ProviderModelDetails,
 } from "./base-provider.js";
 import { hasRequiredFields } from "./base-provider.js";
 
@@ -63,7 +63,9 @@ export class ZaiProvider implements AIProvider {
 		// Get API key (may be in config.apiKey or resolved from credential)
 		const apiKey = config.apiKey as string | undefined;
 		if (!apiKey) {
-			throw new Error("API key is required to fetch Z.ai models. Please configure it with /provider configure zai set apiKey <your-key>");
+			throw new Error(
+				"API key is required to fetch Z.ai models. Please configure it with /provider configure zai set apiKey <your-key>",
+			);
 		}
 
 		// Use different base URL for coding plan

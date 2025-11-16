@@ -6,8 +6,6 @@
  * Tracked in: .sylphx/technical-debt.md (Low Priority #7)
  */
 
-import { useInput } from "ink";
-
 export function useKeyboard() {
 	// Disabled temporarily - will migrate to zen signals
 	// useInput((input, key) => {

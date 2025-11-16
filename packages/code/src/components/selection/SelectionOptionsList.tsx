@@ -3,9 +3,9 @@
  * Primitive component for displaying selection options with scroll viewport
  */
 
+import { calculateScrollViewport } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import type { SelectionOption } from "../../hooks/useSelection.js";
-import { calculateScrollViewport } from "@sylphx/code-core";
 
 interface SelectionOptionsListProps {
 	options: SelectionOption[];

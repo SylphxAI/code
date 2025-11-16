@@ -3,7 +3,7 @@
  * Dynamically fetch available models from providers using provider registry
  */
 
-import type { ProviderConfig, ModelInfo } from "../ai/providers/base-provider.js";
+import type { ModelInfo, ProviderConfig } from "../ai/providers/base-provider.js";
 import { getProvider, type ProviderId } from "../ai/providers/index.js";
 
 // Re-export ModelInfo for backward compatibility

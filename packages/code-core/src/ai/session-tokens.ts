@@ -22,13 +22,13 @@
  */
 
 import { createHash } from "node:crypto";
-import { countTokens, getTokenizerForModel } from "../utils/token-counter.js";
-import { buildSystemPrompt } from "./system-prompt-builder.js";
-import { loadAllAgents } from "./agent-loader.js";
-import { loadAllRules } from "./rule-loader.js";
+import { cacheManager } from "../cache/cache-manager.js";
 import { getAISDKTools } from "../tools/registry.js";
 import { LRUCache } from "../utils/lru-cache.js";
-import { cacheManager } from "../cache/cache-manager.js";
+import { countTokens, getTokenizerForModel } from "../utils/token-counter.js";
+import { loadAllAgents } from "./agent-loader.js";
+import { loadAllRules } from "./rule-loader.js";
+import { buildSystemPrompt } from "./system-prompt-builder.js";
 
 // Base context cache: ${tokenizerName}:${contentHash} → tokens
 // Max 100 entries (different model/agent/rules combinations)
@@ -153,4 +153,3 @@ export async function calculateBaseContextTokens(
 export function clearBaseContextCache(): void {
 	baseContextCache.clear();
 }
-

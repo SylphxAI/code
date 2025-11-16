@@ -8,11 +8,10 @@
  * 3. Add wizard for new servers
  */
 
-import { Box, Text } from "ink";
-import { useState, useEffect } from "react";
+import type { MCPServerWithId } from "@sylphx/code-core";
+import { useEffect, useState } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
-import type { MCPServerWithId } from "@sylphx/code-core";
 import { MCPAddForm } from "./MCPAddForm.js";
 import { MCPServerDetails } from "./MCPServerDetails.js";
 
@@ -60,7 +59,12 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 
 			setConnectedServers(connected);
 			setToolCounts(counts);
-			console.log("[MCPManagement] loadServers DONE, servers:", result.data.length, "connected:", connected.size);
+			console.log(
+				"[MCPManagement] loadServers DONE, servers:",
+				result.data.length,
+				"connected:",
+				connected.size,
+			);
 		} else {
 			console.error("[MCPManagement] loadServers FAILED:", result.error);
 		}
@@ -68,7 +72,7 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 
 	useEffect(() => {
 		loadServers();
-	}, []);
+	}, [loadServers]);
 
 	// Server list options with status badges
 	const serverOptions: SelectionOption[] = [
@@ -87,7 +91,11 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 			}
 
 			// Status prefix
-			const statusPrefix = isConnected ? "[Connected] " : server.enabled ? "[Enabled] " : "[Disabled] ";
+			const statusPrefix = isConnected
+				? "[Connected] "
+				: server.enabled
+					? "[Enabled] "
+					: "[Disabled] ";
 
 			return {
 				label: statusPrefix + server.name,

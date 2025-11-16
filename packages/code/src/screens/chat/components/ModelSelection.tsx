@@ -3,10 +3,10 @@
  * Uses InlineSelection composition pattern for consistent UI
  */
 
-import { InlineSelection } from "../../../components/selection/index.js";
-import type { SelectionOption } from "../../../hooks/useSelection.js";
 import { Box, Text } from "ink";
 import Spinner from "../../../components/Spinner.js";
+import { InlineSelection } from "../../../components/selection/index.js";
+import type { SelectionOption } from "../../../hooks/useSelection.js";
 
 interface ModelSelectionProps {
 	models: Array<{ id: string; name: string }> | null;

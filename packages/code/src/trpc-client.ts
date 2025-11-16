@@ -7,6 +7,7 @@
  */
 
 import type { AppRouter } from "@sylphx/code-client";
+import { getServerURL } from "@sylphx/code-core";
 import {
 	createTRPCProxyClient,
 	httpBatchLink,
@@ -14,7 +15,6 @@ import {
 	splitLink,
 } from "@trpc/client";
 import { EventSource } from "eventsource";
-import { getServerURL } from "@sylphx/code-core";
 
 /**
  * Create HTTP tRPC client for remote connections
@@ -40,7 +40,7 @@ export function createHTTPClient(serverUrl?: string, apiKey?: string) {
 
 		// Add Authorization header if API key is provided
 		if (key) {
-			baseHeaders["Authorization"] = `Bearer ${key}`;
+			baseHeaders.Authorization = `Bearer ${key}`;
 		}
 
 		return baseHeaders;
@@ -78,7 +78,7 @@ export async function checkServer(serverUrl?: string): Promise<boolean> {
 	try {
 		const response = await fetch(url, { method: "HEAD" });
 		return response.ok;
-	} catch (error) {
+	} catch (_error) {
 		return false;
 	}
 }

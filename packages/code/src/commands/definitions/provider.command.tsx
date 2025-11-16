@@ -3,8 +3,8 @@
  * Configure and switch AI providers using component-based UI
  */
 
-import { ProviderManagement } from "../../screens/chat/components/ProviderManagementV2.js";
 import { getActionCompletions, getProviderCompletions } from "../../completions/provider.js";
+import { ProviderManagement } from "../../screens/chat/components/ProviderManagementV2.js";
 import type { Command } from "../types.js";
 
 export const providerCommand: Command = {
@@ -95,7 +95,7 @@ export const providerCommand: Command = {
 					// Mask sensitive values
 					if (k.toLowerCase().includes("key") || k.toLowerCase().includes("token")) {
 						const strVal = String(v);
-						const masked = strVal.length > 7 ? strVal.substring(0, 7) + "***" : "***";
+						const masked = strVal.length > 7 ? `${strVal.substring(0, 7)}***` : "***";
 						return `  ${k}: ${masked}`;
 					}
 					return `  ${k}: ${v}`;
@@ -123,7 +123,7 @@ export const providerCommand: Command = {
 				// Mask sensitive values
 				if (key.toLowerCase().includes("key") || key.toLowerCase().includes("token")) {
 					const strVal = String(val);
-					const masked = strVal.length > 7 ? strVal.substring(0, 7) + "***" : "***";
+					const masked = strVal.length > 7 ? `${strVal.substring(0, 7)}***` : "***";
 					return `${key}: ${masked}`;
 				}
 
@@ -176,7 +176,7 @@ export const providerCommand: Command = {
 					const updatedConfig = {
 						...aiConfig!,
 						providers: {
-							...aiConfig!.providers,
+							...aiConfig?.providers,
 							[providerId]: updatedProviderConfig,
 						},
 					} as any;
@@ -302,7 +302,7 @@ export const providerCommand: Command = {
 									`[provider] Switched to provider: ${providerId} (no models available - configure API key first)`,
 								);
 							}
-						} catch (error) {
+						} catch (_error) {
 							context.addLog(
 								`[provider] Switched to provider: ${providerId} (configure API key to see models)`,
 							);
@@ -371,7 +371,7 @@ export const providerCommand: Command = {
 						...currentConfig!,
 						defaultProvider: providerId, // Auto-switch to configured provider
 						providers: {
-							...currentConfig!.providers,
+							...currentConfig?.providers,
 							[providerId]: nonSecrets,
 						},
 					} as any;

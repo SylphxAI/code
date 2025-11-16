@@ -9,9 +9,8 @@
  * - Universal: mplayer, omxplayer (Raspberry Pi)
  */
 
-import { spawn } from "child_process";
-import { existsSync } from "fs";
-import { join } from "path";
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 
 /**
  * Audio player configuration
@@ -123,7 +122,7 @@ async function isCommandAvailable(command: string): Promise<boolean> {
 		});
 
 		proc.on("error", () => resolve(false));
-		proc.on("exit", (code) => {
+		proc.on("exit", (_code) => {
 			// Some commands return non-zero for --version, so just check if they exist
 			resolve(true);
 		});

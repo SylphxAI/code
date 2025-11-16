@@ -5,27 +5,26 @@
  * Using pure functions, closures, and function composition
  */
 
-export type {
-	StorageResult,
-	StorageObject,
-	StorageConfig,
-	FilesystemStorageConfig,
-	S3StorageConfig,
-	GCSStorageConfig,
-	VercelBlobStorageConfig,
-	SupabaseStorageConfig,
-	AnyStorageConfig,
-	PutOptions,
-	GetOptions,
-} from "./types.js";
-
 export type { StorageOps } from "./functional.js";
 export {
-	createStorageOps,
 	createFilesystemOps,
 	createS3Ops,
+	createStorageOps,
 	getStorageConfigFromEnv,
+	withCache,
 	withLogging,
 	withRetry,
-	withCache,
 } from "./functional.js";
+export type {
+	AnyStorageConfig,
+	FilesystemStorageConfig,
+	GCSStorageConfig,
+	GetOptions,
+	PutOptions,
+	S3StorageConfig,
+	StorageConfig,
+	StorageObject,
+	StorageResult,
+	SupabaseStorageConfig,
+	VercelBlobStorageConfig,
+} from "./types.js";

@@ -9,7 +9,7 @@ export const logsCommand: Command = {
 	id: "logs",
 	label: "/logs",
 	description: "View debug logs",
-	execute: async (context) => {
+	execute: async (_context) => {
 		const { navigateTo } = await import("@sylphx/code-client");
 		navigateTo("logs");
 		return "Opening debug logs...";

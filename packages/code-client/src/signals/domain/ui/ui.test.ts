@@ -3,7 +3,7 @@
  * Tests UI state management and navigation
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as ui from "./index.js";
 
 describe("UI Domain Signals", () => {

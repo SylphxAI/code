@@ -1,8 +1,8 @@
+import { setTRPCClient } from "@sylphx/code-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { trpc, createTRPCClient } from "./trpc";
-import { setTRPCClient } from "@sylphx/code-client";
+import { createTRPCClient, trpc } from "./trpc";
 import "./index.css";
 import App from "./App.tsx";
 

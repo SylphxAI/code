@@ -13,17 +13,17 @@
  */
 
 import type { Command, CommandContext } from "../ai/command-system.js";
-import { ok, err } from "../ai/result.js";
+import { err, ok } from "../ai/result.js";
 import {
-	loadMCPConfig,
 	addMCPServer,
-	removeMCPServer,
-	enableMCPServer,
 	disableMCPServer,
+	enableMCPServer,
+	loadMCPConfig,
+	removeMCPServer,
 	validateMCPServerConfig,
 } from "../config/mcp-config.js";
+import { reloadMCPServerTools } from "../registry/mcp-tool-integration.js";
 import { getMCPManager } from "../services/mcp-manager.js";
-import { loadMCPTools, reloadMCPServerTools } from "../registry/mcp-tool-integration.js";
 import type { MCPServerConfig, MCPTransport } from "../types/mcp.types.js";
 import { createLogger } from "../utils/logger.js";
 
@@ -213,7 +213,7 @@ export const mcpRemoveCommand: Command = {
 			return err(error instanceof Error ? error : new Error(String(error)));
 		}
 	},
-	examples: ['mcp:remove --id github'],
+	examples: ["mcp:remove --id github"],
 };
 
 /**

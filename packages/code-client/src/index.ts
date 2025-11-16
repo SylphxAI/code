@@ -10,79 +10,37 @@
  */
 
 // ============================================================================
-// tRPC Provider (React Context API)
+// Types (re-exported from dependencies)
 // ============================================================================
-export {
-	// React Context API
-	TRPCProvider,
-	useTRPCClient,
-	type TRPCProviderProps,
-	// Client factories
-	createInProcessClient,
-	createHTTPClient,
-	type TypedTRPCClient,
-	// Internal API for Zen signals (DO NOT USE in React components)
-	getTRPCClient,
-	_initGlobalClient,
-} from "./trpc-provider.js";
-
-// ============================================================================
-// tRPC Links (Low-level, use createInProcessClient instead)
-// ============================================================================
-export {
-	inProcessLink,
-	type InProcessLinkOptions,
-} from "./trpc-links/index.js";
-
-// ============================================================================
-// State Management (Zen Signals)
-// ============================================================================
-// Domain signals
-export * from "./signals/domain/ui/index.js";
-export * from "./signals/domain/ai/index.js";
-export * from "./signals/domain/session/index.js";
-export * from "./signals/domain/settings/index.js";
-
-// Cross-domain computed signals
-export * from "./signals/computed/index.js";
-
-// Event system
-export * from "./signals/events/index.js";
-
-// Effects
-export * from "./signals/effects/index.js";
-
-// Core zen exports
-export { zen, computed, subscribe, get, set } from "@sylphx/zen";
-
-// ============================================================================
-// Screen Type (for backwards compatibility in component imports)
-// ============================================================================
-export type { Screen } from "./signals/domain/ui/index.js";
-
+export type { MessagePart, Session } from "@sylphx/code-core";
 // ============================================================================
 // Event Bus (Re-exported from code-core to prevent circular dependency)
 // ============================================================================
-export { eventBus, type AppEvents } from "@sylphx/code-core";
-
-// ============================================================================
-// Types (re-exported from dependencies)
-// ============================================================================
-export type { Session, MessagePart } from "@sylphx/code-core";
+// Re-export shared utilities from @sylphx/code-core (via main export)
+export {
+	type AppEvents,
+	calculateScrollViewport,
+	clampCursor,
+	eventBus,
+	type FormattedResult,
+	getAbsoluteCursorPosition,
+	getCursorLinePosition,
+	getRelativePath,
+	type InputFormatter,
+	isDefaultCwd,
+	type LinePosition,
+	moveCursorDown,
+	moveCursorUp,
+	pluralize,
+	type ResultFormatter,
+	type ScrollViewportResult,
+	truncateString,
+} from "@sylphx/code-core";
 export type { AppRouter } from "@sylphx/code-server";
-
-// ============================================================================
-// Command Types
-// ============================================================================
-export type {
-	Command,
-	CommandArg,
-	CommandContext,
-	SelectOption,
-	Question,
-	WaitForInputOptions,
-} from "./types/command-types.js";
-
+// Core zen exports
+export { computed, get, set, subscribe, zen } from "@sylphx/zen";
+// API functions
+export { getLastSession, getRecentSessions } from "./api/sessions.js";
 // ============================================================================
 // React Hooks
 // ============================================================================
@@ -92,80 +50,105 @@ export { useChat } from "./hooks/useChat.js";
 export { useCurrentSession } from "./hooks/useCurrentSession.js";
 export { useElapsedTime } from "./hooks/useElapsedTime.js";
 export {
-	useEventStream,
 	type EventStreamCallbacks,
 	type UseEventStreamOptions,
+	useEventStream,
 } from "./hooks/useEventStream.js";
 export { useFileAttachments } from "./hooks/useFileAttachments.js";
 export { useKeyboard } from "./hooks/useKeyboard.js";
+export { type MCPStatus, useMCPStatus } from "./hooks/useMCPStatus.js";
 export { useModelDetails } from "./hooks/useModelDetails.js";
 export { useModels } from "./hooks/useModels.js";
 export { useMouse } from "./hooks/useMouse.js";
 export { useProjectFiles } from "./hooks/useProjectFiles.js";
 export { useProviders } from "./hooks/useProviders.js";
 export { useSessionInitialization } from "./hooks/useSessionInitialization.js";
+export { useSessionList } from "./hooks/useSessionList.js";
+export {
+	type SessionListSyncCallbacks,
+	type UseSessionListSyncOptions,
+	useSessionListSync,
+} from "./hooks/useSessionListSync.js";
 export { useSessionPersistence } from "./hooks/useSessionPersistence.js";
 export { useTokenCalculation } from "./hooks/useTokenCalculation.js";
 export { useTotalTokens } from "./hooks/useTotalTokens.js";
-export { useSessionList } from "./hooks/useSessionList.js";
+// Cross-domain computed signals
+export * from "./signals/computed/index.js";
+export * from "./signals/domain/ai/index.js";
+export * from "./signals/domain/session/index.js";
+export * from "./signals/domain/settings/index.js";
+// ============================================================================
+// Screen Type (for backwards compatibility in component imports)
+// ============================================================================
+export type { Screen } from "./signals/domain/ui/index.js";
+// ============================================================================
+// State Management (Zen Signals)
+// ============================================================================
+// Domain signals
+export * from "./signals/domain/ui/index.js";
+// Effects
+export * from "./signals/effects/index.js";
+// Event system
+export * from "./signals/events/index.js";
+// ============================================================================
+// tRPC Links (Low-level, use createInProcessClient instead)
+// ============================================================================
 export {
-	useSessionListSync,
-	type SessionListSyncCallbacks,
-	type UseSessionListSyncOptions,
-} from "./hooks/useSessionListSync.js";
-export { useMCPStatus, type MCPStatus } from "./hooks/useMCPStatus.js";
-
+	type InProcessLinkOptions,
+	inProcessLink,
+} from "./trpc-links/index.js";
+// ============================================================================
+// tRPC Provider (React Context API)
+// ============================================================================
+export {
+	_initGlobalClient,
+	createHTTPClient,
+	// Client factories
+	createInProcessClient,
+	// Internal API for Zen signals (DO NOT USE in React components)
+	getTRPCClient,
+	// React Context API
+	TRPCProvider,
+	type TRPCProviderProps,
+	type TypedTRPCClient,
+	useTRPCClient,
+} from "./trpc-provider.js";
+// ============================================================================
+// Command Types
+// ============================================================================
+export type {
+	Command,
+	CommandArg,
+	CommandContext,
+	Question,
+	SelectOption,
+	WaitForInputOptions,
+} from "./types/command-types.js";
+export type { ToolConfig, ToolDisplayProps } from "./types/tool.types.js";
 // ============================================================================
 // Utilities
 // ============================================================================
 export type { ProviderModelResult } from "./utils/config.js";
 export { resolveProviderAndModel } from "./utils/config.js";
-
-// API functions
-export { getRecentSessions, getLastSession } from "./api/sessions.js";
-
-// Re-export shared utilities from @sylphx/code-core (via main export)
-export {
-	getCursorLinePosition,
-	getAbsoluteCursorPosition,
-	moveCursorUp,
-	moveCursorDown,
-	clampCursor,
-	calculateScrollViewport,
-	truncateString,
-	getRelativePath,
-	isDefaultCwd,
-	pluralize,
-	type LinePosition,
-	type ScrollViewportResult,
-	type InputFormatter,
-	type ResultFormatter,
-	type FormattedResult,
-} from "@sylphx/code-core";
-
 // Client-specific utilities
 export type { ParsedContentPart, ParsedUserInput } from "./utils/parse-user-input.js";
 export { parseUserInput } from "./utils/parse-user-input.js";
-
-export { renderTextWithTags, extractFileReferences } from "./utils/text-rendering-utils.js";
-
+export { extractFileReferences, renderTextWithTags } from "./utils/text-rendering-utils.js";
 export {
-	getTodoIcon,
-	getTodoColor,
-	getTodoDisplayText,
-	isTodoDimmed,
-	isTodoBold,
-	isTodoStrikethrough,
 	formatTodoChange,
 	formatTodoCount,
+	getTodoColor,
+	getTodoDisplayText,
+	getTodoIcon,
+	isTodoBold,
+	isTodoDimmed,
+	isTodoStrikethrough,
 } from "./utils/todo-formatters.js";
-
-export type { ToolDisplayProps, ToolConfig } from "./types/tool.types.js";
 export {
-	toolConfigs,
 	getToolComponent,
 	isBuiltInTool,
 	registerTool,
+	toolConfigs,
 } from "./utils/tool-configs.js";
 
 // ============================================================================

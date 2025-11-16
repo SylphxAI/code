@@ -3,8 +3,8 @@
  * Helper functions for rendering text with @file tag highlighting
  */
 
-import React from "react";
 import { Text } from "ink";
+import type React from "react";
 
 // Tag match interface
 interface TagMatch {

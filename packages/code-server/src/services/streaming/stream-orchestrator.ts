@@ -3,52 +3,44 @@
  * Main streamAIResponse function - coordinates all streaming modules
  */
 
-import { observable, type Observable } from "@trpc/server/observable";
-import type { StreamEvent, StreamAIResponseOptions } from "./types.js";
 import type { StreamCallbacks } from "@sylphx/code-core";
+import { buildSystemPrompt, getAISDKTools, getProvider } from "@sylphx/code-core";
+import { type Observable, observable } from "@trpc/server/observable";
 import {
-	buildSystemPrompt,
-	getProvider,
-	getAISDKTools,
-	hasUserInputHandler,
-} from "@sylphx/code-core";
-import { ensureSession } from "./session-manager.js";
-import { buildModelMessages } from "./message-builder.js";
-import { generateSessionTitle, needsTitleGeneration } from "./title-generator.js";
-import { validateProvider } from "./provider-validator.js";
-import { buildFrozenContent } from "./file-handler.js";
+	createAbortNotificationMessage,
+	createAssistantMessage,
+	createUserMessage,
+	updateMessageStatus,
+} from "../message-persistence.service.js";
+import { completeStep, prepareStep } from "../step-lifecycle.service.js";
+import { calculateFinalTokens, initializeTokenTracking } from "../token-tracking.service.js";
 import {
-	emitSessionCreated,
-	emitSystemMessageCreated,
-	emitError,
-	emitTextStart,
-	emitTextDelta,
-	emitTextEnd,
-	emitReasoningStart,
-	emitReasoningDelta,
-	emitReasoningEnd,
-	emitToolCall,
-	emitToolResult,
-	emitToolError,
-	emitFile,
-} from "./event-emitter.js";
-import {
-	processAIStream,
 	createStreamState,
 	orchestrateAIStream,
+	processAIStream,
 	type TokenTrackingContext,
 } from "./ai-orchestrator.js";
 import {
-	initializeTokenTracking,
-	calculateFinalTokens,
-} from "../token-tracking.service.js";
-import { prepareStep, completeStep } from "../step-lifecycle.service.js";
-import {
-	createUserMessage,
-	createAssistantMessage,
-	updateMessageStatus,
-	createAbortNotificationMessage,
-} from "../message-persistence.service.js";
+	emitError,
+	emitFile,
+	emitReasoningDelta,
+	emitReasoningEnd,
+	emitReasoningStart,
+	emitSessionCreated,
+	emitSystemMessageCreated,
+	emitTextDelta,
+	emitTextEnd,
+	emitTextStart,
+	emitToolCall,
+	emitToolError,
+	emitToolResult,
+} from "./event-emitter.js";
+import { buildFrozenContent } from "./file-handler.js";
+import { buildModelMessages } from "./message-builder.js";
+import { validateProvider } from "./provider-validator.js";
+import { ensureSession } from "./session-manager.js";
+import { generateSessionTitle, needsTitleGeneration } from "./title-generator.js";
+import type { StreamAIResponseOptions, StreamEvent } from "./types.js";
 
 const STREAM_TIMEOUT_MS = 45000; // 45 seconds
 
@@ -99,10 +91,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 						emitSessionCreated(observer, result.sessionId, result.provider, result.model);
 					}
 				} catch (error) {
-					emitError(
-						observer,
-						error instanceof Error ? error.message : String(error),
-					);
+					emitError(observer, error instanceof Error ? error.message : String(error));
 					observer.complete();
 					return;
 				}
@@ -135,7 +124,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				const frozenContent = await buildFrozenContent(userMessageContent, messageRepository);
 
 				// 5. Add user message to session (if userMessageContent provided)
-				let userMessageId: string | null = null;
+				let _userMessageId: string | null = null;
 				let userMessageText = "";
 
 				if (userMessageContent) {
@@ -145,12 +134,12 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 						messageRepository,
 						observer,
 					);
-					userMessageId = result.messageId;
+					_userMessageId = result.messageId;
 					userMessageText = result.messageText;
 				}
 
 				// 6. Reload session to get updated messages
-				let updatedSession = await sessionRepository.getSessionById(sessionId);
+				const updatedSession = await sessionRepository.getSessionById(sessionId);
 				if (!updatedSession) {
 					observer.error(new Error("Session not found after adding message"));
 					return;
@@ -187,13 +176,13 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				// 11. Determine tool support and load tools
 				const supportsTools = modelCapabilities.has("tools");
 				let tools: Record<string, any> | undefined;
-				let askToolRegistered = false;
+				let _askToolRegistered = false;
 				if (supportsTools) {
 					const baseTools = await getAISDKTools({ interactive: false });
 					const { createAskTool } = await import("./ask-tool.js");
 					const askTool = createAskTool(sessionId, observer);
 					tools = { ...baseTools, ask: askTool };
-					askToolRegistered = true;
+					_askToolRegistered = true;
 				} else {
 					tools = undefined;
 				}
@@ -341,9 +330,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				// 20. Check for timeout (if no events were emitted at all)
 				const elapsedMs = Date.now() - streamStartTime;
 				if (!state.hasEmittedAnyEvent && elapsedMs > STREAM_TIMEOUT_MS) {
-					console.error(
-						`[StreamOrchestrator] TIMEOUT after ${elapsedMs}ms with no events emitted`,
-					);
+					console.error(`[StreamOrchestrator] TIMEOUT after ${elapsedMs}ms with no events emitted`);
 					const timeoutError = `Request to ${provider} (${modelName}) timed out after ${Math.round(elapsedMs / 1000)}s with no response. This may indicate a network issue, authentication problem, or the provider is unreachable.`;
 					state.currentStepParts.push({
 						type: "error",

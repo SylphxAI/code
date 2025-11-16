@@ -3,9 +3,8 @@
  * View debug logs for troubleshooting
  */
 
-import { useDebugLogs, clearDebugLogs, navigateTo } from "@sylphx/code-client";
+import { clearDebugLogs, navigateTo, useDebugLogs } from "@sylphx/code-client";
 import { Box, Text, useInput } from "ink";
-import React from "react";
 
 export default function Logs() {
 	const debugLogs = useDebugLogs();

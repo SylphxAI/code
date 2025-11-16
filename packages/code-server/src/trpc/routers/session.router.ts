@@ -5,10 +5,10 @@
  * SECURITY: Protected mutations (OWASP API2) + Rate limiting (OWASP API4)
  */
 
-import { z } from "zod";
-import { router, publicProcedure, strictProcedure, moderateProcedure } from "../trpc.js";
 import type { ProviderId } from "@sylphx/code-core";
+import { z } from "zod";
 import { publishTitleUpdate } from "../../services/event-publisher.js";
+import { moderateProcedure, publicProcedure, router, strictProcedure } from "../trpc.js";
 
 // Request deduplication: prevent concurrent duplicate token calculations
 // Key: stringified input → Promise<result>
@@ -518,7 +518,7 @@ export const sessionRouter = router({
 			// CRITICAL: Must calculate what ACTUALLY gets sent to AI, not session messages
 			// If no session, messagesTokens is 0 (base context only)
 			let messagesTokens = 0;
-			if (session && session.messages && session.messages.length > 0) {
+			if (session?.messages && session.messages.length > 0) {
 				// Build MODEL messages (what actually gets sent to AI)
 				// This includes all transformations:
 				// - System message injection
@@ -615,7 +615,6 @@ export const sessionRouter = router({
 						? (settingsResult.data.useAccurateTokenizer ?? true)
 						: true; // Default: accurate mode
 
-
 					// Calculate base context (system prompts + tools)
 					const baseContextTokens = await calculateBaseContextTokens(
 						input.model,
@@ -625,47 +624,47 @@ export const sessionRouter = router({
 						{ useAccurate },
 					);
 
-				// If no session, return base context only
-				if (!input.sessionId) {
-					return {
-						success: true as const,
-						totalTokens: baseContextTokens,
-						baseContextTokens,
-						messagesTokens: 0,
-					};
-				}
+					// If no session, return base context only
+					if (!input.sessionId) {
+						return {
+							success: true as const,
+							totalTokens: baseContextTokens,
+							baseContextTokens,
+							messagesTokens: 0,
+						};
+					}
 
-				// Get session and calculate messages tokens
-				const session = await ctx.sessionRepository.getSessionById(input.sessionId);
-				if (!session) {
-					// Session not found, return base context
-					return {
-						success: true as const,
-						totalTokens: baseContextTokens,
-						baseContextTokens,
-						messagesTokens: 0,
-					};
-				}
+					// Get session and calculate messages tokens
+					const session = await ctx.sessionRepository.getSessionById(input.sessionId);
+					if (!session) {
+						// Session not found, return base context
+						return {
+							success: true as const,
+							totalTokens: baseContextTokens,
+							baseContextTokens,
+							messagesTokens: 0,
+						};
+					}
 
-				// Calculate messages tokens using MODEL messages (SSOT logic)
-				// IMPORTANT: Use input.model (current UI selection) not session.model (stored in DB)
-				// This ensures dynamic recalculation when model changes mid-session
-				let messagesTokens = 0;
-				if (session.messages && session.messages.length > 0) {
-					const modelEntity = getModel(input.model);
-					const modelCapabilities = modelEntity?.capabilities;
-					const fileRepo = ctx.messageRepository.getFileRepository();
+					// Calculate messages tokens using MODEL messages (SSOT logic)
+					// IMPORTANT: Use input.model (current UI selection) not session.model (stored in DB)
+					// This ensures dynamic recalculation when model changes mid-session
+					let messagesTokens = 0;
+					if (session.messages && session.messages.length > 0) {
+						const modelEntity = getModel(input.model);
+						const modelCapabilities = modelEntity?.capabilities;
+						const fileRepo = ctx.messageRepository.getFileRepository();
 
-					const modelMessages = await buildModelMessages(
-						session.messages,
-						modelCapabilities,
-						fileRepo,
-					);
+						const modelMessages = await buildModelMessages(
+							session.messages,
+							modelCapabilities,
+							fileRepo,
+						);
 
-					messagesTokens = await calculateModelMessagesTokens(modelMessages, input.model, {
-						useAccurate,
-					});
-				}
+						messagesTokens = await calculateModelMessagesTokens(modelMessages, input.model, {
+							useAccurate,
+						});
+					}
 
 					const totalTokens = baseContextTokens + messagesTokens;
 

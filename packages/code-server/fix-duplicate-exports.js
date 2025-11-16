@@ -5,7 +5,7 @@
  * WORKAROUND: Remove redundant export blocks after build
  */
 
-import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const distDir = "./dist/shared";

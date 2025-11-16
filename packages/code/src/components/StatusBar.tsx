@@ -6,16 +6,16 @@
  */
 
 import {
+	useEnabledRuleIds,
+	useMCPStatus,
 	useModelDetails,
 	useSelectedAgentId,
-	useEnabledRuleIds,
 	useTotalTokens,
-	useMCPStatus,
 } from "@sylphx/code-client";
 import { formatTokenCount } from "@sylphx/code-core";
+import { Box, Spacer, Text } from "ink";
+import { useMemo } from "react";
 import { getAgentById } from "../embedded-context.js";
-import { Box, Text, Spacer } from "ink";
-import React, { useMemo } from "react";
 
 interface StatusBarProps {
 	provider: string | null;
@@ -107,7 +107,9 @@ function StatusBarInternal({
 		].filter(Boolean);
 
 		if (!loading && contextLength && totalTokens > 0) {
-			rightParts.push(`${formatTokenCount(totalTokens)} / ${formatTokenCount(contextLength)} (${usagePercent}%)`);
+			rightParts.push(
+				`${formatTokenCount(totalTokens)} / ${formatTokenCount(contextLength)} (${usagePercent}%)`,
+			);
 		} else if (!loading && contextLength && totalTokens === 0) {
 			rightParts.push(formatTokenCount(contextLength));
 		}

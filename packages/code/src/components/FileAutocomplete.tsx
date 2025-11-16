@@ -4,7 +4,6 @@
  */
 
 import { Box, Text } from "ink";
-import React from "react";
 import Spinner from "./Spinner.js";
 
 interface FileAutocompleteProps {

@@ -49,7 +49,6 @@ export function useInputState(): InputState {
 				// Extract messages array from paginated result
 				const messages = Array.isArray(result) ? result : result?.messages || [];
 
-
 				// Convert DB messages to MessageHistoryEntry format (ChatGPT-style fileId architecture)
 				const entries: MessageHistoryEntry[] = messages.map(
 					(msg: {
@@ -64,7 +63,6 @@ export function useInputState(): InputState {
 							mimeType: file.mediaType,
 							type: file.mediaType.startsWith("image/") ? "image" : "file",
 						}));
-
 
 						return {
 							text: msg.text,

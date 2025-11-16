@@ -5,7 +5,6 @@
 
 import type { ProviderId } from "../config/ai-config.js";
 import type { Todo } from "./todo.types.js";
-import type { Model } from "./model.types.js";
 
 /**
  * Message Part - unified type for all content parts
@@ -181,7 +180,6 @@ export interface TokenUsage {
 	completionTokens: number;
 	totalTokens: number;
 }
-
 
 /**
  * Session message - Container for steps representing a conversation turn

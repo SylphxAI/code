@@ -4,7 +4,6 @@
  */
 
 import { getCurrentSessionId } from "@sylphx/code-client";
-import type { MessagePart } from "@sylphx/code-core";
 import type { StreamEvent } from "@sylphx/code-server";
 import type { EventHandlerContext } from "../types.js";
 import { updateActiveMessageContent } from "../utils.js";
@@ -21,16 +20,12 @@ export function handleToolCall(
 
 	updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
 		// Check if tool part already exists (from tool-input-start)
-		const existingToolPart = prev.find(
-			(p) => p.type === "tool" && p.toolId === event.toolCallId,
-		);
+		const existingToolPart = prev.find((p) => p.type === "tool" && p.toolId === event.toolCallId);
 
 		if (existingToolPart && existingToolPart.type === "tool") {
 			// Update existing tool part with name (input already set by tool-input-end)
 			return prev.map((p) =>
-				p.type === "tool" && p.toolId === event.toolCallId
-					? { ...p, name: event.toolName }
-					: p,
+				p.type === "tool" && p.toolId === event.toolCallId ? { ...p, name: event.toolName } : p,
 			);
 		} else {
 			// No streaming - create new tool part with complete input
@@ -111,7 +106,7 @@ export function handleToolInputEnd(
 				// Parse accumulated JSON string
 				const inputText = typeof toolPart.input === "string" ? toolPart.input : "";
 				toolPart.input = inputText ? JSON.parse(inputText) : {};
-			} catch (e) {
+			} catch (_e) {
 				console.error("[handleToolInputEnd] Failed to parse tool input:", toolPart.input);
 				toolPart.input = {};
 			}

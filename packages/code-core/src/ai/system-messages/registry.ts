@@ -9,8 +9,8 @@
  * - Bidirectional notifications (enter + exit states)
  */
 
-import type { Session } from "../../types/session.types.js";
 import type { MessageRepository } from "../../database/message-repository.js";
+import type { Session } from "../../types/session.types.js";
 
 /**
  * Trigger result - message to insert and flag updates

@@ -3,12 +3,11 @@
  * Manages user settings (agent selection, enabled rules)
  */
 
-import { zen, get, set } from "@sylphx/zen";
+import { get, set, zen } from "@sylphx/zen";
 import { useStore } from "@sylphx/zen-react";
-import { getTRPCClient } from "../../../trpc-provider.js";
 import { eventBus } from "../../../lib/event-bus.js";
+import { getTRPCClient } from "../../../trpc-provider.js";
 import * as ai from "../ai/index.js";
-import * as session from "../session/index.js";
 
 // Core settings signals
 export const $selectedAgentId = zen<string>("coder");

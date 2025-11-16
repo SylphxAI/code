@@ -3,11 +3,11 @@
  * Replaces client-side ask tool with server-managed queue
  */
 
+import type { Observer } from "@trpc/server/observable";
 import { tool } from "ai";
 import { z } from "zod";
-import type { Observer } from "@trpc/server/observable";
-import type { StreamEvent } from "./types.js";
 import { enqueueAsk, registerAskObserver } from "../ask-queue.service.js";
+import type { StreamEvent } from "./types.js";
 
 /**
  * Create server-side ask tool with session context

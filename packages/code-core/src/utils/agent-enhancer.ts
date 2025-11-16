@@ -54,7 +54,7 @@ async function loadRules(ruleNames?: string[]): Promise<string> {
 				// Strip YAML front matter
 				const stripped = await yamlUtils.stripFrontMatter(content);
 				sections.push(stripped);
-			} catch (error) {
+			} catch (_error) {
 				// Log warning if rule file not found, but continue with other rules
 				console.warn(`Warning: Rule file not found: ${ruleName}.md`);
 			}

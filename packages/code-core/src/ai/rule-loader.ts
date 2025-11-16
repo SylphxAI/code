@@ -3,9 +3,9 @@
  * Loads rule definitions from markdown files with front matter
  */
 
-import { readFile, readdir, access } from "node:fs/promises";
-import { join, parse, relative, dirname } from "node:path";
+import { access, readdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
+import { dirname, join, parse, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import matter from "gray-matter";
 import type { Rule, RuleMetadata } from "../types/rule.types.js";
@@ -79,7 +79,7 @@ export async function loadRulesFromDirectory(
 		);
 
 		return rules.filter((rule): rule is Rule => rule !== null);
-	} catch (error) {
+	} catch (_error) {
 		// Directory doesn't exist or can't be read
 		return [];
 	}

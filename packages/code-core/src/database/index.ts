@@ -10,9 +10,9 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { ConnectionError, DatabaseError } from "../utils/database-errors.js";
-import * as schema from "./schema.js";
-import { findPackageRoot } from "../utils/paths.js";
 import { logger } from "../utils/logger.js";
+import { findPackageRoot } from "../utils/paths.js";
+import * as schema from "./schema.js";
 
 export type Database = ReturnType<typeof drizzle<typeof schema>>;
 
@@ -237,43 +237,49 @@ export class DrizzleDatabase {
 	}
 }
 
-// Export schema and types
-export {
-	sessions,
-	messages,
-	messageSteps,
-	stepUsage,
-	stepParts,
-	todos,
-	events,
-	SystemMessageSchema,
-	MessagePartSchema,
-	StringArraySchema,
-	schema,
-} from "./schema.js";
-export type { Session, NewSession } from "./schema.js";
-export type { Message, NewMessage } from "./schema.js";
-export type { MessageStep, NewMessageStep } from "./schema.js";
-export type { StepUsage, NewStepUsage } from "./schema.js";
-export type { StepPart, NewStepPart } from "./schema.js";
-export type { Todo, NewTodo } from "./schema.js";
-export type { Event, NewEvent } from "./schema.js";
-
-// Export step repository helpers
-export {
-	createMessageStep,
-	updateStepParts,
-	completeMessageStep,
-	loadMessageSteps,
-} from "./step-repository-helpers.js";
-
-// Export file repository
-export { FileRepository } from "./file-repository.js";
-export type { FileContentInput, FileContentRecord } from "./file-repository.js";
-
 // Export storage layer
 export type { StorageOps } from "../storage/functional.js";
 export { createStorageOps, getStorageConfigFromEnv } from "../storage/index.js";
+export type { FileContentInput, FileContentRecord } from "./file-repository.js";
+// Export file repository
+export { FileRepository } from "./file-repository.js";
+export type {
+	Event,
+	Message,
+	MessageStep,
+	NewEvent,
+	NewMessage,
+	NewMessageStep,
+	NewSession,
+	NewStepPart,
+	NewStepUsage,
+	NewTodo,
+	Session,
+	StepPart,
+	StepUsage,
+	Todo,
+} from "./schema.js";
+// Export schema and types
+export {
+	events,
+	MessagePartSchema,
+	messageSteps,
+	messages,
+	StringArraySchema,
+	SystemMessageSchema,
+	schema,
+	sessions,
+	stepParts,
+	stepUsage,
+	todos,
+} from "./schema.js";
+// Export step repository helpers
+export {
+	completeMessageStep,
+	createMessageStep,
+	loadMessageSteps,
+	updateStepParts,
+} from "./step-repository-helpers.js";
 
 // Re-export commonly used database functions (these will be added when memory-db is fully implemented)
 // export {

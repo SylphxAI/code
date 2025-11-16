@@ -13,28 +13,21 @@
  */
 
 import fs from "node:fs/promises";
-import path from "node:path";
 import os from "node:os";
+import path from "node:path";
 import { z } from "zod";
-import { type Result, success, failure, tryCatchAsync, isErr, isOk } from "../ai/result.js";
-import type {
-	ProviderCredential,
-	CreateCredentialInput,
-	CredentialScope,
-} from "../types/credential.types.js";
+import { isErr, type Result, tryCatchAsync } from "../ai/result.js";
 import {
-	getAllCredentials,
-	getCredential,
-	getCredentialsByProvider,
-	getDefaultCredential,
-	getCredentialsByScope,
-	createCredential,
-	updateCredential,
-	deleteCredential,
-	registerCredential,
 	clearCredentialRegistry,
+	createCredential,
+	deleteCredential,
+	getCredential,
+	getCredentialsByScope,
 	hasActiveCredential,
+	registerCredential,
+	updateCredential,
 } from "../registry/credential-registry.js";
+import type { CreateCredentialInput, ProviderCredential } from "../types/credential.types.js";
 import { createLogger } from "../utils/logger.js";
 
 const logger = createLogger("CredentialManager");
@@ -128,7 +121,7 @@ async function saveCredentialFile(
 	await fs.mkdir(path.dirname(filePath), { recursive: true });
 
 	// Write file with restrictive permissions (0600 = rw-------)
-	await fs.writeFile(filePath, JSON.stringify(credentialFile, null, 2) + "\n", {
+	await fs.writeFile(filePath, `${JSON.stringify(credentialFile, null, 2)}\n`, {
 		mode: 0o600,
 	});
 }

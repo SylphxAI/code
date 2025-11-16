@@ -4,16 +4,15 @@
  */
 
 import {
-	useKeyboard,
-	useSessionPersistence,
+	setError,
 	useAIConfigActions,
 	useCurrentScreen,
 	useIsLoading,
+	useSessionPersistence,
 	useUIError,
-	setError,
 } from "@sylphx/code-client";
 import { Box, Text } from "ink";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Chat from "./screens/Chat.js";
 import CommandPalette from "./screens/CommandPalette.js";
 import Logs from "./screens/Logs.js";
@@ -43,7 +42,7 @@ function AppContent() {
 	// Load AI config via tRPC (server handles all file operations)
 	useEffect(() => {
 		// Load AI config from server only - no client persistence
-		loadConfig().catch((err) => {
+		loadConfig().catch((_err) => {
 			// Error loading config is expected if server isn't ready
 		});
 	}, [loadConfig]);
@@ -56,7 +55,7 @@ function AppContent() {
 			}, 5000);
 			return () => clearTimeout(timeout);
 		}
-	}, [error, setError]);
+	}, [error]);
 
 	// Full-screen screens - no app layout padding
 	// These screens manage their own layout to handle Static/Dynamic boundary correctly

@@ -3,11 +3,11 @@
  * Tests user settings management (agent selection, enabled rules)
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { AIConfig } from "@sylphx/code-core";
-import * as settings from "./index.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as ai from "../ai/index.js";
 import * as session from "../session/index.js";
+import * as settings from "./index.js";
 
 // Mock dependencies
 vi.mock("../../../trpc-provider.js", () => ({

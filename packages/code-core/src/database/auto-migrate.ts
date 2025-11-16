@@ -10,18 +10,17 @@
  * 5. Completely transparent to user
  */
 
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { homedir } from "node:os";
-import { readdir, mkdir, readFile as fsReadFile, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { readFile as fsReadFile, mkdir, readdir, unlink } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createClient } from "@libsql/client";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import { migrate } from "drizzle-orm/libsql/migrator";
-import { sql } from "drizzle-orm";
-import { SessionRepository } from "./session-repository.js";
 import { loadSession } from "../utils/legacy-session-manager.js";
 import { logger } from "../utils/logger.js";
+import { SessionRepository } from "./session-repository.js";
 
 const SESSION_DIR = join(homedir(), ".sylphx", "sessions");
 const DB_DIR = join(homedir(), ".sylphx-code");
@@ -189,7 +188,7 @@ async function migrateSessionFiles(
 			// Normalize attachments from old JSON files (might have corrupt data like {})
 			for (const message of session.messages) {
 				// Normalize attachments: must be array or undefined
-				let normalizedAttachments: typeof message.attachments = undefined;
+				let normalizedAttachments: typeof message.attachments;
 				if (
 					message.attachments &&
 					Array.isArray(message.attachments) &&
@@ -247,7 +246,7 @@ async function migrateSessionFiles(
 
 	// Create migration flag
 	await fsReadFile(MIGRATION_FLAG, "utf8").catch(() =>
-		require("fs").writeFileSync(MIGRATION_FLAG, new Date().toISOString()),
+		require("node:fs").writeFileSync(MIGRATION_FLAG, new Date().toISOString()),
 	);
 
 	return { success: successCount, errors: errorCount };

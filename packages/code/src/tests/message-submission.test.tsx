@@ -3,9 +3,8 @@
  * Tests the entire flow from Enter key press to message submission
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render } from "ink-testing-library";
-import React from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import TextInputWithHint from "../components/TextInputWithHint.js";
 
 describe("Message Submission Flow", () => {

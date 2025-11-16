@@ -8,7 +8,7 @@
  * - Core calculates and emits status
  */
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { eventBus } from "../lib/event-bus.js";
 
 export interface MCPStatus {

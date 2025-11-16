@@ -20,7 +20,7 @@ import type {
 } from "../types/mcp.types.js";
 import { createLogger } from "../utils/logger.js";
 
-const logger = createLogger("MCPConfig");
+const _logger = createLogger("MCPConfig");
 
 /**
  * Zod schemas for validation
@@ -102,7 +102,9 @@ export const loadMCPConfig = async (
 			}
 		},
 		(error: unknown) =>
-			new Error(`Failed to load MCP config: ${error instanceof Error ? error.message : String(error)}`),
+			new Error(
+				`Failed to load MCP config: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 };
 
@@ -125,7 +127,7 @@ export const saveMCPConfig = async (
 			const validated = mcpServersConfigSchema.parse(config);
 
 			// Write config
-			const jsonString = JSON.stringify(validated, null, 2) + "\n";
+			const jsonString = `${JSON.stringify(validated, null, 2)}\n`;
 			await fs.writeFile(configPath, jsonString, "utf8");
 		},
 		(error: unknown) => {
@@ -144,7 +146,7 @@ export const mcpConfigExists = async (cwd: string = process.cwd()): Promise<bool
 	try {
 		await fs.access(configPath);
 		return true;
-	} catch (error) {
+	} catch (_error) {
 		return false;
 	}
 };
@@ -165,7 +167,9 @@ export const addMCPServer = async (
 			// Validate server ID
 			const idRegex = /^[a-zA-Z0-9_-]+$/;
 			if (!id || !idRegex.test(id)) {
-				throw new Error("Server ID must contain only alphanumeric characters, hyphens, and underscores");
+				throw new Error(
+					"Server ID must contain only alphanumeric characters, hyphens, and underscores",
+				);
 			}
 
 			// Validate server config
@@ -261,7 +265,9 @@ export const updateMCPServer = async (
 			}
 		},
 		(error: unknown) =>
-			new Error(`Failed to update MCP server: ${error instanceof Error ? error.message : String(error)}`),
+			new Error(
+				`Failed to update MCP server: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 };
 
@@ -297,7 +303,9 @@ export const removeMCPServer = async (
 			}
 		},
 		(error: unknown) =>
-			new Error(`Failed to remove MCP server: ${error instanceof Error ? error.message : String(error)}`),
+			new Error(
+				`Failed to remove MCP server: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 };
 
@@ -318,7 +326,9 @@ export const getMCPServer = async (
 			return configResult.data.mcpServers[id] || null;
 		},
 		(error: unknown) =>
-			new Error(`Failed to get MCP server: ${error instanceof Error ? error.message : String(error)}`),
+			new Error(
+				`Failed to get MCP server: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 };
 
@@ -342,7 +352,9 @@ export const listMCPServers = async (
 			}));
 		},
 		(error: unknown) =>
-			new Error(`Failed to list MCP servers: ${error instanceof Error ? error.message : String(error)}`),
+			new Error(
+				`Failed to list MCP servers: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 };
 
@@ -391,9 +403,7 @@ export const disableMCPServer = async (
 /**
  * Validate MCP server configuration
  */
-export const validateMCPServerConfig = (
-	server: unknown,
-): Result<MCPServerConfig, Error> => {
+export const validateMCPServerConfig = (server: unknown): Result<MCPServerConfig, Error> => {
 	try {
 		const validated = mcpServerConfigSchema.parse(server);
 		return success(validated);

@@ -5,13 +5,13 @@
  * Migrated from useMessageHistoryNavigation hook
  */
 
+import type { FilteredCommand, FilteredFile } from "@sylphx/code-client";
+import type { FileAttachment } from "@sylphx/code-core";
 import type { Key } from "ink";
 import type React from "react";
-import type { FileAttachment } from "@sylphx/code-core";
+import type { MessageHistoryEntry } from "../../../screens/chat/hooks/useInputState.js";
 import { InputMode, type InputModeContext } from "../types.js";
 import { BaseInputHandler } from "./BaseHandler.js";
-import type { FilteredFile, FilteredCommand } from "@sylphx/code-client";
-import type { MessageHistoryEntry } from "../../../screens/chat/hooks/useInputState.js";
 
 export interface MessageHistoryModeHandlerDeps {
 	messageHistory: MessageHistoryEntry[];
@@ -67,12 +67,7 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 			return false;
 		}
 
-		const {
-			isStreaming,
-			inputComponent,
-			filteredCommands,
-			filteredFileInfo,
-		} = this.deps;
+		const { isStreaming, inputComponent, filteredCommands, filteredFileInfo } = this.deps;
 
 		// Don't handle when streaming
 		if (isStreaming) {

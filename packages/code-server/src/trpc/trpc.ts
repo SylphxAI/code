@@ -6,14 +6,14 @@
 
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
-import type { Context, UserRole } from "./context.js";
 import {
-	strictRateLimiter,
-	moderateRateLimiter,
 	lenientRateLimiter,
-	streamingRateLimiter,
+	moderateRateLimiter,
 	type RateLimiter,
+	streamingRateLimiter,
+	strictRateLimiter,
 } from "../services/rate-limiter.service.js";
+import type { Context, UserRole } from "./context.js";
 
 // Initialize tRPC with context, SSE support, and superjson transformer
 const t = initTRPC.context<Context>().create({
@@ -135,7 +135,7 @@ function createRateLimitMiddleware(limiter: RateLimiter, endpointName: string) {
 
 		// Add rate limit headers to response (for HTTP clients)
 		if (ctx.res) {
-			ctx.res.setHeader("X-RateLimit-Limit", String(limiter["config"].maxRequests));
+			ctx.res.setHeader("X-RateLimit-Limit", String(limiter.config.maxRequests));
 			ctx.res.setHeader("X-RateLimit-Remaining", String(result.remaining));
 			ctx.res.setHeader("X-RateLimit-Reset", String(Math.ceil(result.resetAt / 1000)));
 		}

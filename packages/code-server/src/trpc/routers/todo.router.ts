@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { router, publicProcedure, moderateProcedure } from "../trpc.js";
+import { moderateProcedure, router } from "../trpc.js";
 
 const TodoSchema = z.object({
 	id: z.number(),

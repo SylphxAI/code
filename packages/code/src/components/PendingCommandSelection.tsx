@@ -3,9 +3,8 @@
  * Shows option selection UI when a command requires arguments
  */
 
-import { Box, Text } from "ink";
-import React from "react";
 import { calculateScrollViewport } from "@sylphx/code-core";
+import { Box, Text } from "ink";
 import type { Command } from "../commands/types.js";
 import Spinner from "./Spinner.js";
 

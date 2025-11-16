@@ -3,8 +3,8 @@
  * Tests the fundamental Zen signal functionality
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { zen, computed, get, set, subscribe } from "@sylphx/zen";
+import { computed, get, set, subscribe, zen } from "@sylphx/zen";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("Zen Signals Core", () => {
 	beforeEach(() => {

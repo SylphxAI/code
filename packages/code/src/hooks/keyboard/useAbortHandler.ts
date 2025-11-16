@@ -5,9 +5,9 @@
  * Single Responsibility: Abort control during streaming and compacting
  */
 
+import { $isCompacting, abortCompact, get } from "@sylphx/code-client";
 import { useInput } from "ink";
 import type React from "react";
-import { get, $isCompacting, abortCompact } from "@sylphx/code-client";
 
 export interface UseAbortHandlerOptions {
 	isStreaming: boolean;
@@ -25,7 +25,7 @@ export function useAbortHandler(options: UseAbortHandlerOptions) {
 	const { isStreaming, abortControllerRef, addLog } = options;
 
 	useInput(
-		(char, key) => {
+		(_char, key) => {
 			if (!key.escape) {
 				return false;
 			}

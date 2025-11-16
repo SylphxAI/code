@@ -16,9 +16,9 @@
  * 3. To migrate: Load file session, create database session via SessionRepository
  */
 
-import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
+import { join } from "node:path";
 import { z } from "zod";
 import type { ProviderId } from "../config/ai-config.js";
 import type { Session } from "../types/session.types.js";
@@ -49,13 +49,15 @@ const SessionMessageSchema = z.object({
 	timestamp: z.number(),
 });
 
-const TodoSchema = z.object({
-	id: z.number(),
-	content: z.string(),
-	status: z.enum(["pending", "in_progress", "completed", "removed"]),
-	activeForm: z.string(),
-	ordering: z.number(),
-}).passthrough(); // Allow additional fields for backward compatibility
+const TodoSchema = z
+	.object({
+		id: z.number(),
+		content: z.string(),
+		status: z.enum(["pending", "in_progress", "completed", "removed"]),
+		activeForm: z.string(),
+		ordering: z.number(),
+	})
+	.passthrough(); // Allow additional fields for backward compatibility
 
 const SessionSchema = z.object({
 	id: z.string(),
@@ -158,7 +160,7 @@ export async function loadSession(sessionId: string): Promise<Session | null> {
 			nextTodoId,
 			messages,
 		} as Session;
-	} catch (error) {
+	} catch (_error) {
 		// Return null for any error (file not found, invalid JSON, validation failure)
 		return null;
 	}

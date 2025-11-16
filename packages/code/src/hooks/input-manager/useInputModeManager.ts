@@ -66,10 +66,10 @@ export function useInputModeManager(props: UseInputModeManagerProps) {
 
 			if (!activeHandler) {
 				if (debug) {
-					console.warn(
-						`[InputModeManager] No active handler for mode: ${context.mode}`,
-						{ char, key },
-					);
+					console.warn(`[InputModeManager] No active handler for mode: ${context.mode}`, {
+						char,
+						key,
+					});
 				}
 				eventCountRef.current.unhandled++;
 				return false;

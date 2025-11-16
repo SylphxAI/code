@@ -18,7 +18,7 @@
 
 // Install global unhandled rejection handler to prevent crashes
 // This is a safety net for errors that escape all other error handling
-process.on("unhandledRejection", (reason, promise) => {
+process.on("unhandledRejection", (reason, _promise) => {
 	// Check for NoOutputGeneratedError first (abort case)
 	if (reason && typeof reason === "object" && "name" in reason) {
 		const errorName = (reason as any).name;
@@ -56,15 +56,15 @@ process.on("uncaughtException", (error) => {
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import chalk from "chalk";
-import { Command } from "commander";
-import { CodeServer, type AppRouter } from "@sylphx/code-server";
 import {
-	TRPCProvider,
-	createInProcessClient,
 	createHTTPClient as createHTTPClientFromLib,
+	createInProcessClient,
+	TRPCProvider,
 	type TypedTRPCClient,
 } from "@sylphx/code-client";
+import { CodeServer } from "@sylphx/code-server";
+import chalk from "chalk";
+import { Command } from "commander";
 import { checkServer } from "./trpc-client.js";
 
 // Read version from package.json
@@ -83,7 +83,7 @@ let embeddedServer: CodeServer | null = null;
 /**
  * Initialize embedded server for in-process use
  */
-async function initEmbeddedServer(options: { quiet?: boolean } = {}): Promise<CodeServer> {
+async function initEmbeddedServer(_options: { quiet?: boolean } = {}): Promise<CodeServer> {
 	if (embeddedServer) {
 		return embeddedServer;
 	}

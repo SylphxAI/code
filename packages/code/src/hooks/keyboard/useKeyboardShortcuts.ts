@@ -26,7 +26,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
 	const { isStreaming, input, lastEscapeTime, setInput, setCursor, setShowEscHint } = options;
 
 	useInput(
-		(char, key) => {
+		(_char, key) => {
 			// Skip if streaming (abort handler takes priority)
 			if (isStreaming) {
 				return false;

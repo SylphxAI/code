@@ -6,18 +6,14 @@
  */
 
 import { experimental_createMCPClient } from "@ai-sdk/mcp";
-import type { LanguageModelV1 } from "ai";
+import { type Result, tryCatchAsync } from "../ai/result.js";
 import type {
 	MCPServerConfig,
-	MCPServerWithId,
 	MCPServerState,
-	MCPServerStatus,
+	MCPServerWithId,
 	MCPToolInfo,
-	MCPResourceInfo,
-	MCPPromptInfo,
 } from "../types/mcp.types.js";
 import { createLogger } from "../utils/logger.js";
-import { type Result, success, tryCatchAsync } from "../ai/result.js";
 
 const logger = createLogger("MCPManager");
 
@@ -52,7 +48,6 @@ export class MCPManager {
 					return;
 				}
 
-
 				// Create MCP client based on transport type
 				const client = await experimental_createMCPClient({ transport: server.transport });
 
@@ -66,7 +61,6 @@ export class MCPManager {
 				};
 
 				this.clients.set(server.id, instance);
-
 
 				// Emit status change event
 				this.emitStatusChange();
@@ -90,10 +84,8 @@ export class MCPManager {
 					return;
 				}
 
-
 				// Remove client
 				this.clients.delete(serverId);
-
 
 				// Emit status change event
 				this.emitStatusChange();
@@ -109,13 +101,11 @@ export class MCPManager {
 	 * Disconnect all MCP servers
 	 */
 	async disconnectAll(): Promise<void> {
-
 		const disconnectPromises = Array.from(this.clients.keys()).map((serverId) =>
 			this.disconnect(serverId),
 		);
 
 		await Promise.all(disconnectPromises);
-
 	}
 
 	/**
@@ -206,13 +196,13 @@ export class MCPManager {
 
 				const toolSet = await instance.client.tools();
 
-			// Convert toolSet object to array with names from keys
-			const toolInfos: MCPToolInfo[] = Object.entries(toolSet).map(([name, tool]) => ({
-				serverId,
-				name,
-				description: tool.description || "",
-				inputSchema: tool.inputSchema || {},
-			}));
+				// Convert toolSet object to array with names from keys
+				const toolInfos: MCPToolInfo[] = Object.entries(toolSet).map(([name, tool]) => ({
+					serverId,
+					name,
+					description: tool.description || "",
+					inputSchema: tool.inputSchema || {},
+				}));
 
 				return toolInfos;
 			},
@@ -298,8 +288,9 @@ export class MCPManager {
 
 		const results = await Promise.allSettled(connectPromises);
 		const successful = results.filter((r) => r.status === "fulfilled" && r.value.success).length;
-		const failed = results.filter((r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.success)).length;
-
+		const _failed = results.filter(
+			(r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value.success),
+		).length;
 
 		// Load tools from all connected servers
 		if (successful > 0) {
@@ -347,7 +338,6 @@ export class MCPManager {
 				if (!connectResult.success) {
 					throw connectResult.error;
 				}
-
 			},
 			(error: unknown) =>
 				new Error(

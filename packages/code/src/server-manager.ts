@@ -3,11 +3,11 @@
  * Manages code-server daemon lifecycle
  */
 
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import chalk from "chalk";
-import { ChildProcess, spawn } from "child_process";
-import { existsSync } from "fs";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
 import { checkServer, waitForServer } from "./trpc-client.js";
 
 const __filename = fileURLToPath(import.meta.url);

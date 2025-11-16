@@ -5,7 +5,7 @@
  */
 
 import { Box, type BoxProps, useStdout } from "ink";
-import React, { type PropsWithChildren, useEffect, useState } from "react";
+import { type PropsWithChildren, useEffect, useState } from "react";
 
 const enterAltScreenCommand = "\x1b[?1049h";
 const leaveAltScreenCommand = "\x1b[?1049l";

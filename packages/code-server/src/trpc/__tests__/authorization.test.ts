@@ -3,11 +3,11 @@
  * SECURITY: OWASP API5 (Broken Function Level Authorization)
  */
 
-import { describe, test, expect, beforeAll } from "bun:test";
+import { beforeAll, describe, expect, test } from "bun:test";
+import { inProcessLink } from "@sylphx/code-client";
+import { createTRPCClient } from "@trpc/client";
 import { CodeServer } from "../../server.js";
 import type { AppRouter } from "../routers/index.js";
-import { createTRPCClient, TRPCClientError } from "@trpc/client";
-import { inProcessLink } from "@sylphx/code-client";
 
 describe("Function Level Authorization (OWASP API5)", () => {
 	let server: CodeServer;

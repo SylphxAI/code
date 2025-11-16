@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+
 /**
  * Test Harness for Non-Interactive Testing
  *
@@ -15,11 +16,11 @@
  *   TEST_TIMEOUT=30000 - Timeout in ms (default: 30000)
  */
 
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { getTRPCClient } from "@sylphx/code-client";
 import { createLogger } from "@sylphx/code-core";
-import fs from "node:fs";
-import path from "node:path";
-import os from "node:os";
 
 const log = createLogger("test-harness");
 
@@ -54,7 +55,7 @@ async function runTest(message: string, timeout: number = 30000): Promise<TestRe
 			const client = getTRPCClient();
 
 			// Subscribe to streaming response
-			const subscription = client.message.streamResponse.subscribe(
+			const _subscription = client.message.streamResponse.subscribe(
 				{
 					sessionId: null,
 					provider: "openrouter",
@@ -81,7 +82,7 @@ async function runTest(message: string, timeout: number = 30000): Promise<TestRe
 								log("Error:", event.error);
 								break;
 
-							case "complete":
+							case "complete": {
 								clearTimeout(timeoutId);
 								const duration = Date.now() - startTime;
 								log("Test completed in", duration, "ms");
@@ -95,6 +96,7 @@ async function runTest(message: string, timeout: number = 30000): Promise<TestRe
 									output,
 								});
 								break;
+							}
 						}
 					},
 					onError: (error: any) => {

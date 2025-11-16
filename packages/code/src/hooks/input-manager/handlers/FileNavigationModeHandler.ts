@@ -77,7 +77,7 @@ export class FileNavigationModeHandler extends BaseInputHandler {
 	/**
 	 * Handle keyboard input for file navigation
 	 */
-	handleInput(char: string, key: Key, _context: InputModeContext): boolean {
+	handleInput(_char: string, key: Key, _context: InputModeContext): boolean {
 		const {
 			filteredFileInfo,
 			selectedFileIndex,

@@ -2,8 +2,8 @@
  * Actual failing case: AIConfigStore setAIConfig
  */
 
-import { zen, get, set as zenSet } from "@sylphx/zen";
 import { craft } from "@sylphx/craft";
+import { get, zen, set as zenSet } from "@sylphx/zen";
 
 console.log("=== ACTUAL FAILING CASE ===\n");
 
@@ -32,7 +32,7 @@ try {
 			"Current state:",
 			JSON.stringify(
 				current,
-				(key, value) => (typeof value === "function" ? "[Function]" : value),
+				(_key, value) => (typeof value === "function" ? "[Function]" : value),
 				2,
 			),
 		);
@@ -46,7 +46,7 @@ try {
 					"Next state:",
 					JSON.stringify(
 						next,
-						(key, value) => (typeof value === "function" ? "[Function]" : value),
+						(_key, value) => (typeof value === "function" ? "[Function]" : value),
 						2,
 					),
 				);
@@ -62,7 +62,7 @@ try {
 		}
 	};
 
-	const getState = () => get(store);
+	const _getState = () => get(store);
 
 	// Create initial state (exact same as ai-config-store.ts)
 	const initialState: AIConfigState = {

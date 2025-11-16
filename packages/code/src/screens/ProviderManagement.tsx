@@ -3,13 +3,19 @@
  * Add, edit, remove AI providers
  */
 
-import { useAIConfig, useAIConfigActions, useKeyboard, $aiConfig } from "@sylphx/code-client";
-import { navigateTo, updateProvider, removeProvider } from "@sylphx/code-client";
-import { AI_PROVIDERS, getConfiguredProviders, type ProviderId } from "@sylphx/code-core";
+import {
+	navigateTo,
+	removeProvider,
+	updateProvider,
+	useAIConfig,
+	useAIConfigActions,
+	useKeyboard,
+} from "@sylphx/code-client";
+import { AI_PROVIDERS, type ProviderId } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
 import TextInput from "ink-text-input";
-import React, { useState } from "react";
+import { useState } from "react";
 import ProviderCard from "../components/ProviderCard.js";
 
 type Mode = "menu" | "add" | "remove" | "view";
@@ -196,7 +202,7 @@ export default function ProviderManagement() {
 			}
 
 			updateProvider(selectedProvider, { apiKey: value.trim() });
-			await saveConfig({ ...aiConfig!, providers: { ...aiConfig!.providers } });
+			await saveConfig({ ...aiConfig!, providers: { ...aiConfig?.providers } });
 
 			setSelectedProvider(null);
 			setApiKeyInput("");
@@ -246,7 +252,7 @@ export default function ProviderManagement() {
 		const handleSelect = async (item: MenuItem) => {
 			const providerId = item.value as ProviderId;
 			removeProvider(providerId);
-			await saveConfig({ ...aiConfig!, providers: { ...aiConfig!.providers } });
+			await saveConfig({ ...aiConfig!, providers: { ...aiConfig?.providers } });
 			setMode("menu");
 		};
 

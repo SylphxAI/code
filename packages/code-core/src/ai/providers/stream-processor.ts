@@ -4,8 +4,8 @@
  */
 
 import type { LanguageModelV2FinishReason, LanguageModelV2StreamPart } from "@ai-sdk/provider";
-import type { ToolDefinition } from "./text-based-tools.js";
 import { StreamingXMLParser } from "./streaming-xml-parser.js";
+import type { ToolDefinition } from "./text-based-tools.js";
 import { extractUsage, handleResultError } from "./usage-handler.js";
 
 export interface StreamProcessorOptions {

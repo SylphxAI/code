@@ -3,7 +3,7 @@
  * Shared helper functions used across all event handlers
  */
 
-import { $currentSession, set as setSignal, get as getSignal } from "@sylphx/code-client";
+import { $currentSession, get as getSignal, set as setSignal } from "@sylphx/code-client";
 import type { MessagePart } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
 
@@ -59,23 +59,23 @@ export function updateActiveMessageContent(
 			// Shouldn't happen (step-start creates step), but handle gracefully
 			return {
 				...msg,
-				steps: [{
-					id: "step-0",
-					stepIndex: 0,
-					parts: updater([]),
-					status: "active" as const,
-				}],
+				steps: [
+					{
+						id: "step-0",
+						stepIndex: 0,
+						parts: updater([]),
+						status: "active" as const,
+					},
+				],
 			};
 		}
 
 		const currentStepIndex = steps.length - 1;
-		const currentStep = steps[currentStepIndex];
+		const _currentStep = steps[currentStepIndex];
 
 		// Update current step's parts
 		const updatedSteps = steps.map((step, idx) =>
-			idx === currentStepIndex
-				? { ...step, parts: updater(step.parts || []) }
-				: step,
+			idx === currentStepIndex ? { ...step, parts: updater(step.parts || []) } : step,
 		);
 
 		return { ...msg, steps: updatedSteps };

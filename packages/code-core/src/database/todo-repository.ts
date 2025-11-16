@@ -9,10 +9,9 @@
 
 import { eq } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import { randomUUID } from "node:crypto";
-import { sessions, todos } from "./schema.js";
 import type { Todo as TodoType } from "../types/todo.types.js";
 import { retryDatabase } from "../utils/retry.js";
+import { sessions, todos } from "./schema.js";
 
 export class TodoRepository {
 	constructor(private db: LibSQLDatabase) {}

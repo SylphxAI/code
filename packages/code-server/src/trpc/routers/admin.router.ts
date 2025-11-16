@@ -5,8 +5,8 @@
  */
 
 import { z } from "zod";
-import { router, publicProcedure, adminStrictProcedure, adminModerateProcedure } from "../trpc.js";
-import { getAPIInventory, generateMarkdownDocs } from "../../utils/api-inventory.js";
+import { generateMarkdownDocs, getAPIInventory } from "../../utils/api-inventory.js";
+import { adminModerateProcedure, adminStrictProcedure, publicProcedure, router } from "../trpc.js";
 
 export const adminRouter = router({
 	/**

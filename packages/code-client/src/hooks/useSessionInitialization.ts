@@ -6,8 +6,8 @@
  * This handles configs where only defaultProvider is set (common after initial setup)
  */
 
-import { useEffect, useState } from "react";
 import type { AIConfig } from "@sylphx/code-core";
+import { useEffect, useState } from "react";
 import { useTRPCClient } from "../trpc-provider.js";
 
 interface UseSessionInitializationProps {

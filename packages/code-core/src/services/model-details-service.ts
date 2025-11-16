@@ -9,9 +9,9 @@
  */
 
 import type {
-	ProviderModelDetails,
 	ModelCapabilities,
 	ModelCapability,
+	ProviderModelDetails,
 } from "../ai/providers/base-provider.js";
 
 /**
@@ -112,7 +112,7 @@ function findModelInModelsDevData(
 ): ModelsDevResponse[string]["models"][string] | null {
 	// Search across all providers
 	for (const provider of Object.values(data)) {
-		if (provider.models && provider.models[modelId]) {
+		if (provider.models?.[modelId]) {
 			return provider.models[modelId];
 		}
 	}

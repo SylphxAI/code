@@ -3,28 +3,22 @@
  * Handles AI streaming coordination and stream processing
  */
 
-import { streamText, type TextStreamPart, type LanguageModel, type CoreMessage } from "ai";
-import type { Observer } from "@trpc/server/observable";
-import type { StreamEvent } from "./types.js";
 import type { MessagePart, StreamCallbacks } from "@sylphx/code-core";
-import { updateTokensFromDelta } from "../token-tracking.service.js";
+import type { Observer } from "@trpc/server/observable";
+import { type CoreMessage, type LanguageModel, streamText, type TextStreamPart } from "ai";
 import type { AppContext } from "../../context.js";
+import { updateTokensFromDelta } from "../token-tracking.service.js";
 import {
-	emitTextStart,
-	emitTextDelta,
-	emitTextEnd,
-	emitReasoningStart,
-	emitReasoningDelta,
-	emitReasoningEnd,
+	emitError,
+	emitFile,
 	emitToolCall,
-	emitToolInputStart,
+	emitToolError,
 	emitToolInputDelta,
 	emitToolInputEnd,
+	emitToolInputStart,
 	emitToolResult,
-	emitToolError,
-	emitFile,
-	emitError,
 } from "./event-emitter.js";
+import type { StreamEvent } from "./types.js";
 
 /**
  * Tool tracking information
@@ -81,7 +75,7 @@ export async function processAIStream(
 	tokenContext: TokenTrackingContext | null,
 	callbacks: StreamCallbacks,
 ): Promise<{ finalUsage: any; finalFinishReason: string | undefined; hasError: boolean }> {
-	let finalUsage: any = undefined;
+	let finalUsage: any;
 	let finalFinishReason: string | undefined;
 	let hasError = false;
 
@@ -282,7 +276,7 @@ export async function processAIStream(
 						try {
 							const inputText = typeof tool.input === "string" ? tool.input : "";
 							tool.input = inputText ? JSON.parse(inputText) : {};
-						} catch (e) {
+						} catch (_e) {
 							console.error("[AIOrchestrator] Failed to parse tool input:", tool.input);
 							tool.input = {};
 						}
@@ -295,7 +289,7 @@ export async function processAIStream(
 						try {
 							const inputText = typeof toolPart.input === "string" ? toolPart.input : "";
 							toolPart.input = inputText ? JSON.parse(inputText) : {};
-						} catch (e) {
+						} catch (_e) {
 							toolPart.input = {};
 						}
 					}
@@ -355,8 +349,19 @@ export async function processAIStream(
 						}
 
 						state.hasEmittedAnyEvent = true;
-						emitToolError(observer, chunk.toolCallId, chunk.toolName, String(chunk.error), duration);
-						callbacks.onToolError?.(chunk.toolCallId, chunk.toolName, String(chunk.error), duration);
+						emitToolError(
+							observer,
+							chunk.toolCallId,
+							chunk.toolName,
+							String(chunk.error),
+							duration,
+						);
+						callbacks.onToolError?.(
+							chunk.toolCallId,
+							chunk.toolName,
+							String(chunk.error),
+							duration,
+						);
 					}
 					break;
 				}
@@ -431,8 +436,7 @@ export async function processAIStream(
 		const errorMessage = error instanceof Error ? error.message : String(error);
 
 		const isAbortError =
-			(error instanceof Error && error.message.includes("No output generated")) ||
-			state.aborted;
+			(error instanceof Error && error.message.includes("No output generated")) || state.aborted;
 
 		if (isAbortError) {
 			state.aborted = true;

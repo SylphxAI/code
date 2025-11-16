@@ -3,14 +3,14 @@
  * Central registry for all AI providers
  */
 
-import type { AIProvider } from "./base-provider.js";
 import { AnthropicProvider } from "./anthropic-provider.js";
-import { OpenAIProvider } from "./openai-provider.js";
-import { GoogleProvider } from "./google-provider.js";
-import { OpenRouterProvider } from "./openrouter-provider.js";
+import type { AIProvider } from "./base-provider.js";
 import { ClaudeCodeProvider } from "./claude-code-provider.js";
-import { ZaiProvider } from "./zai-provider.js";
+import { GoogleProvider } from "./google-provider.js";
 import { KimiProvider } from "./kimi-provider.js";
+import { OpenAIProvider } from "./openai-provider.js";
+import { OpenRouterProvider } from "./openrouter-provider.js";
+import { ZaiProvider } from "./zai-provider.js";
 
 /**
  * Registry of all available providers
@@ -72,7 +72,7 @@ export function getAllProviders(): Record<
 // Re-export types
 export type {
 	AIProvider,
-	ProviderModelDetails,
 	ConfigField,
 	ProviderConfig,
+	ProviderModelDetails,
 } from "./base-provider.js";

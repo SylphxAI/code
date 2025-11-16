@@ -1,12 +1,12 @@
 {
-  "mcpServers": {
-    "context7": {
-      "name": "context7",
-      "transport": {
-        "type": "http",
-        "url": "https://mcp.context7.com/mcp"
-      },
-      "enabled": true
-    }
-  }
+	"mcpServers": {
+		"context7": {
+			"name": "context7",
+			"transport": {
+				"type": "http",
+				"url": "https://mcp.context7.com/mcp"
+			},
+			"enabled": true
+		}
+	}
 }

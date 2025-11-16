@@ -3,10 +3,10 @@
  * Shared validation for limit parameters across features
  */
 
-import type { Result } from "../result.js";
-import { success, failure } from "../result.js";
 import type { AppError } from "../functional/error-types.js";
 import { validationError } from "../functional/error-types.js";
+import type { Result } from "../result.js";
+import { failure, success } from "../result.js";
 
 /**
  * Validate limit parameter with configurable defaults and max

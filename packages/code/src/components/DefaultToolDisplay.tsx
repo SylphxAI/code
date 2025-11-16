@@ -7,10 +7,10 @@
 import type { ToolDisplayProps } from "@sylphx/code-client";
 import { useElapsedTime } from "@sylphx/code-client";
 import type { InputFormatter, ResultFormatter } from "@sylphx/code-core";
+import dJSON from "dirty-json";
 import { Box, Text } from "ink";
 import type React from "react";
 import Spinner from "./Spinner.js";
-import dJSON from "dirty-json";
 
 /**
  * Parse partial/dirty JSON into an object with best-effort parsing

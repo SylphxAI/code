@@ -13,7 +13,7 @@
 
 import { CodeServer } from "./server.js";
 
-const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 /**
  * Start standalone HTTP server

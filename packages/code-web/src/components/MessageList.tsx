@@ -4,10 +4,10 @@
  * Supports optimistic updates and streaming
  */
 
-import { useEffect, useRef } from "react";
-import Message from "./Message";
-import MarkdownContent from "./MarkdownContent";
 import type { MessagePart } from "@sylphx/code-client";
+import { useEffect, useRef } from "react";
+import MarkdownContent from "./MarkdownContent";
+import Message from "./Message";
 
 interface MessageData {
 	id?: string;
@@ -35,7 +35,7 @@ export default function MessageList({
 	// Auto-scroll to bottom on new messages or streaming updates
 	useEffect(() => {
 		bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-	}, [messages, optimisticUserMessage, isAssistantTyping, streamingParts]);
+	}, []);
 
 	const hasContent = messages.length > 0 || optimisticUserMessage || isAssistantTyping;
 

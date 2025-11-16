@@ -5,8 +5,8 @@
  * (objects containing both data and methods)
  */
 
-import { zen, get, set as zenSet } from "@sylphx/zen";
 import { craft } from "@sylphx/craft";
+import { get, zen, set as zenSet } from "@sylphx/zen";
 
 console.log("=== CRAFT REPRODUCTION TEST ===\n");
 
@@ -31,10 +31,10 @@ try {
 		user: { name: "Alice", age: 30 },
 
 		// Methods
-		increment: function () {
+		increment: () => {
 			console.log("increment called");
 		},
-		setName: function (name: string) {
+		setName: (_name: string) => {
 			console.log("setName called");
 		},
 	};

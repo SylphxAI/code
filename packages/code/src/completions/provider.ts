@@ -3,11 +3,9 @@
  * Lazy loading from zen signals, no extra cache needed
  */
 
-import type { ProviderId } from "@sylphx/code-core";
-import { getTRPCClient } from "@sylphx/code-client";
+import { $aiConfig, getTRPCClient, setAIConfig } from "@sylphx/code-client";
+import type { AIConfig, ProviderId } from "@sylphx/code-core";
 import { get } from "@sylphx/zen";
-import { $aiConfig, setAIConfig } from "@sylphx/code-client";
-import type { AIConfig } from "@sylphx/code-core";
 
 export interface CompletionOption {
 	id: string;
@@ -21,7 +19,7 @@ export interface CompletionOption {
  * Subsequent access: sync read from zen signal cache
  * Update: event-driven via setAIConfig()
  */
-async function getAIConfig(): Promise<AIConfig | null> {
+async function _getAIConfig(): Promise<AIConfig | null> {
 	// Already in zen signal? Return cached (fast!)
 	const currentConfig = get($aiConfig);
 	if (currentConfig) {
@@ -93,7 +91,9 @@ export function getSubactionCompletions(): CompletionOption[] {
  * Get provider configuration key completions
  * Dynamically fetches schema from provider
  */
-export async function getProviderKeyCompletions(providerId: ProviderId): Promise<CompletionOption[]> {
+export async function getProviderKeyCompletions(
+	providerId: ProviderId,
+): Promise<CompletionOption[]> {
 	try {
 		const trpc = getTRPCClient();
 		const result = await trpc.config.getProviderSchema.query({

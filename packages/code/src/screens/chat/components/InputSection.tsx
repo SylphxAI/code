@@ -3,20 +3,18 @@
  * Handles all input modes: selection, pending command, and normal input
  */
 
+import { getTRPCClient } from "@sylphx/code-client";
 import type { FileAttachment } from "@sylphx/code-core";
 import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Text } from "ink";
-import { useRef, useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { Command, WaitForInputOptions } from "../../../commands/types.js";
 import { CommandAutocomplete } from "../../../components/CommandAutocomplete.js";
 import { FileAutocomplete } from "../../../components/FileAutocomplete.js";
 import { PendingCommandSelection } from "../../../components/PendingCommandSelection.js";
-import { AskToolSelection } from "./AskToolSelection.js";
 import TextInputWithHint from "../../../components/TextInputWithHint.js";
 import type { FilteredCommand, FilteredFileInfo } from "../autocomplete/types.js";
-import type { SettingsMode } from "../types/settings-mode.js";
-import { ProviderSettings } from "./ProviderSettings.js";
-import { getTRPCClient } from "@sylphx/code-client";
+import { AskToolSelection } from "./AskToolSelection.js";
 
 interface InputSectionProps {
 	// Input state
@@ -202,43 +200,43 @@ export function InputSection({
 						<AskToolSelection
 							pendingInput={pendingInput}
 							onSelect={async (value) => {
-							// Server-side ask tool: submit answer via mutation
-							if (askToolContextRef.current) {
-								const { sessionId, toolCallId } = askToolContextRef.current;
-								const answerString = typeof value === "string" ? value : String(value);
+								// Server-side ask tool: submit answer via mutation
+								if (askToolContextRef.current) {
+									const { sessionId, toolCallId } = askToolContextRef.current;
+									const answerString = typeof value === "string" ? value : String(value);
 
-								try {
-									const client = getTRPCClient();
-									await client.message.answerAsk.mutate({
-										sessionId,
-										toolCallId,
-										answer: answerString,
-									});
-									// Server will emit ask-question-answered event which clears pendingInput
-								} catch (error) {
-									console.error("[AskToolSelection] Failed to submit answer:", error);
-									// Fallback: clear UI manually
+									try {
+										const client = getTRPCClient();
+										await client.message.answerAsk.mutate({
+											sessionId,
+											toolCallId,
+											answer: answerString,
+										});
+										// Server will emit ask-question-answered event which clears pendingInput
+									} catch (error) {
+										console.error("[AskToolSelection] Failed to submit answer:", error);
+										// Fallback: clear UI manually
+										setPendingInput(null);
+									}
+								}
+								// Legacy client-side ask tool: resolve promise
+								else if (inputResolver.current) {
+									inputResolver.current(value);
+									inputResolver.current = null;
 									setPendingInput(null);
 								}
-							}
-							// Legacy client-side ask tool: resolve promise
-							else if (inputResolver.current) {
-								inputResolver.current(value);
-								inputResolver.current = null;
-								setPendingInput(null);
-							}
-						}}
+							}}
 							onCancel={() => {
-							// Clear ask tool context and pendingInput
-							if (askToolContextRef.current) {
-								askToolContextRef.current = null;
-							}
-							if (inputResolver.current) {
-								inputResolver.current("");
-								inputResolver.current = null;
-							}
-							setPendingInput(null);
-						}}
+								// Clear ask tool context and pendingInput
+								if (askToolContextRef.current) {
+									askToolContextRef.current = null;
+								}
+								if (inputResolver.current) {
+									inputResolver.current("");
+									inputResolver.current = null;
+								}
+								setPendingInput(null);
+							}}
 						/>
 					) : /* Selection Mode - when a command is pending and needs args */
 					pendingCommand ? (
@@ -367,7 +365,7 @@ export function InputSection({
 											abortControllerRef.current.abort();
 										}
 									}}
-								onPasteImage={onPasteImage}
+									onPasteImage={onPasteImage}
 								/>
 							</Box>
 

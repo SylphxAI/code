@@ -13,7 +13,7 @@
  * - Showing 1s precision → need 1000ms updates
  */
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export interface ElapsedTimeOptions {
 	/**

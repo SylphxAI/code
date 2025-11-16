@@ -3,10 +3,9 @@
  * Scan project files for @file auto-completion with caching
  */
 
-import { readdir, stat, readFile as fsReadFile, writeFile } from "node:fs/promises";
-import { join, relative } from "node:path";
-import { readFile } from "node:fs/promises";
+import { readFile as fsReadFile, readdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
+import { join, relative } from "node:path";
 import { z } from "zod";
 
 export interface FileInfo {
@@ -91,7 +90,7 @@ function shouldIgnore(relativePath: string, patterns: Set<string>): boolean {
 
 		// Glob pattern (basic support for *)
 		if (pattern.includes("*")) {
-			const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
+			const regex = new RegExp(`^${pattern.replace(/\*/g, ".*")}$`);
 			if (regex.test(relativePath)) return true;
 		}
 	}
@@ -158,7 +157,7 @@ async function scanDirectory(
 				results.push(...subdirResult);
 			}
 		}
-	} catch (error) {
+	} catch (_error) {
 		// Skip directories we can't read
 	}
 

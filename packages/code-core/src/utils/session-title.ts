@@ -4,8 +4,8 @@
  */
 
 import { streamText } from "ai";
-import type { ProviderId } from "../types/config.types.js";
 import { cleanAITitle } from "../session/utils/index.js";
+import type { ProviderId } from "../types/config.types.js";
 
 /**
  * Generate a session title using LLM with streaming (collects full text)
@@ -135,8 +135,8 @@ Now generate the title:`,
 		cleaned = cleaned.trim();
 
 		// Return truncated if needed
-		return cleaned.length > 50 ? cleaned.substring(0, 50) + "..." : cleaned;
-	} catch (error) {
+		return cleaned.length > 50 ? `${cleaned.substring(0, 50)}...` : cleaned;
+	} catch (_error) {
 		// Fallback to simple title generation on any error
 		return generateSessionTitle(firstMessage);
 	}

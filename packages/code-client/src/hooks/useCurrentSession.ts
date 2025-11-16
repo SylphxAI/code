@@ -9,19 +9,19 @@
  * - Simple, focused responsibility: fetch data and emit events
  */
 
-import { useEffect, useState, useRef } from "react";
 import type { Session } from "@sylphx/code-core";
-import { getTRPCClient } from "../trpc-provider.js";
-import {
-	useCurrentSessionId,
-	useCurrentSession as useOptimisticSession,
-	useIsStreaming,
-	setCurrentSession,
-	$isStreaming,
-	$currentSession,
-} from "../signals/domain/session/index.js";
-import { eventBus } from "../lib/event-bus.js";
 import { get } from "@sylphx/zen";
+import { useEffect, useRef, useState } from "react";
+import { eventBus } from "../lib/event-bus.js";
+import {
+	$currentSession,
+	$isStreaming,
+	setCurrentSession,
+	useCurrentSessionId,
+	useIsStreaming,
+	useCurrentSession as useOptimisticSession,
+} from "../signals/domain/session/index.js";
+import { getTRPCClient } from "../trpc-provider.js";
 
 export function useCurrentSession() {
 	const currentSessionId = useCurrentSessionId();
@@ -81,11 +81,7 @@ export function useCurrentSession() {
 
 					// Always merge if we have optimistic data (even if session IDs don't match)
 					// This handles the case where temp-session → real session transition
-					if (
-						currentOptimistic &&
-						currentOptimistic.messages &&
-						currentOptimistic.messages.length > 0
-					) {
+					if (currentOptimistic?.messages && currentOptimistic.messages.length > 0) {
 						// Merge: keep messages that exist in optimistic but not in server response
 						// Include: system/assistant messages + temp user messages (id starts with "temp-")
 						// Exclude: real user messages (handled by user-message-created event)

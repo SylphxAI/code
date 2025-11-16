@@ -4,13 +4,13 @@
  */
 
 import { router } from "../trpc.js";
-import { sessionRouter } from "./session.router.js";
-import { messageRouter } from "./message.router.js";
-import { todoRouter } from "./todo.router.js";
-import { configRouter } from "./config.router.js";
 import { adminRouter } from "./admin.router.js";
+import { configRouter } from "./config.router.js";
 import { eventsRouter } from "./events.router.js";
 import { fileRouter } from "./file.router.js";
+import { messageRouter } from "./message.router.js";
+import { sessionRouter } from "./session.router.js";
+import { todoRouter } from "./todo.router.js";
 
 /**
  * Main application router

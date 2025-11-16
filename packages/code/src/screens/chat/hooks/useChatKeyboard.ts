@@ -4,14 +4,18 @@
  */
 
 import { useCallback } from "react";
-import type { ChatState } from "./useChatState.js";
-import type { ChatEffects } from "./useChatEffects.js";
+import { DEBUG_INPUT_MANAGER, USE_NEW_INPUT_MANAGER } from "../../../config/features.js";
+import {
+	useInputHandlers,
+	useInputMode,
+	useInputModeManager,
+} from "../../../hooks/input-manager/index.js";
 import { useAbortHandler } from "../../../hooks/keyboard/useAbortHandler.js";
 import { useKeyboardShortcuts } from "../../../hooks/keyboard/useKeyboardShortcuts.js";
-import { useInputMode, useInputModeManager, useInputHandlers } from "../../../hooks/input-manager/index.js";
+import { hasClipboardImage, imageToBase64, readClipboardImage } from "../../../utils/clipboard.js";
+import type { ChatEffects } from "./useChatEffects.js";
+import type { ChatState } from "./useChatState.js";
 import { useFileAutocompleteHandlers } from "./useFileAutocompleteHandlers.js";
-import { USE_NEW_INPUT_MANAGER, DEBUG_INPUT_MANAGER } from "../../../config/features.js";
-import { hasClipboardImage, readClipboardImage, imageToBase64 } from "../../../utils/clipboard.js";
 
 export function useChatKeyboard(state: ChatState, effects: ChatEffects) {
 	// 1. Abort handler - ESC to abort streaming (highest priority)

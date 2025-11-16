@@ -6,7 +6,7 @@
 /**
  * Move cursor left by one character
  */
-export function moveCursorLeft(cursor: number, maxLength: number): number {
+export function moveCursorLeft(cursor: number, _maxLength: number): number {
 	return Math.max(0, cursor - 1);
 }
 

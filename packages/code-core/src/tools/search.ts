@@ -58,7 +58,7 @@ async function searchFiles(
 		}
 
 		return results;
-	} catch (error) {
+	} catch (_error) {
 		// Skip directories we can't read
 		return results;
 	}
@@ -213,10 +213,7 @@ export const grepTool = tool({
 						}
 					}
 				}
-			} catch {
-				// Skip files we can't read
-				continue;
-			}
+			} catch {}
 		}
 
 		// Apply head_limit

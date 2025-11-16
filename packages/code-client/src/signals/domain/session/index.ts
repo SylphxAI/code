@@ -3,11 +3,11 @@
  * Manages chat sessions and messages
  */
 
-import type { Session, SessionMessage, ProviderId } from "@sylphx/code-core";
-import { zen, get, set, computed } from "@sylphx/zen";
+import type { ProviderId, Session, SessionMessage } from "@sylphx/code-core";
+import { computed, get, set, zen } from "@sylphx/zen";
 import { useStore } from "@sylphx/zen-react";
-import { getTRPCClient } from "../../../trpc-provider.js";
 import { eventBus } from "../../../lib/event-bus.js";
+import { getTRPCClient } from "../../../trpc-provider.js";
 
 // Core session signals
 export const $currentSessionId = zen<string | null>(null);

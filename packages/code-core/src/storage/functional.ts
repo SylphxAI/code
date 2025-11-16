@@ -9,13 +9,13 @@
  */
 
 import type {
-	StorageResult,
-	StorageObject,
 	AnyStorageConfig,
 	FilesystemStorageConfig,
-	S3StorageConfig,
-	PutOptions,
 	GetOptions,
+	PutOptions,
+	S3StorageConfig,
+	StorageObject,
+	StorageResult,
 } from "./types.js";
 
 /**
@@ -63,7 +63,11 @@ import path from "node:path";
 export const createFilesystemOps = (config: FilesystemStorageConfig): StorageOps => {
 	const resolvePath = (key: string): string => path.join(config.basePath, key);
 
-	const put = async (key: string, content: Buffer, options?: PutOptions): Promise<StorageResult> => {
+	const put = async (
+		key: string,
+		content: Buffer,
+		options?: PutOptions,
+	): Promise<StorageResult> => {
 		try {
 			const filePath = resolvePath(key);
 			await fs.mkdir(path.dirname(filePath), { recursive: true });
@@ -263,12 +267,18 @@ export const createS3Ops = (config: S3StorageConfig): StorageOps => {
 				},
 			});
 			return clientCache;
-		} catch (error) {
-			throw new Error("Failed to load @aws-sdk/client-s3. Install it with: npm install @aws-sdk/client-s3");
+		} catch (_error) {
+			throw new Error(
+				"Failed to load @aws-sdk/client-s3. Install it with: npm install @aws-sdk/client-s3",
+			);
 		}
 	};
 
-	const put = async (key: string, content: Buffer, options?: PutOptions): Promise<StorageResult> => {
+	const put = async (
+		key: string,
+		content: Buffer,
+		options?: PutOptions,
+	): Promise<StorageResult> => {
 		try {
 			const client = await getClient();
 			const { PutObjectCommand } = await import("@aws-sdk/client-s3");
@@ -507,9 +517,10 @@ export const createStorageOps = (config: AnyStorageConfig): StorageOps => {
 		case "supabase":
 			throw new Error("Supabase storage not yet implemented");
 
-		default:
+		default: {
 			const _exhaustive: never = config;
 			throw new Error(`Unknown storage type: ${(_exhaustive as any).type}`);
+		}
 	}
 };
 
@@ -629,11 +640,7 @@ export const withLogging = (ops: StorageOps, logger: (msg: string) => void): Sto
 /**
  * Compose storage operations with retry logic
  */
-export const withRetry = (
-	ops: StorageOps,
-	maxRetries = 3,
-	delayMs = 1000,
-): StorageOps => {
+export const withRetry = (ops: StorageOps, maxRetries = 3, delayMs = 1000): StorageOps => {
 	const retry = async <T>(
 		fn: () => Promise<StorageResult<T>>,
 		attempt = 0,
@@ -641,7 +648,7 @@ export const withRetry = (
 		const result = await fn();
 
 		if (!result.success && attempt < maxRetries) {
-			await new Promise((resolve) => setTimeout(resolve, delayMs * Math.pow(2, attempt)));
+			await new Promise((resolve) => setTimeout(resolve, delayMs * 2 ** attempt));
 			return retry(fn, attempt + 1);
 		}
 

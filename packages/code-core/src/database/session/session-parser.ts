@@ -3,29 +3,19 @@
  * Handles Zod schemas, JSON parsing, and data migration/validation
  */
 
-import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { eq, inArray } from "drizzle-orm";
-import {
-	sessions,
-	messages,
-	messageSteps,
-	stepParts,
-	stepUsage,
-	todos,
-} from "../schema.js";
+import type { LibSQLDatabase } from "drizzle-orm/libsql";
+import { MessagePartSchema, StringArraySchema } from "../../schemas/message.schemas.js";
 import type {
-	SessionMessage,
-	MessageStep,
 	MessagePart,
+	MessageStep,
+	SessionMessage,
 	TokenUsage,
 } from "../../types/session.types.js";
 import type { Todo as TodoType } from "../../types/todo.types.js";
-import type { SessionRow } from "./types.js";
-import {
-	MessagePartSchema,
-	StringArraySchema,
-} from "../../schemas/message.schemas.js";
 import { logger } from "../../utils/logger.js";
+import { messageSteps, messages, sessions, stepParts, stepUsage, todos } from "../schema.js";
+import type { SessionRow } from "./types.js";
 
 /**
  * Parse and validate enabledRuleIds from raw database value
@@ -34,9 +24,7 @@ export function parseEnabledRuleIds(raw: unknown): string[] {
 	if (!raw) return [];
 
 	try {
-		const parsed = StringArraySchema.safeParse(
-			typeof raw === "string" ? JSON.parse(raw) : raw,
-		);
+		const parsed = StringArraySchema.safeParse(typeof raw === "string" ? JSON.parse(raw) : raw);
 		return parsed.success ? parsed.data : [];
 	} catch {
 		return [];
@@ -50,9 +38,7 @@ export function parseOptionalStringArray(raw: unknown): string[] | null {
 	if (!raw) return null;
 
 	try {
-		const parsed = StringArraySchema.safeParse(
-			typeof raw === "string" ? JSON.parse(raw) : raw,
-		);
+		const parsed = StringArraySchema.safeParse(typeof raw === "string" ? JSON.parse(raw) : raw);
 		return parsed.success ? parsed.data : null;
 	} catch {
 		return null;
@@ -70,9 +56,7 @@ export async function parseSessionRow(
 		// Parse and validate enabledRuleIds
 		let enabledRuleIds: string[] = [];
 		if (raw.enabled_rule_ids) {
-			const parsed = StringArraySchema.safeParse(
-				JSON.parse(raw.enabled_rule_ids as string),
-			);
+			const parsed = StringArraySchema.safeParse(JSON.parse(raw.enabled_rule_ids as string));
 			if (parsed.success) {
 				enabledRuleIds = parsed.data;
 			} else {
@@ -88,9 +72,7 @@ export async function parseSessionRow(
 		// Parse and validate toolIds
 		let toolIds: string[] | null = null;
 		if (raw.tool_ids) {
-			const parsed = StringArraySchema.safeParse(
-				JSON.parse(raw.tool_ids as string),
-			);
+			const parsed = StringArraySchema.safeParse(JSON.parse(raw.tool_ids as string));
 			if (parsed.success) {
 				toolIds = parsed.data;
 			}
@@ -99,9 +81,7 @@ export async function parseSessionRow(
 		// Parse and validate mcpServerIds
 		let mcpServerIds: string[] | null = null;
 		if (raw.mcp_server_ids) {
-			const parsed = StringArraySchema.safeParse(
-				JSON.parse(raw.mcp_server_ids as string),
-			);
+			const parsed = StringArraySchema.safeParse(JSON.parse(raw.mcp_server_ids as string));
 			if (parsed.success) {
 				mcpServerIds = parsed.data;
 			}
@@ -172,7 +152,10 @@ export async function getSessionMessages(
 			.orderBy(stepParts.ordering),
 
 		// Step usage
-		db.select().from(stepUsage).where(inArray(stepUsage.stepId, stepIds)),
+		db
+			.select()
+			.from(stepUsage)
+			.where(inArray(stepUsage.stepId, stepIds)),
 	]);
 
 	// Group by step ID
@@ -183,7 +166,7 @@ export async function getSessionMessages(
 		if (!partsByStep.has(part.stepId)) {
 			partsByStep.set(part.stepId, []);
 		}
-		partsByStep.get(part.stepId)!.push(part);
+		partsByStep.get(part.stepId)?.push(part);
 	}
 
 	for (const usage of allStepUsage) {
@@ -197,7 +180,7 @@ export async function getSessionMessages(
 		if (!stepsByMessage.has(step.messageId)) {
 			stepsByMessage.set(step.messageId, []);
 		}
-		stepsByMessage.get(step.messageId)!.push(step);
+		stepsByMessage.get(step.messageId)?.push(step);
 	}
 
 	// Assemble messages using grouped data
@@ -213,10 +196,7 @@ export async function getSessionMessages(
 		if (stepUsages.length > 0) {
 			messageUsage = {
 				promptTokens: stepUsages.reduce((sum, u) => sum + u.promptTokens, 0),
-				completionTokens: stepUsages.reduce(
-					(sum, u) => sum + u.completionTokens,
-					0,
-				),
+				completionTokens: stepUsages.reduce((sum, u) => sum + u.completionTokens, 0),
 				totalTokens: stepUsages.reduce((sum, u) => sum + u.totalTokens, 0),
 			};
 		}
@@ -241,9 +221,7 @@ export async function getSessionMessages(
 				id: step.id,
 				stepIndex: step.stepIndex,
 				parts: parsedParts,
-				status:
-					(step.status as "active" | "completed" | "error" | "abort") ||
-					"completed",
+				status: (step.status as "active" | "completed" | "error" | "abort") || "completed",
 			};
 
 			// Note: metadata field removed from MessageStep - no longer stored per-step
@@ -270,11 +248,7 @@ export async function getSessionMessages(
 			}
 
 			if (step.finishReason) {
-				messageStep.finishReason = step.finishReason as
-					| "stop"
-					| "tool-calls"
-					| "length"
-					| "error";
+				messageStep.finishReason = step.finishReason as "stop" | "tool-calls" | "length" | "error";
 			}
 
 			if (step.startTime) {
@@ -293,9 +267,7 @@ export async function getSessionMessages(
 			role: msg.role as "user" | "assistant",
 			steps: messageSteps,
 			timestamp: msg.timestamp,
-			status:
-				(msg.status as "active" | "completed" | "error" | "abort") ||
-				"completed",
+			status: (msg.status as "active" | "completed" | "error" | "abort") || "completed",
 		};
 
 		// Aggregated usage (computed from step usage)
@@ -317,10 +289,7 @@ export async function getSessionMessages(
 /**
  * Get todos for a session
  */
-export async function getSessionTodos(
-	db: LibSQLDatabase,
-	sessionId: string,
-): Promise<TodoType[]> {
+export async function getSessionTodos(db: LibSQLDatabase, sessionId: string): Promise<TodoType[]> {
 	const todoRecords = await db
 		.select()
 		.from(todos)

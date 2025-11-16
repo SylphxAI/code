@@ -30,7 +30,7 @@ function FallbackToolDisplay(props: ToolDisplayProps) {
 		// Show first key-value pair as preview
 		const [key, value] = entries[0];
 		const valueStr = typeof value === "string" ? value : JSON.stringify(value);
-		return `${key}: ${valueStr.length > 40 ? valueStr.slice(0, 40) + "..." : valueStr}`;
+		return `${key}: ${valueStr.length > 40 ? `${valueStr.slice(0, 40)}...` : valueStr}`;
 	}, [input]);
 
 	// Format result for display

@@ -15,23 +15,23 @@
  * - Accurate recalculation at checkpoints
  */
 
-import type { AppContext } from "../context.js";
 import type { MessageRepository } from "@sylphx/code-core";
 import {
-	TokenCalculator,
-	StreamingTokenTracker,
-	calculateModelMessagesTokens,
 	buildModelMessages,
 	calculateBaseContextTokens,
+	calculateModelMessagesTokens,
 	getModel,
+	StreamingTokenTracker,
+	TokenCalculator,
 } from "@sylphx/code-core";
+import type { AppContext } from "../context.js";
 
 /**
  * Initialize token tracking for a session
  * Calculates baseline (base context + existing messages)
  */
 export async function initializeTokenTracking(
-	sessionId: string,
+	_sessionId: string,
 	session: {
 		model: string;
 		agentId: string;
@@ -58,11 +58,7 @@ export async function initializeTokenTracking(
 		const modelCapabilities = modelEntity?.capabilities;
 		const fileRepo = messageRepository.getFileRepository();
 
-		const modelMessages = await buildModelMessages(
-			session.messages,
-			modelCapabilities,
-			fileRepo,
-		);
+		const modelMessages = await buildModelMessages(session.messages, modelCapabilities, fileRepo);
 
 		messagesTokens = await calculateModelMessagesTokens(modelMessages, session.model);
 	}
@@ -108,7 +104,7 @@ export async function updateTokensFromDelta(
  */
 export async function recalculateTokensAtCheckpoint(
 	sessionId: string,
-	stepNumber: number,
+	_stepNumber: number,
 	sessionRepository: any,
 	messageRepository: MessageRepository,
 	tokenTracker: StreamingTokenTracker,
@@ -160,7 +156,6 @@ export async function recalculateTokensAtCheckpoint(
 			baseContextTokens: recalculatedBaseContext,
 		});
 
-
 		// Reset tracker with new baseline (for next streaming chunk)
 		tokenTracker.reset(totalTokens);
 	} catch (error) {
@@ -207,10 +202,7 @@ export async function calculateFinalTokens(
 				fileRepo,
 			);
 
-			finalMessages = await calculateModelMessagesTokens(
-				modelMessages,
-				finalSession.model,
-			);
+			finalMessages = await calculateModelMessagesTokens(modelMessages, finalSession.model);
 		}
 
 		const finalTotal = finalBaseContext + finalMessages;
@@ -224,7 +216,6 @@ export async function calculateFinalTokens(
 			totalTokens: finalTotal,
 			baseContextTokens: finalBaseContext,
 		});
-
 	} catch (error) {
 		console.error("[TokenTracking] Failed to calculate final tokens:", error);
 	}

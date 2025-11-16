@@ -10,12 +10,11 @@
  * - Supports rewind/checkpoint restore
  */
 
-import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import { randomUUID } from "node:crypto";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { fileContents } from "./schema.js";
+import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import type { StorageOps } from "../storage/functional.js";
+import { fileContents } from "./schema.js";
 
 export interface FileContentInput {
 	stepId: string | null; // Null for orphaned uploads (ChatGPT-style immediate upload)

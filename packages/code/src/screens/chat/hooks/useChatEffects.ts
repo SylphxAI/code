@@ -4,24 +4,24 @@
  */
 
 import {
-	useEventStream,
-	useAIConfigActions,
 	addMessageAsync as addMessage,
-	updateSessionTitle,
 	setCurrentSessionId,
+	updateSessionTitle,
+	useAIConfigActions,
+	useEventStream,
 } from "@sylphx/code-client";
-import { setUserInputHandler, clearUserInputHandler } from "@sylphx/code-core";
+import { clearUserInputHandler, setUserInputHandler } from "@sylphx/code-core";
 import { useCallback, useEffect, useMemo } from "react";
+import { commands } from "../../../commands/registry.js";
+import { useCommandAutocomplete } from "../autocomplete/commandAutocomplete.js";
+import { useFileAutocomplete } from "../autocomplete/fileAutocomplete.js";
+import { useCommandOptionLoader } from "../autocomplete/optionLoader.js";
+import { createCommandContext } from "../commands/commandContext.js";
+import { createHandleSubmit } from "../handlers/messageHandler.js";
+import { createSubscriptionSendUserMessageToAI } from "../streaming/subscriptionAdapter.js";
+import { DEFAULT_NOTIFICATION_SETTINGS } from "../types.js";
 import type { ChatState } from "./useChatState.js";
 import { useEventStreamCallbacks } from "./useEventStreamCallbacks.js";
-import { useCommandOptionLoader } from "../autocomplete/optionLoader.js";
-import { useFileAutocomplete } from "../autocomplete/fileAutocomplete.js";
-import { useCommandAutocomplete } from "../autocomplete/commandAutocomplete.js";
-import { createSubscriptionSendUserMessageToAI } from "../streaming/subscriptionAdapter.js";
-import { createHandleSubmit } from "../handlers/messageHandler.js";
-import { createCommandContext } from "../commands/commandContext.js";
-import { commands } from "../../../commands/registry.js";
-import { DEFAULT_NOTIFICATION_SETTINGS } from "../types.js";
 
 export function useChatEffects(state: ChatState) {
 	const { saveConfig } = useAIConfigActions();
@@ -43,18 +43,7 @@ export function useChatEffects(state: ChatState) {
 			setIsTitleStreaming: state.streamingState.setIsTitleStreaming,
 			setStreamingTitle: state.streamingState.setStreamingTitle,
 		}),
-		[
-			state.aiConfig,
-			state.currentSessionId,
-			state.selectedProvider,
-			state.selectedModel,
-			state.addLog,
-			state.streamingState.abortControllerRef,
-			state.streamingState.streamingMessageIdRef,
-			state.streamingState.setIsStreaming,
-			state.streamingState.setIsTitleStreaming,
-			state.streamingState.setStreamingTitle,
-		],
+		[],
 	);
 
 	// Autocomplete (depends on sendUserMessageToAI for command context)
@@ -178,7 +167,7 @@ export function useChatEffects(state: ChatState) {
 	// Clear error when input changes
 	useEffect(() => {
 		state.commandState.setLoadError(null);
-	}, [state.inputState.input, state.commandState.setLoadError]);
+	}, [state.commandState.setLoadError]);
 
 	// Command option loader
 	useCommandOptionLoader(
@@ -207,11 +196,11 @@ export function useChatEffects(state: ChatState) {
 	// Reset selected indices when filtered lists change
 	useEffect(() => {
 		state.setSelectedCommandIndex(0);
-	}, [filteredCommands.length, state.setSelectedCommandIndex]);
+	}, [state.setSelectedCommandIndex]);
 
 	useEffect(() => {
 		state.setSelectedFileIndex(0);
-	}, [filteredFileInfo.files.length, state.setSelectedFileIndex]);
+	}, [state.setSelectedFileIndex]);
 
 	// Register user input handler for ask tool on mount, clear on unmount
 	useEffect(() => {

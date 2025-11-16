@@ -3,8 +3,8 @@
  * Verify pub/sub mechanism for store decoupling
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { eventBus, type AppEvents } from "./event-bus.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { eventBus } from "./event-bus.js";
 
 describe("EventBus", () => {
 	beforeEach(() => {

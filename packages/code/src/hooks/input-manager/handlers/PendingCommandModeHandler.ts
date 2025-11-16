@@ -7,9 +7,9 @@
 
 import type { Key } from "ink";
 import type React from "react";
+import type { Command, CommandContext } from "../../../commands/types.js";
 import { InputMode, type InputModeContext } from "../types.js";
 import { BaseInputHandler } from "./BaseHandler.js";
-import type { Command, CommandContext } from "../../../commands/types.js";
 
 export interface PendingCommandModeHandlerDeps {
 	pendingCommand: { command: Command; currentInput: string } | null;
@@ -73,7 +73,7 @@ export class PendingCommandModeHandler extends BaseInputHandler {
 	/**
 	 * Handle keyboard input for pending command
 	 */
-	async handleInput(char: string, key: Key, _context: InputModeContext): Promise<boolean> {
+	async handleInput(_char: string, key: Key, _context: InputModeContext): Promise<boolean> {
 		const {
 			pendingCommand,
 			cachedOptions,

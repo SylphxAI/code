@@ -3,8 +3,8 @@
  * Unified stream processing for both headless and TUI modes
  */
 
-import type { StreamChunk } from "./ai-sdk.js";
 import type { MessagePart, TokenUsage } from "../types/session.types.js";
+import type { StreamChunk } from "./ai-sdk.js";
 
 /**
  * Callbacks for stream events

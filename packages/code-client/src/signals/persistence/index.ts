@@ -46,7 +46,7 @@ export const initializeUIPersistence = () => {
 					set(config.signal, value);
 				}
 			}
-		} catch (error) {
+		} catch (_error) {
 			// Silent fail for UI persistence
 		}
 	});
@@ -67,7 +67,7 @@ export const initializeUIPersistence = () => {
 				try {
 					const serialized = config.serialize ? config.serialize(value) : String(value);
 					localStorage.setItem(config.key, serialized);
-				} catch (error) {
+				} catch (_error) {
 					// Silent fail for UI persistence
 				}
 				debouncedSave.delete(config.key);

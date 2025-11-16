@@ -10,7 +10,7 @@
  * - Emit message-level events
  */
 
-import type { MessageRepository, MessagePart } from "@sylphx/code-core";
+import type { MessagePart, MessageRepository } from "@sylphx/code-core";
 import type { StreamEvent } from "./streaming.service.js";
 
 /**

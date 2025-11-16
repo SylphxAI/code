@@ -6,12 +6,12 @@
 import type { LanguageModelV1 } from "ai";
 import type {
 	AIProvider,
-	ProviderModelDetails,
 	ConfigField,
-	ProviderConfig,
-	ModelInfo,
 	ModelCapabilities,
 	ModelCapability,
+	ModelInfo,
+	ProviderConfig,
+	ProviderModelDetails,
 } from "./base-provider.js";
 import { hasRequiredFields } from "./base-provider.js";
 
@@ -83,7 +83,7 @@ export class KimiProvider implements AIProvider {
 	}
 
 	async getModelDetails(
-		modelId: string,
+		_modelId: string,
 		_config?: ProviderConfig,
 	): Promise<ProviderModelDetails | null> {
 		// Kimi API doesn't provide detailed model specs via API
@@ -91,7 +91,7 @@ export class KimiProvider implements AIProvider {
 		return null;
 	}
 
-	getModelCapabilities(modelId: string): ModelCapabilities {
+	getModelCapabilities(_modelId: string): ModelCapabilities {
 		// Return empty set - no assumptions about capabilities
 		// Let the API/model determine what it supports at runtime
 		return new Set<ModelCapability>();

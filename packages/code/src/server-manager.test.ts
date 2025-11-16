@@ -3,8 +3,8 @@
  * Testing auto-start server functionality
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { existsSync } from "fs";
+import { existsSync } from "node:fs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as trpcClient from "./trpc-client.js";
 
 // Mock dependencies

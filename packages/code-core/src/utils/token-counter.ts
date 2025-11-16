@@ -29,7 +29,7 @@ let tokenizerCacheMisses = 0;
  * Get tokenizer cache stats for CacheManager
  * Since Map doesn't have built-in stats, we provide a wrapper
  */
-function getTokenizerCacheStats() {
+function _getTokenizerCacheStats() {
 	return {
 		size: tokenizerCache.size,
 		maxSize: MAX_CACHED_TOKENIZERS,
@@ -103,7 +103,7 @@ const MODEL_TO_TOKENIZER: Record<string, string> = {
  * Exported for cache key generation
  */
 export function getTokenizerForModel(modelName?: string): string {
-	if (!modelName) return MODEL_TO_TOKENIZER["default"]!;
+	if (!modelName) return MODEL_TO_TOKENIZER.default!;
 
 	// Direct match
 	if (MODEL_TO_TOKENIZER[modelName]) {
@@ -119,7 +119,7 @@ export function getTokenizerForModel(modelName?: string): string {
 	}
 
 	// Default fallback
-	return MODEL_TO_TOKENIZER["default"]!;
+	return MODEL_TO_TOKENIZER.default!;
 }
 
 /**
@@ -252,7 +252,7 @@ export async function countTokens(
 		const encoded = await tokenizer(text);
 
 		// Get token count from encoded result
-		if (encoded.input_ids && encoded.input_ids.size) {
+		if (encoded.input_ids?.size) {
 			return encoded.input_ids.size;
 		}
 

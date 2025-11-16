@@ -4,9 +4,9 @@
  */
 
 import { useState } from "react";
-import Sidebar from "./components/Sidebar";
 import ChatContainer from "./components/ChatContainer";
 import Settings from "./components/Settings";
+import Sidebar from "./components/Sidebar";
 import { ToastContainer, useToast } from "./components/Toast";
 
 export default function App() {

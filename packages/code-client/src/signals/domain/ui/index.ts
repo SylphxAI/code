@@ -3,7 +3,7 @@
  * Manages UI state across the application
  */
 
-import { zen, get, set, computed } from "@sylphx/zen";
+import { computed, get, set, zen } from "@sylphx/zen";
 import { useStore } from "@sylphx/zen-react";
 
 export type Screen = "chat" | "settings" | "provider" | "help";

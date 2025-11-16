@@ -7,11 +7,10 @@
  */
 
 import type { SessionMessage } from "@sylphx/code-core";
-import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Text } from "ink";
-import React, { useMemo } from "react";
-import { MessagePart } from "./MessagePart.js";
+import React from "react";
 import MarkdownText from "./MarkdownText.js";
+import { MessagePart } from "./MessagePart.js";
 
 interface MessageListProps {
 	messages: SessionMessage[];
@@ -71,10 +70,7 @@ const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
 	return (
 		<Box flexDirection="row">
 			<Text color="green">▌ SYLPHX</Text>
-			<Text dimColor>
-				{" "}
-				· Mixed {uniqueModels.size} models
-			</Text>
+			<Text dimColor> · Mixed {uniqueModels.size} models</Text>
 		</Box>
 	);
 });
@@ -110,7 +106,12 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 											fileMap.set(part.relativePath, true);
 										} else if (part.type === "error") {
 											// Ensure error is converted to string to prevent React rendering issues
-											const errorStr = typeof part.error === 'string' ? part.error : part.error instanceof Error ? part.error.message : String(part.error);
+											const errorStr =
+												typeof part.error === "string"
+													? part.error
+													: part.error instanceof Error
+														? part.error.message
+														: String(part.error);
 											fullText += `[Error: ${errorStr}]`;
 										}
 									}
@@ -213,7 +214,12 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 											fileMap.set(part.relativePath, true);
 										} else if (part.type === "error") {
 											// Ensure error is converted to string to prevent React rendering issues
-											const errorStr = typeof part.error === 'string' ? part.error : part.error instanceof Error ? part.error.message : String(part.error);
+											const errorStr =
+												typeof part.error === "string"
+													? part.error
+													: part.error instanceof Error
+														? part.error.message
+														: String(part.error);
 											fullText += `[Error: ${errorStr}]`;
 										}
 									}

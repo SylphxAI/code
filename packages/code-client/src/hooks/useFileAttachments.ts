@@ -4,12 +4,12 @@
  * Files are uploaded immediately on paste/select, stored by fileId
  */
 
-import { useState, useEffect, useMemo } from "react";
-import type { FileAttachment } from "@sylphx/code-core";
-import { extractFileReferences } from "../utils/text-rendering-utils.js";
-import { getTRPCClient } from "../trpc-provider.js";
 import { readFile } from "node:fs/promises";
+import type { FileAttachment } from "@sylphx/code-core";
 import { lookup } from "mime-types";
+import { useEffect, useMemo, useState } from "react";
+import { getTRPCClient } from "../trpc-provider.js";
+import { extractFileReferences } from "../utils/text-rendering-utils.js";
 
 export function useFileAttachments(input: string) {
 	const [pendingAttachments, setPendingAttachments] = useState<FileAttachment[]>([]);
@@ -31,7 +31,13 @@ export function useFileAttachments(input: string) {
 	}, [pendingAttachments]);
 
 	// Add attachment (ChatGPT-style: immediate upload)
-	const addAttachment = async (attachment: Omit<FileAttachment, "fileId"> & { fileId?: string; path?: string; imageData?: string }) => {
+	const addAttachment = async (
+		attachment: Omit<FileAttachment, "fileId"> & {
+			fileId?: string;
+			path?: string;
+			imageData?: string;
+		},
+	) => {
 		// If fileId already provided, just add to state
 		if (attachment.fileId) {
 			setPendingAttachments((prev) => {
@@ -83,13 +89,16 @@ export function useFileAttachments(input: string) {
 				if (prev.some((a) => a.fileId === result.fileId)) {
 					return prev;
 				}
-				return [...prev, {
-					fileId: result.fileId,
-					relativePath: attachment.relativePath,
-					size,
-					mimeType,
-					type: attachment.type,
-				}];
+				return [
+					...prev,
+					{
+						fileId: result.fileId,
+						relativePath: attachment.relativePath,
+						size,
+						mimeType,
+						type: attachment.type,
+					},
+				];
 			});
 		} catch (error) {
 			console.error("[addAttachment] Failed to upload file:", error);

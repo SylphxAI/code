@@ -22,7 +22,7 @@
  * Default context reserve ratio
  * User can override via project settings
  */
-export const DEFAULT_CONTEXT_RESERVE_RATIO = 0.10; // 10%
+export const DEFAULT_CONTEXT_RESERVE_RATIO = 0.1; // 10%
 
 /**
  * Calculate reserved tokens based on context limit
@@ -55,7 +55,9 @@ export function calculateReservedTokens(
  * @param reserveRatio - Reserve ratio (default: 10%)
  * @returns Reserve percentage (0-100)
  */
-export function calculateReservePercent(reserveRatio: number = DEFAULT_CONTEXT_RESERVE_RATIO): number {
+export function calculateReservePercent(
+	reserveRatio: number = DEFAULT_CONTEXT_RESERVE_RATIO,
+): number {
 	return reserveRatio * 100;
 }
 

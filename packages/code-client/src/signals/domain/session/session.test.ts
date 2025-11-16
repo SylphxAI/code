@@ -3,8 +3,8 @@
  * Tests chat session and message state management
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import type { Session, SessionMessage, ProviderId } from "@sylphx/code-core";
+import type { ProviderId, Session, SessionMessage } from "@sylphx/code-core";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as session from "./index.js";
 
 // Mock dependencies

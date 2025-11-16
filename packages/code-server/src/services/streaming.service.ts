@@ -12,8 +12,7 @@
  * This service is called by message.streamResponse subscription procedure
  */
 
-// Re-export types
-export type { StreamEvent, StreamAIResponseOptions } from "./streaming/types.js";
-
 // Re-export main streaming function
 export { streamAIResponse } from "./streaming/stream-orchestrator.js";
+// Re-export types
+export type { StreamAIResponseOptions, StreamEvent } from "./streaming/types.js";

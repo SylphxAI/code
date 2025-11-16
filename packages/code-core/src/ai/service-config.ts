@@ -78,7 +78,6 @@ export async function configureServices(): Promise<void> {
 		},
 		"singleton",
 	);
-
 }
 
 /**

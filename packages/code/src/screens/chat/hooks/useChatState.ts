@@ -4,26 +4,26 @@
  */
 
 import {
+	addDebugLog,
 	useAIConfig,
 	useAskToolHandler,
 	useChat,
 	useCurrentSession,
 	useFileAttachments,
 	useProjectFiles,
-	useTokenCalculation,
-	useSelectedProvider,
 	useSelectedModel,
-	addDebugLog,
+	useSelectedProvider,
+	useTokenCalculation,
 } from "@sylphx/code-client";
-import { useCallback, useMemo, useState } from "react";
-import type { ChatProps } from "../types.js";
-import { useInputState } from "./useInputState.js";
-import { useStreamingState } from "./useStreamingState.js";
-import { useSelectionState } from "./useSelectionState.js";
-import { useCommandState } from "./useCommandState.js";
-import { createGetHintText } from "../autocomplete/hintText.js";
-import { commands } from "../../../commands/registry.js";
 import type { FileAttachment } from "@sylphx/code-core";
+import { useCallback, useMemo, useState } from "react";
+import { commands } from "../../../commands/registry.js";
+import { createGetHintText } from "../autocomplete/hintText.js";
+import type { ChatProps } from "../types.js";
+import { useCommandState } from "./useCommandState.js";
+import { useInputState } from "./useInputState.js";
+import { useSelectionState } from "./useSelectionState.js";
+import { useStreamingState } from "./useStreamingState.js";
 
 export function useChatState(_props: ChatProps) {
 	// Zen signals
@@ -93,10 +93,7 @@ export function useChatState(_props: ChatProps) {
 	const getHintText = useMemo(() => createGetHintText(commands), []);
 
 	// Computed hint text
-	const hintText = useMemo(
-		() => getHintText(inputState.input),
-		[inputState.input, getHintText],
-	);
+	const hintText = useMemo(() => getHintText(inputState.input), [inputState.input, getHintText]);
 
 	return {
 		// Config & signals

@@ -3,9 +3,9 @@
  * Tests UI state persistence functionality
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { initializeUIPersistence, clearUIPersistence } from "./persistence/index.ts";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as ui from "./domain/ui/index.ts";
+import { clearUIPersistence, initializeUIPersistence } from "./persistence/index.ts";
 
 // Mock localStorage
 const localStorageMock = (() => {

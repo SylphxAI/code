@@ -5,9 +5,9 @@
  * SYNC: Shared selection state managed by server, UI reflects current state
  */
 
+import type { WaitForInputOptions } from "../../../commands/types.js";
 import { InlineSelection } from "../../../components/selection/index.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
-import type { WaitForInputOptions } from "../../../commands/types.js";
 
 interface AskToolSelectionProps {
 	pendingInput: WaitForInputOptions;
@@ -32,11 +32,7 @@ interface AskToolSelectionProps {
  * TODO: Add free text input support
  * TODO: Add multi-step question flow
  */
-export function AskToolSelection({
-	pendingInput,
-	onSelect,
-	onCancel,
-}: AskToolSelectionProps) {
+export function AskToolSelection({ pendingInput, onSelect, onCancel }: AskToolSelectionProps) {
 	if (pendingInput.type !== "selection") {
 		return null;
 	}

@@ -11,11 +11,13 @@
  * Solution: Remove duplicate function names from first export statement.
  */
 
-import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const distSharedPath = join(process.cwd(), "dist/shared");
-const chunks = readdirSync(distSharedPath).filter((f) => f.startsWith("chunk-") && f.endsWith(".js"));
+const chunks = readdirSync(distSharedPath).filter(
+	(f) => f.startsWith("chunk-") && f.endsWith(".js"),
+);
 
 let totalFixed = 0;
 
@@ -44,9 +46,7 @@ for (const chunkFile of chunks) {
 			continue;
 		}
 
-		const publicFunctions = new Set(
-			secondExportMatch[1].split(",").map((fn) => fn.trim()),
-		);
+		const publicFunctions = new Set(secondExportMatch[1].split(",").map((fn) => fn.trim()));
 
 		// Find end of first export block
 		let firstExportEnd = firstExportStart;

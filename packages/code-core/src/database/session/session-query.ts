@@ -3,13 +3,13 @@
  * Handles complex read queries for sessions
  */
 
+import { desc, eq, inArray, lt, sql } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import { eq, desc, lt, sql, inArray } from "drizzle-orm";
-import { sessions, messages } from "../schema.js";
 import type { ProviderId } from "../../config/ai-config.js";
 import type { Session as SessionType } from "../../types/session.types.js";
-import type { SessionMetadata, PaginatedResult, SessionRow } from "./types.js";
-import { parseSessionRow, getSessionMessages, getSessionTodos } from "./session-parser.js";
+import { messages, sessions } from "../schema.js";
+import { getSessionMessages, getSessionTodos, parseSessionRow } from "./session-parser.js";
+import type { PaginatedResult, SessionMetadata } from "./types.js";
 
 /**
  * Get session by ID with all related data
@@ -19,11 +19,7 @@ export async function getSessionById(
 	sessionId: string,
 ): Promise<SessionType | null> {
 	// Get session metadata
-	const [session] = await db
-		.select()
-		.from(sessions)
-		.where(eq(sessions.id, sessionId))
-		.limit(1);
+	const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId)).limit(1);
 
 	if (!session) {
 		return null;
@@ -94,11 +90,9 @@ export async function getRecentSessionsMetadata(
 
 	try {
 		sessionRecords = await queryBuilder;
-	} catch (error) {
+	} catch (_error) {
 		// JSON parse error in corrupted session data - fix corrupted records
-		console.warn(
-			"[getRecentSessionsMetadata] Detected corrupted JSON, auto-repairing...",
-		);
+		console.warn("[getRecentSessionsMetadata] Detected corrupted JSON, auto-repairing...");
 
 		// Query with raw SQL to bypass Drizzle's JSON parsing
 		// Note: Raw SQL needed here to skip JSON validation on corrupted data
@@ -121,12 +115,8 @@ export async function getRecentSessionsMetadata(
 
 	// Check if there are more results
 	const hasMore = sessionRecords.length > limit;
-	const sessionsToReturn = hasMore
-		? sessionRecords.slice(0, limit)
-		: sessionRecords;
-	const nextCursor = hasMore
-		? sessionsToReturn[sessionsToReturn.length - 1].updated
-		: null;
+	const sessionsToReturn = hasMore ? sessionRecords.slice(0, limit) : sessionRecords;
+	const nextCursor = hasMore ? sessionsToReturn[sessionsToReturn.length - 1].updated : null;
 
 	// Get message counts for all sessions in one query (OPTIMIZED!)
 	const sessionIds = sessionsToReturn.map((s) => s.id);
@@ -186,15 +176,9 @@ export async function getRecentSessions(
  * Get most recently updated session (for headless mode continuation)
  * Returns the last active session
  */
-export async function getLastSession(
-	db: LibSQLDatabase,
-): Promise<SessionType | null> {
+export async function getLastSession(db: LibSQLDatabase): Promise<SessionType | null> {
 	// Get most recent session by updated timestamp
-	const [lastSession] = await db
-		.select()
-		.from(sessions)
-		.orderBy(desc(sessions.updated))
-		.limit(1);
+	const [lastSession] = await db.select().from(sessions).orderBy(desc(sessions.updated)).limit(1);
 
 	if (!lastSession) {
 		return null;

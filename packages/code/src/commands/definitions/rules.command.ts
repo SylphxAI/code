@@ -44,8 +44,8 @@ export const rulesCommand: Command = {
 		// Extract selected rule IDs
 		const selectedRuleIds =
 			typeof answers === "object" && !Array.isArray(answers)
-				? Array.isArray(answers["rules"])
-					? answers["rules"]
+				? Array.isArray(answers.rules)
+					? answers.rules
 					: []
 				: [];
 

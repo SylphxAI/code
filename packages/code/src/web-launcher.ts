@@ -3,9 +3,9 @@
  * Launches Web GUI mode
  */
 
+import { getServerURL } from "@sylphx/code-core/constants/config";
 import chalk from "chalk";
 import { ensureServer } from "./server-manager.js";
-import { getServerURL } from "@sylphx/code-core/constants/config";
 
 /**
  * Launch Web GUI mode
@@ -42,7 +42,7 @@ export async function launchWeb(): Promise<void> {
 		// Keep process alive (optional)
 		// User can Ctrl+C to exit, server continues as daemon
 		process.stdin.resume();
-	} catch (error) {
+	} catch (_error) {
 		console.error(chalk.yellow("\n⚠ Failed to open browser"));
 		console.error(chalk.cyan(`\nPlease open manually: ${url}`));
 		process.exit(1);

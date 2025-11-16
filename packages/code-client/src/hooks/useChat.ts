@@ -7,11 +7,11 @@
  * - Client: Subscribes to streaming events and updates UI
  */
 
+import type { FileAttachment, TokenUsage } from "@sylphx/code-core";
 import { useCallback } from "react";
-import { useCurrentSessionId, useCurrentSession } from "../signals/domain/session/index.js";
+import { useCurrentSession, useCurrentSessionId } from "../signals/domain/session/index.js";
 import { setError } from "../signals/domain/ui/index.js";
 import { getTRPCClient } from "../trpc-provider.js";
-import type { FileAttachment, TokenUsage } from "@sylphx/code-core";
 
 /**
  * Options for sending a message
@@ -207,7 +207,7 @@ export function useChat() {
 				setError(errorMessage);
 			}
 		},
-		[currentSessionId, currentSession, setError],
+		[currentSessionId, currentSession],
 	);
 
 	return { sendMessage };

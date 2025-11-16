@@ -4,8 +4,8 @@
  */
 
 import type { StorageConfig } from "../interfaces/unified-storage.js";
-import { createStorage } from "./unified-storage.js";
 import { logger } from "../utils/logger.js";
+import { createStorage } from "./unified-storage.js";
 
 /**
  * Storage configuration builders
@@ -91,9 +91,7 @@ export async function createStorageFromEnv<T = unknown>(type?: string): Promise<
 	const storageType = type || process.env.STORAGE_TYPE || "memory";
 
 	if (!isValidStorageType(storageType)) {
-		throw new Error(
-			`Invalid storage type: ${storageType}. Must be one of: memory, cache, vector`
-		);
+		throw new Error(`Invalid storage type: ${storageType}. Must be one of: memory, cache, vector`);
 	}
 
 	const config: StorageConfig = { type: storageType };

@@ -9,12 +9,11 @@
  */
 
 import type {
-	ProviderCredential,
 	CreateCredentialInput,
-	UpdateCredentialInput,
-	MaskedCredential,
 	CredentialScope,
-	CredentialStatus,
+	MaskedCredential,
+	ProviderCredential,
+	UpdateCredentialInput,
 } from "../types/credential.types.js";
 
 /**

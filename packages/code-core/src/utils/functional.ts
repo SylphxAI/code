@@ -405,10 +405,10 @@ export const trace =
 // Re-export from unified Result module
 export type { Result } from "../ai/result.js";
 export {
+	map as mapResult,
 	tryCatch,
 	tryCatchAsync,
 	unwrap as unwrapResult,
-	map as mapResult,
 } from "../ai/result.js";
 
 // ============================================================================

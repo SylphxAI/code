@@ -5,8 +5,8 @@
  * Separates logic from presentation for maximum reusability
  */
 
-import { useState, useEffect, useMemo } from "react";
 import { useInput } from "ink";
+import { useEffect, useMemo, useState } from "react";
 
 export interface SelectionOption {
 	label: string;

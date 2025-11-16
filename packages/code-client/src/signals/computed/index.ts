@@ -5,9 +5,9 @@
 
 import { computed } from "@sylphx/zen";
 import { useStore } from "@sylphx/zen-react";
-import * as ui from "../domain/ui";
 import * as ai from "../domain/ai";
 import * as session from "../domain/session";
+import * as ui from "../domain/ui";
 
 // App readiness computed signal
 export const $isAppReady = computed(

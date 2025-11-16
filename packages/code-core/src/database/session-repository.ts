@@ -24,26 +24,22 @@
 
 import { eq } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import { sessions, type NewSession } from "./schema.js";
-import type { Session as SessionType } from "../types/session.types.js";
 import type { ProviderId } from "../config/ai-config.js";
+import type { Session as SessionType } from "../types/session.types.js";
 import { retryDatabase } from "../utils/retry.js";
-
+import { type NewSession, sessions } from "./schema.js";
+import { getSessionCount } from "./session/session-aggregation.js";
 // Import modular functions
 import {
-	getSessionById,
-	getRecentSessionsMetadata,
-	getRecentSessions,
 	getLastSession,
+	getRecentSessions,
+	getRecentSessionsMetadata,
+	getSessionById,
 } from "./session/session-query.js";
-import {
-	searchSessionsMetadata,
-	searchSessionsByTitle,
-} from "./session/session-search.js";
-import { getSessionCount } from "./session/session-aggregation.js";
+import { searchSessionsByTitle, searchSessionsMetadata } from "./session/session-search.js";
 
 // Re-export types
-export type { SessionMetadata, PaginatedResult } from "./session/types.js";
+export type { PaginatedResult, SessionMetadata } from "./session/types.js";
 
 export class SessionRepository {
 	constructor(private db: LibSQLDatabase) {}
@@ -205,10 +201,7 @@ export class SessionRepository {
 	 * Update session flags (system message trigger states)
 	 * Merges new flags with existing flags
 	 */
-	async updateSessionFlags(
-		sessionId: string,
-		flagUpdates: Record<string, boolean>,
-	): Promise<void> {
+	async updateSessionFlags(sessionId: string, flagUpdates: Record<string, boolean>): Promise<void> {
 		await retryDatabase(async () => {
 			// Read current session
 			const [session] = await this.db

@@ -3,9 +3,9 @@
  * Get model details including context length, capabilities, and tokenizer info
  */
 
+import type { ModelCapabilities } from "@sylphx/code-core";
 import { useEffect, useState } from "react";
 import { useTRPCClient } from "../trpc-provider.js";
-import type { ModelCapabilities } from "@sylphx/code-core";
 
 interface ModelDetails {
 	contextLength: number | null;

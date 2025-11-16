@@ -63,16 +63,14 @@ function renderLineWithImageTags(line: string, key: string): React.ReactElement 
 		// Add text before tag
 		if (match.index > lastIndex) {
 			const text = line.slice(lastIndex, match.index);
-			parts.push(
-				<Markdown key={`${key}-text-${lastIndex}`}>{text}</Markdown>
-			);
+			parts.push(<Markdown key={`${key}-text-${lastIndex}`}>{text}</Markdown>);
 		}
 
 		// Add highlighted tag
 		parts.push(
 			<Text key={`${key}-tag-${match.index}`} bgColor="#1a2a47" color="#5599FF">
 				{match[0]}
-			</Text>
+			</Text>,
 		);
 
 		lastIndex = match.index + match[0].length;
@@ -81,9 +79,7 @@ function renderLineWithImageTags(line: string, key: string): React.ReactElement 
 	// Add remaining text
 	if (lastIndex < line.length) {
 		const text = line.slice(lastIndex);
-		parts.push(
-			<Markdown key={`${key}-text-${lastIndex}`}>{text}</Markdown>
-		);
+		parts.push(<Markdown key={`${key}-text-${lastIndex}`}>{text}</Markdown>);
 	}
 
 	return <Box key={key}>{parts}</Box>;

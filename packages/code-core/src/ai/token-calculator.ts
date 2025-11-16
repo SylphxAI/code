@@ -16,8 +16,8 @@
  * ```
  */
 
+import type { MessagePart, MessageStep, SessionMessage } from "../types/session.types.js";
 import { countTokens } from "../utils/token-counter.js";
-import type { SessionMessage, MessagePart, MessageStep } from "../types/session.types.js";
 
 export class TokenCalculator {
 	private model: string;

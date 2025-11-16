@@ -8,17 +8,17 @@
  * - Query message counts and user message history
  */
 
-import { eq, desc, and, sql, inArray, lt, sum } from "drizzle-orm";
-import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { randomUUID } from "node:crypto";
-import { sessions, messages, messageSteps, stepParts, stepUsage, fileContents } from "./schema.js";
+import { and, desc, eq, inArray, lt, sql, sum } from "drizzle-orm";
+import type { LibSQLDatabase } from "drizzle-orm/libsql";
+import { MessagePartSchema } from "../schemas/message.schemas.js";
+import type { StorageOps } from "../storage/functional.js";
 import type { MessagePart, TokenUsage } from "../types/session.types.js";
 import type { Todo as TodoType } from "../types/todo.types.js";
+import { logger } from "../utils/logger.js";
 import { retryDatabase } from "../utils/retry.js";
 import { FileRepository } from "./file-repository.js";
-import type { StorageOps } from "../storage/functional.js";
-import { MessagePartSchema } from "../schemas/message.schemas.js";
-import { logger } from "../utils/logger.js";
+import { messageSteps, messages, sessions, stepParts, stepUsage } from "./schema.js";
 
 export class MessageRepository {
 	private fileRepo: FileRepository;
@@ -123,13 +123,16 @@ export class MessageRepository {
 								const buffer = Buffer.from(part.base64, "base64");
 
 								// Store in file_contents table (pass tx to avoid SQLITE_BUSY)
-								const fileId = await this.fileRepo.storeFileContent({
-									stepId,
-									ordering: i,
-									relativePath: part.relativePath,
-									mediaType: part.mediaType,
-									content: buffer,
-								}, tx);
+								const fileId = await this.fileRepo.storeFileContent(
+									{
+										stepId,
+										ordering: i,
+										relativePath: part.relativePath,
+										mediaType: part.mediaType,
+										content: buffer,
+									},
+									tx,
+								);
 
 								// Create file-ref part instead of full file part
 								partToStore = {
@@ -306,7 +309,10 @@ export class MessageRepository {
 		limit = 100,
 		cursor?: number,
 	): Promise<{
-		messages: Array<{ text: string; files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }> }>;
+		messages: Array<{
+			text: string;
+			files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }>;
+		}>;
 		nextCursor: number | null;
 	}> {
 		return retryDatabase(async () => {
@@ -371,7 +377,13 @@ export class MessageRepository {
 			// Group parts by message, preserving order
 			type MessagePart =
 				| { type: "text"; content: string }
-				| { type: "file-ref"; fileContentId: string; relativePath: string; size: number; mediaType: string };
+				| {
+						type: "file-ref";
+						fileContentId: string;
+						relativePath: string;
+						size: number;
+						mediaType: string;
+				  };
 			const messageData = new Map<string, MessagePart[]>();
 			for (const part of parts) {
 				const messageId = stepToMessage.get(part.stepId);
@@ -409,14 +421,22 @@ export class MessageRepository {
 
 			// Build result in timestamp order (most recent first)
 			// Return fileId references, not content (ChatGPT-style architecture)
-			const result: Array<{ text: string; files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }> }> = [];
+			const result: Array<{
+				text: string;
+				files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }>;
+			}> = [];
 			for (const msg of messagesToReturn) {
 				const parts = messageData.get(msg.messageId);
 				if (!parts) continue;
 
 				// Reconstruct text by iterating parts in order
 				const textParts: string[] = [];
-				const files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }> = [];
+				const files: Array<{
+					fileId: string;
+					relativePath: string;
+					mediaType: string;
+					size: number;
+				}> = [];
 
 				for (const part of parts) {
 					if (part.type === "text") {
@@ -437,12 +457,10 @@ export class MessageRepository {
 
 				const fullText = textParts.join(" ").trim();
 
-
 				if (fullText || files.length > 0) {
 					result.push({ text: fullText, files });
 				}
 			}
-
 
 			return { messages: result, nextCursor };
 		});

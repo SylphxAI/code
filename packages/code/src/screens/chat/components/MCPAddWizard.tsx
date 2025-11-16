@@ -3,13 +3,13 @@
  * Step-by-step wizard for adding new MCP servers
  */
 
+import type { MCPServerConfig, MCPTransportType } from "@sylphx/code-core";
 import { Box, Text, useInput } from "ink";
 import { useState } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
-import type { SelectionOption } from "../../../hooks/useSelection.js";
 import TextInputWithHint from "../../../components/TextInputWithHint.js";
+import type { SelectionOption } from "../../../hooks/useSelection.js";
 import { InputContentLayout } from "./InputContentLayout.js";
-import type { MCPServerConfig, MCPTransportType } from "@sylphx/code-core";
 
 interface MCPAddWizardProps {
 	onComplete: () => void;
@@ -110,7 +110,7 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 	};
 
 	// ESC key handling
-	useInput((input, key) => {
+	useInput((_input, key) => {
 		if (key.escape) {
 			onCancel();
 		}

@@ -2,13 +2,13 @@
  * Context Reserve Calculator Tests
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
 	calculateReservedTokens,
 	calculateReservePercent,
+	DEFAULT_CONTEXT_RESERVE_RATIO,
 	getReserveBreakdown,
 	getSummaryMaxTokens,
-	DEFAULT_CONTEXT_RESERVE_RATIO,
 } from "../context-reserve.js";
 
 describe("calculateReservedTokens", () => {
@@ -60,7 +60,7 @@ describe("calculateReservePercent", () => {
 		expect(calculateReservePercent()).toBe(10); // Default 10%
 		expect(calculateReservePercent(0.05)).toBe(5); // 5%
 		expect(calculateReservePercent(0.15)).toBe(15); // 15%
-		expect(calculateReservePercent(0.20)).toBe(20); // 20%
+		expect(calculateReservePercent(0.2)).toBe(20); // 20%
 	});
 });
 
@@ -70,7 +70,7 @@ describe("getReserveBreakdown", () => {
 
 		expect(breakdown).toEqual({
 			contextLimit: 128_000,
-			reserveRatio: 0.10,
+			reserveRatio: 0.1,
 			totalReserved: 12_800,
 			reservePercent: 10,
 			tokenizerErrorMargin: 1_280, // 10% of reserve
@@ -82,7 +82,7 @@ describe("getReserveBreakdown", () => {
 		const breakdown = getReserveBreakdown(2_000_000);
 
 		expect(breakdown.contextLimit).toBe(2_000_000);
-		expect(breakdown.reserveRatio).toBe(0.10);
+		expect(breakdown.reserveRatio).toBe(0.1);
 		expect(breakdown.totalReserved).toBe(200_000);
 		expect(breakdown.reservePercent).toBe(10);
 		expect(breakdown.tokenizerErrorMargin).toBe(20_000); // 10% of reserve
@@ -184,6 +184,6 @@ describe("Real-world scenarios", () => {
 
 describe("DEFAULT_CONTEXT_RESERVE_RATIO", () => {
 	it("should export default constant", () => {
-		expect(DEFAULT_CONTEXT_RESERVE_RATIO).toBe(0.10);
+		expect(DEFAULT_CONTEXT_RESERVE_RATIO).toBe(0.1);
 	});
 });

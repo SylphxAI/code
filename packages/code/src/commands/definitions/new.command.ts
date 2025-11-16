@@ -9,7 +9,7 @@ export const newCommand: Command = {
 	id: "new",
 	label: "/new",
 	description: "Create a new chat session",
-	execute: async (context) => {
+	execute: async (_context) => {
 		// Get selected provider/model from zen signals
 		const { useSelectedProvider, useSelectedModel, createSession, setCurrentSessionId } =
 			await import("@sylphx/code-client");

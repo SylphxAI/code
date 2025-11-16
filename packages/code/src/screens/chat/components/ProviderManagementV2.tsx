@@ -8,13 +8,13 @@
  * - No duplicated filter/selection logic
  */
 
-import { Box, Text, useInput } from "ink";
-import { useState, useEffect } from "react";
 import { useTRPCClient } from "@sylphx/code-client";
 import type { ConfigField } from "@sylphx/code-core";
+import { Box, Text, useInput } from "ink";
+import { useEffect, useState } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
-import type { SelectionOption } from "../../../hooks/useSelection.js";
 import TextInputWithHint from "../../../components/TextInputWithHint.js";
+import type { SelectionOption } from "../../../hooks/useSelection.js";
 import { InputContentLayout } from "./InputContentLayout.js";
 
 interface ProviderManagementProps {
@@ -409,7 +409,7 @@ export function ProviderManagement({
 										<Text color={isEmpty ? "gray" : isSelected ? "cyan" : "white"}>
 											{value
 												? String(value).length > 50
-													? String(value).substring(0, 47) + "..."
+													? `${String(value).substring(0, 47)}...`
 													: value
 												: "(empty)"}
 										</Text>

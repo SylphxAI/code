@@ -3,15 +3,13 @@
  * Converts database messages to AI SDK format
  */
 
-import type { Message, MessageStep, ModelCapabilities } from "@sylphx/code-core";
-import type { ModelMessage, UserContent, AssistantContent } from "ai";
-import type { ToolCallPart, ToolResultPart } from "@ai-sdk/provider";
-import { buildSystemStatusFromMetadata, buildTodoContext } from "@sylphx/code-core";
+import { randomBytes } from "node:crypto";
+import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { writeFileSync } from "node:fs";
-import { randomBytes } from "node:crypto";
-import type { FileRepository } from "@sylphx/code-core";
+import type { ToolCallPart, ToolResultPart } from "@ai-sdk/provider";
+import type { FileRepository, Message, MessageStep, ModelCapabilities } from "@sylphx/code-core";
+import type { AssistantContent, ModelMessage, UserContent } from "ai";
 
 /**
  * Convert session messages to AI SDK ModelMessage format
@@ -220,7 +218,7 @@ async function buildAssistantMessageWithSteps(
 async function buildAssistantMessage(
 	msg: Message,
 	modelCapabilities?: ModelCapabilities,
-	fileRepo?: FileRepository,
+	_fileRepo?: FileRepository,
 	stepsOverride?: MessageStep[],
 	results?: ModelMessage[],
 ): Promise<void> {
@@ -300,7 +298,7 @@ async function buildAssistantMessage(
 									type: "text",
 									text: `[I generated an image and saved it to: ${filepath}]`,
 								});
-							} catch (err) {
+							} catch (_err) {
 								assistantContent.push({
 									type: "text",
 									text: `[I generated an image but failed to save it]`,

@@ -43,10 +43,12 @@ export const TodoUpdateSchema = z.object({
 	content: z.string().optional(),
 	activeForm: z.string().optional(),
 	status: TodoStatusSchema.optional(),
-	reorder: z.object({
-		type: z.enum(["before", "after", "top", "last"]),
-		id: z.number().optional(),
-	}).optional(),
+	reorder: z
+		.object({
+			type: z.enum(["before", "after", "top", "last"]),
+			id: z.number().optional(),
+		})
+		.optional(),
 });
 
 /**

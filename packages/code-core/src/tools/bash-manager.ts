@@ -3,8 +3,8 @@
  * Manages long-running bash processes
  */
 
-import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
+import { spawn } from "node:child_process";
 
 interface BashProcess {
 	id: string;

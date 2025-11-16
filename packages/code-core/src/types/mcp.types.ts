@@ -8,14 +8,14 @@
 /**
  * MCP Server Transport Types
  */
-export type MCPTransportType = 'http' | 'sse' | 'stdio';
+export type MCPTransportType = "http" | "sse" | "stdio";
 
 /**
  * HTTP Transport Configuration
  * Recommended for production
  */
 export interface MCPTransportHTTP {
-	type: 'http';
+	type: "http";
 	url: string;
 	headers?: Record<string, string>;
 }
@@ -25,7 +25,7 @@ export interface MCPTransportHTTP {
  * Alternative HTTP-based transport
  */
 export interface MCPTransportSSE {
-	type: 'sse';
+	type: "sse";
 	url: string;
 	headers?: Record<string, string>;
 }
@@ -35,7 +35,7 @@ export interface MCPTransportSSE {
  * For local development only (cannot be deployed)
  */
 export interface MCPTransportStdio {
-	type: 'stdio';
+	type: "stdio";
 	command: string;
 	args?: string[];
 	env?: Record<string, string>;
@@ -74,10 +74,10 @@ export interface MCPServerConfig {
  * MCP Server Status
  */
 export type MCPServerStatus =
-	| 'connected'    // Successfully connected and ready
-	| 'disconnected' // Not connected
-	| 'connecting'   // Connection in progress
-	| 'error';       // Connection failed
+	| "connected" // Successfully connected and ready
+	| "disconnected" // Not connected
+	| "connecting" // Connection in progress
+	| "error"; // Connection failed
 
 /**
  * MCP Server Runtime State

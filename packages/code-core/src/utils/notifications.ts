@@ -7,8 +7,8 @@ import { playNotificationSound } from "./audio-player.js";
 
 // Terminal notification with sound
 export function sendTerminalNotification(
-	title: string,
-	message: string,
+	_title: string,
+	_message: string,
 	options?: {
 		sound?: boolean;
 		duration?: number;
@@ -49,7 +49,7 @@ export async function sendOSNotification(
 	try {
 		if (process.platform === "darwin") {
 			// macOS: use osascript with simplified approach
-			const { spawn } = require("child_process");
+			const { spawn } = require("node:child_process");
 
 			await new Promise<void>((resolve, reject) => {
 				// Simple notification without complex escaping
@@ -85,7 +85,7 @@ export async function sendOSNotification(
 			});
 		} else if (process.platform === "linux") {
 			// Linux: use notify-send
-			const { spawn } = require("child_process");
+			const { spawn } = require("node:child_process");
 			await new Promise<void>((resolve, reject) => {
 				const proc = spawn("notify-send", [
 					"--urgency",
@@ -105,7 +105,7 @@ export async function sendOSNotification(
 			});
 		} else if (process.platform === "win32") {
 			// Windows: use PowerShell toast notifications
-			const { spawn } = require("child_process");
+			const { spawn } = require("node:child_process");
 			const powershellScript = `
         Add-Type -AssemblyName System.Windows.Forms
         $notification = New-Object System.Windows.Forms.NotifyIcon

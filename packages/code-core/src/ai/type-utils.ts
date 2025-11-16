@@ -7,30 +7,30 @@ import { z } from "zod";
 
 // Re-export unified Result type and utilities
 export {
-	Result,
 	AsyncResult,
-	ok,
-	err,
-	isOk,
-	isErr,
-	map,
-	flatMap,
-	mapError,
-	getOrElse,
-	getOrElseLazy,
-	match,
-	unwrap,
-	tryCatch,
-	tryCatchAsync,
-	safeAsync,
-	safeSync,
 	all,
 	allAsync,
+	type ErrorType,
+	err,
+	flatMap,
+	getOrElse,
+	getOrElseLazy,
+	isErr,
+	isOk,
+	map,
+	mapError,
+	match,
+	ok,
+	Result,
+	type SafeResult,
+	type SuccessType,
+	safeAsync,
+	safeSync,
 	tap,
 	tapError,
-	type SuccessType,
-	type ErrorType,
-	type SafeResult,
+	tryCatch,
+	tryCatchAsync,
+	unwrap,
 } from "./result.js";
 
 /**
@@ -114,7 +114,7 @@ export const TypeGuards = {
 
 	/** Check if value is a Date */
 	isDate: (value: unknown): value is Date => {
-		return value instanceof Date && !isNaN(value.getTime());
+		return value instanceof Date && !Number.isNaN(value.getTime());
 	},
 
 	/** Check if value is a Buffer */
@@ -141,7 +141,7 @@ export const SafeParse = {
 		return safeSync(
 			() => {
 				const num = parseInt(str, radix);
-				if (isNaN(num)) throw new Error(`Invalid number: ${str}`);
+				if (Number.isNaN(num)) throw new Error(`Invalid number: ${str}`);
 				return num;
 			},
 			(error) =>
@@ -156,7 +156,7 @@ export const SafeParse = {
 		return safeSync(
 			() => {
 				const num = parseFloat(str);
-				if (isNaN(num)) throw new Error(`Invalid float: ${str}`);
+				if (Number.isNaN(num)) throw new Error(`Invalid float: ${str}`);
 				return num;
 			},
 			(error) =>
@@ -428,7 +428,7 @@ export const FunctionUtils = {
 				}
 
 				// Exponential backoff
-				await new Promise((resolve) => setTimeout(resolve, delay * Math.pow(2, attempt - 1)));
+				await new Promise((resolve) => setTimeout(resolve, delay * 2 ** (attempt - 1)));
 			}
 		}
 

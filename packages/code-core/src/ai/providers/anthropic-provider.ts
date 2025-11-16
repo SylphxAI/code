@@ -3,19 +3,18 @@
  */
 
 import type { LanguageModelV1 } from "ai";
+import { getModelMetadata } from "../../utils/models-dev.js";
+import { getProviderConsoleUrl, MODEL_REGISTRY } from "../models/model-registry.js";
 import type {
 	AIProvider,
-	ProviderModelDetails,
 	ConfigField,
-	ProviderConfig,
-	ModelInfo,
 	ModelCapabilities,
 	ModelCapability,
+	ModelInfo,
+	ProviderConfig,
+	ProviderModelDetails,
 } from "./base-provider.js";
 import { hasRequiredFields } from "./base-provider.js";
-
-import { getModelMetadata } from "../../utils/models-dev.js";
-import { MODEL_REGISTRY, getProviderConsoleUrl } from "../models/model-registry.js";
 
 /**
  * Lazy load Anthropic SDK to reduce initial bundle size

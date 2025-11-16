@@ -5,9 +5,9 @@
  * Extracted from Chat.tsx to improve modularity and testability.
  */
 
-import { useCallback } from "react";
 import type { FilteredFile } from "@sylphx/code-client";
 import type React from "react";
+import { useCallback } from "react";
 
 export interface FileAutocompleteHandlersDeps {
 	filteredFileInfo: FilteredFile;
@@ -81,9 +81,7 @@ export function useFileAutocompleteHandlers(
 
 		// Replace @query with @relativePath and space
 		const beforeAt = input.slice(0, filteredFileInfo.atIndex);
-		const afterQuery = input.slice(
-			filteredFileInfo.atIndex + 1 + filteredFileInfo.query.length,
-		);
+		const afterQuery = input.slice(filteredFileInfo.atIndex + 1 + filteredFileInfo.query.length);
 		const newInput = `${beforeAt}@${selectedFile.relativePath} ${afterQuery}`;
 
 		setInput(newInput);
@@ -118,9 +116,7 @@ export function useFileAutocompleteHandlers(
 	 */
 	const handleUpArrow = useCallback(() => {
 		if (filteredFileInfo.files.length === 0) return;
-		setSelectedFileIndex((prev) =>
-			prev === 0 ? filteredFileInfo.files.length - 1 : prev - 1,
-		);
+		setSelectedFileIndex((prev) => (prev === 0 ? filteredFileInfo.files.length - 1 : prev - 1));
 	}, [filteredFileInfo.files.length, setSelectedFileIndex]);
 
 	/**
@@ -128,9 +124,7 @@ export function useFileAutocompleteHandlers(
 	 */
 	const handleDownArrow = useCallback(() => {
 		if (filteredFileInfo.files.length === 0) return;
-		setSelectedFileIndex((prev) =>
-			prev === filteredFileInfo.files.length - 1 ? 0 : prev + 1,
-		);
+		setSelectedFileIndex((prev) => (prev === filteredFileInfo.files.length - 1 ? 0 : prev + 1));
 	}, [filteredFileInfo.files.length, setSelectedFileIndex]);
 
 	return {

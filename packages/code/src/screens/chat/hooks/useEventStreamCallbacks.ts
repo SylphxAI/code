@@ -5,11 +5,11 @@
  * Extracted from Chat.tsx to improve modularity and testability.
  */
 
-import { useMemo } from "react";
+import { getCurrentSessionId } from "@sylphx/code-client";
 import type { AIConfig } from "@sylphx/code-core";
 import type React from "react";
-import { getCurrentSessionId } from "@sylphx/code-client";
-import { handleStreamEvent, type EventHandlerContext } from "../streaming/streamEventHandlers.js";
+import { useMemo } from "react";
+import { type EventHandlerContext, handleStreamEvent } from "../streaming/streamEventHandlers.js";
 
 export interface EventStreamCallbacksDeps {
 	updateSessionTitle: (sessionId: string, title: string) => void;
@@ -125,7 +125,7 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 					setStreamingTitle((prev) => prev + text);
 				}
 			},
-			onSessionTitleComplete: (sessionId: string, title: string) => {
+			onSessionTitleComplete: (sessionId: string, _title: string) => {
 				const currentSessionId = getCurrentSessionId();
 				if (sessionId === currentSessionId) {
 					setIsTitleStreaming(false);
@@ -134,7 +134,11 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 			},
 
 			// ENABLED: Token updates (server calculates tokens, client displays)
-			onSessionTokensUpdated: (sessionId: string, totalTokens: number, baseContextTokens: number) => {
+			onSessionTokensUpdated: (
+				sessionId: string,
+				totalTokens: number,
+				baseContextTokens: number,
+			) => {
 				handleStreamEvent(
 					{ type: "session-tokens-updated", sessionId, totalTokens, baseContextTokens },
 					eventContextParams,
@@ -172,12 +176,9 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 
 			// Message streaming callbacks - unified event stream path
 			// All events go through handleStreamEvent (no dual-path complexity)
-		onUserMessageCreated: (messageId: string, content: string) => {
-			handleStreamEvent(
-				{ type: "user-message-created", messageId, content },
-				eventContextParams,
-			);
-		},
+			onUserMessageCreated: (messageId: string, content: string) => {
+				handleStreamEvent({ type: "user-message-created", messageId, content }, eventContextParams);
+			},
 			onAssistantMessageCreated: (messageId: string) => {
 				handleStreamEvent({ type: "assistant-message-created", messageId }, eventContextParams);
 			},

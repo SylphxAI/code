@@ -13,111 +13,95 @@
 
 import type { StreamEvent } from "@sylphx/code-server";
 
-// Export types
-export type { EventHandlerContext, EventHandler } from "./types.js";
+export {
+	handleAskQuestionAnswered,
+	handleAskQuestionStart,
+} from "./handlers/askHandlers.js";
+export {
+	handleFile,
+	handleReasoningDelta,
+	handleReasoningEnd,
+	handleReasoningStart,
+	handleTextDelta,
+	handleTextEnd,
+	handleTextStart,
+} from "./handlers/contentHandlers.js";
+export {
+	handleError,
+	handleMessageStatusUpdated,
+} from "./handlers/errorHandlers.js";
 
-// Export utilities
-export { updateActiveMessageContent } from "./utils.js";
-
+export {
+	handleAssistantMessageCreated,
+	handleStepComplete,
+	handleStepStart,
+	handleSystemMessageCreated,
+	handleUserMessageCreated,
+} from "./handlers/messageHandlers.js";
 // Export all handlers
 export {
 	handleSessionCreated,
 	handleSessionDeleted,
 	handleSessionModelUpdated,
 	handleSessionProviderUpdated,
-	handleSessionTokensUpdated,
-	handleSessionTitleUpdatedStart,
+	handleSessionTitleUpdated,
 	handleSessionTitleUpdatedDelta,
 	handleSessionTitleUpdatedEnd,
-	handleSessionTitleUpdated,
+	handleSessionTitleUpdatedStart,
+	handleSessionTokensUpdated,
 } from "./handlers/sessionHandlers.js";
 
 export {
-	handleUserMessageCreated,
-	handleAssistantMessageCreated,
-	handleSystemMessageCreated,
-	handleStepStart,
-	handleStepComplete,
-} from "./handlers/messageHandlers.js";
-
-export {
-	handleReasoningStart,
-	handleReasoningDelta,
-	handleReasoningEnd,
-	handleTextStart,
-	handleTextDelta,
-	handleTextEnd,
-	handleFile,
-} from "./handlers/contentHandlers.js";
-
-export {
 	handleToolCall,
-	handleToolInputStart,
+	handleToolError,
 	handleToolInputDelta,
 	handleToolInputEnd,
+	handleToolInputStart,
 	handleToolResult,
-	handleToolError,
 } from "./handlers/toolHandlers.js";
+// Export types
+export type { EventHandler, EventHandlerContext } from "./types.js";
+// Export utilities
+export { updateActiveMessageContent } from "./utils.js";
 
-export {
-	handleError,
-	handleMessageStatusUpdated,
-} from "./handlers/errorHandlers.js";
-
-export {
-	handleAskQuestionStart,
-	handleAskQuestionAnswered,
-} from "./handlers/askHandlers.js";
-
+import { handleAskQuestionAnswered, handleAskQuestionStart } from "./handlers/askHandlers.js";
+import {
+	handleFile,
+	handleReasoningDelta,
+	handleReasoningEnd,
+	handleReasoningStart,
+	handleTextDelta,
+	handleTextEnd,
+	handleTextStart,
+} from "./handlers/contentHandlers.js";
+import { handleError, handleMessageStatusUpdated } from "./handlers/errorHandlers.js";
+import {
+	handleAssistantMessageCreated,
+	handleStepComplete,
+	handleStepStart,
+	handleSystemMessageCreated,
+	handleUserMessageCreated,
+} from "./handlers/messageHandlers.js";
 // Import all handlers for registry
 import {
 	handleSessionCreated,
 	handleSessionDeleted,
 	handleSessionModelUpdated,
 	handleSessionProviderUpdated,
-	handleSessionTokensUpdated,
-	handleSessionTitleUpdatedStart,
+	handleSessionTitleUpdated,
 	handleSessionTitleUpdatedDelta,
 	handleSessionTitleUpdatedEnd,
-	handleSessionTitleUpdated,
+	handleSessionTitleUpdatedStart,
+	handleSessionTokensUpdated,
 } from "./handlers/sessionHandlers.js";
-
-import {
-	handleUserMessageCreated,
-	handleAssistantMessageCreated,
-	handleSystemMessageCreated,
-	handleStepStart,
-	handleStepComplete,
-} from "./handlers/messageHandlers.js";
-
-import {
-	handleReasoningStart,
-	handleReasoningDelta,
-	handleReasoningEnd,
-	handleTextStart,
-	handleTextDelta,
-	handleTextEnd,
-	handleFile,
-} from "./handlers/contentHandlers.js";
-
 import {
 	handleToolCall,
-	handleToolInputStart,
+	handleToolError,
 	handleToolInputDelta,
 	handleToolInputEnd,
+	handleToolInputStart,
 	handleToolResult,
-	handleToolError,
 } from "./handlers/toolHandlers.js";
-
-import {
-	handleError,
-	handleMessageStatusUpdated,
-} from "./handlers/errorHandlers.js";
-
-import {
-	handleAskQuestionStart,
-	handleAskQuestionAnswered,
-} from "./handlers/askHandlers.js";
 
 import type { EventHandler } from "./types.js";
 
@@ -186,7 +170,10 @@ const eventHandlers: Record<StreamEvent["type"], EventHandler> = {
  * Process stream event using handler registry
  * Replaces the large switch statement with a clean lookup
  */
-export function handleStreamEvent(event: StreamEvent, context: import("./types.js").EventHandlerContext): void {
+export function handleStreamEvent(
+	event: StreamEvent,
+	context: import("./types.js").EventHandlerContext,
+): void {
 	const handler = eventHandlers[event.type];
 
 	if (handler) {

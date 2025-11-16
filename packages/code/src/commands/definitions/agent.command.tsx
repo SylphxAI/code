@@ -3,8 +3,8 @@
  * Switch between agents using component-based UI
  */
 
-import { AgentSelection } from "../../screens/chat/components/AgentSelection.js";
 import { getAgentCompletions } from "../../completions/agent.js";
+import { AgentSelection } from "../../screens/chat/components/AgentSelection.js";
 import type { Command } from "../types.js";
 
 export const agentCommand: Command = {
@@ -24,12 +24,8 @@ export const agentCommand: Command = {
 	execute: async (context) => {
 		const { getAllAgents, getAgentById } = await import("../../embedded-context.js");
 		const { get } = await import("@sylphx/code-client");
-		const {
-			$selectedAgentId,
-			$currentSessionId,
-			setSelectedAgent,
-			updateSessionAgent,
-		} = await import("@sylphx/code-client");
+		const { $selectedAgentId, $currentSessionId, setSelectedAgent, updateSessionAgent } =
+			await import("@sylphx/code-client");
 
 		// If arg provided, switch directly
 		if (context.args.length > 0) {
@@ -78,11 +74,9 @@ export const agentCommand: Command = {
 				currentAgentId={currentAgent.id}
 				onSelect={async (agentId) => {
 					const { get } = await import("@sylphx/code-client");
-					const {
-						$currentSessionId,
-						setSelectedAgent,
-						updateSessionAgent,
-					} = await import("@sylphx/code-client");
+					const { $currentSessionId, setSelectedAgent, updateSessionAgent } = await import(
+						"@sylphx/code-client"
+					);
 					const selectedAgent = getAgentById(agentId);
 
 					if (!selectedAgent) {

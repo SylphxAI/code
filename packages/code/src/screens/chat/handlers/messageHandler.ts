@@ -3,7 +3,7 @@
  * Creates handleSubmit callback for message submission
  */
 
-import { resolveProviderAndModel, extractFileReferences } from "@sylphx/code-client";
+import { extractFileReferences, resolveProviderAndModel } from "@sylphx/code-client";
 import type { FileAttachment } from "@sylphx/code-core";
 import type { CommandContext } from "../../../commands/types.js";
 
@@ -282,10 +282,14 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 
 			// Execute command - command has full control via CommandContext
 			try {
-console.log("[executeCommand] START:", commandName, args);
+				console.log("[executeCommand] START:", commandName, args);
 				addLog(`[executeCommand] Executing ${commandName} with args: ${JSON.stringify(args)}`);
 				const result = await command.execute(createCommandContext(args));
-console.log("[executeCommand] RESULT:", typeof result, result ? result.substring(0, 100) : "null");
+				console.log(
+					"[executeCommand] RESULT:",
+					typeof result,
+					result ? result.substring(0, 100) : "null",
+				);
 
 				addLog(
 					`[executeCommand] Result type: ${typeof result}, value: ${result ? String(result).substring(0, 100) : "null/undefined"}`,
@@ -293,7 +297,6 @@ console.log("[executeCommand] RESULT:", typeof result, result ? result.substring
 
 				// If command returns a result string, add it to conversation
 				if (result && typeof result === "string") {
-
 					await addMessage({
 						sessionId: commandSessionRef.current,
 						role: "assistant",
@@ -301,9 +304,7 @@ console.log("[executeCommand] RESULT:", typeof result, result ? result.substring
 					});
 				} else if (result !== undefined) {
 					// Command returned something but not a string
-					addLog(
-						`[executeCommand] WARNING: Command returned non-string result: ${typeof result}`,
-					);
+					addLog(`[executeCommand] WARNING: Command returned non-string result: ${typeof result}`);
 				}
 			} catch (error) {
 				const errorMsg = error instanceof Error ? error.message : "Command failed";
@@ -354,7 +355,8 @@ console.log("[executeCommand] RESULT:", typeof result, result ? result.substring
 		const { provider, model } = resolveProviderAndModel(aiConfig);
 
 		if (!provider) {
-			const errorMsg = "No AI provider configured. Please use /provider to select a provider first.";
+			const errorMsg =
+				"No AI provider configured. Please use /provider to select a provider first.";
 			addLog(`[handleSubmit] ${errorMsg}`);
 
 			// Show error message in chat

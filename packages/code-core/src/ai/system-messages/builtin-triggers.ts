@@ -4,15 +4,14 @@
  */
 
 import { SystemMessages } from "./index.js";
-import { triggerRegistry, getSessionFlags, isFlagSet } from "./registry.js";
 import type { TriggerHook } from "./registry.js";
+import { isFlagSet, triggerRegistry } from "./registry.js";
 
 /**
  * Context Warning Thresholds
  */
 const CONTEXT_WARNING_80 = 0.8;
 const CONTEXT_WARNING_90 = 0.9;
-
 
 /**
  * Context 80% Warning Trigger
@@ -104,7 +103,7 @@ const sessionStartTodoTrigger: TriggerHook = async (context) => {
  *
  * 50% chance to trigger on each step
  */
-const randomTestTrigger: TriggerHook = async (context) => {
+const randomTestTrigger: TriggerHook = async (_context) => {
 	const randomValue = Math.random();
 
 	// 50% chance to trigger

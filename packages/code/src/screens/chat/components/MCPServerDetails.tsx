@@ -3,9 +3,9 @@
  * Shows detailed information about an MCP server with layered navigation
  */
 
-import { Box, Text, useInput } from "ink";
-import { useState, useEffect } from "react";
 import type { MCPServerWithId, MCPToolInfo } from "@sylphx/code-core";
+import { Box, Text, useInput } from "ink";
+import { useEffect, useState } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
 
@@ -196,7 +196,7 @@ export function MCPServerDetails({
 	const toolListOptions: SelectionOption[] = tools.map((tool) => ({
 		label: tool.name,
 		value: tool.name,
-		description: tool.description ? tool.description.split("\n")[0].substring(0, 100) + "..." : "",
+		description: tool.description ? `${tool.description.split("\n")[0].substring(0, 100)}...` : "",
 	}));
 
 	const handleToolSelect = (toolName: string) => {
@@ -232,7 +232,7 @@ export function MCPServerDetails({
 	// View: Tool Detail
 	if (view === "tool-detail" && selectedTool) {
 		// Handle ESC key to go back
-		useInput((input, key) => {
+		useInput((_input, key) => {
 			if (key.escape) {
 				setView("tools-list");
 			}

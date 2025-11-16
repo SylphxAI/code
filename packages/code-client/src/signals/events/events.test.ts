@@ -3,8 +3,8 @@
  * Tests cross-domain communication through events
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { eventBus, emitSessionEvent, emitAIEvent, emitUIEvent } from "./index.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { emitAIEvent, emitSessionEvent, emitUIEvent, eventBus } from "./index.js";
 
 describe("Event Bus", () => {
 	beforeEach(() => {

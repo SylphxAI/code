@@ -3,9 +3,9 @@
  * Handles rendering of tool message parts with config-based display settings
  */
 
-import React, { useState, useEffect } from "react";
-import { Box } from "ink";
 import { loadAIConfig, shouldShowToolDetails } from "@sylphx/code-core";
+import { Box } from "ink";
+import React, { useEffect, useState } from "react";
 import { ToolDisplay } from "./ToolDisplay.js";
 
 interface ToolPartProps {
@@ -34,7 +34,11 @@ export const ToolPart = React.memo(function ToolPart(props: ToolPartProps) {
 
 	// Map status to ToolDisplay status
 	const toolStatus: "running" | "completed" | "failed" =
-		status === "active" ? "running" : status === "error" || status === "abort" ? "failed" : "completed";
+		status === "active"
+			? "running"
+			: status === "error" || status === "abort"
+				? "failed"
+				: "completed";
 
 	// Compute showDetails from config
 	const showDetails = shouldShowToolDetails(name, toolDisplaySettings);

@@ -11,8 +11,8 @@
  * - In-memory + optional persistence
  */
 
-import { ReplaySubject, Observable } from "rxjs";
-import type { EventPersistence, EventCursor, StoredEvent } from "./event-persistence.service.js";
+import { Observable, ReplaySubject } from "rxjs";
+import type { EventCursor, EventPersistence, StoredEvent } from "./event-persistence.service.js";
 
 /**
  * App Event Stream
@@ -24,9 +24,6 @@ export class AppEventStream {
 
 	// Sequence counters per timestamp
 	private sequenceCounters = new Map<number, number>();
-
-	// Event counter for unique IDs
-	private eventCounter = 0;
 
 	// Cleanup interval
 	private cleanupInterval?: NodeJS.Timeout;

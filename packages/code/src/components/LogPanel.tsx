@@ -4,7 +4,6 @@
  */
 
 import { Box, Text } from "ink";
-import React from "react";
 
 interface LogPanelProps {
 	logs: string[];

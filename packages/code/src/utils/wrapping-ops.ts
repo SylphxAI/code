@@ -29,7 +29,7 @@ export function wrapLine(line: string, width: number): string[] {
  * Get physical cursor position (which wrapped line and column) from logical cursor position
  */
 export function getPhysicalCursorPos(
-	line: string,
+	_line: string,
 	logicalCol: number,
 	width: number,
 ): { physicalLine: number; physicalCol: number } {

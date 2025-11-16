@@ -3,13 +3,13 @@
  * Tests Zen signals integration with React components
  */
 
-import React, { useEffect } from "react";
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { computed, set, zen } from "@sylphx/zen";
 import { useStore } from "@sylphx/zen-react";
-import { zen, computed, get, set } from "@sylphx/zen";
-import * as ui from "./domain/ui/index.ts";
+import { act, render, screen } from "@testing-library/react";
+import React, { useEffect } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as ai from "./domain/ai/index.ts";
+import * as ui from "./domain/ui/index.ts";
 
 // Test components for signal integration
 const TestComponent = ({ onSignalChange }: { onSignalChange?: (value: any) => void }) => {
@@ -337,7 +337,7 @@ describe("React Integration with Zen Signals", () => {
 
 				React.useEffect(() => {
 					subscriptionCount();
-				}, [value]);
+				}, []);
 
 				return <div data-testid="value">{value}</div>;
 			};
@@ -406,7 +406,7 @@ describe("React Integration with Zen Signals", () => {
 				try {
 					const value = useStore(errorComputed);
 					return <div data-testid="value">{value}</div>;
-				} catch (error) {
+				} catch (_error) {
 					return <div data-testid="error">Error occurred</div>;
 				}
 			};

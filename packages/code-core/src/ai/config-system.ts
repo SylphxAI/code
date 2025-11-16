@@ -3,13 +3,12 @@
  * Feature-first, composable, functional configuration management
  */
 
-import { readFileSync, existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { join, dirname } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { z } from "zod";
-import { Result, err, ok } from "./result.js";
-import { ConfigurationError, ValidationError } from "./error-handling.js";
 import { logger } from "../utils/logger.js";
+import { ConfigurationError, ValidationError } from "./error-handling.js";
+import { err, ok, type Result } from "./result.js";
 
 /**
  * Configuration source
@@ -295,7 +294,7 @@ export class ConfigManager {
 				// Validate that result is a plain object (not array or primitive)
 				if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
 					throw new Error(
-						`Config file must contain a JSON object, got ${Array.isArray(parsed) ? "array" : typeof parsed}: ${path}`
+						`Config file must contain a JSON object, got ${Array.isArray(parsed) ? "array" : typeof parsed}: ${path}`,
 					);
 				}
 				return parsed as Record<string, unknown>;
@@ -337,7 +336,7 @@ export class ConfigManager {
 		config: Record<string, unknown>,
 	): Result<Record<string, unknown>, ValidationError> {
 		try {
-			const result = this.schema!.parse(config);
+			const result = this.schema?.parse(config);
 			return ok(result);
 		} catch (error) {
 			if (error instanceof z.ZodError && error.errors && Array.isArray(error.errors)) {

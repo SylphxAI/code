@@ -3,8 +3,8 @@
  * Handles counting sessions, messages, and other stats
  */
 
-import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { sql } from "drizzle-orm";
+import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { sessions } from "../schema.js";
 
 /**
@@ -12,9 +12,7 @@ import { sessions } from "../schema.js";
  * Efficient: No need to load sessions into memory
  */
 export async function getSessionCount(db: LibSQLDatabase): Promise<number> {
-	const [{ count }] = await db
-		.select({ count: sql<number>`count(*)` })
-		.from(sessions);
+	const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(sessions);
 
 	return count;
 }

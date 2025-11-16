@@ -4,12 +4,10 @@
  * SECURITY: Supports API key authentication
  */
 
-import { createTRPCReact } from "@trpc/react-query";
-import { httpBatchLink, splitLink } from "@trpc/client";
-import { httpSubscriptionLink } from "@trpc/client";
-
 // Import AppRouter type - using type-only import to avoid bundling backend code
 import type { AppRouter } from "@sylphx/code-client";
+import { httpBatchLink, httpSubscriptionLink, splitLink } from "@trpc/client";
+import { createTRPCReact } from "@trpc/react-query";
 
 // Create tRPC React hooks
 export const trpc = createTRPCReact<AppRouter>();
@@ -32,7 +30,7 @@ export function createTRPCClient(apiKey?: string) {
 
 		// Add Authorization header if API key is provided
 		if (key) {
-			baseHeaders["Authorization"] = `Bearer ${key}`;
+			baseHeaders.Authorization = `Bearer ${key}`;
 		}
 
 		return baseHeaders;

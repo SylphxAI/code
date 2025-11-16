@@ -3,9 +3,8 @@
  * Creates CommandContext objects for command execution
  */
 
-import type { ReactNode } from "react";
-import type { Session } from "@sylphx/code-client";
 import type { AIConfig, ProviderId } from "@sylphx/code-core";
+import type { ReactNode } from "react";
 import type { Command, CommandContext, WaitForInputOptions } from "../../../commands/types.js";
 
 /**

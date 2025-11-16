@@ -3,11 +3,11 @@
  * Tests side effects and cross-domain communication
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { initializeEffects, initialized } from "./index.js";
-import * as session from "../domain/session/index.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as ai from "../domain/ai/index.js";
+import * as session from "../domain/session/index.js";
 import * as ui from "../domain/ui/index.js";
+import { initialized, initializeEffects } from "./index.js";
 
 // Mock events module
 vi.mock("../events", () => ({
@@ -41,7 +41,7 @@ vi.mock("../domain/ui/index.js", () => ({
 }));
 
 // Import mocks
-import { emitSessionEvent, emitAIEvent, emitUIEvent } from "../events.js";
+import { emitAIEvent, emitSessionEvent, emitUIEvent } from "../events.js";
 
 const mockSessionModule = vi.mocked(await import("../domain/session/index.js"));
 const mockAIModule = vi.mocked(await import("../domain/ai/index.js"));
@@ -380,7 +380,7 @@ describe("Signal Effects", () => {
 			expect(mockAIModule.$isConfigLoading.subscribe).toHaveBeenCalledTimes(1);
 
 			// Mock unsubscribe functions
-			const unsubscribeMocks = [
+			const _unsubscribeMocks = [
 				mockSessionModule.$currentSession.subscribe,
 				mockSessionModule.$isStreaming.subscribe,
 				mockAIModule.$aiConfig.subscribe,

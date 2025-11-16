@@ -7,9 +7,9 @@
  * - Client: Listens to events and updates UI
  */
 
+import { listMCPServers } from "../config/mcp-config.js";
 import { eventBus } from "../events/index.js";
 import { getMCPManager } from "./mcp-manager.js";
-import { listMCPServers } from "../config/mcp-config.js";
 
 /**
  * Calculate and emit current MCP status

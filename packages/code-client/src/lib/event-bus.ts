@@ -12,4 +12,4 @@
  * - Easy to trace event sources and listeners
  */
 
-export { eventBus, type AppEvents } from "@sylphx/code-core";
+export { type AppEvents, eventBus } from "@sylphx/code-core";

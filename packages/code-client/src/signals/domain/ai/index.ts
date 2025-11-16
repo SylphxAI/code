@@ -3,8 +3,8 @@
  * Manages AI configuration and provider state
  */
 
-import type { AIConfig, LanguageModel } from "@sylphx/code-core";
-import { zen, get, set, computed } from "@sylphx/zen";
+import type { AIConfig } from "@sylphx/code-core";
+import { computed, get, set, zen } from "@sylphx/zen";
 import { useStore } from "@sylphx/zen-react";
 
 // Core AI signals

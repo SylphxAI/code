@@ -48,7 +48,7 @@ export const bashesCommand: Command = {
 			],
 		});
 
-		const action = typeof answers === "object" && !Array.isArray(answers) ? answers["action"] : "";
+		const action = typeof answers === "object" && !Array.isArray(answers) ? answers.action : "";
 
 		if (!action || action === "cancel") {
 			return "Cancelled.";
@@ -69,7 +69,7 @@ export const bashesCommand: Command = {
 
 		const selectedId =
 			typeof processAnswers === "object" && !Array.isArray(processAnswers)
-				? processAnswers["process"]
+				? processAnswers.process
 				: "";
 
 		if (!selectedId) {

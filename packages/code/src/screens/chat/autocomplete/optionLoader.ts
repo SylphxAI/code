@@ -40,7 +40,7 @@ export function useCommandOptionLoader(
 		const matchedCommand = commands.find((cmd) => cmd.label === commandName);
 
 		// If command has args with loadOptions and user is typing args
-		if (matchedCommand && matchedCommand.args && parts.length > 1) {
+		if (matchedCommand?.args && parts.length > 1) {
 			// Determine which arg we're currently on
 			const args = parts.slice(1).filter((p) => p.trim() !== "");
 			const lastPart = parts[parts.length - 1];
@@ -51,7 +51,7 @@ export function useCommandOptionLoader(
 			const currentArgIndex = isTypingNewArg ? args.length : Math.max(0, args.length - 1);
 			const arg = matchedCommand.args[currentArgIndex];
 
-			if (arg && arg.loadOptions) {
+			if (arg?.loadOptions) {
 				// Include previous args in cache key to invalidate when args change
 				const cacheKey = `${matchedCommand.id}:${arg.name}:${args.join(",")}`;
 

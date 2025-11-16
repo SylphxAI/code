@@ -3,7 +3,7 @@
  * Handles file content fetching from object storage
  */
 
-import type { MessageRepository, MessagePart } from "@sylphx/code-core";
+import type { MessagePart, MessageRepository } from "@sylphx/code-core";
 import type { ParsedContentPart } from "./types.js";
 
 /**

@@ -7,19 +7,18 @@
  * 2. Custom component (advanced): complete control over rendering
  */
 
-import type { InputFormatter, ResultFormatter } from "@sylphx/code-core";
 import {
-	truncateString,
+	formatDiffLine,
 	getRelativePath,
 	isDefaultCwd,
 	pluralize,
-	formatDiffLine,
+	truncateString,
 } from "@sylphx/code-core";
 import { createDefaultToolDisplay } from "../components/DefaultToolDisplay.js";
-import type { ToolDisplayProps, ToolConfig } from "../types/tool.types.js";
+import type { ToolConfig } from "../types/tool.types.js";
 
 // Re-export types for backward compatibility
-export type { ToolDisplayProps, ToolConfig } from "../types/tool.types.js";
+export type { ToolConfig, ToolDisplayProps } from "../types/tool.types.js";
 
 /**
  * Helper to convert result to lines
@@ -86,9 +85,12 @@ export const toolConfigs = {
 
 			const lines = content.split("\n").filter((line) => line.trim());
 			const lineCount = lines.length;
-			const fileName = typeof result === "object" && "path" in result
-				? String((result as any).path).split("/").pop()
-				: "";
+			const fileName =
+				typeof result === "object" && "path" in result
+					? String((result as any).path)
+							.split("/")
+							.pop()
+					: "";
 
 			// Smart preview: show ~20 lines, or first/last 10 if too long
 			let displayLines: string[];
@@ -107,7 +109,8 @@ export const toolConfigs = {
 				if (line.includes("...") && line.includes("omitted")) {
 					return `       ${line}`;
 				}
-				const lineNum = i > 10 && lineCount > 20 ? lineCount - (displayLines.length - i - 1) : i + 1;
+				const lineNum =
+					i > 10 && lineCount > 20 ? lineCount - (displayLines.length - i - 1) : i + 1;
 				return formatDiffLine(lineNum, " ", line);
 			});
 
@@ -235,9 +238,7 @@ export const toolConfigs = {
 				const lineCount = lines.length;
 
 				// Format with line numbers and separator
-				let formattedLines = lines.map((line, i) =>
-					`${(i + 1).toString().padStart(6)} │ ${line}`
-				);
+				let formattedLines = lines.map((line, i) => `${(i + 1).toString().padStart(6)} │ ${line}`);
 
 				// Truncate to 20 lines
 				if (lineCount > 20) {
@@ -249,9 +250,7 @@ export const toolConfigs = {
 
 				return {
 					lines: formattedLines,
-					summary: lineCount > 0
-						? `Completed (exit: ${exitCode})`
-						: "Command completed",
+					summary: lineCount > 0 ? `Completed (exit: ${exitCode})` : "Command completed",
 				};
 			}
 
@@ -275,9 +274,7 @@ export const toolConfigs = {
 				const lineCount = lines.length;
 
 				// Format with line numbers and separator
-				let formattedLines = lines.map((line, i) =>
-					`${(i + 1).toString().padStart(6)} │ ${line}`
-				);
+				let formattedLines = lines.map((line, i) => `${(i + 1).toString().padStart(6)} │ ${line}`);
 
 				// Truncate to 20 lines
 				if (lineCount > 20) {
@@ -357,8 +354,8 @@ export const toolConfigs = {
 				const matchCount = matches.length;
 
 				// Format with aligned line numbers
-				let lines = matches.map((m) =>
-					`${getRelativePath(m.file)}:${m.line.toString().padStart(4)}: ${m.content}`
+				let lines = matches.map(
+					(m) => `${getRelativePath(m.file)}:${m.line.toString().padStart(4)}: ${m.content}`,
 				);
 
 				// Truncate to 15 results
@@ -381,7 +378,7 @@ export const toolConfigs = {
 				const fileCount = files.length;
 
 				// Truncate to 15 results
-				let displayFiles = files.map(f => getRelativePath(f));
+				let displayFiles = files.map((f) => getRelativePath(f));
 				if (fileCount > 15) {
 					displayFiles = [
 						...displayFiles.slice(0, 15),
@@ -422,7 +419,7 @@ export const toolConfigs = {
 				const fileCount = files.length;
 
 				// Truncate to 15 results
-				let displayFiles = files.map(f => getRelativePath(f));
+				let displayFiles = files.map((f) => getRelativePath(f));
 				if (fileCount > 15) {
 					displayFiles = [
 						...displayFiles.slice(0, 15),

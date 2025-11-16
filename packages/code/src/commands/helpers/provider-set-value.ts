@@ -21,9 +21,7 @@ export async function askSelectProviderKey(
 		value: field.key,
 	}));
 
-	await context.sendMessage(
-		`Configure ${AI_PROVIDERS[providerId].name} - Select setting:`,
-	);
+	await context.sendMessage(`Configure ${AI_PROVIDERS[providerId].name} - Select setting:`);
 	const keyAnswers = await context.waitForInput({
 		type: "selection",
 		questions: [
@@ -35,7 +33,7 @@ export async function askSelectProviderKey(
 		],
 	});
 
-	const key = typeof keyAnswers === "object" && !Array.isArray(keyAnswers) ? keyAnswers["key"] : "";
+	const key = typeof keyAnswers === "object" && !Array.isArray(keyAnswers) ? keyAnswers.key : "";
 	return key || null;
 }
 
@@ -64,8 +62,7 @@ export async function askForValueByType(
 				},
 			],
 		});
-		value =
-			typeof boolAnswers === "object" && !Array.isArray(boolAnswers) ? boolAnswers["value"] : "";
+		value = typeof boolAnswers === "object" && !Array.isArray(boolAnswers) ? boolAnswers.value : "";
 	} else {
 		await context.sendMessage(`Enter value for ${key}:`);
 		const valueAnswers = await context.waitForInput({
@@ -95,9 +92,9 @@ export async function setProviderConfigValue(
 	const newConfig = {
 		...aiConfig!,
 		providers: {
-			...aiConfig!.providers,
+			...aiConfig?.providers,
 			[providerId]: {
-				...aiConfig!.providers?.[providerId],
+				...aiConfig?.providers?.[providerId],
 				[key]: value,
 			},
 		},

@@ -15,120 +15,107 @@
 // ============================================================================
 // Direct exports for backward compatibility - @deprecated
 
+// Console UI utilities
+export { ui } from "./console-ui.js";
 // Database errors
 export {
-	DatabaseError,
-	ValidationError,
 	ConnectionError,
-	MigrationError,
-	isDatabaseError,
-	isValidationError,
-	isConnectionError,
-	isMigrationError,
-	createMigrationError,
 	createConnectionError,
+	createMigrationError,
+	DatabaseError,
+	isConnectionError,
+	isDatabaseError,
+	isMigrationError,
+	isValidationError,
+	MigrationError,
+	ValidationError,
 } from "./database-errors.js";
-
 // Diff formatting utilities
 export { formatDiffLine, formatDiffLines } from "./diff-formatter.js";
-
 // Error handling
 export {
 	CLIError,
-	handleError,
 	createAsyncHandler,
+	handleError,
 } from "./error-handler.js";
-
 // File operations
 export type {
-	FileReadOptions,
-	FileWriteOptions,
 	FileCopyOptions,
 	FileInfo,
+	FileReadOptions,
+	FileWriteOptions,
 } from "./file-operations.js";
 export {
 	formatFileSize,
 	validateFilePath,
 } from "./file-operations.js";
-
+// Help utilities
+export { showDefaultHelp } from "./help.js";
 // JSONC utilities
 export { parseJSONC, stringifyJSONC } from "./jsonc.js";
-
 // Logger utilities
-export type { LogLevel, LogEntry, LoggerConfig, Logger } from "./logger.js";
-export { createLogger, logger, log } from "./logger.js";
-
+export type { LogEntry, Logger, LoggerConfig, LogLevel } from "./logger.js";
+export { createLogger, log, logger } from "./logger.js";
 // Path utilities
 export {
 	findPackageRoot,
 	getAgentsDir,
-	getTemplatesDir,
-	getRulesDir,
 	getKnowledgeDir,
 	getOutputStylesDir,
-	getSlashCommandsDir,
-	getRuleFile,
 	getPathsInfo,
+	getRuleFile,
+	getRulesDir,
+	getSlashCommandsDir,
+	getTemplatesDir,
 } from "./paths.js";
-
-// Security utilities
-export {
-	securitySchemas,
-	pathSecurity,
-	commandSecurity,
-	sanitize,
-	envSecurity,
-	cryptoUtils,
-	RateLimiter,
-	securityMiddleware,
-} from "./security.js";
-
-// Simplified errors
-export {
-	ErrorSeverity,
-	ErrorCategory,
-	AppError,
-	ValidationError as SimplifiedValidationError,
-	ConfigurationError,
-	DatabaseError as SimplifiedDatabaseError,
-	NetworkError,
-	FilesystemError,
-	AuthenticationError,
-	ErrorFactory,
-	ErrorHandler,
-	createValidationError,
-	createConfigurationError,
-	createDatabaseError,
-	createNetworkError,
-	createFilesystemError,
-	createAuthenticationError,
-	createError,
-} from "./simplified-errors.js";
-export type { ErrorInfo } from "./simplified-errors.js";
-
-// Console UI utilities
-export { ui } from "./console-ui.js";
-
 // Secret utilities
 export { secretUtils } from "./secret-utils.js";
-
-// Template engine
-export type { TemplateData } from "./template-engine.js";
-export { TemplateEngine } from "./template-engine.js";
-
-// Help utilities
-export { showDefaultHelp } from "./help.js";
-
+// Security utilities
+export {
+	commandSecurity,
+	cryptoUtils,
+	envSecurity,
+	pathSecurity,
+	RateLimiter,
+	sanitize,
+	securityMiddleware,
+	securitySchemas,
+} from "./security.js";
 // Settings utilities
 export type { ProjectSettings as ProjectSettingsType } from "./settings.js";
 export {
-	getSettingsPath,
-	settingsExists,
-	loadSettings,
-	saveSettings,
-	updateSettings,
 	getDefaultTarget,
-	setDefaultTarget,
+	getSettingsPath,
+	loadSettings,
 	ProjectSettings,
 	projectSettings,
+	saveSettings,
+	setDefaultTarget,
+	settingsExists,
+	updateSettings,
 } from "./settings.js";
+export type { ErrorInfo } from "./simplified-errors.js";
+// Simplified errors
+export {
+	AppError,
+	AuthenticationError,
+	ConfigurationError,
+	createAuthenticationError,
+	createConfigurationError,
+	createDatabaseError,
+	createError,
+	createFilesystemError,
+	createNetworkError,
+	createValidationError,
+	DatabaseError as SimplifiedDatabaseError,
+	ErrorCategory,
+	ErrorFactory,
+	ErrorHandler,
+	ErrorSeverity,
+	FilesystemError,
+	NetworkError,
+	ValidationError as SimplifiedValidationError,
+} from "./simplified-errors.js";
+// Template engine
+export type { TemplateData } from "./template-engine.js";
+export { TemplateEngine } from "./template-engine.js";

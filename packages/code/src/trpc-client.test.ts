@@ -3,7 +3,7 @@
  * Testing tRPC client creation and server health checks
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("trpc-client", () => {
 	let originalFetch: typeof global.fetch;

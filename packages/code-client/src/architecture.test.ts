@@ -3,8 +3,8 @@
  * Tests frontend-backend separation and architectural boundaries
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { zen, get, set } from "@sylphx/zen";
+import { get, set, zen } from "@sylphx/zen";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as signals from "./signals/index.js";
 
 describe("Architecture Tests - Frontend-Backend Separation", () => {
@@ -21,7 +21,7 @@ describe("Architecture Tests - Frontend-Backend Separation", () => {
 			// Verify that client-side code does not import fs or path modules
 			const fsModule = () => {
 				try {
-					require("fs");
+					require("node:fs");
 					return true;
 				} catch {
 					return false;
@@ -30,7 +30,7 @@ describe("Architecture Tests - Frontend-Backend Separation", () => {
 
 			const pathModule = () => {
 				try {
-					require("path");
+					require("node:path");
 					return true;
 				} catch {
 					return false;
@@ -276,7 +276,7 @@ describe("Architecture Tests - Frontend-Backend Separation", () => {
 		it("should handle errors at appropriate boundaries", () => {
 			// UI errors should not crash the application
 			const uiError = new Error("UI rendering error");
-			const businessError = new Error("Business logic error");
+			const _businessError = new Error("Business logic error");
 
 			// UI errors should be handled gracefully
 			expect(() => {

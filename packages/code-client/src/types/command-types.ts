@@ -3,8 +3,8 @@
  * Shared types for command system (used by hooks)
  */
 
-import type { Session } from "../stores/app-store.js";
 import type { AIConfig, ProviderId } from "@sylphx/code-core";
+import type { Session } from "../stores/app-store.js";
 
 /**
  * Option for selection
@@ -87,5 +87,5 @@ export interface Command {
 	label: string;
 	description: string;
 	args?: CommandArg[];
-	execute: (context: CommandContext) => Promise<string | void> | string | void;
+	execute: (context: CommandContext) => Promise<string | undefined> | string | undefined;
 }

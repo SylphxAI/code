@@ -52,11 +52,19 @@ export default function Sidebar({
 				<div className="flex items-center justify-between mb-6">
 					<h1 className="text-2xl font-bold text-gray-100">Sylphx Flow</h1>
 					<button
+						type="button"
 						onClick={onOpenSettings}
 						className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-800 rounded-lg transition-colors"
 						title="Settings"
 					>
-						<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<svg
+							className="w-5 h-5"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+							role="img"
+							aria-label="Settings icon"
+						>
 							<path
 								strokeLinecap="round"
 								strokeLinejoin="round"
@@ -75,10 +83,18 @@ export default function Sidebar({
 
 				{/* New Chat Button */}
 				<button
+					type="button"
 					onClick={handleNewChat}
 					className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 font-medium flex items-center justify-center gap-2"
 				>
-					<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg
+						className="w-5 h-5"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+						role="img"
+						aria-label="Plus icon"
+					>
 						<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
 					</svg>
 					New Chat
@@ -99,6 +115,7 @@ export default function Sidebar({
 
 				{sessions?.map((session) => (
 					<button
+						type="button"
 						key={session.id}
 						onClick={() => onSelectSession(session.id)}
 						className={`

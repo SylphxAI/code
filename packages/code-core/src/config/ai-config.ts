@@ -10,11 +10,11 @@
  */
 
 import fs from "node:fs/promises";
-import path from "node:path";
 import os from "node:os";
+import path from "node:path";
 import { z } from "zod";
-import { type Result, success, tryCatchAsync, isErr, isOk } from "../ai/result.js";
 import { getAllProviders, type ProviderId } from "../ai/providers/index.js";
+import { isErr, type Result, tryCatchAsync } from "../ai/result.js";
 import type { ProviderConfigValue as ProviderConfigValueType } from "../types/provider.types.js";
 import { createLogger } from "../utils/logger.js";
 import { toolDisplaySettingsSchema } from "./tool-display-settings.js";
@@ -261,7 +261,7 @@ export const aiConfigExists = async (cwd: string = process.cwd()): Promise<boole
 	try {
 		await fs.access(paths.global);
 		return true;
-	} catch (error) {
+	} catch (_error) {
 		// File doesn't exist or not accessible - expected, continue checking other paths
 		logger.debug("Global config not accessible", { path: paths.global });
 	}
@@ -270,7 +270,7 @@ export const aiConfigExists = async (cwd: string = process.cwd()): Promise<boole
 	try {
 		await fs.access(paths.project);
 		return true;
-	} catch (error) {
+	} catch (_error) {
 		// File doesn't exist or not accessible - expected, continue checking
 		logger.debug("Project config not accessible", { path: paths.project });
 	}
@@ -279,7 +279,7 @@ export const aiConfigExists = async (cwd: string = process.cwd()): Promise<boole
 	try {
 		await fs.access(paths.local);
 		return true;
-	} catch (error) {
+	} catch (_error) {
 		// File doesn't exist or not accessible - expected, continue checking
 		logger.debug("Local config not accessible", { path: paths.local });
 	}
@@ -288,7 +288,7 @@ export const aiConfigExists = async (cwd: string = process.cwd()): Promise<boole
 	try {
 		await fs.access(paths.legacy);
 		return true;
-	} catch (error) {
+	} catch (_error) {
 		// File doesn't exist or not accessible - expected, no more paths to check
 		logger.debug("Legacy config not accessible", { path: paths.legacy });
 	}
@@ -346,7 +346,9 @@ export const loadAIConfig = async (
 			return merged;
 		},
 		(error: unknown) =>
-			new Error(`Failed to load AI config: ${error instanceof Error ? error.message : String(error)}`),
+			new Error(
+				`Failed to load AI config: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 };
 
@@ -399,10 +401,12 @@ export const saveAIConfig = async (
 			const validated = aiConfigSchema.parse(configToSave);
 
 			// Write config
-			await fs.writeFile(configPath, JSON.stringify(validated, null, 2) + "\n", "utf8");
+			await fs.writeFile(configPath, `${JSON.stringify(validated, null, 2)}\n`, "utf8");
 		},
 		(error: unknown) =>
-			new Error(`Failed to save AI config: ${error instanceof Error ? error.message : String(error)}`),
+			new Error(
+				`Failed to save AI config: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 };
 
@@ -426,7 +430,7 @@ export const saveAIConfigTo = async (
 			const validated = aiConfigSchema.parse(config);
 
 			// Write config
-			await fs.writeFile(configPath, JSON.stringify(validated, null, 2) + "\n", "utf8");
+			await fs.writeFile(configPath, `${JSON.stringify(validated, null, 2)}\n`, "utf8");
 		},
 		(error: unknown) =>
 			new Error(
@@ -531,7 +535,7 @@ export const migrateLegacyConfig = async (
 
 			// Migrate to global config
 			await fs.mkdir(path.dirname(paths.global), { recursive: true });
-			await fs.writeFile(paths.global, JSON.stringify(legacyConfig, null, 2) + "\n", "utf8");
+			await fs.writeFile(paths.global, `${JSON.stringify(legacyConfig, null, 2)}\n`, "utf8");
 
 			console.log(`✓ Migrated configuration from ${paths.legacy} to ${paths.global}`);
 			console.log(`  You can now safely delete the legacy file: ${paths.legacy}`);

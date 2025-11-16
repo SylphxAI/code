@@ -6,7 +6,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
-import { type Result, success, tryCatchAsync, isOk, isErr } from "../ai/result.js";
+import { isErr, isOk, type Result, success, tryCatchAsync } from "../ai/result.js";
 
 export interface ProjectSettings {
 	/** Default target for the project */
@@ -40,12 +40,14 @@ export interface ProjectSettings {
 /**
  * Zod schema for validating ProjectSettings from disk
  */
-const ProjectSettingsSchema = z.object({
-	defaultTarget: z.string().optional(),
-	version: z.string().optional(),
-	useAccurateTokenizer: z.boolean().optional().default(true),
-	contextReserveRatio: z.number().min(0.01).max(0.50).optional().default(0.10),
-}).passthrough(); // Allow additional fields for forward compatibility
+const ProjectSettingsSchema = z
+	.object({
+		defaultTarget: z.string().optional(),
+		version: z.string().optional(),
+		useAccurateTokenizer: z.boolean().optional().default(true),
+		contextReserveRatio: z.number().min(0.01).max(0.5).optional().default(0.1),
+	})
+	.passthrough(); // Allow additional fields for forward compatibility
 
 const SETTINGS_FILE = ".sylphx-code/settings.json";
 const CURRENT_VERSION = "1.0.0";
@@ -129,7 +131,9 @@ export const saveSettings = async (
 			await fs.writeFile(settingsPath, `${JSON.stringify(settingsWithVersion, null, 2)}\n`, "utf8");
 		},
 		(error: unknown) =>
-			new Error(`Failed to save settings: ${error instanceof Error ? error.message : String(error)}`),
+			new Error(
+				`Failed to save settings: ${error instanceof Error ? error.message : String(error)}`,
+			),
 	);
 };
 

@@ -3,8 +3,8 @@
  * Tests AI configuration and provider state management
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import type { AIConfig, LanguageModel } from "@sylphx/code-core";
+import type { AIConfig } from "@sylphx/code-core";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as ai from "./index.js";
 
 // Mock AI config for testing

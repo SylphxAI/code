@@ -4,9 +4,9 @@
  */
 
 import type { CommandOptions } from "../types/cli.types.js";
-import { Result, err, ok } from "./result.js";
-import { withErrorHandling } from "./error-handling.js";
 import { logger } from "../utils/logger.js";
+import { withErrorHandling } from "./error-handling.js";
+import { err, ok, type Result } from "./result.js";
 
 /**
  * Command definition interface
@@ -321,7 +321,7 @@ export class CommandRegistry {
 			// Type validation
 			if (option.type === "number" && typeof value !== "number") {
 				const num = Number(value);
-				if (isNaN(num)) {
+				if (Number.isNaN(num)) {
 					return err(new Error(`Invalid number for option ${option.name}: ${value}`));
 				}
 				options[option.name] = num;
@@ -551,7 +551,7 @@ export const CommandUtils = {
 			before: async (context): Promise<void> => {
 				context.metadata = { ...context.metadata, startTime: Date.now() };
 			},
-			after: async (context, result): Promise<void> => {
+			after: async (context, _result): Promise<void> => {
 				const duration = Date.now() - (context.metadata?.startTime || context.startTime);
 				logger.info(`Command "${context.command.name}" executed in ${duration}ms`);
 			},

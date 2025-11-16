@@ -3,8 +3,8 @@
  * Client-side functions for interacting with sessions via tRPC
  */
 
-import { getTRPCClient } from "../trpc-provider.js";
 import type { Session, SessionMetadata } from "@sylphx/code-core";
+import { getTRPCClient } from "../trpc-provider.js";
 
 /**
  * Get recent sessions from server

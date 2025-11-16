@@ -3,8 +3,8 @@
  * Proper type definitions for streaming events with discriminated unions
  */
 
-import type { Todo } from "./todo.types.js";
 import type { TokenUsage } from "./session.types.js";
+import type { Todo } from "./todo.types.js";
 
 /**
  * System message in streaming context

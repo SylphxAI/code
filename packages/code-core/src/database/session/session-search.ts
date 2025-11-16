@@ -3,12 +3,12 @@
  * Handles searching and filtering sessions
  */
 
+import { and, desc, inArray, like, lt, sql } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import { desc, and, like, lt, sql, inArray } from "drizzle-orm";
-import { sessions, messages } from "../schema.js";
 import type { ProviderId } from "../../config/ai-config.js";
 import type { Session as SessionType } from "../../types/session.types.js";
-import type { SessionMetadata, PaginatedResult } from "./types.js";
+import { messages, sessions } from "../schema.js";
+import type { PaginatedResult, SessionMetadata } from "./types.js";
 
 /**
  * Search sessions by title (metadata only, cursor-based)
@@ -36,12 +36,8 @@ export async function searchSessionsMetadata(
 	const sessionRecords = await queryBuilder;
 
 	const hasMore = sessionRecords.length > limit;
-	const sessionsToReturn = hasMore
-		? sessionRecords.slice(0, limit)
-		: sessionRecords;
-	const nextCursor = hasMore
-		? sessionsToReturn[sessionsToReturn.length - 1].updated
-		: null;
+	const sessionsToReturn = hasMore ? sessionRecords.slice(0, limit) : sessionRecords;
+	const nextCursor = hasMore ? sessionsToReturn[sessionsToReturn.length - 1].updated : null;
 
 	// Get message counts
 	const sessionIds = sessionsToReturn.map((s) => s.id);

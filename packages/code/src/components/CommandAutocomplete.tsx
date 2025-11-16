@@ -4,7 +4,6 @@
  */
 
 import { Box, Text } from "ink";
-import React from "react";
 import type { Command } from "../commands/types.js";
 import Spinner from "./Spinner.js";
 

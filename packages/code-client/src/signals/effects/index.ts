@@ -4,10 +4,10 @@
  */
 
 import { subscribe } from "@sylphx/zen";
-import * as session from "../domain/session";
 import * as ai from "../domain/ai";
+import * as session from "../domain/session";
 import * as ui from "../domain/ui";
-import { emitSessionEvent, emitAIEvent, emitUIEvent } from "../events";
+import { emitAIEvent, emitSessionEvent, emitUIEvent } from "../events";
 
 export let initialized = false;
 

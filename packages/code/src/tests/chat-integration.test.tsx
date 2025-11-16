@@ -3,9 +3,8 @@
  * Tests the full message submission flow from InputSection through handleSubmit
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render } from "ink-testing-library";
-import React from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InputSection } from "../screens/chat/components/InputSection.js";
 
 describe("Chat Integration - Message Submission", () => {

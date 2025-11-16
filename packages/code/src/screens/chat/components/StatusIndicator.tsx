@@ -3,9 +3,9 @@
  * Displays streaming and compacting status with spinner and contextual text
  */
 
-import { Box, Text } from "ink";
-import type { MessagePart } from "@sylphx/code-core";
 import { useIsCompacting } from "@sylphx/code-client";
+import type { MessagePart } from "@sylphx/code-core";
+import { Box, Text } from "ink";
 import Spinner from "../../../components/Spinner.js";
 
 interface StatusIndicatorProps {

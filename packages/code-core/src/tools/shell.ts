@@ -58,22 +58,11 @@ export const executeBashTool = tool({
 			};
 		} catch (error: unknown) {
 			// exec throws error on non-zero exit code
-			if (
-				error &&
-				typeof error === "object" &&
-				"code" in error &&
-				typeof error.code === "number"
-			) {
+			if (error && typeof error === "object" && "code" in error && typeof error.code === "number") {
 				return {
 					command,
-					stdout:
-						"stdout" in error && typeof error.stdout === "string"
-							? error.stdout.trim()
-							: "",
-					stderr:
-						"stderr" in error && typeof error.stderr === "string"
-							? error.stderr.trim()
-							: "",
+					stdout: "stdout" in error && typeof error.stdout === "string" ? error.stdout.trim() : "",
+					stderr: "stderr" in error && typeof error.stderr === "string" ? error.stderr.trim() : "",
 					exitCode: error.code,
 				};
 			}

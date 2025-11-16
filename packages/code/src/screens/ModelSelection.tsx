@@ -4,24 +4,23 @@
  */
 
 import {
+	navigateTo,
+	setError,
+	setSelectedModel,
+	setSelectedProvider,
+	updateProvider,
 	useAIConfig,
 	useAIConfigActions,
-	useKeyboard,
 	useModels,
 	useProviders,
-	useSelectedProvider,
 	useSelectedModel,
-	setSelectedProvider,
-	setSelectedModel,
-	updateProvider,
-	setError,
-	navigateTo,
+	useSelectedProvider,
 } from "@sylphx/code-client";
 import { Box, Text } from "ink";
-import Spinner from "../components/Spinner.js";
 import SelectInput from "ink-select-input";
 import TextInput from "ink-text-input";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import Spinner from "../components/Spinner.js";
 
 type Mode = "provider" | "model" | "search";
 
@@ -45,7 +44,7 @@ export default function ModelSelection() {
 
 	const aiConfig = useAIConfig();
 	const selectedProvider = useSelectedProvider();
-	const selectedModel = useSelectedModel();
+	const _selectedModel = useSelectedModel();
 	const { saveConfig } = useAIConfigActions();
 
 	const configuredProviders = Object.keys(aiConfig?.providers || {});
@@ -61,14 +60,14 @@ export default function ModelSelection() {
 		if (modelsError) {
 			setError(modelsError);
 		}
-	}, [modelsError, setError]);
+	}, [modelsError]);
 
 	// Auto-select default model when models are loaded
 	useEffect(() => {
 		if (selectedProvider && mode === "model" && models.length > 0 && !isLoadingModels) {
 			loadModelsAndSelectDefault();
 		}
-	}, [selectedProvider, mode, models, isLoadingModels]);
+	}, [selectedProvider, mode, models, isLoadingModels, loadModelsAndSelectDefault]);
 
 	const loadModelsAndSelectDefault = async () => {
 		if (!selectedProvider || models.length === 0) return;
@@ -88,9 +87,9 @@ export default function ModelSelection() {
 				defaultProvider: selectedProvider,
 				// ❌ No top-level defaultModel
 				providers: {
-					...aiConfig!.providers,
+					...aiConfig?.providers,
 					[selectedProvider]: {
-						...aiConfig!.providers?.[selectedProvider],
+						...aiConfig?.providers?.[selectedProvider],
 						defaultModel: modelToSelect, // ✅ Save as provider's default
 					},
 				},
@@ -217,9 +216,9 @@ export default function ModelSelection() {
 				defaultProvider: selectedProvider,
 				// ❌ No top-level defaultModel
 				providers: {
-					...aiConfig!.providers,
+					...aiConfig?.providers,
 					[selectedProvider]: {
-						...aiConfig!.providers?.[selectedProvider],
+						...aiConfig?.providers?.[selectedProvider],
 						defaultModel: item.value, // ✅ Save as provider's default
 					},
 				},

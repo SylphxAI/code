@@ -5,7 +5,7 @@
  */
 
 import { Box, Text } from "ink";
-import { useSelection, type SelectionOption } from "../../hooks/useSelection.js";
+import { type SelectionOption, useSelection } from "../../hooks/useSelection.js";
 import { InputContentLayout } from "../../screens/chat/components/InputContentLayout.js";
 import { SelectionFilterInput } from "./SelectionFilterInput.js";
 import { SelectionOptionsList } from "./SelectionOptionsList.js";

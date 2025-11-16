@@ -112,7 +112,7 @@ export class SelectionModeHandler extends BaseInputHandler {
 		const filteredOptions = currentQuestion.options.filter(
 			(option) =>
 				option.label.toLowerCase().includes(selectionFilter.toLowerCase()) ||
-				(option.value && option.value.toLowerCase().includes(selectionFilter.toLowerCase())),
+				option.value?.toLowerCase().includes(selectionFilter.toLowerCase()),
 		);
 		const maxIndex = filteredOptions.length - 1;
 
@@ -313,8 +313,12 @@ export class SelectionModeHandler extends BaseInputHandler {
 				// Restore choices for the new question if it's multi-select
 				const nextPage = (multiSelectionPage + 1) % totalQuestions;
 				const nextQuestion = questions[nextPage];
-				if (nextQuestion && nextQuestion.multiSelect) {
-					this.restoreMultiSelectChoices(nextQuestion, multiSelectionAnswers, setMultiSelectChoices);
+				if (nextQuestion?.multiSelect) {
+					this.restoreMultiSelectChoices(
+						nextQuestion,
+						multiSelectionAnswers,
+						setMultiSelectChoices,
+					);
 				} else {
 					setMultiSelectChoices(new Set());
 				}
@@ -331,8 +335,12 @@ export class SelectionModeHandler extends BaseInputHandler {
 				// Restore choices for the new question if it's multi-select
 				const prevPage = (multiSelectionPage - 1 + totalQuestions) % totalQuestions;
 				const prevQuestion = questions[prevPage];
-				if (prevQuestion && prevQuestion.multiSelect) {
-					this.restoreMultiSelectChoices(prevQuestion, multiSelectionAnswers, setMultiSelectChoices);
+				if (prevQuestion?.multiSelect) {
+					this.restoreMultiSelectChoices(
+						prevQuestion,
+						multiSelectionAnswers,
+						setMultiSelectChoices,
+					);
 				} else {
 					setMultiSelectChoices(new Set());
 				}
@@ -566,7 +574,10 @@ export class SelectionModeHandler extends BaseInputHandler {
 		const resultSessionId = await addMessage({
 			sessionId: sessionIdToUse,
 			role: "user",
-			content: Array.isArray(answer) ? content : (currentQuestion.options.find((opt: any) => (opt.value || opt.label) === answer)?.label || answer),
+			content: Array.isArray(answer)
+				? content
+				: currentQuestion.options.find((opt: any) => (opt.value || opt.label) === answer)?.label ||
+					answer,
 			provider,
 			model,
 		});
@@ -632,10 +643,6 @@ export class SelectionModeHandler extends BaseInputHandler {
 
 		// Additional checks
 		const { pendingInput } = context;
-		return !!(
-			pendingInput &&
-			pendingInput.type === "selection" &&
-			this.deps.inputResolver.current
-		);
+		return !!(pendingInput && pendingInput.type === "selection" && this.deps.inputResolver.current);
 	}
 }

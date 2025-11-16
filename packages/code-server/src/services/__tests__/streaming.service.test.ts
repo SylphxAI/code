@@ -3,10 +3,10 @@
  * Tests core streaming logic without full integration
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { streamAIResponse } from "../streaming.service.js";
+import type { AIConfig, SessionRepository } from "@sylphx/code-core";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppContext } from "../../context.js";
-import type { SessionRepository, AIConfig } from "@sylphx/code-core";
+import { streamAIResponse } from "../streaming.service.js";
 
 // Mock dependencies
 const mockSessionRepository: Partial<SessionRepository> = {

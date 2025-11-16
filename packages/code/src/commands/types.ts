@@ -3,9 +3,8 @@
  * Shared types for command system
  */
 
+import type { AIConfig } from "@sylphx/code-core";
 import type { ReactNode } from "react";
-import type { Session } from "@sylphx/code-client";
-import type { AIConfig, ProviderId } from "@sylphx/code-core";
 
 /**
  * Option for selection
@@ -105,7 +104,7 @@ export interface Command {
 	label: string;
 	description: string;
 	args?: CommandArg[];
-	execute: (context: CommandContext) => Promise<string | void>;
+	execute: (context: CommandContext) => Promise<string | undefined>;
 	/**
 	 * If true, command execution won't be added to conversation history.
 	 * Use for UI-only commands like /model, /provider, etc.

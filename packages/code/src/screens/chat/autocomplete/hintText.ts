@@ -15,7 +15,7 @@ export function createGetHintText(commands: Command[]) {
 
 		// Find matching command
 		const matchedCommand = commands.find((cmd) => cmd.label === commandName);
-		if (matchedCommand && matchedCommand.args && matchedCommand.args.length > 0) {
+		if (matchedCommand?.args && matchedCommand.args.length > 0) {
 			// Count non-empty args after command name
 			const args = parts.slice(1).filter((p) => p.trim() !== "");
 			const currentArgIndex = args.length;

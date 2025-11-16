@@ -22,7 +22,7 @@ function formatInput(input: unknown): string {
 	const lines = inputStr.split("\n");
 	const truncated =
 		lines.length > 5
-			? lines.slice(0, 5).join("\n") + chalk.dim("\n     … +" + (lines.length - 5) + " lines")
+			? lines.slice(0, 5).join("\n") + chalk.dim(`\n     … +${lines.length - 5} lines`)
 			: inputStr;
 
 	return truncated;
@@ -36,7 +36,7 @@ function formatResult(result: unknown): string {
 	const lines = resultStr.split("\n");
 	const truncated =
 		lines.length > 5
-			? lines.slice(0, 5).join("\n") + chalk.dim("\n     … +" + (lines.length - 5) + " lines")
+			? lines.slice(0, 5).join("\n") + chalk.dim(`\n     … +${lines.length - 5} lines`)
 			: resultStr;
 
 	return truncated;

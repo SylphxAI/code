@@ -3,8 +3,8 @@
  * Switch AI model using component-based UI
  */
 
-import { ModelSelection } from "../../screens/chat/components/ModelSelection.js";
 import { getModelCompletions } from "../../completions/model.js";
+import { ModelSelection } from "../../screens/chat/components/ModelSelection.js";
 import type { Command } from "../types.js";
 
 export const modelCommand: Command = {
@@ -74,9 +74,9 @@ export const modelCommand: Command = {
 				...aiConfig!,
 				defaultModel: modelId,
 				providers: {
-					...aiConfig!.providers,
+					...aiConfig?.providers,
 					[provider]: {
-						...aiConfig!.providers?.[provider],
+						...aiConfig?.providers?.[provider],
 						defaultModel: modelId,
 					},
 				},
@@ -100,14 +100,15 @@ export const modelCommand: Command = {
 		const currentSession = get($currentSession);
 		const selectedProvider = get($selectedProvider);
 		const aiConfig = get($aiConfig);
-		const currentProviderId = currentSession?.provider || selectedProvider || aiConfig?.defaultProvider;
+		const currentProviderId =
+			currentSession?.provider || selectedProvider || aiConfig?.defaultProvider;
 
 		if (!currentProviderId) {
 			return "No provider selected. Use /provider to select a provider first.";
 		}
 
 		// Show loading UI immediately, then fetch models asynchronously
-		let modelsState: {
+		const modelsState: {
 			loading: boolean;
 			models: Array<{ id: string; name: string }> | null;
 			error: string | null;
@@ -140,9 +141,9 @@ export const modelCommand: Command = {
 						...freshAIConfig!,
 						defaultModel: modelId,
 						providers: {
-							...freshAIConfig!.providers,
+							...freshAIConfig?.providers,
 							[provider]: {
-								...freshAIConfig!.providers?.[provider],
+								...freshAIConfig?.providers?.[provider],
 								defaultModel: modelId,
 							},
 						},

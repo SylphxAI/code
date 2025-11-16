@@ -310,7 +310,7 @@ export function generateMarkdownDocs(): string {
 		if (!domains.has(domain)) {
 			domains.set(domain, []);
 		}
-		domains.get(domain)!.push(endpoint);
+		domains.get(domain)?.push(endpoint);
 	}
 
 	// Generate docs for each domain

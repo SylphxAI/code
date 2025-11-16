@@ -5,7 +5,7 @@
  * based on application state.
  */
 
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { WaitForInputOptions } from "../../commands/types.js";
 import { InputMode, type InputModeContext, type ModeTransition } from "./types.js";
 
@@ -110,10 +110,11 @@ export function useInputMode(props: UseInputModeProps): UseInputModeReturn {
 			previousModeRef.current = detectedMode;
 
 			if (debug) {
-				console.log(
-					`[InputMode] Transition: ${previousMode} → ${detectedMode}`,
-					{ pendingInput, input, pendingCommand },
-				);
+				console.log(`[InputMode] Transition: ${previousMode} → ${detectedMode}`, {
+					pendingInput,
+					input,
+					pendingCommand,
+				});
 			}
 
 			// Track history if enabled
@@ -154,7 +155,7 @@ export function useInputMode(props: UseInputModeProps): UseInputModeReturn {
  */
 function getModeTransitionReason(
 	mode: InputMode,
-	state: {
+	_state: {
 		pendingInput: WaitForInputOptions | null;
 		input: string;
 		pendingCommand: any;

@@ -3,7 +3,7 @@
  * Beautiful, modern design for managing API keys and models
  */
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { trpc } from "../trpc";
 import { useToast } from "./Toast";
 

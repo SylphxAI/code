@@ -26,7 +26,7 @@
 
 import { tool } from "ai";
 import { z } from "zod";
-import type { Todo, TodoUpdate } from "../types/todo.types.js";
+import type { Todo } from "../types/todo.types.js";
 import { formatTodoChange } from "../utils/todo-formatters.js";
 
 /**

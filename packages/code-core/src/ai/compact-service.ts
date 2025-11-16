@@ -10,10 +10,10 @@
  */
 
 import { streamText } from "ai";
-import { getProvider, type ProviderId } from "./providers/index.js";
-import type { Session, Message } from "../types/session.types.js";
 import type { SessionRepository } from "../database/session-repository.js";
+import type { Session } from "../types/session.types.js";
 import { createLogger } from "../utils/logger.js";
+import { getProvider, type ProviderId } from "./providers/index.js";
 
 const logger = createLogger("CompactService");
 

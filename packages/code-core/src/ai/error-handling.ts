@@ -171,7 +171,7 @@ export interface ErrorHandler {
 export class LoggerErrorHandler implements ErrorHandler {
 	constructor(private level: "error" | "warn" | "info" | "debug" = "error") {}
 
-	canHandle(error: Error): boolean {
+	canHandle(_error: Error): boolean {
 		return true; // Logger can handle all errors
 	}
 
@@ -206,7 +206,7 @@ export class LoggerErrorHandler implements ErrorHandler {
  * Console error handler
  */
 export class ConsoleErrorHandler implements ErrorHandler {
-	canHandle(error: Error): boolean {
+	canHandle(_error: Error): boolean {
 		return true; // Console can handle all errors
 	}
 
@@ -397,8 +397,7 @@ export async function withRetry<T>(
 			}
 
 			// Calculate delay
-			const retryDelay =
-				backoff === "exponential" ? delay * Math.pow(2, attempt - 1) : delay * attempt;
+			const retryDelay = backoff === "exponential" ? delay * 2 ** (attempt - 1) : delay * attempt;
 
 			// Wait before retry
 			await new Promise((resolve) => setTimeout(resolve, retryDelay));

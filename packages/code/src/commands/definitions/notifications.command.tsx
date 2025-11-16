@@ -3,8 +3,8 @@
  * Manage notification settings using component-based UI
  */
 
-import { NotificationsManagement } from "../../screens/chat/components/NotificationsManagement.js";
 import { getActionCompletions, getTypeCompletions } from "../../completions/notifications.js";
+import { NotificationsManagement } from "../../screens/chat/components/NotificationsManagement.js";
 import type { Command } from "../types.js";
 
 export const notificationsCommand: Command = {

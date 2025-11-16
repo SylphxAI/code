@@ -200,7 +200,7 @@ class CacheManager {
 	 * Clear all registered caches
 	 */
 	clearAll(): void {
-		for (const [name, entry] of this.caches.entries()) {
+		for (const [_name, entry] of this.caches.entries()) {
 			entry.cache.clear();
 			entry.hits = 0;
 			entry.misses = 0;

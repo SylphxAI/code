@@ -5,8 +5,8 @@
  * SECURITY: Protected mutations (OWASP API2) + Rate limiting (OWASP API4)
  */
 
-import { z } from "zod";
 import type { ProviderId } from "@sylphx/code-core";
+import { z } from "zod";
 
 /**
  * Abort Signal Manager
@@ -14,8 +14,9 @@ import type { ProviderId } from "@sylphx/code-core";
  * Allows client to abort server-side streaming via mutation
  */
 const activeStreamAbortControllers = new Map<string, AbortController>();
+
 import { observable } from "@trpc/server/observable";
-import { router, publicProcedure, moderateProcedure, streamingProcedure } from "../trpc.js";
+import { moderateProcedure, publicProcedure, router, streamingProcedure } from "../trpc.js";
 
 // Zod schemas for type safety
 const MessagePartSchema = z.union([
@@ -327,19 +328,23 @@ export const messageRouter = router({
 
 			// Publish role-specific message-created event for UI updates
 			// (streaming.service.ts also publishes these events during AI streaming)
-			const eventType = input.role === "user" ? "user-message-created" : "assistant-message-created";
-			const eventData = input.role === "user"
-				? {
-					type: eventType as const,
-					messageId,
-					content: input.content.map((part: any) =>
-						part.type === "text" ? part.content : `@${part.relativePath || ""}`
-					).join(""),
-				}
-				: {
-					type: eventType as const,
-					messageId,
-				};
+			const eventType =
+				input.role === "user" ? "user-message-created" : "assistant-message-created";
+			const eventData =
+				input.role === "user"
+					? {
+							type: eventType as const,
+							messageId,
+							content: input.content
+								.map((part: any) =>
+									part.type === "text" ? part.content : `@${part.relativePath || ""}`,
+								)
+								.join(""),
+						}
+					: {
+							type: eventType as const,
+							messageId,
+						};
 
 			// IMPORTANT: Must use session:{id} format to match subscription channel
 			const channel = `session:${sessionId}`;

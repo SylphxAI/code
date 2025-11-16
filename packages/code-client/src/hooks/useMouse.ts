@@ -3,8 +3,8 @@
  * Enables mouse support in terminal with click and hover events
  */
 
-import { useEffect, useState } from "react";
 import { useStdin } from "ink";
+import { useEffect, useState } from "react";
 
 export interface MousePosition {
 	x: number;
@@ -61,10 +61,10 @@ export function useMouse(enabled = true) {
 
 			// Parse SGR mouse events: \x1b[<b;x;y M/m
 			const sgrMatch = str.match(/\x1b\[<(\d+);(\d+);(\d+)([Mm])/);
-			if (sgrMatch && sgrMatch[1] && sgrMatch[2] && sgrMatch[3] && sgrMatch[4]) {
-				const button = parseInt(sgrMatch[1]);
-				const x = parseInt(sgrMatch[2]) - 1; // Convert to 0-based
-				const y = parseInt(sgrMatch[3]) - 1;
+			if (sgrMatch?.[1] && sgrMatch[2] && sgrMatch[3] && sgrMatch[4]) {
+				const button = parseInt(sgrMatch[1], 10);
+				const x = parseInt(sgrMatch[2], 10) - 1; // Convert to 0-based
+				const y = parseInt(sgrMatch[3], 10) - 1;
 				const pressed = sgrMatch[4] === "M";
 
 				const position = { x, y };
@@ -88,7 +88,7 @@ export function useMouse(enabled = true) {
 
 			// Try parsing X10 format: \x1b[Mbxy
 			const x10Match = str.match(/\x1b\[M(.)(.)(.)/);
-			if (x10Match && x10Match[1] && x10Match[2] && x10Match[3]) {
+			if (x10Match?.[1] && x10Match[2] && x10Match[3]) {
 				const button = x10Match[1].charCodeAt(0) - 32;
 				const x = x10Match[2].charCodeAt(0) - 33;
 				const y = x10Match[3].charCodeAt(0) - 33;

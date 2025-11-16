@@ -60,7 +60,7 @@ export const mcpCommand: Command = {
 			const { MCPManagement } = await import("../../screens/chat/components/MCPManagement.js");
 			context.setInputComponent(
 				<MCPManagement onComplete={() => context.setInputComponent(null)} />,
-				"MCP Server Management"
+				"MCP Server Management",
 			);
 			return;
 		}
@@ -92,7 +92,11 @@ export const mcpCommand: Command = {
 			const serverListItems = await Promise.all(
 				result.data.map(async (server) => {
 					const connected = mcpManager.isConnected(server.id);
-					const status = server.enabled ? (connected ? "🟢 Connected" : "⚪ Enabled") : "⚫ Disabled";
+					const status = server.enabled
+						? connected
+							? "🟢 Connected"
+							: "⚪ Enabled"
+						: "⚫ Disabled";
 
 					let toolInfo = "";
 					if (connected) {
@@ -103,7 +107,7 @@ export const mcpCommand: Command = {
 					}
 
 					return `${status} **${server.name}** (${server.id})\n  ${server.description || "No description"}\n  Transport: ${server.transport.type}${toolInfo}`;
-				})
+				}),
 			);
 
 			await context.sendMessage(`**MCP Servers:**\n\n${serverListItems.join("\n\n")}`);
@@ -114,7 +118,7 @@ export const mcpCommand: Command = {
 			const { MCPManagement } = await import("../../screens/chat/components/MCPManagement.js");
 			context.setInputComponent(
 				<MCPManagement onComplete={() => context.setInputComponent(null)} />,
-				"Add MCP Server"
+				"Add MCP Server",
 			);
 			return;
 		}
@@ -196,9 +200,7 @@ export const mcpCommand: Command = {
 
 			const connectResult = await mcpManager.connect(server);
 			if (!connectResult.success) {
-				await context.sendMessage(
-					`❌ Failed to connect to server: ${connectResult.error.message}`,
-				);
+				await context.sendMessage(`❌ Failed to connect to server: ${connectResult.error.message}`);
 				return;
 			}
 
@@ -230,7 +232,9 @@ export const mcpCommand: Command = {
 				return;
 			}
 
-			await context.sendMessage(`✅ Disconnected from MCP server: **${server.name}** (${serverId})`);
+			await context.sendMessage(
+				`✅ Disconnected from MCP server: **${server.name}** (${serverId})`,
+			);
 			return;
 		}
 

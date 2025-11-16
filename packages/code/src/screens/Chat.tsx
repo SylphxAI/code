@@ -16,9 +16,9 @@ import { ChatHeader } from "./chat/components/ChatHeader.js";
 import { ChatMessages } from "./chat/components/ChatMessages.js";
 import { InputSection } from "./chat/components/InputSection.js";
 import { StatusIndicator } from "./chat/components/StatusIndicator.js";
-import { useChatState } from "./chat/hooks/useChatState.js";
 import { useChatEffects } from "./chat/hooks/useChatEffects.js";
 import { useChatKeyboard } from "./chat/hooks/useChatKeyboard.js";
+import { useChatState } from "./chat/hooks/useChatState.js";
 import type { ChatProps } from "./chat/types.js";
 
 export default function Chat(props: ChatProps) {
@@ -124,7 +124,7 @@ export default function Chat(props: ChatProps) {
 						abortControllerRef={state.streamingState.abortControllerRef}
 						onPasteImage={keyboard.handlePasteImage}
 						inputResolver={state.selectionState.inputResolver}
-					askToolContextRef={state.selectionState.askToolContextRef}
+						askToolContextRef={state.selectionState.askToolContextRef}
 						setPendingInput={state.selectionState.setPendingInput}
 					/>
 				</Box>

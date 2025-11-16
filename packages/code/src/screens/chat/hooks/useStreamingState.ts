@@ -3,8 +3,8 @@
  * Manages streaming flags and refs
  */
 
-import { useRef, useState } from "react";
 import type { MessagePart as StreamPart } from "@sylphx/code-core";
+import { useRef, useState } from "react";
 
 export interface StreamingState {
 	isStreaming: boolean;

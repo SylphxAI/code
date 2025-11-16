@@ -5,23 +5,21 @@
  * SECURITY: Protected mutations (OWASP API2) + Rate limiting (OWASP API4)
  */
 
-import { z } from "zod";
-import { router, publicProcedure, moderateProcedure } from "../trpc.js";
+import type { AIConfig, ProviderId } from "@sylphx/code-core";
 import {
-	loadAIConfig,
-	saveAIConfig,
+	AI_PROVIDERS,
+	countTokens,
+	fetchModels,
 	getAIConfigPaths,
 	getProvider,
 	getProviderConfigWithApiKey,
-	AI_PROVIDERS,
-	fetchModels,
 	getTokenizerInfo,
-	countTokens,
+	loadAIConfig,
+	saveAIConfig,
 	scanProjectFiles,
-	PROVIDER_REGISTRY,
-	loadSettings,
 } from "@sylphx/code-core";
-import type { AIConfig, ProviderId } from "@sylphx/code-core";
+import { z } from "zod";
+import { moderateProcedure, publicProcedure, router } from "../trpc.js";
 
 /**
  * Provider ID schema - use flexible string instead of strict enum
@@ -75,7 +73,7 @@ function sanitizeAIConfig(config: AIConfig): AIConfig {
 			secretFields = new Set(
 				configSchema.filter((field) => field.secret === true).map((field) => field.key),
 			);
-		} catch (error) {
+		} catch (_error) {
 			// Fallback: if provider not found, remove nothing (better than breaking)
 			console.warn(`Provider ${providerId} not found for config sanitization`);
 			secretFields = new Set();
@@ -83,9 +81,6 @@ function sanitizeAIConfig(config: AIConfig): AIConfig {
 
 		for (const [fieldName, fieldValue] of Object.entries(providerConfig)) {
 			if (secretFields.has(fieldName)) {
-				// REMOVE secret field entirely (don't send to client)
-				// Server will merge it back from disk during save
-				continue;
 			} else {
 				// Keep non-secret field as-is
 				sanitizedProvider[fieldName] = fieldValue;
@@ -203,7 +198,7 @@ export const configRouter = router({
 				return { success: false as const, error: result.error.message };
 			}
 
-			const isNewProvider = !result.data.providers?.[input.providerId];
+			const _isNewProvider = !result.data.providers?.[input.providerId];
 			const currentProviderConfig = result.data.providers?.[input.providerId] || {};
 			const mergedProviderConfig: Record<string, any> = { ...input.config };
 
@@ -222,7 +217,7 @@ export const configRouter = router({
 						mergedProviderConfig[fieldName] = currentValue;
 					}
 				}
-			} catch (error) {
+			} catch (_error) {
 				console.warn(`Provider ${input.providerId} not found during config merge`);
 			}
 
@@ -286,7 +281,7 @@ export const configRouter = router({
 						error: `Field ${input.fieldName} is not a secret field. Use updateProviderConfig instead.`,
 					};
 				}
-			} catch (error) {
+			} catch (_error) {
 				return {
 					success: false as const,
 					error: `Provider ${input.providerId} not found`,
@@ -295,7 +290,8 @@ export const configRouter = router({
 
 			// Create or update credential in registry
 			const { createCredential, getDefaultCredential } = await import("@sylphx/code-core");
-			const credential = getDefaultCredential(input.providerId) ||
+			const credential =
+				getDefaultCredential(input.providerId) ||
 				createCredential({
 					providerId: input.providerId,
 					label: `${input.providerId} API key`,
@@ -415,7 +411,7 @@ export const configRouter = router({
 								mergedProviderConfig[fieldName] = currentValue;
 							}
 						}
-					} catch (error) {
+					} catch (_error) {
 						// Provider not found - just use incoming config as-is
 						console.warn(`Provider ${providerId} not found during config merge`);
 					}
@@ -508,46 +504,6 @@ export const configRouter = router({
 				return {
 					success: false as const,
 					error: error instanceof Error ? error.message : "Failed to get provider schema",
-				};
-			}
-		}),
-
-	/**
-	 * Fetch available models for a provider
-	 * SECURITY: Requires provider config (API keys if needed)
-	 */
-	fetchModels: publicProcedure
-		.input(
-			z.object({
-				providerId: z.string(),
-				cwd: z.string().default(process.cwd()),
-			}),
-		)
-		.query(async ({ input }) => {
-			try {
-				// Load config to get provider credentials
-				const configResult = await loadAIConfig(input.cwd);
-				if (!configResult.success) {
-					// No config yet - return empty models list
-					return { success: true as const, models: [] };
-				}
-
-				// Get provider config WITH API key resolved from credential registry
-				const { getProviderConfigWithApiKey } = await import("@sylphx/code-core");
-				const providerConfig = await getProviderConfigWithApiKey(configResult.data, input.providerId);
-
-				if (!providerConfig) {
-					// Provider not configured
-					return { success: true as const, models: [] };
-				}
-
-				// Fetch models using provider API (now with API key)
-				const models = await fetchModels(input.providerId, providerConfig);
-				return { success: true as const, models };
-			} catch (error) {
-				return {
-					success: false as const,
-					error: error instanceof Error ? error.message : "Failed to fetch models",
 				};
 			}
 		}),
@@ -685,7 +641,7 @@ export const configRouter = router({
 
 				// Try to get provider config with API key (optional)
 				// If config not available, provider will try unauthenticated API call
-				let config: any = undefined;
+				let config: any;
 				try {
 					const aiConfigResult = await loadAIConfig(input.cwd);
 					if (aiConfigResult.success) {
@@ -732,6 +688,11 @@ export const configRouter = router({
 				};
 			}
 		}),
+
+	/**
+	 * Fetch available models for a provider
+	 * SECURITY: Requires provider config (API keys if needed)
+	 */
 
 	/**
 	 * Fetch models from provider API

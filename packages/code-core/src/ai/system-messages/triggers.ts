@@ -9,11 +9,11 @@
  * - Bidirectional notifications (enter + exit states)
  */
 
-import type { SessionRepository } from "../../database/session-repository.js";
 import type { MessageRepository } from "../../database/message-repository.js";
+import type { SessionRepository } from "../../database/session-repository.js";
 import { registerBuiltinTriggers } from "./builtin-triggers.js";
-import { triggerRegistry } from "./registry.js";
 import type { TriggerContext } from "./registry.js";
+import { triggerRegistry } from "./registry.js";
 
 /**
  * Initialize trigger system (call once at startup)

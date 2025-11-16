@@ -15,17 +15,12 @@
  * - Event-driven (emits to observer)
  */
 
-import type { Observable } from "@trpc/server/observable";
-import type {
-	SessionRepository,
-	MessageRepository,
-	MessagePart,
-} from "@sylphx/code-core";
+import type { MessagePart, MessageRepository, SessionRepository } from "@sylphx/code-core";
 import {
+	checkAllTriggers,
+	completeMessageStep,
 	createMessageStep,
 	updateStepParts,
-	completeMessageStep,
-	checkAllTriggers,
 } from "@sylphx/code-core";
 import type { AppContext } from "../context.js";
 import type { StreamEvent } from "./streaming.service.js";
@@ -162,7 +157,7 @@ export async function prepareStep(
 							...lastContent,
 							{
 								type: "text" as const,
-								text: "\n\n" + combinedContent,
+								text: `\n\n${combinedContent}`,
 							},
 						]
 					: [{ type: "text" as const, text: combinedContent }];

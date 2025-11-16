@@ -9,17 +9,17 @@
  * - Uses functional provider pattern via AppContext
  */
 
-import express, { type Express } from "express";
+import type { Server } from "node:http";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { appRouter, type AppRouter } from "./trpc/routers/index.js";
-import { createContext, type Context } from "./trpc/context.js";
+import express, { type Express } from "express";
 import {
+	type AppContext,
+	closeAppContext,
 	createAppContext,
 	initializeAppContext,
-	closeAppContext,
-	type AppContext,
 } from "./context.js";
-import type { Server } from "node:http";
+import { type Context, createContext } from "./trpc/context.js";
+import { type AppRouter, appRouter } from "./trpc/routers/index.js";
 
 export interface ServerConfig {
 	/**
@@ -149,25 +149,27 @@ export class CodeServer {
 		}
 
 		return new Promise((resolve, reject) => {
-			this.httpServer = this.expressApp!.listen(finalPort, () => {
-				console.log(`\n🚀 Sylphx Code Server`);
-				console.log(`   HTTP Server: http://localhost:${finalPort}`);
-				console.log(`   tRPC Endpoint: http://localhost:${finalPort}/trpc`);
-				console.log(`\n📡 Accepting connections from:`);
-				console.log(`   - code (TUI): in-process tRPC`);
-				console.log(`   - code-web (GUI): HTTP/SSE tRPC`);
-				console.log(`\n💾 All clients share same data source\n`);
-				resolve(this.httpServer!);
-			}).on("error", (err: any) => {
-				if (err.code === "EADDRINUSE") {
-					console.log(`ℹ️  Server already running on port ${finalPort}`);
-					console.log(`   Clients can connect to: http://localhost:${finalPort}`);
-					// Return null to indicate server already running
-					resolve(null as any);
-				} else {
-					reject(err);
-				}
-			});
+			this.httpServer = this.expressApp
+				?.listen(finalPort, () => {
+					console.log(`\n🚀 Sylphx Code Server`);
+					console.log(`   HTTP Server: http://localhost:${finalPort}`);
+					console.log(`   tRPC Endpoint: http://localhost:${finalPort}/trpc`);
+					console.log(`\n📡 Accepting connections from:`);
+					console.log(`   - code (TUI): in-process tRPC`);
+					console.log(`   - code-web (GUI): HTTP/SSE tRPC`);
+					console.log(`\n💾 All clients share same data source\n`);
+					resolve(this.httpServer!);
+				})
+				.on("error", (err: any) => {
+					if (err.code === "EADDRINUSE") {
+						console.log(`ℹ️  Server already running on port ${finalPort}`);
+						console.log(`   Clients can connect to: http://localhost:${finalPort}`);
+						// Return null to indicate server already running
+						resolve(null as any);
+					} else {
+						reject(err);
+					}
+				});
 		});
 	}
 
@@ -178,8 +180,8 @@ export class CodeServer {
 		if (!this.expressApp) return;
 
 		try {
-			const { existsSync } = await import("fs");
-			const { resolve } = await import("path");
+			const { existsSync } = await import("node:fs");
+			const { resolve } = await import("node:path");
 
 			if (existsSync("./src/web/dist")) {
 				this.expressApp.use(express.static("./src/web/dist"));
@@ -196,7 +198,7 @@ export class CodeServer {
 				});
 			} else {
 				// Development mode - no static files yet
-				this.expressApp.get("/", (req, res) => {
+				this.expressApp.get("/", (_req, res) => {
 					res.send(`
             <html>
               <body style="font-family: sans-serif; padding: 40px; max-width: 600px; margin: 0 auto;">
@@ -221,7 +223,7 @@ export class CodeServer {
 	async close(): Promise<void> {
 		if (this.httpServer) {
 			await new Promise<void>((resolve, reject) => {
-				this.httpServer!.close((err) => {
+				this.httpServer?.close((err) => {
 					if (err) reject(err);
 					else resolve();
 				});
@@ -245,7 +247,7 @@ export class CodeServer {
 	 * Check if HTTP server is running
 	 */
 	isHTTPRunning(): boolean {
-		return this.httpServer !== undefined && this.httpServer.listening;
+		return this.httpServer?.listening;
 	}
 
 	/**

@@ -3,9 +3,9 @@
  * Centralizes the creation of stream event handler context
  */
 
-import type React from "react";
-import type { AIConfig } from "@sylphx/code-core";
 import { getCurrentSessionId } from "@sylphx/code-client";
+import type { AIConfig } from "@sylphx/code-core";
+import type React from "react";
 
 /**
  * Parameters for building event context

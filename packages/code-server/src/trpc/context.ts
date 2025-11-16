@@ -4,15 +4,15 @@
  * SECURITY: Includes authentication info for OWASP API2 compliance
  */
 
-import { loadAIConfig } from "@sylphx/code-core";
 import type {
-	SessionRepository,
-	MessageRepository,
-	TodoRepository,
 	AIConfig,
+	MessageRepository,
+	SessionRepository,
+	TodoRepository,
 } from "@sylphx/code-core";
-import type { AppContext } from "../context.js";
+import { loadAIConfig } from "@sylphx/code-core";
 import type { Request, Response } from "express";
+import type { AppContext } from "../context.js";
 
 /**
  * User roles for authorization (OWASP API5)

@@ -4,10 +4,10 @@
  */
 
 import { exec } from "node:child_process";
-import { promisify } from "node:util";
-import { writeFile, mkdtemp } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
 

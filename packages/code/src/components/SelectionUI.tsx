@@ -3,9 +3,8 @@
  * Handles rendering of selection mode for questions with options
  */
 
-import { Box, Text } from "ink";
-import React from "react";
 import { calculateScrollViewport } from "@sylphx/code-core";
+import { Box, Text } from "ink";
 import type { WaitForInputOptions } from "../commands/types.js";
 
 interface SelectionUIProps {
@@ -39,7 +38,7 @@ export function SelectionUI({
 
 	const questions = pendingInput.questions;
 	const isSingleQuestion = questions.length === 1;
-	const currentQuestion = questions[multiSelectionPage];
+	const _currentQuestion = questions[multiSelectionPage];
 
 	// Calculate progress
 	const answeredCount = Object.keys(multiSelectionAnswers).length;
@@ -140,8 +139,7 @@ export function SelectionUI({
 										const filteredOptions = q.options.filter(
 											(option) =>
 												option.label.toLowerCase().includes(selectionFilter.toLowerCase()) ||
-												(option.value &&
-													option.value.toLowerCase().includes(selectionFilter.toLowerCase())),
+												option.value?.toLowerCase().includes(selectionFilter.toLowerCase()),
 										);
 
 										if (filteredOptions.length === 0) {

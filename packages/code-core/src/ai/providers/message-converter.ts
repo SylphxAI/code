@@ -29,13 +29,14 @@ interface TextPart {
 export function getMessageFingerprint(message: MessageLike): string {
 	const content = Array.isArray(message.content) ? message.content : [message.content];
 	const textParts = content
-		.filter((part: unknown): part is TextPart =>
-			typeof part === "object" &&
-			part !== null &&
-			"type" in part &&
-			part.type === "text" &&
-			"text" in part &&
-			typeof part.text === "string"
+		.filter(
+			(part: unknown): part is TextPart =>
+				typeof part === "object" &&
+				part !== null &&
+				"type" in part &&
+				part.type === "text" &&
+				"text" in part &&
+				typeof part.text === "string",
 		)
 		.map((part) => part.text)
 		.join("");

@@ -4,7 +4,6 @@
  */
 
 import { Box, Text, useInput } from "ink";
-import React from "react";
 
 interface ContextDisplayProps {
 	output: string;
@@ -143,7 +142,7 @@ function parseContextOutput(output: string): ParsedContextData | null {
 		}
 
 		return data;
-	} catch (error) {
+	} catch (_error) {
 		return null;
 	}
 }
@@ -151,7 +150,7 @@ function parseContextOutput(output: string): ParsedContextData | null {
 export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 	// Handle ESC key to close (capture all input to prevent parent handlers)
 	useInput(
-		(input, key) => {
+		(_input, key) => {
 			if (key.escape) {
 				onComplete();
 			}
@@ -190,7 +189,7 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 	const systemTokens = parseTokenValue(data.systemPromptTokens);
 	const toolsTokens = parseTokenValue(data.toolsTokens);
 	const messagesTokens = parseTokenValue(data.messagesTokens);
-	const freeTokens = parseTokenValue(data.freeTokens);
+	const _freeTokens = parseTokenValue(data.freeTokens);
 	const reservedTokens = parseTokenValue(data.bufferTokens);
 
 	// Create 25x4 grid visualization (100 blocks total, wider layout)
@@ -236,11 +235,35 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 				{createGrid().map((row, i) => (
 					<Box key={i}>
 						{row.split("").map((block, j) => {
-							if (block === "S") return <Text key={j} color="blue">█</Text>;
-							if (block === "T") return <Text key={j} color="green">█</Text>;
-							if (block === "M") return <Text key={j} color="yellow">█</Text>;
-							if (block === "R") return <Text key={j} color="magenta">█</Text>;
-							return <Text key={j} dimColor>░</Text>;
+							if (block === "S")
+								return (
+									<Text key={j} color="blue">
+										█
+									</Text>
+								);
+							if (block === "T")
+								return (
+									<Text key={j} color="green">
+										█
+									</Text>
+								);
+							if (block === "M")
+								return (
+									<Text key={j} color="yellow">
+										█
+									</Text>
+								);
+							if (block === "R")
+								return (
+									<Text key={j} color="magenta">
+										█
+									</Text>
+								);
+							return (
+								<Text key={j} dimColor>
+									░
+								</Text>
+							);
 						})}
 					</Box>
 				))}

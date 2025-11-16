@@ -3,7 +3,7 @@
  * Handles session creation and loading
  */
 
-import type { SessionRepository, AIConfig, ProviderId } from "@sylphx/code-core";
+import type { AIConfig, ProviderId, SessionRepository } from "@sylphx/code-core";
 import { DEFAULT_AGENT_ID } from "@sylphx/code-core";
 
 export interface CreateSessionOptions {
@@ -19,8 +19,8 @@ export interface CreateSessionOptions {
  * Prevents illegal states where sessionId exists but isNewSession=true
  */
 export type SessionResult =
-	| { type: 'existing'; sessionId: string }
-	| { type: 'new'; sessionId: string; provider: ProviderId; model: string };
+	| { type: "existing"; sessionId: string }
+	| { type: "new"; sessionId: string; provider: ProviderId; model: string };
 
 /**
  * Create new session if sessionId is null, otherwise return existing sessionId
@@ -35,7 +35,7 @@ export async function ensureSession(
 ): Promise<SessionResult> {
 	// Return existing session
 	if (sessionId) {
-		return { type: 'existing', sessionId };
+		return { type: "existing", sessionId };
 	}
 
 	// Create new session
@@ -50,14 +50,10 @@ export async function ensureSession(
 
 	// Create session in database
 	const effectiveAgentId = agentId || DEFAULT_AGENT_ID;
-	const newSession = await sessionRepository.createSession(
-		provider,
-		model,
-		effectiveAgentId,
-	);
+	const newSession = await sessionRepository.createSession(provider, model, effectiveAgentId);
 
 	return {
-		type: 'new',
+		type: "new",
 		sessionId: newSession.id,
 		provider,
 		model,

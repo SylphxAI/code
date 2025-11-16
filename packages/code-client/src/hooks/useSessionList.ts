@@ -3,9 +3,9 @@
  * Provides reactive session list with loading/error states
  */
 
-import { useState, useCallback } from "react";
+import type { SessionMetadata } from "@sylphx/code-core";
+import { useCallback, useState } from "react";
 import { getRecentSessions } from "../api/sessions.js";
-import type { Session, SessionMetadata } from "@sylphx/code-core";
 
 export interface UseSessionListReturn {
 	sessions: SessionMetadata[];

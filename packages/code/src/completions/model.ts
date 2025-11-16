@@ -3,9 +3,8 @@
  * Fetches models from provider API for current provider
  */
 
-import { getTRPCClient } from "@sylphx/code-client";
+import { $aiConfig, $currentSession, getTRPCClient } from "@sylphx/code-client";
 import { get } from "@sylphx/zen";
-import { $aiConfig, $currentSession } from "@sylphx/code-client";
 
 export interface CompletionOption {
 	id: string;

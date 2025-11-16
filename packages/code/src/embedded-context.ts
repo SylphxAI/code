@@ -6,9 +6,9 @@
  * They will be replaced with proper tRPC calls in the future.
  */
 
-import type { CodeServer } from "@sylphx/code-server";
-import type { Agent, Rule } from "@sylphx/code-core";
 import { $enabledRuleIds, get } from "@sylphx/code-client";
+import type { Agent, Rule } from "@sylphx/code-core";
+import type { CodeServer } from "@sylphx/code-server";
 
 let embeddedServerInstance: CodeServer | null = null;
 

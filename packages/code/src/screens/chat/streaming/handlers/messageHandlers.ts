@@ -4,11 +4,11 @@
  */
 
 import {
+	$currentSession,
 	eventBus,
 	getCurrentSessionId,
-	$currentSession,
-	set as setSignal,
 	get as getSignal,
+	set as setSignal,
 } from "@sylphx/code-client";
 import type { Message, MessagePart } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
@@ -25,7 +25,7 @@ const logMessage = createLogger("subscription:message");
 
 export function handleUserMessageCreated(
 	event: Extract<StreamEvent, { type: "user-message-created" }>,
-	context: EventHandlerContext,
+	_context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
 	const currentSession = getSignal($currentSession);
@@ -130,7 +130,7 @@ export function handleAssistantMessageCreated(
 
 export function handleSystemMessageCreated(
 	event: Extract<StreamEvent, { type: "system-message-created" }>,
-	context: EventHandlerContext,
+	_context: EventHandlerContext,
 ) {
 	const currentSession = getSignal($currentSession);
 
@@ -238,7 +238,7 @@ export function handleStepStart(
 
 		updateActiveMessageContent(currentSessionId, context.streamingMessageIdRef.current, (prev) => {
 			// Add each system message as a 'system-message' part
-			const systemMessageParts = event.systemMessages!.map(
+			const systemMessageParts = event.systemMessages?.map(
 				(sm) =>
 					({
 						type: "system-message" as const,
@@ -256,7 +256,7 @@ export function handleStepStart(
 
 export function handleStepComplete(
 	event: Extract<StreamEvent, { type: "step-complete" }>,
-	context: EventHandlerContext,
+	_context: EventHandlerContext,
 ) {
 	logMessage("Step completed:", event.stepId, "duration:", event.duration, "ms");
 }

@@ -9,8 +9,8 @@
  * - Multi-client sync: all clients see same tokens (from server)
  */
 
-import { useMemo } from "react";
 import type { Session } from "@sylphx/code-core";
+import { useMemo } from "react";
 
 export function useTokenCalculation(currentSession: Session | null): number {
 	return useMemo(() => {
@@ -22,5 +22,5 @@ export function useTokenCalculation(currentSession: Session | null): number {
 		// Server updates this field after each message
 		const tokens = currentSession.totalTokens || 0;
 		return tokens;
-	}, [currentSession?.id, currentSession?.totalTokens]);
+	}, [currentSession?.id, currentSession?.totalTokens, currentSession]);
 }

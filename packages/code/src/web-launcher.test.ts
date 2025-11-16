@@ -3,7 +3,7 @@
  * Testing Web GUI launcher functionality
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as serverManager from "./server-manager.js";
 
 // Mock dependencies

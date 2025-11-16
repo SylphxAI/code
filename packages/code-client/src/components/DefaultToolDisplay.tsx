@@ -4,13 +4,13 @@
  * Generic - does not know about specific tools
  */
 
-import React from "react";
-import { Box, Text } from "ink";
-import Spinner from "./Spinner.js";
+import type { ToolDisplayProps } from "@sylphx/code-client";
 import { useElapsedTime } from "@sylphx/code-client";
 import type { InputFormatter, ResultFormatter } from "@sylphx/code-core";
-import type { ToolDisplayProps } from "@sylphx/code-client";
 import dJSON from "dirty-json";
+import { Box, Text } from "ink";
+import type React from "react";
+import Spinner from "./Spinner.js";
 
 /**
  * Parse partial/dirty JSON into an object with best-effort parsing
@@ -181,9 +181,7 @@ const ResultDisplay: React.FC<ResultDisplayPropsExtended> = ({
 							}
 						})}
 						{formattedResult.lines.length > 20 && (
-							<Text dimColor>
-								... and {formattedResult.lines.length - 20} more lines
-							</Text>
+							<Text dimColor>... and {formattedResult.lines.length - 20} more lines</Text>
 						)}
 					</Box>
 				)}

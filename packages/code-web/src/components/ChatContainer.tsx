@@ -3,11 +3,11 @@
  * Full-screen, borderless design
  */
 
-import React, { useState, useEffect } from "react";
-import { trpc } from "../trpc";
-import MessageList from "./MessageList";
-import InputArea from "./InputArea";
 import type { MessagePart } from "@sylphx/code-client";
+import { useEffect, useState } from "react";
+import { trpc } from "../trpc";
+import InputArea from "./InputArea";
+import MessageList from "./MessageList";
 import type { UseToastReturn } from "./Toast";
 
 interface ChatContainerProps {

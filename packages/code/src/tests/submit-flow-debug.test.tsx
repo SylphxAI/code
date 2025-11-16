@@ -2,9 +2,9 @@
  * Debug test to trace the complete submission flow
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render } from "ink-testing-library";
-import React, { useState } from "react";
+import { useState } from "react";
+import { describe, expect, it, vi } from "vitest";
 import TextInputWithHint from "../components/TextInputWithHint.js";
 
 describe("Submit Flow Debug", () => {

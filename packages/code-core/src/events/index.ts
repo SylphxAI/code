@@ -1,1 +1,1 @@
-export { eventBus, type AppEvents } from "./event-bus.js";
+export { type AppEvents, eventBus } from "./event-bus.js";
