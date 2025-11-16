@@ -45,7 +45,7 @@ export async function generateSessionTitle(
 			return null;
 		}
 
-		const model = providerInstance.createClient(providerConfig, modelName);
+		const model = await providerInstance.createClient(providerConfig, modelName);
 
 		// Use AI SDK's streamText directly for title generation
 		const { fullStream } = streamText({

@@ -181,8 +181,8 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				const enabledRules = opts.appContext.ruleManager.getEnabled(enabledRuleIds);
 				const systemPrompt = buildSystemPrompt(agentId, agents, enabledRules);
 
-				// 10. Create AI model
-				const model = providerInstance.createClient(providerConfig, modelName);
+				// 10. Create AI model (lazy-loaded SDK)
+				const model = await providerInstance.createClient(providerConfig, modelName);
 
 				// 11. Determine tool support and load tools
 				const supportsTools = modelCapabilities.has("tools");
