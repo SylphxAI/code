@@ -33,13 +33,19 @@ export type StorageOps = {
 };
 
 /**
+ * S3 Client type from AWS SDK
+ * Uses unknown to avoid hard dependency on @aws-sdk/client-s3
+ */
+type S3Client = unknown;
+
+/**
  * Storage context for dependency injection
  * Contains config and any runtime dependencies
  */
 type StorageContext<TConfig extends AnyStorageConfig = AnyStorageConfig> = {
 	readonly config: TConfig;
 	readonly runtime?: {
-		readonly s3Client?: any; // Lazy-loaded AWS SDK client
+		readonly s3Client?: S3Client; // Lazy-loaded AWS SDK client
 	};
 };
 
@@ -241,9 +247,9 @@ export const createFilesystemOps = (config: FilesystemStorageConfig): StorageOps
  */
 export const createS3Ops = (config: S3StorageConfig): StorageOps => {
 	// Mutable cell for lazy-loaded client (encapsulated in closure)
-	let clientCache: any = null;
+	let clientCache: S3Client | null = null;
 
-	const getClient = async (): Promise<any> => {
+	const getClient = async (): Promise<S3Client> => {
 		if (clientCache) return clientCache;
 
 		try {
@@ -267,7 +273,7 @@ export const createS3Ops = (config: S3StorageConfig): StorageOps => {
 			const client = await getClient();
 			const { PutObjectCommand } = await import("@aws-sdk/client-s3");
 
-			await client.send(
+			await (client as any).send(
 				new PutObjectCommand({
 					Bucket: config.bucket,
 					Key: key,
@@ -311,7 +317,7 @@ export const createS3Ops = (config: S3StorageConfig): StorageOps => {
 			}
 
 			const { GetObjectCommand } = await import("@aws-sdk/client-s3");
-			const response = await client.send(
+			const response = await (client as any).send(
 				new GetObjectCommand({
 					Bucket: config.bucket,
 					Key: key,
@@ -319,8 +325,9 @@ export const createS3Ops = (config: S3StorageConfig): StorageOps => {
 			);
 
 			const chunks: Buffer[] = [];
-			for await (const chunk of response.Body as any) {
-				chunks.push(chunk);
+			// response.Body is a stream, cast to AsyncIterable<Uint8Array>
+			for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+				chunks.push(Buffer.from(chunk));
 			}
 			const content = Buffer.concat(chunks);
 
@@ -338,7 +345,7 @@ export const createS3Ops = (config: S3StorageConfig): StorageOps => {
 			const client = await getClient();
 			const { HeadObjectCommand } = await import("@aws-sdk/client-s3");
 
-			await client.send(
+			await (client as any).send(
 				new HeadObjectCommand({
 					Bucket: config.bucket,
 					Key: key,
@@ -346,8 +353,9 @@ export const createS3Ops = (config: S3StorageConfig): StorageOps => {
 			);
 
 			return { success: true, data: true };
-		} catch (error: any) {
-			if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) {
+		} catch (error: unknown) {
+			const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+			if (err.name === "NotFound" || err.$metadata?.httpStatusCode === 404) {
 				return { success: true, data: false };
 			}
 
@@ -363,7 +371,7 @@ export const createS3Ops = (config: S3StorageConfig): StorageOps => {
 			const client = await getClient();
 			const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
 
-			await client.send(
+			await (client as any).send(
 				new DeleteObjectCommand({
 					Bucket: config.bucket,
 					Key: key,
@@ -384,7 +392,7 @@ export const createS3Ops = (config: S3StorageConfig): StorageOps => {
 			const client = await getClient();
 			const { HeadObjectCommand } = await import("@aws-sdk/client-s3");
 
-			const response = await client.send(
+			const response = await (client as any).send(
 				new HeadObjectCommand({
 					Bucket: config.bucket,
 					Key: key,
@@ -419,7 +427,7 @@ export const createS3Ops = (config: S3StorageConfig): StorageOps => {
 			let continuationToken: string | undefined;
 
 			do {
-				const response = await client.send(
+				const response = await (client as any).send(
 					new ListObjectsV2Command({
 						Bucket: config.bucket,
 						Prefix: prefix,

@@ -52,7 +52,7 @@ export class FileRepository {
 	 * @param input File content to store
 	 * @param tx Optional transaction context (if called within a transaction)
 	 */
-	async storeFileContent(input: FileContentInput, tx?: any): Promise<string> {
+	async storeFileContent(input: FileContentInput, tx?: LibSQLDatabase): Promise<string> {
 		const fileId = randomUUID();
 		const now = Date.now();
 
@@ -74,12 +74,15 @@ export class FileRepository {
 
 		// Upload to object storage
 		const storageKey = `files/${sha256}${this.getExtension(input.relativePath)}`;
+		const metadata: Record<string, string> = {
+			relativePath: input.relativePath,
+		};
+		if (input.stepId) {
+			metadata.stepId = input.stepId;
+		}
 		const putResult = await this.storage.put(storageKey, input.content, {
 			contentType: input.mediaType,
-			metadata: {
-				stepId: input.stepId,
-				relativePath: input.relativePath,
-			},
+			metadata,
 		});
 
 		if (!putResult.success) {

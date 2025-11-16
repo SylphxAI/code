@@ -7,7 +7,7 @@
  * - Client: Listens to events and updates UI
  */
 
-import { eventBus } from "@sylphx/code-client";
+import { eventBus } from "../events/index.js";
 import { getMCPManager } from "./mcp-manager.js";
 import { listMCPServers } from "../config/mcp-config.js";
 

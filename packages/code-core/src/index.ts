@@ -15,6 +15,11 @@
  */
 
 // ============================================================================
+// Events
+// ============================================================================
+export { eventBus, type AppEvents } from "./events/index.js";
+
+// ============================================================================
 // AI & Streaming
 // ============================================================================
 export { processStream, type StreamCallbacks } from "./ai/stream-handler.js";
@@ -204,6 +209,7 @@ export type * from "./types/todo.types.js";
 export type * from "./types/model.types.js";
 export type * from "./types/tool.types.js";
 export type * from "./types/mcp.types.js";
+export type * from "./types/streaming-events.types.js";
 
 // ============================================================================
 // Model Registry (Normalized Model System)
@@ -304,10 +310,10 @@ export { addMessage } from "./utils/legacy-session-manager.js";
 export { buildTodoContext } from "./utils/todo-context.js";
 export {
 	generateSessionTitleWithStreaming,
+	generateSessionTitle,
 	cleanAITitle,
+	formatSessionDisplay,
 } from "./utils/session-title.js";
-export { generateSessionTitle } from "./utils/session-title.js";
-export { formatSessionDisplay } from "./session/utils/title.js";
 // NOTE: formatTodoChange and formatTodoCount are used internally by tools/todo.ts
 // Exporting them here causes duplicate exports in the bundle. Keep them internal.
 export {

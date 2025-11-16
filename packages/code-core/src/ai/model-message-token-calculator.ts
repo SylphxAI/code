@@ -132,11 +132,24 @@ async function calculateModelMessageTokens(
 }
 
 /**
+ * AI SDK Content Part type
+ * Discriminated union for different content types
+ * Matches actual AI SDK part structure
+ */
+type AISDKContentPart =
+	| { type: "text"; text: string }
+	| { type: "reasoning"; text: string }
+	| { type: "file"; data: Buffer | string; mimeType?: string; filename?: string; mediaType?: string }
+	| { type: "image"; image: unknown; mimeType?: string }
+	| { type: "tool-call"; toolCallId: string; toolName: string; args: unknown; input?: unknown }
+	| { type: "tool-result"; toolCallId: string; toolName: string; result: unknown; output?: unknown };
+
+/**
  * Calculate tokens for a content part
  * Handles all AI SDK content part types
  */
 async function calculateContentPartTokens(
-	part: any, // AI SDK content types are complex, use any for flexibility
+	part: AISDKContentPart,
 	modelName: string,
 	options?: { useAccurate?: boolean },
 ): Promise<number> {

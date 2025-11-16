@@ -28,14 +28,44 @@ import type { SessionRow } from "./types.js";
  */
 export const StringArraySchema = z.array(z.string());
 
-export const MessagePartSchema: z.ZodType<MessagePart> = z.any(); // ASSUMPTION: MessagePart already validated when inserted
+/**
+ * MessagePart validation schema
+ * MessagePart is a discriminated union, validated at insertion time
+ * Using z.custom() with runtime type guard for safe parsing
+ */
+export const MessagePartSchema: z.ZodType<MessagePart> = z.custom<MessagePart>(
+	(data): data is MessagePart => {
+		if (!data || typeof data !== "object") return false;
+		const part = data as Record<string, unknown>;
 
-export const MessageMetadataSchema = z
-	.object({
-		cpu: z.string().optional(),
-		memory: z.string().optional(),
-	})
-	.passthrough(); // Allow additional fields for future extensions
+		// All parts must have type and status
+		if (typeof part.type !== "string") return false;
+		if (!["active", "completed", "error", "abort"].includes(part.status as string)) {
+			return false;
+		}
+
+		// Type-specific validation
+		switch (part.type) {
+			case "text":
+			case "reasoning":
+				return typeof part.content === "string";
+			case "tool":
+				return typeof part.toolId === "string" && typeof part.name === "string";
+			case "file":
+			case "file-ref":
+				return typeof part.relativePath === "string";
+			case "system-message":
+				return typeof part.content === "string";
+			case "error":
+				return typeof part.error === "string";
+			default:
+				return false;
+		}
+	},
+	{
+		message: "Invalid MessagePart structure",
+	},
+);
 
 /**
  * Parse and validate enabledRuleIds from raw database value
@@ -255,17 +285,8 @@ export async function getSessionMessages(
 					"completed",
 			};
 
-			if (step.metadata) {
-				const parsed = MessageMetadataSchema.safeParse(
-					JSON.parse(step.metadata),
-				);
-				if (parsed.success) {
-					messageStep.metadata = parsed.data;
-				} else {
-					// Fallback for corrupted metadata - use empty object
-					messageStep.metadata = {};
-				}
-			}
+			// Note: metadata field removed from MessageStep - no longer stored per-step
+			// System status (cpu, memory) tracking removed for performance
 
 			if (stepUsageData) {
 				messageStep.usage = {

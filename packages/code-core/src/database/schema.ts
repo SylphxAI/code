@@ -287,7 +287,7 @@ export const stepParts = sqliteTable(
 		// Content structure (JSON) - ALL parts include status field:
 		// - text: { type: 'text', content: string, status: 'active' | 'completed' | ... }
 		// - reasoning: { type: 'reasoning', content: string, status: ..., duration?: number }
-		// - tool: { type: 'tool', toolId: string, name: string, status: ..., duration?: number, input?: any, result?: any, error?: string }
+		// - tool: { type: 'tool', toolId: string, name: string, status: ..., duration?: number, input?: unknown, result?: unknown, error?: string }
 		// - error: { type: 'error', error: string, status: 'completed' }
 		content: text("content").notNull(), // JSON string
 	},
@@ -397,7 +397,7 @@ export const events = sqliteTable(
 		type: text("type").notNull(), // 'title-updated', 'text-delta'
 		timestamp: integer("timestamp").notNull(), // Unix ms (part of cursor)
 		sequence: integer("sequence").notNull(), // Sequence within timestamp (part of cursor)
-		payload: text("payload", { mode: "json" }).$type<any>().notNull(), // Event data as JSON
+		payload: text("payload", { mode: "json" }).$type<Record<string, unknown>>().notNull(), // Event data as JSON
 		createdAt: integer("created_at").notNull(), // When saved to DB
 	},
 	(table) => ({

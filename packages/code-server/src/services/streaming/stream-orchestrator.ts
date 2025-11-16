@@ -1,0 +1,447 @@
+/**
+ * Stream Orchestrator
+ * Main streamAIResponse function - coordinates all streaming modules
+ */
+
+import { observable, type Observable } from "@trpc/server/observable";
+import type { StreamEvent, StreamAIResponseOptions } from "./types.js";
+import type { StreamCallbacks } from "@sylphx/code-core";
+import {
+	buildSystemPrompt,
+	getProvider,
+	getAISDKTools,
+	hasUserInputHandler,
+} from "@sylphx/code-core";
+import { ensureSession } from "./session-manager.js";
+import { buildModelMessages } from "./message-builder.js";
+import { generateSessionTitle, needsTitleGeneration } from "./title-generator.js";
+import { validateProvider } from "./provider-validator.js";
+import { buildFrozenContent } from "./file-handler.js";
+import {
+	emitSessionCreated,
+	emitSystemMessageCreated,
+	emitError,
+	emitTextStart,
+	emitTextDelta,
+	emitTextEnd,
+	emitReasoningStart,
+	emitReasoningDelta,
+	emitReasoningEnd,
+	emitToolCall,
+	emitToolResult,
+	emitToolError,
+	emitFile,
+} from "./event-emitter.js";
+import {
+	processAIStream,
+	createStreamState,
+	orchestrateAIStream,
+	type TokenTrackingContext,
+} from "./ai-orchestrator.js";
+import {
+	initializeTokenTracking,
+	calculateFinalTokens,
+} from "../token-tracking.service.js";
+import { prepareStep, completeStep } from "../step-lifecycle.service.js";
+import {
+	createUserMessage,
+	createAssistantMessage,
+	updateMessageStatus,
+	createAbortNotificationMessage,
+} from "../message-persistence.service.js";
+
+const STREAM_TIMEOUT_MS = 45000; // 45 seconds
+
+/**
+ * Stream AI response as Observable<StreamEvent>
+ *
+ * This function:
+ * 1. Loads session from database
+ * 2. Adds user message to session
+ * 3. Builds message context for AI
+ * 4. Streams AI response
+ * 5. Emits events to observer
+ * 6. Saves final result to database
+ */
+export function streamAIResponse(opts: StreamAIResponseOptions): Observable<StreamEvent, unknown> {
+	return observable<StreamEvent>((observer) => {
+		const executionPromise = (async () => {
+			try {
+				const {
+					sessionRepository,
+					messageRepository,
+					aiConfig,
+					sessionId: inputSessionId,
+					agentId: inputAgentId,
+					provider: inputProvider,
+					model: inputModel,
+					userMessageContent,
+					abortSignal,
+				} = opts;
+
+				// 1. Ensure session exists (create if needed)
+				let sessionId: string;
+				let isNewSession: boolean;
+
+				try {
+					const result = await ensureSession(
+						sessionRepository,
+						aiConfig,
+						inputSessionId,
+						inputProvider,
+						inputModel,
+						inputAgentId,
+					);
+					sessionId = result.sessionId;
+					isNewSession = result.type === "new";
+
+					if (result.type === "new") {
+						emitSessionCreated(observer, result.sessionId, result.provider, result.model);
+					}
+				} catch (error) {
+					emitError(
+						observer,
+						error instanceof Error ? error.message : String(error),
+					);
+					observer.complete();
+					return;
+				}
+
+				// 2. Load session from database
+				const session = await sessionRepository.getSessionById(sessionId);
+				if (!session) {
+					observer.error(new Error("Session not found"));
+					return;
+				}
+
+				// 3. Validate provider configuration
+				const validationError = validateProvider(aiConfig, session);
+				if (validationError) {
+					const errorMessageId = `error-${Date.now()}`;
+					emitSystemMessageCreated(observer, errorMessageId, validationError.message);
+					observer.complete();
+					return;
+				}
+
+				const provider = session.provider;
+				const modelName = session.model;
+				const providerConfig = aiConfig?.providers?.[provider];
+				if (!providerConfig) {
+					throw new Error(`Provider ${provider} is not configured`);
+				}
+				const providerInstance = getProvider(provider);
+
+				// 4. Fetch file content from storage
+				const frozenContent = await buildFrozenContent(userMessageContent, messageRepository);
+
+				// 5. Add user message to session (if userMessageContent provided)
+				let userMessageId: string | null = null;
+				let userMessageText = "";
+
+				if (userMessageContent) {
+					const result = await createUserMessage(
+						sessionId,
+						frozenContent,
+						messageRepository,
+						observer,
+					);
+					userMessageId = result.messageId;
+					userMessageText = result.messageText;
+				}
+
+				// 6. Reload session to get updated messages
+				let updatedSession = await sessionRepository.getSessionById(sessionId);
+				if (!updatedSession) {
+					observer.error(new Error("Session not found after adding message"));
+					return;
+				}
+
+				// 7. Lazy load model capabilities
+				let modelCapabilities = providerInstance.getModelCapabilities(modelName);
+				if (modelCapabilities.size === 0) {
+					try {
+						await providerInstance.fetchModels(providerConfig);
+						modelCapabilities = providerInstance.getModelCapabilities(modelName);
+					} catch (err) {
+						console.error("[StreamOrchestrator] Failed to fetch model capabilities:", err);
+					}
+				}
+
+				// 8. Build ModelMessage[] for AI
+				const messages = await buildModelMessages(
+					updatedSession.messages,
+					modelCapabilities,
+					messageRepository.getFileRepository(),
+				);
+
+				// 9. Determine agentId and build system prompt
+				const agentId = inputAgentId || session.agentId || "coder";
+				const agents = opts.appContext.agentManager.getAll();
+				const enabledRuleIds = session.enabledRuleIds || [];
+				const enabledRules = opts.appContext.ruleManager.getEnabled(enabledRuleIds);
+				const systemPrompt = buildSystemPrompt(agentId, agents, enabledRules);
+
+				// 10. Create AI model
+				const model = providerInstance.createClient(providerConfig, modelName);
+
+				// 11. Determine tool support and load tools
+				const supportsTools = modelCapabilities.has("tools");
+				const tools = supportsTools
+					? await getAISDKTools({ interactive: hasUserInputHandler() })
+					: undefined;
+
+				// 12. Check if title generation is needed
+				const isFirstMessage =
+					updatedSession.messages.filter((m) => m.role === "user").length === 1;
+				const needsTitle = needsTitleGeneration(updatedSession, isNewSession, isFirstMessage);
+
+				// 13. Create assistant message in database BEFORE stream
+				const assistantMessageId = await createAssistantMessage(
+					sessionId,
+					messageRepository,
+					observer,
+				);
+
+				// 14. Initialize stream processing state
+				const state = createStreamState();
+				let lastCompletedStepNumber = -1;
+				const streamStartTime = Date.now();
+
+				// 15. Initialize token tracking
+				const cwd = process.cwd();
+				const tokenTracker = await initializeTokenTracking(
+					sessionId,
+					session,
+					messageRepository,
+					cwd,
+				);
+
+				const { calculateBaseContextTokens } = await import("@sylphx/code-core");
+				const baseContextTokens = await calculateBaseContextTokens(
+					session.model,
+					session.agentId,
+					session.enabledRuleIds,
+					cwd,
+				);
+
+				const tokenContext: TokenTrackingContext = {
+					tracker: tokenTracker,
+					sessionId,
+					baseContextTokens,
+					appContext: opts.appContext,
+				};
+
+				// 16. Create callbacks for stream processing
+				const callbacks: StreamCallbacks = {
+					onTextStart: () => emitTextStart(observer),
+					onTextDelta: (text) => {
+						console.log("[StreamOrchestrator] Emitting text-delta, length:", text.length);
+						emitTextDelta(observer, text);
+					},
+					onTextEnd: () => emitTextEnd(observer),
+					onReasoningStart: () => emitReasoningStart(observer),
+					onReasoningDelta: (text) => {
+						console.log("[StreamOrchestrator] Emitting reasoning-delta, length:", text.length);
+						emitReasoningDelta(observer, text);
+					},
+					onReasoningEnd: (duration) => emitReasoningEnd(observer, duration),
+					onToolCall: (toolCallId, toolName, input) =>
+						emitToolCall(observer, toolCallId, toolName, input),
+					onToolResult: (toolCallId, toolName, result, duration) =>
+						emitToolResult(observer, toolCallId, toolName, result, duration),
+					onToolError: (toolCallId, toolName, error, duration) =>
+						emitToolError(observer, toolCallId, toolName, error, duration),
+					onFile: (mediaType, base64) => emitFile(observer, mediaType, base64),
+					onAbort: () => {
+						state.aborted = true;
+					},
+					onError: (error) => {
+						const errorMessage = error instanceof Error ? error.message : String(error);
+						emitError(observer, errorMessage);
+					},
+				};
+
+				// 17. Create AI stream
+				const { fullStream } = await orchestrateAIStream({
+					model,
+					messages,
+					systemPrompt,
+					tools,
+					abortSignal,
+					onStepFinish: async (stepResult) => {
+						try {
+							const stepNumber = lastCompletedStepNumber + 1;
+							await completeStep(
+								stepNumber,
+								assistantMessageId,
+								sessionId,
+								stepResult,
+								state.currentStepParts,
+								sessionRepository,
+								messageRepository,
+								tokenTracker,
+								opts.appContext,
+								observer,
+								session,
+								cwd,
+							);
+							lastCompletedStepNumber = stepNumber;
+							state.currentStepParts = [];
+						} catch (error) {
+							console.error("[onStepFinish] Error:", error);
+						}
+					},
+					prepareStep: async ({ steps, stepNumber, messages: stepMessages }) => {
+						return await prepareStep(
+							stepNumber,
+							assistantMessageId,
+							sessionId,
+							stepMessages,
+							steps,
+							sessionRepository,
+							messageRepository,
+							providerInstance,
+							modelName,
+							providerConfig,
+							observer,
+						);
+					},
+				});
+
+				// 18. Start title generation immediately (parallel)
+				if (needsTitle) {
+					generateSessionTitle(
+						opts.appContext,
+						sessionRepository,
+						aiConfig,
+						updatedSession,
+						userMessageText,
+					).catch((error) => {
+						console.error("[Title Generation] Background error:", error);
+					});
+				}
+
+				// 19. Process stream and emit events
+				const { finalUsage, finalFinishReason, hasError } = await processAIStream(
+					fullStream,
+					observer,
+					state,
+					tokenContext,
+					callbacks,
+				);
+
+				// 20. Check for timeout (if no events were emitted at all)
+				const elapsedMs = Date.now() - streamStartTime;
+				if (!state.hasEmittedAnyEvent && elapsedMs > STREAM_TIMEOUT_MS) {
+					console.error(
+						`[StreamOrchestrator] TIMEOUT after ${elapsedMs}ms with no events emitted`,
+					);
+					const timeoutError = `Request to ${provider} (${modelName}) timed out after ${Math.round(elapsedMs / 1000)}s with no response. This may indicate a network issue, authentication problem, or the provider is unreachable.`;
+					state.currentStepParts.push({
+						type: "error",
+						error: timeoutError,
+						status: "completed",
+					});
+					emitError(observer, timeoutError);
+				}
+
+				// 21. Emit error event if no valid response
+				if (!finalUsage && !state.aborted && !hasError) {
+					const errorPart = state.currentStepParts.find((p) => p.type === "error");
+					if (errorPart && errorPart.type === "error") {
+						emitError(observer, errorPart.error);
+					} else {
+						emitError(
+							observer,
+							"API request failed to generate a response. Please check your API credentials and configuration.",
+						);
+					}
+				}
+
+				// 22. Update message status
+				const finalStatus = state.aborted ? "abort" : finalUsage ? "completed" : "error";
+				console.log(
+					"[StreamOrchestrator] Updating message status to:",
+					finalStatus,
+					"messageId:",
+					assistantMessageId,
+				);
+				await updateMessageStatus(
+					assistantMessageId,
+					finalStatus,
+					finalFinishReason,
+					finalUsage,
+					messageRepository,
+					observer,
+				);
+
+				// 23. Create abort notification message if needed
+				if (finalStatus === "abort") {
+					await createAbortNotificationMessage(sessionId, aiConfig, messageRepository, observer);
+				}
+
+				// 24. Calculate final token counts
+				await calculateFinalTokens(
+					sessionId,
+					sessionRepository,
+					messageRepository,
+					opts.appContext,
+					cwd,
+				);
+
+				// 25. Complete observable
+				observer.complete();
+			} catch (error) {
+				console.error("[StreamOrchestrator] Error in execution:", error);
+				console.error("[StreamOrchestrator] Error type:", error?.constructor?.name);
+				console.error(
+					"[StreamOrchestrator] Error message:",
+					error instanceof Error ? error.message : String(error),
+				);
+				console.error(
+					"[StreamOrchestrator] Error stack:",
+					error instanceof Error ? error.stack : "N/A",
+				);
+				if (error && typeof error === "object") {
+					console.error("[StreamOrchestrator] Error keys:", Object.keys(error));
+					console.error("[StreamOrchestrator] Error JSON:", JSON.stringify(error, null, 2));
+				}
+				emitError(observer, error instanceof Error ? error.message : String(error));
+				observer.complete();
+			}
+		})();
+
+		// Catch unhandled promise rejections
+		executionPromise.catch((error) => {
+			console.error("[StreamOrchestrator] Unhandled promise rejection:", error);
+
+			let errorMessage = error instanceof Error ? error.message : String(error);
+
+			if (error && typeof error === "object" && "cause" in error && error.cause) {
+				const causeMessage =
+					error.cause instanceof Error ? error.cause.message : String(error.cause);
+				console.error("[StreamOrchestrator] Error cause:", causeMessage);
+				if (causeMessage && !causeMessage.includes("No output generated")) {
+					errorMessage = causeMessage;
+				}
+			}
+
+			try {
+				emitError(observer, errorMessage);
+				observer.complete();
+			} catch (observerError) {
+				console.error("[StreamOrchestrator] Failed to emit error event:", observerError);
+				try {
+					observer.complete();
+				} catch (completeError) {
+					console.error("[StreamOrchestrator] Failed to complete observer:", completeError);
+				}
+			}
+		});
+
+		// Cleanup function
+		return () => {
+			// Cleanup handled by abort signal
+		};
+	});
+}

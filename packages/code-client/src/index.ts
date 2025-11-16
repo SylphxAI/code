@@ -45,9 +45,9 @@ export * from "./signals/index.js";
 export type { Screen } from "./signals/domain/ui/index.js";
 
 // ============================================================================
-// Event Bus
+// Event Bus (Re-exported from code-core to prevent circular dependency)
 // ============================================================================
-export { eventBus, type AppEvents } from "./lib/event-bus.js";
+export { eventBus, type AppEvents } from "@sylphx/code-core";
 
 // ============================================================================
 // Types (re-exported from dependencies)
