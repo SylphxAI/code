@@ -353,12 +353,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 				// 22. Update message status
 				const finalStatus = state.aborted ? "abort" : finalUsage ? "completed" : "error";
-				console.log(
-					"[StreamOrchestrator] Updating message status to:",
-					finalStatus,
-					"messageId:",
-					assistantMessageId,
-				);
 				await updateMessageStatus(
 					assistantMessageId,
 					finalStatus,

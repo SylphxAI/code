@@ -111,17 +111,11 @@ export async function prepareStep(
 				currentSession.provider, // provider from session
 				currentSession.model, // model from session
 			);
-			console.log(
-				`[StepLifecycle] Created step ${stepNumber} with provider: ${currentSession.provider}, model: ${currentSession.model}`,
-			);
 		} catch (stepError) {
 			console.error("[StepLifecycle] Failed to create step:", stepError);
 		}
 
 		// 6. Emit step-start event for UI
-		console.log(
-			`[StepLifecycle] Emitting step-start for step ${stepNumber} with provider: ${currentSession.provider}, model: ${currentSession.model}`,
-		);
 		observer.next({
 			type: "step-start",
 			stepId,
