@@ -108,10 +108,17 @@ export class ZaiProvider implements AIProvider {
 
 		// Try fetching from Z.ai API (with or without API key)
 		try {
+			console.log(`[ZaiProvider] Fetching models from ${baseUrl}/models`, {
+				hasApiKey: !!apiKey,
+				codingPlan,
+			});
+
 			const response = await fetch(`${baseUrl}/models`, {
 				headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
 				signal: AbortSignal.timeout(10000),
 			});
+
+			console.log(`[ZaiProvider] Response status:`, response.status);
 
 			if (response.ok) {
 				const data = (await response.json()) as {
@@ -125,7 +132,11 @@ export class ZaiProvider implements AIProvider {
 					}>;
 				};
 
+				console.log(`[ZaiProvider] /models result:`, JSON.stringify(data, null, 2));
+
 				const model = data.data?.find((m) => m.id === modelId);
+				console.log(`[ZaiProvider] Found model ${modelId}:`, model);
+
 				if (model) {
 					return {
 						contextLength: model.context_length || null,

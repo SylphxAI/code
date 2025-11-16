@@ -683,12 +683,12 @@ export const configRouter = router({
 			try {
 				const provider = getProvider(input.providerId);
 
-				// Try to get provider config with API key from settings
+				// Try to get provider config with API key (optional)
 				// If config not available, provider will try unauthenticated API call
 				let config: any = undefined;
 				try {
-					const settings = await loadSettings(input.cwd);
-					config = settings.providers?.[input.providerId];
+					const aiConfig = await loadAIConfig(input.cwd);
+					config = await getProviderConfigWithApiKey(aiConfig, input.providerId);
 				} catch {
 					// Config not available - continue without it
 				}
