@@ -97,9 +97,7 @@ function ControlledTextInput({
 
 			// Ctrl+V - paste image from clipboard
 			if (key.ctrl && input?.toLowerCase() === "v") {
-				console.log("[ControlledTextInput] Ctrl+V detected, onPasteImage:", !!onPasteImage);
 				if (onPasteImage) {
-					console.log("[ControlledTextInput] Calling onPasteImage");
 					onPasteImage();
 					return;
 				}
@@ -340,6 +338,7 @@ function ControlledTextInput({
 				} else {
 					if (onSubmit) {
 						onSubmit(value);
+					} else {
 					}
 					return;
 				}

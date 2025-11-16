@@ -151,6 +151,7 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 	} = params;
 
 	return async (value: string) => {
+
 		if (!value.trim()) {
 			return;
 		}
@@ -347,6 +348,7 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 			setPendingCommand(null);
 			return;
 		}
+
 		// For regular messages, clear input after getting the value
 		setInput("");
 

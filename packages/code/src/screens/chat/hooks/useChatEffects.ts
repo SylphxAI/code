@@ -43,7 +43,18 @@ export function useChatEffects(state: ChatState) {
 			setIsTitleStreaming: state.streamingState.setIsTitleStreaming,
 			setStreamingTitle: state.streamingState.setStreamingTitle,
 		}),
-		[],
+		[
+			state.aiConfig,
+			state.currentSessionId,
+			state.selectedProvider,
+			state.selectedModel,
+			state.addLog,
+			state.streamingState.abortControllerRef,
+			state.streamingState.streamingMessageIdRef,
+			state.streamingState.setIsStreaming,
+			state.streamingState.setIsTitleStreaming,
+			state.streamingState.setStreamingTitle,
+		],
 	);
 
 	// Autocomplete (depends on sendUserMessageToAI for command context)

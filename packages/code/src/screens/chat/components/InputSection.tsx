@@ -109,7 +109,7 @@ export function InputSection({
 	setInput,
 	cursor,
 	setCursor,
-	onSubmit,
+	onSubmit: onSubmitProp,
 	onCommandAutocompleteTab,
 	onCommandAutocompleteEnter,
 	onCommandAutocompleteUpArrow,
@@ -162,6 +162,11 @@ export function InputSection({
 	useEffect(() => {
 		isStreamingRef.current = isStreaming;
 	}, [isStreaming]);
+
+	// Wrap onSubmit with logging
+	const onSubmit = (value: string) => {
+		onSubmitProp(value);
+	};
 
 	// Determine header title based on context
 	const getHeaderTitle = (): string => {

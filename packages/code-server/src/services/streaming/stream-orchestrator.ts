@@ -437,7 +437,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 		// Cleanup function
 		return () => {
 			// Unregister ask observer to prevent memory leak
-			if (askToolRegistered) {
+			if (_askToolRegistered) {
 				import("../ask-queue.service.js").then(({ unregisterAskObserver }) => {
 					unregisterAskObserver(sessionId, observer);
 				});
