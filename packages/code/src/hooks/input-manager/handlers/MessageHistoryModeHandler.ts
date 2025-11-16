@@ -59,7 +59,7 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 
 	/**
 	 * Check if handler should be active
-	 * Active only when in normal mode with no autocomplete or other UI
+	 * Active in normal mode - even while streaming!
 	 */
 	isActive(context: InputModeContext): boolean {
 		// Must be in NORMAL mode
@@ -67,12 +67,7 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 			return false;
 		}
 
-		const { isStreaming, inputComponent, filteredCommands, filteredFileInfo } = this.deps;
-
-		// Don't handle when streaming
-		if (isStreaming) {
-			return false;
-		}
+		const { inputComponent, filteredCommands, filteredFileInfo } = this.deps;
 
 		// Don't handle when custom inputComponent is active (e.g. ProviderManagement)
 		if (inputComponent) {
