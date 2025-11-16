@@ -392,7 +392,8 @@ export class SessionRepository {
 			.where(eq(sessions.id, sessionId))
 			.limit(1);
 
-		return session?.messageQueue || [];
+		const queue = session?.messageQueue;
+		return Array.isArray(queue) ? queue : [];
 	}
 
 	/**
