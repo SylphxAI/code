@@ -401,10 +401,18 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					});
 
 					// Combine all queued messages into a single message
-					const { parseUserInput } = await import("@sylphx/code-client");
+					// Just concatenate content directly (no labels needed - multiple text parts allowed)
 					const combinedContent = queuedMessages
-						.map((msg, idx) => `[Message ${idx + 1}]\n${msg.content}`)
+						.map((msg) => msg.content)
+						.filter((content) => content && content.trim()) // Filter out empty messages
 						.join("\n\n");
+
+					// Skip if no valid content after filtering
+					if (!combinedContent.trim()) {
+						console.log("[StreamOrchestrator] All queued messages were empty, skipping");
+						observer.complete();
+						return;
+					}
 
 					// Collect all attachments (filter out undefined/null)
 					const allAttachments = queuedMessages
@@ -412,6 +420,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 						.filter((att) => att && att.relativePath);
 
 					// Parse combined input
+					const { parseUserInput } = await import("@sylphx/code-client");
 					const { parts } = parseUserInput(combinedContent, allAttachments);
 
 					// Trigger new stream with all queued messages combined
