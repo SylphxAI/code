@@ -218,13 +218,17 @@ export async function calculateFinalTokens(
 		// Emit event with calculated token data (send data on needed)
 		// Publish to session-specific channel (same as other streaming events)
 		// All clients receive token data immediately without additional API calls
-		console.log("[TokenTracking] Publishing final tokens for session:", sessionId);
+		console.log("[TokenTracking] Publishing final tokens for session:", sessionId, {
+			totalTokens: finalTotal,
+			baseContextTokens: finalBaseContext,
+		});
 		await appContext.eventStream.publish(`session:${sessionId}`, {
 			type: "session-tokens-updated" as const,
 			sessionId,
 			totalTokens: finalTotal,
 			baseContextTokens: finalBaseContext,
 		});
+		console.log("[TokenTracking] session-tokens-updated event published successfully");
 
 	} catch (error) {
 		console.error("[TokenTracking] Failed to calculate final tokens:", error);
