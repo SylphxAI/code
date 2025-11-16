@@ -9,6 +9,7 @@
 // Cross-domain computed signals
 export * from "./computed/index.js";
 export * from "./domain/ai/index.js";
+export * from "./domain/queue/index.js";
 export * from "./domain/session/index.js";
 export * from "./domain/settings/index.js";
 // Domain signals

@@ -52,6 +52,12 @@ export {
 } from "./handlers/sessionHandlers.js";
 
 export {
+	handleQueueClearedEvent,
+	handleQueueMessageAddedEvent,
+	handleQueueMessageRemovedEvent,
+} from "./handlers/queueHandlers.js";
+
+export {
 	handleToolCall,
 	handleToolError,
 	handleToolInputDelta,
@@ -161,6 +167,11 @@ const eventHandlers: Record<StreamEvent["type"], EventHandler> = {
 	// Ask tool events
 	"ask-question-start": handleAskQuestionStart,
 	"ask-question-answered": handleAskQuestionAnswered,
+
+	// Queue events
+	"queue-message-added": handleQueueMessageAddedEvent,
+	"queue-message-removed": handleQueueMessageRemovedEvent,
+	"queue-cleared": handleQueueClearedEvent,
 
 	// Error events
 	error: handleError,
