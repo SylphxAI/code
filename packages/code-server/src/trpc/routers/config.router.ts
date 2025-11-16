@@ -696,15 +696,33 @@ export const configRouter = router({
 					// Config not available - continue without it
 				}
 
-				// Get model details and capabilities
+				// Get model details and capabilities from provider
 				const details = await provider.getModelDetails(input.modelId, config);
-				const capabilities = provider.getModelCapabilities(input.modelId);
+				const providerCapabilities = provider.getModelCapabilities(input.modelId);
+
+				// Enrich with models.dev fallback (fills missing fields)
+				const { enrichModelDetails, enrichCapabilities } = await import("@sylphx/code-core");
+				const enrichedDetails = await enrichModelDetails(input.modelId, details);
+
+				// Fetch models.dev data for capabilities enrichment
+				// (enrichCapabilities needs the data as well, so we fetch it here to avoid double fetch)
+				const modelsDevData = await fetch("https://models.dev/api.json", {
+					signal: AbortSignal.timeout(10000),
+				})
+					.then((res) => (res.ok ? res.json() : null))
+					.catch(() => null);
+
+				const enrichedCapabilities = enrichCapabilities(
+					input.modelId,
+					providerCapabilities,
+					modelsDevData,
+				);
 
 				return {
 					success: true as const,
 					details: {
-						...details,
-						capabilities,
+						...enrichedDetails,
+						capabilities: enrichedCapabilities,
 					},
 				};
 			} catch (error) {

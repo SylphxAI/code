@@ -424,6 +424,11 @@ export * from "./constants/index.js";
 export { getMCPManager, resetMCPManager, MCPManager } from "./services/mcp-manager.js";
 
 // ============================================================================
+// Model Details Service
+// ============================================================================
+export { enrichModelDetails, enrichCapabilities } from "./services/model-details-service.js";
+
+// ============================================================================
 // MCP Commands
 // ============================================================================
 export { MCP_COMMANDS } from "./commands/mcp-commands.js";
