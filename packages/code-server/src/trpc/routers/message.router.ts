@@ -732,4 +732,115 @@ export const messageRouter = router({
 				return () => subscription.unsubscribe();
 			});
 		}),
+
+	// ============================================================================
+	// Message Queue Operations
+	// ============================================================================
+
+	/**
+	 * Enqueue message - Add message to session queue
+	 * Used when user submits message while AI is streaming
+	 * REACTIVE: Emits queue-message-added event
+	 * SECURITY: Protected + moderate rate limiting (30 req/min)
+	 */
+	enqueueMessage: moderateProcedure
+		.input(
+			z.object({
+				sessionId: z.string(),
+				content: z.string(),
+				attachments: z.array(FileAttachmentSchema).optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const queuedMessage = await ctx.sessionRepository.enqueueMessage(
+				input.sessionId,
+				input.content,
+				input.attachments || [],
+			);
+
+			// Publish queue-message-added event
+			const channel = `session:${input.sessionId}`;
+			await ctx.appContext.eventStream.publish(channel, {
+				type: "queue-message-added" as const,
+				sessionId: input.sessionId,
+				message: queuedMessage,
+			});
+
+			return queuedMessage;
+		}),
+
+	/**
+	 * Dequeue message - Get and remove next message from queue
+	 * REACTIVE: Emits queue-message-removed event
+	 * SECURITY: Protected + moderate rate limiting (30 req/min)
+	 */
+	dequeueMessage: moderateProcedure
+		.input(z.object({ sessionId: z.string() }))
+		.mutation(async ({ ctx, input }) => {
+			const message = await ctx.sessionRepository.dequeueMessage(input.sessionId);
+
+			if (message) {
+				// Publish queue-message-removed event
+				const channel = `session:${input.sessionId}`;
+				await ctx.appContext.eventStream.publish(channel, {
+					type: "queue-message-removed" as const,
+					sessionId: input.sessionId,
+					messageId: message.id,
+				});
+			}
+
+			return message;
+		}),
+
+	/**
+	 * Get queued messages - Get all queued messages for display
+	 * SECURITY: Public procedure (read-only)
+	 */
+	getQueuedMessages: publicProcedure
+		.input(z.object({ sessionId: z.string() }))
+		.query(async ({ ctx, input }) => {
+			return await ctx.sessionRepository.getQueuedMessages(input.sessionId);
+		}),
+
+	/**
+	 * Clear queue - Remove all queued messages
+	 * REACTIVE: Emits queue-cleared event
+	 * SECURITY: Protected + moderate rate limiting (30 req/min)
+	 */
+	clearQueue: moderateProcedure
+		.input(z.object({ sessionId: z.string() }))
+		.mutation(async ({ ctx, input }) => {
+			await ctx.sessionRepository.clearQueue(input.sessionId);
+
+			// Publish queue-cleared event
+			const channel = `session:${input.sessionId}`;
+			await ctx.appContext.eventStream.publish(channel, {
+				type: "queue-cleared" as const,
+				sessionId: input.sessionId,
+			});
+		}),
+
+	/**
+	 * Remove queued message - Remove specific message from queue
+	 * REACTIVE: Emits queue-message-removed event
+	 * SECURITY: Protected + moderate rate limiting (30 req/min)
+	 */
+	removeQueuedMessage: moderateProcedure
+		.input(
+			z.object({
+				sessionId: z.string(),
+				messageId: z.string(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			await ctx.sessionRepository.removeQueuedMessage(input.sessionId, input.messageId);
+
+			// Publish queue-message-removed event
+			const channel = `session:${input.sessionId}`;
+			await ctx.appContext.eventStream.publish(channel, {
+				type: "queue-message-removed" as const,
+				sessionId: input.sessionId,
+				messageId: input.messageId,
+			});
+		}),
 });
