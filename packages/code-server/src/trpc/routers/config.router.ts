@@ -677,12 +677,19 @@ export const configRouter = router({
 				cwd: z.string().default(process.cwd()),
 			}),
 		)
-		.query(async ({ input }) => {
+		.query(async ({ input, ctx }) => {
 			try {
 				const provider = getProvider(input.providerId);
 
+				// Get provider config with API key for fetching model details
+				const config = await getProviderConfigWithApiKey(
+					ctx.appContext,
+					input.providerId,
+					input.cwd,
+				);
+
 				// Get model details and capabilities
-				const details = await provider.getModelDetails(input.modelId);
+				const details = await provider.getModelDetails(input.modelId, config);
 				const capabilities = provider.getModelCapabilities(input.modelId);
 
 				return {
