@@ -101,6 +101,11 @@ import {
 	handleSessionTokensUpdated,
 } from "./handlers/sessionHandlers.js";
 import {
+	handleQueueClearedEvent,
+	handleQueueMessageAddedEvent,
+	handleQueueMessageRemovedEvent,
+} from "./handlers/queueHandlers.js";
+import {
 	handleToolCall,
 	handleToolError,
 	handleToolInputDelta,
