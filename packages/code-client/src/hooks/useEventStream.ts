@@ -89,6 +89,11 @@ export interface EventStreamCallbacks {
 		}>,
 	) => void;
 
+	// Queue events
+	onQueueMessageAdded?: (sessionId: string, message: any) => void;
+	onQueueMessageRemoved?: (sessionId: string, messageId: string) => void;
+	onQueueCleared?: (sessionId: string) => void;
+
 	// Error events
 	onError?: (error: string) => void;
 }
@@ -295,6 +300,18 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 						case "ask-question":
 							callbacksRef.current.onAskQuestion?.(event.questionId, event.questions);
 							break;
+
+					case "queue-message-added":
+						callbacksRef.current.onQueueMessageAdded?.(event.sessionId, event.message);
+						break;
+
+					case "queue-message-removed":
+						callbacksRef.current.onQueueMessageRemoved?.(event.sessionId, event.messageId);
+						break;
+
+					case "queue-cleared":
+						callbacksRef.current.onQueueCleared?.(event.sessionId);
+						break;
 
 						case "error":
 							callbacksRef.current.onError?.(event.error);
