@@ -22,48 +22,28 @@
  * - Efficient updates: Update specific fields without rewriting entire file
  */
 
-import { eq, desc, and, like, sql, inArray, lt } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import { randomUUID } from "node:crypto";
-import { z } from "zod";
-import {
-	sessions,
-	messages,
-	messageSteps,
-	stepParts,
-	stepUsage,
-	todos,
-	type Session,
-	type NewSession,
-	type Message,
-	type NewMessage,
-	type MessageStep as DBMessageStep,
-	type NewMessageStep,
-} from "./schema.js";
-import type {
-	Session as SessionType,
-	SessionMessage,
-	MessageStep,
-	MessagePart,
-	FileAttachment,
-	TokenUsage,
-	MessageMetadata,
-} from "../types/session.types.js";
-
-/**
- * Zod schemas for validating JSON data from database
- */
-const StringArraySchema = z.array(z.string());
-
-const MessagePartSchema: z.ZodType<MessagePart> = z.any(); // ASSUMPTION: MessagePart already validated when inserted
-
-const MessageMetadataSchema = z.object({
-	cpu: z.string().optional(),
-	memory: z.string().optional(),
-}).passthrough(); // Allow additional fields for future extensions
-import type { Todo as TodoType } from "../types/todo.types.js";
+import { sessions, type NewSession } from "./schema.js";
+import type { Session as SessionType } from "../types/session.types.js";
 import type { ProviderId } from "../config/ai-config.js";
 import { retryDatabase } from "../utils/retry.js";
+
+// Import modular functions
+import {
+	getSessionById,
+	getRecentSessionsMetadata,
+	getRecentSessions,
+	getLastSession,
+} from "./session/session-query.js";
+import {
+	searchSessionsMetadata,
+	searchSessionsByTitle,
+} from "./session/session-search.js";
+import { getSessionCount } from "./session/session-aggregation.js";
+
+// Re-export types
+export type { SessionMetadata, PaginatedResult } from "./session/types.js";
 
 export class SessionRepository {
 	constructor(private db: LibSQLDatabase) {}
@@ -74,6 +54,10 @@ export class SessionRepository {
 	getDatabase(): LibSQLDatabase {
 		return this.db;
 	}
+
+	// ============================================================================
+	// Session CRUD Operations
+	// ============================================================================
 
 	/**
 	 * Create a new session
@@ -146,435 +130,15 @@ export class SessionRepository {
 	}
 
 	/**
-	 * Get recent sessions metadata ONLY (cursor-based pagination)
-	 * DATA ON DEMAND: Returns only id, title, provider, model, created, updated
-	 * NO messages, NO todos - client fetches those separately when needed
-	 *
-	 * CURSOR-BASED PAGINATION: More efficient than offset for large datasets
-	 * - Cursor = updated timestamp of last item
-	 * - Works even with concurrent updates
+	 * Delete session (CASCADE will delete all related data)
 	 */
-	async getRecentSessionsMetadata(
-		limit = 20,
-		cursor?: number,
-	): Promise<{
-		sessions: Array<{
-			id: string;
-			title?: string;
-			provider: ProviderId;
-			model: string;
-			agentId: string;
-			created: number;
-			updated: number;
-			messageCount: number;
-		}>;
-		nextCursor: number | null;
-	}> {
-		// Build query with cursor
-		const queryBuilder = this.db
-			.select()
-			.from(sessions)
-			.orderBy(desc(sessions.updated))
-			.limit(limit + 1); // Fetch one extra to determine if there's a next page
-
-		if (cursor) {
-			queryBuilder.where(lt(sessions.updated, cursor));
-		}
-
-		let sessionRecords: (typeof sessions.$inferSelect)[];
-
-		try {
-			sessionRecords = await queryBuilder;
-		} catch (error) {
-			// JSON parse error in corrupted session data - fix corrupted records
-			console.warn("[getRecentSessionsMetadata] Detected corrupted JSON, auto-repairing...");
-
-			// Query with raw SQL to bypass Drizzle's JSON parsing
-			// Note: Raw SQL needed here to skip JSON validation on corrupted data
-			const rawSessions = await this.db.all(sql`
-        SELECT * FROM sessions
-        ${cursor ? sql`WHERE ${sessions.updated} < ${cursor}` : sql``}
-        ORDER BY ${sessions.updated} DESC
-        LIMIT ${limit + 1}
-      `);
-
-			// Manually parse and fix corrupted records
-			sessionRecords = [];
-			for (const raw of rawSessions) {
-				try {
-					// Parse and validate enabledRuleIds with Zod
-					let enabledRuleIds: string[] = [];
-					if (raw.enabled_rule_ids) {
-						const parsed = StringArraySchema.safeParse(JSON.parse(raw.enabled_rule_ids as string));
-						if (parsed.success) {
-							enabledRuleIds = parsed.data;
-						} else {
-							// Corrupted JSON - default to empty array and fix it
-							enabledRuleIds = [];
-							// Fix the corrupted record
-							await this.db
-								.update(sessions)
-								.set({ enabledRuleIds: [] })
-								.where(eq(sessions.id, raw.id as string));
-						}
-					}
-
-					// Parse and validate toolIds with Zod
-					let toolIds: string[] | null = null;
-					if (raw.tool_ids) {
-						const parsed = StringArraySchema.safeParse(JSON.parse(raw.tool_ids as string));
-						if (parsed.success) {
-							toolIds = parsed.data;
-						}
-					}
-
-					// Parse and validate mcpServerIds with Zod
-					let mcpServerIds: string[] | null = null;
-					if (raw.mcp_server_ids) {
-						const parsed = StringArraySchema.safeParse(JSON.parse(raw.mcp_server_ids as string));
-						if (parsed.success) {
-							mcpServerIds = parsed.data;
-						}
-					}
-
-					sessionRecords.push({
-						id: raw.id as string,
-						title: raw.title as string | null,
-						modelId: raw.model_id as string | null,
-						provider: raw.provider as string | null,
-						model: raw.model as string | null,
-						agentId: raw.agent_id as string,
-						enabledRuleIds,
-						toolIds,
-						mcpServerIds,
-						nextTodoId: raw.next_todo_id as number,
-						created: raw.created as number,
-						updated: raw.updated as number,
-					});
-				} catch (parseError) {
-					// Skip this session - too corrupted to parse
-				}
-			}
-		}
-
-		// Check if there are more results
-		const hasMore = sessionRecords.length > limit;
-		const sessionsToReturn = hasMore ? sessionRecords.slice(0, limit) : sessionRecords;
-		const nextCursor = hasMore ? sessionsToReturn[sessionsToReturn.length - 1].updated : null;
-
-		// Get message counts for all sessions in one query (OPTIMIZED!)
-		const sessionIds = sessionsToReturn.map((s) => s.id);
-		const messageCounts = await this.db
-			.select({
-				sessionId: messages.sessionId,
-				count: sql<number>`count(*)`,
-			})
-			.from(messages)
-			.where(inArray(messages.sessionId, sessionIds))
-			.groupBy(messages.sessionId);
-
-		// Create lookup map
-		const countMap = new Map(messageCounts.map((m) => [m.sessionId, m.count]));
-
-		return {
-			sessions: sessionsToReturn.map((s) => ({
-				id: s.id,
-				title: s.title || undefined,
-				provider: s.provider as ProviderId,
-				model: s.model,
-				agentId: s.agentId,
-				created: s.created,
-				updated: s.updated,
-				messageCount: countMap.get(s.id) || 0,
-			})),
-			nextCursor,
-		};
+	async deleteSession(sessionId: string): Promise<void> {
+		await this.db.delete(sessions).where(eq(sessions.id, sessionId));
 	}
 
-	/**
-	 * Get recent sessions with full data (for backward compatibility)
-	 * DEPRECATED: Use getRecentSessionsMetadata + getSessionById instead
-	 */
-	async getRecentSessions(limit = 20, offset = 0): Promise<SessionType[]> {
-		// Get session metadata only (no messages yet - lazy loading!)
-		const sessionRecords = await this.db
-			.select()
-			.from(sessions)
-			.orderBy(desc(sessions.updated))
-			.limit(limit)
-			.offset(offset);
-
-		// For each session, load messages, todos, etc.
-		const fullSessions = await Promise.all(
-			sessionRecords.map((session) => this.getSessionById(session.id)),
-		);
-
-		return fullSessions.filter((s): s is SessionType => s !== null);
-	}
-
-	/**
-	 * Get session by ID with all related data
-	 */
-	async getSessionById(sessionId: string): Promise<SessionType | null> {
-		// Get session metadata
-		const [session] = await this.db
-			.select()
-			.from(sessions)
-			.where(eq(sessions.id, sessionId))
-			.limit(1);
-
-		if (!session) {
-			return null;
-		}
-
-		// DEBUG: Log raw session data from database
-		console.log(`[SessionRepository] Raw session from DB:`, {
-			id: session.id,
-			provider: session.provider,
-			model: session.model,
-			providerType: typeof session.provider,
-			modelType: typeof session.model,
-		});
-
-		// Get messages with all parts, attachments, usage
-		const sessionMessages = await this.getSessionMessages(sessionId);
-
-		// Get todos
-		const sessionTodos = await this.getSessionTodos(sessionId);
-
-		// Build return object
-		const result: SessionType = {
-			id: session.id,
-			title: session.title || undefined,
-			provider: session.provider as ProviderId,
-			model: session.model,
-			agentId: session.agentId,
-			enabledRuleIds: session.enabledRuleIds || [],
-			messages: sessionMessages,
-			todos: sessionTodos,
-			nextTodoId: session.nextTodoId,
-			flags: session.flags || undefined,
-			baseContextTokens: session.baseContextTokens || undefined,
-			totalTokens: session.totalTokens || undefined,
-			created: session.created,
-			updated: session.updated,
-		};
-
-		return result;
-	}
-
-	// REMOVED: getMessagesBySession - not implemented for step-based architecture
-	// Use getSessionById instead (loads all messages efficiently)
-
-	/**
-	 * Get messages for a session (all messages) with step-based structure
-	 * Assembles steps, parts, attachments, usage into SessionMessage format
-	 * OPTIMIZED: Batch queries instead of N+1 queries
-	 */
-	private async getSessionMessages(sessionId: string): Promise<SessionMessage[]> {
-		// Get all messages for session
-		const messageRecords = await this.db
-			.select()
-			.from(messages)
-			.where(eq(messages.sessionId, sessionId))
-			.orderBy(messages.ordering);
-
-		if (messageRecords.length === 0) {
-			return [];
-		}
-
-		// Batch fetch all related data (MASSIVE performance improvement!)
-		const messageIds = messageRecords.map((m) => m.id);
-
-		// Get all steps for all messages
-		const allSteps = await this.db
-			.select()
-			.from(messageSteps)
-			.where(inArray(messageSteps.messageId, messageIds))
-			.orderBy(messageSteps.stepIndex);
-
-		const stepIds = allSteps.map((s) => s.id);
-
-		// Fetch all step-related data in parallel
-		const [allParts, allStepUsage] = await Promise.all([
-			// Step parts
-			this.db
-				.select()
-				.from(stepParts)
-				.where(inArray(stepParts.stepId, stepIds))
-				.orderBy(stepParts.ordering),
-
-			// Step usage
-			this.db
-				.select()
-				.from(stepUsage)
-				.where(inArray(stepUsage.stepId, stepIds)),
-		]);
-
-		// Group by step ID
-		const partsByStep = new Map<string, typeof allParts>();
-		const usageByStep = new Map<string, (typeof allStepUsage)[0]>();
-
-		for (const part of allParts) {
-			if (!partsByStep.has(part.stepId)) {
-				partsByStep.set(part.stepId, []);
-			}
-			partsByStep.get(part.stepId)!.push(part);
-		}
-
-		for (const usage of allStepUsage) {
-			usageByStep.set(usage.stepId, usage);
-		}
-
-		// Group by message ID
-		const stepsByMessage = new Map<string, typeof allSteps>();
-
-		for (const step of allSteps) {
-			if (!stepsByMessage.has(step.messageId)) {
-				stepsByMessage.set(step.messageId, []);
-			}
-			stepsByMessage.get(step.messageId)!.push(step);
-		}
-
-		// Assemble messages using grouped data
-		const fullMessages = messageRecords.map((msg) => {
-			const steps = stepsByMessage.get(msg.id) || [];
-
-			// Compute message usage from step usage
-			let messageUsage: TokenUsage | undefined;
-			const stepUsages = steps
-				.map((s) => usageByStep.get(s.id))
-				.filter((u): u is NonNullable<typeof u> => u !== undefined);
-
-			if (stepUsages.length > 0) {
-				messageUsage = {
-					promptTokens: stepUsages.reduce((sum, u) => sum + u.promptTokens, 0),
-					completionTokens: stepUsages.reduce((sum, u) => sum + u.completionTokens, 0),
-					totalTokens: stepUsages.reduce((sum, u) => sum + u.totalTokens, 0),
-				};
-			}
-
-			// Build steps
-			const messageSteps: MessageStep[] = steps.map((step) => {
-				const parts = partsByStep.get(step.id) || [];
-				const stepUsageData = usageByStep.get(step.id);
-
-				// Parse message parts with validation
-				const parsedParts = parts.map((p) => {
-					const parsed = MessagePartSchema.safeParse(JSON.parse(p.content));
-					if (!parsed.success) {
-						// Fallback to raw parse (MessagePartSchema is z.any(), always succeeds)
-						return JSON.parse(p.content) as MessagePart;
-					}
-					return parsed.data as MessagePart;
-				});
-
-				const messageStep: MessageStep = {
-					id: step.id,
-					stepIndex: step.stepIndex,
-					parts: parsedParts,
-					status: (step.status as "active" | "completed" | "error" | "abort") || "completed",
-				};
-
-				if (step.metadata) {
-					const parsed = MessageMetadataSchema.safeParse(JSON.parse(step.metadata));
-					if (parsed.success) {
-						messageStep.metadata = parsed.data;
-					} else {
-						// Fallback for corrupted metadata - use empty object
-						messageStep.metadata = {};
-					}
-				}
-
-				// REMOVED: todoSnapshot - no longer stored per-step
-				// Todos are only sent on first user message after /compact
-
-				if (stepUsageData) {
-					messageStep.usage = {
-						promptTokens: stepUsageData.promptTokens,
-						completionTokens: stepUsageData.completionTokens,
-						totalTokens: stepUsageData.totalTokens,
-					};
-				}
-
-				if (step.provider) {
-					messageStep.provider = step.provider;
-				}
-
-				if (step.model) {
-					messageStep.model = step.model;
-				}
-
-				if (step.duration) {
-					messageStep.duration = step.duration;
-				}
-
-				if (step.finishReason) {
-					messageStep.finishReason = step.finishReason as
-						| "stop"
-						| "tool-calls"
-						| "length"
-						| "error";
-				}
-
-				if (step.startTime) {
-					messageStep.startTime = step.startTime;
-				}
-
-				if (step.endTime) {
-					messageStep.endTime = step.endTime;
-				}
-
-				return messageStep;
-			});
-
-			const sessionMessage: SessionMessage = {
-				id: msg.id,
-				role: msg.role as "user" | "assistant",
-				steps: messageSteps,
-				timestamp: msg.timestamp,
-				status: (msg.status as "active" | "completed" | "error" | "abort") || "completed",
-			};
-
-			// REMOVED: Attachments - files now stored as frozen content in step parts
-			// File content is captured at creation time and stored as base64 in MessagePart
-
-			// Aggregated usage (computed from step usage)
-			if (messageUsage) {
-				sessionMessage.usage = messageUsage;
-			}
-
-			// Final finish reason (from last step or message-level)
-			if (msg.finishReason) {
-				sessionMessage.finishReason = msg.finishReason;
-			}
-
-			return sessionMessage;
-		});
-
-		return fullMessages;
-	}
-
-	/**
-	 * Get todos for a session
-	 */
-	private async getSessionTodos(sessionId: string): Promise<TodoType[]> {
-		const todoRecords = await this.db
-			.select()
-			.from(todos)
-			.where(eq(todos.sessionId, sessionId))
-			.orderBy(todos.ordering);
-
-		return todoRecords.map((t) => ({
-			id: t.id,
-			content: t.content,
-			activeForm: t.activeForm,
-			status: t.status as "pending" | "in_progress" | "completed",
-			ordering: t.ordering,
-		}));
-	}
-
-	// REMOVED: addMessage - moved to MessageRepository
+	// ============================================================================
+	// Session Updates
+	// ============================================================================
 
 	/**
 	 * Update session title
@@ -641,7 +205,10 @@ export class SessionRepository {
 	 * Update session flags (system message trigger states)
 	 * Merges new flags with existing flags
 	 */
-	async updateSessionFlags(sessionId: string, flagUpdates: Record<string, boolean>): Promise<void> {
+	async updateSessionFlags(
+		sessionId: string,
+		flagUpdates: Record<string, boolean>,
+	): Promise<void> {
 		await retryDatabase(async () => {
 			// Read current session
 			const [session] = await this.db
@@ -688,87 +255,55 @@ export class SessionRepository {
 		});
 	}
 
-	// REMOVED: updateStepParts - moved to MessageRepository
-	// REMOVED: updateMessageParts - moved to MessageRepository
-	// REMOVED: updateMessageStatus - moved to MessageRepository
-	// REMOVED: updateMessageUsage - moved to MessageRepository
+	// ============================================================================
+	// Session Queries (delegated to session-query.ts)
+	// ============================================================================
 
 	/**
-	 * Delete session (CASCADE will delete all related data)
+	 * Get session by ID with all related data
 	 */
-	async deleteSession(sessionId: string): Promise<void> {
-		await this.db.delete(sessions).where(eq(sessions.id, sessionId));
+	async getSessionById(sessionId: string): Promise<SessionType | null> {
+		return getSessionById(this.db, sessionId);
 	}
 
 	/**
+	 * Get recent sessions metadata ONLY (cursor-based pagination)
+	 */
+	async getRecentSessionsMetadata(
+		limit = 20,
+		cursor?: number,
+	): Promise<ReturnType<typeof getRecentSessionsMetadata>> {
+		return getRecentSessionsMetadata(this.db, limit, cursor);
+	}
+
+	/**
+	 * Get recent sessions with full data (for backward compatibility)
+	 * DEPRECATED: Use getRecentSessionsMetadata + getSessionById instead
+	 */
+	async getRecentSessions(limit = 20, offset = 0): Promise<SessionType[]> {
+		return getRecentSessions(this.db, limit, offset);
+	}
+
+	/**
+	 * Get most recently updated session (for headless mode continuation)
+	 */
+	async getLastSession(): Promise<SessionType | null> {
+		return getLastSession(this.db);
+	}
+
+	// ============================================================================
+	// Session Search (delegated to session-search.ts)
+	// ============================================================================
+
+	/**
 	 * Search sessions by title (metadata only, cursor-based)
-	 * DATA ON DEMAND: Returns only metadata, no messages
-	 * CURSOR-BASED PAGINATION: Efficient for large result sets
 	 */
 	async searchSessionsMetadata(
 		query: string,
 		limit = 20,
 		cursor?: number,
-	): Promise<{
-		sessions: Array<{
-			id: string;
-			title?: string;
-			provider: ProviderId;
-			model: string;
-			agentId: string;
-			created: number;
-			updated: number;
-			messageCount: number;
-		}>;
-		nextCursor: number | null;
-	}> {
-		const conditions = [like(sessions.title, `%${query}%`)];
-		if (cursor) {
-			conditions.push(lt(sessions.updated, cursor));
-		}
-
-		const queryBuilder = this.db
-			.select()
-			.from(sessions)
-			.where(and(...conditions))
-			.orderBy(desc(sessions.updated))
-			.limit(limit + 1);
-
-		const sessionRecords = await queryBuilder;
-
-		const hasMore = sessionRecords.length > limit;
-		const sessionsToReturn = hasMore ? sessionRecords.slice(0, limit) : sessionRecords;
-		const nextCursor = hasMore ? sessionsToReturn[sessionsToReturn.length - 1].updated : null;
-
-		// Get message counts
-		const sessionIds = sessionsToReturn.map((s) => s.id);
-		const messageCounts =
-			sessionIds.length > 0
-				? await this.db
-						.select({
-							sessionId: messages.sessionId,
-							count: sql<number>`count(*)`,
-						})
-						.from(messages)
-						.where(inArray(messages.sessionId, sessionIds))
-						.groupBy(messages.sessionId)
-				: [];
-
-		const countMap = new Map(messageCounts.map((m) => [m.sessionId, m.count]));
-
-		return {
-			sessions: sessionsToReturn.map((s) => ({
-				id: s.id,
-				title: s.title || undefined,
-				provider: s.provider as ProviderId,
-				model: s.model,
-				agentId: s.agentId,
-				created: s.created,
-				updated: s.updated,
-				messageCount: countMap.get(s.id) || 0,
-			})),
-			nextCursor,
-		};
+	): Promise<ReturnType<typeof searchSessionsMetadata>> {
+		return searchSessionsMetadata(this.db, query, limit, cursor);
 	}
 
 	/**
@@ -776,52 +311,17 @@ export class SessionRepository {
 	 * DEPRECATED: Use searchSessionsMetadata + getSessionById instead
 	 */
 	async searchSessionsByTitle(query: string, limit = 20): Promise<SessionType[]> {
-		const sessionRecords = await this.db
-			.select()
-			.from(sessions)
-			.where(like(sessions.title, `%${query}%`))
-			.orderBy(desc(sessions.updated))
-			.limit(limit);
-
-		const fullSessions = await Promise.all(
-			sessionRecords.map((session) => this.getSessionById(session.id)),
-		);
-
-		return fullSessions.filter((s): s is SessionType => s !== null);
+		return searchSessionsByTitle(this.db, (id) => this.getSessionById(id), query, limit);
 	}
+
+	// ============================================================================
+	// Session Aggregations (delegated to session-aggregation.ts)
+	// ============================================================================
 
 	/**
 	 * Get session count
-	 * Efficient: No need to load sessions into memory
 	 */
 	async getSessionCount(): Promise<number> {
-		const [{ count }] = await this.db.select({ count: sql<number>`count(*)` }).from(sessions);
-
-		return count;
+		return getSessionCount(this.db);
 	}
-
-	// REMOVED: getMessageCount - moved to MessageRepository
-
-	/**
-	 * Get most recently updated session (for headless mode continuation)
-	 * Returns the last active session
-	 */
-	async getLastSession(): Promise<SessionType | null> {
-		// Get most recent session by updated timestamp
-		const [lastSession] = await this.db
-			.select()
-			.from(sessions)
-			.orderBy(desc(sessions.updated))
-			.limit(1);
-
-		if (!lastSession) {
-			return null;
-		}
-
-		// Load full session data
-		return this.getSessionById(lastSession.id);
-	}
-
-	// REMOVED: updateTodos - moved to TodoRepository
-	// REMOVED: getRecentUserMessages - moved to MessageRepository
 }
