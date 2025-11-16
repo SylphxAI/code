@@ -96,27 +96,8 @@ function StatusBarInternal({
 		);
 	}
 
-	if (!model) {
-		const leftContent = [agentName, provider].filter(Boolean).join(" · ");
-		const rightContent = `${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`;
-
-		return (
-			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
-				<Box flexShrink={0}>
-					<Text dimColor>{leftContent}</Text>
-				</Box>
-				<Spacer />
-				<Box flexShrink={0}>
-					<Text dimColor>{rightContent}</Text>
-				</Box>
-				<Box flexShrink={0} marginLeft={1}>
-					<Text color="yellow">⚠ No model selected - type "/model" to select a model</Text>
-				</Box>
-			</Box>
-		);
-	}
-
 	// Memoize capability label to avoid recalculating on every render
+	// IMPORTANT: Keep hooks BEFORE any early returns to maintain consistent hook order
 	const capabilityLabel = useMemo(() => {
 		if (loading || !capabilities || capabilities.size === 0) return "";
 
@@ -132,7 +113,7 @@ function StatusBarInternal({
 
 	// Memoize left content to avoid rebuilding on every render
 	const leftContent = useMemo(
-		() => [agentName, provider, model + capabilityLabel].filter(Boolean).join(" · "),
+		() => [agentName, provider, model ? model + capabilityLabel : ""].filter(Boolean).join(" · "),
 		[agentName, provider, model, capabilityLabel],
 	);
 
@@ -152,6 +133,24 @@ function StatusBarInternal({
 
 		return rightParts.join(" · ");
 	}, [enabledRulesCount, mcpStatus, loading, contextLength, totalTokens, usagePercent]);
+
+	// Early return for missing model - AFTER all hooks
+	if (!model) {
+		return (
+			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
+				<Box flexShrink={0}>
+					<Text dimColor>{leftContent}</Text>
+				</Box>
+				<Spacer />
+				<Box flexShrink={0}>
+					<Text dimColor>{rightContent}</Text>
+				</Box>
+				<Box flexShrink={0} marginLeft={1}>
+					<Text color="yellow">⚠ No model selected - type "/model" to select a model</Text>
+				</Box>
+			</Box>
+		);
+	}
 
 	return (
 		<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
