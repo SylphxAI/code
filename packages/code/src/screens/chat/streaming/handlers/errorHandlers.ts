@@ -67,16 +67,6 @@ export function handleMessageStatusUpdated(
 	const currentSessionId = getCurrentSessionId();
 	const currentSession = getSignal($currentSession);
 
-	console.log(
-		"[handleMessageStatusUpdated] Status updated:",
-		event.status,
-		"for message:",
-		event.messageId,
-		"streamingMessageId:",
-		context.streamingMessageIdRef.current,
-		"currentSessionId:",
-		currentSessionId,
-	);
 	context.addLog(`[StreamEvent] Message status updated to: ${event.status}`);
 
 	// Update message status in session (server is source of truth)
@@ -120,10 +110,5 @@ export function handleMessageStatusUpdated(
 		// Clear streaming state
 		context.streamingMessageIdRef.current = null;
 		context.setIsStreaming(false);
-
-		console.log(
-			"[handleMessageStatusUpdated] Cleared streaming state for message:",
-			event.messageId,
-		);
 	}
 }

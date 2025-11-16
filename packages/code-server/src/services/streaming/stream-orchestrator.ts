@@ -410,7 +410,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 					// Skip if no valid content after filtering
 					if (!combinedContent.trim()) {
-						console.log("[StreamOrchestrator] All queued messages were empty, skipping");
 						observer.complete();
 						return;
 					}
