@@ -30,9 +30,7 @@ export function useStreamingState(): StreamingState {
 
 	// Wrapper to keep ref in sync with state
 	const setIsStreaming = (streaming: boolean) => {
-		console.log(`[useStreamingState] setIsStreaming called:`, streaming);
 		isStreamingRef.current = streaming;
-		console.log(`[useStreamingState] isStreamingRef.current updated to:`, isStreamingRef.current);
 		setIsStreamingState(streaming);
 	};
 

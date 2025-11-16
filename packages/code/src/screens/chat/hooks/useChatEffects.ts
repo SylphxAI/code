@@ -131,11 +131,8 @@ export function useChatEffects(state: ChatState) {
 	// Create handleSubmit function
 	const handleSubmit = useMemo(
 		() => {
-			console.log(`[useChatEffects] Creating handleSubmit with isStreamingRef:`, state.streamingState.isStreamingRef);
-			console.log(`[useChatEffects] Current isStreamingRef.current:`, state.streamingState.isStreamingRef.current);
 			return createHandleSubmit({
 				isStreaming: () => {
-					console.log(`[isStreaming getter] Reading isStreamingRef.current:`, state.streamingState.isStreamingRef.current);
 					return state.streamingState.isStreamingRef.current;
 				},
 				addMessage,
