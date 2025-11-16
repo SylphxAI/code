@@ -173,10 +173,19 @@ const eventHandlers: Record<StreamEvent["type"], EventHandler> = {
  * Replaces the large switch statement with a clean lookup
  */
 export function handleStreamEvent(event: StreamEvent, context: import("./types.js").EventHandlerContext): void {
+	if (event.type === "session-tokens-updated") {
+		console.log("[handleStreamEvent] Processing session-tokens-updated event");
+	}
 	const handler = eventHandlers[event.type];
 
 	if (handler) {
+		if (event.type === "session-tokens-updated") {
+			console.log("[handleStreamEvent] Handler found for session-tokens-updated, calling it");
+		}
 		handler(event, context);
+		if (event.type === "session-tokens-updated") {
+			console.log("[handleStreamEvent] Handler completed for session-tokens-updated");
+		}
 	} else {
 		console.warn("[handleStreamEvent] Unknown event type:", event.type);
 	}
