@@ -54,7 +54,7 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 
 	/**
 	 * Check if handler should be active
-	 * Active when there are queued messages (input check happens in handleInput)
+	 * Active when there are queued messages (even while streaming!)
 	 */
 	isActive(context: InputModeContext): boolean {
 		// Must be in NORMAL mode
@@ -63,18 +63,11 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 			return false;
 		}
 
-		const { queuedMessages, isStreaming, inputComponent, filteredCommands, filteredFileInfo } =
-			this.deps;
+		const { queuedMessages, inputComponent, filteredCommands, filteredFileInfo } = this.deps;
 
 		// No queued messages = not active
 		if (queuedMessages.length === 0) {
 			console.log("[QueueBrowsing] Not active - no queued messages");
-			return false;
-		}
-
-		// Don't handle when streaming
-		if (isStreaming) {
-			console.log("[QueueBrowsing] Not active - streaming");
 			return false;
 		}
 
@@ -93,7 +86,7 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 			return false;
 		}
 
-		console.log("[QueueBrowsing] ACTIVE - ready to handle UP arrow");
+		console.log("[QueueBrowsing] ACTIVE - ready to handle UP arrow (even while streaming)");
 		return true;
 	}
 
