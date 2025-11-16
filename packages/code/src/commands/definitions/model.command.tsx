@@ -105,43 +105,24 @@ export const modelCommand: Command = {
 			return "No provider selected. Use /provider to select a provider first.";
 		}
 
-		// Fetch models from server (server loads config with API keys)
-		context.addLog(`Loading models from ${currentProviderId}...`);
-		const { getTRPCClient } = await import("@sylphx/code-client");
-		const trpc = getTRPCClient();
+		// Show loading UI immediately, then fetch models asynchronously
+		let modelsState: {
+			loading: boolean;
+			models: Array<{ id: string; name: string }> | null;
+			error: string | null;
+		} = {
+			loading: true,
+			models: null,
+			error: null,
+		};
 
-		let allModels: Array<{ id: string; name: string }> = [];
-		try {
-			const result = await trpc.config.fetchModels.query({
-				providerId: currentProviderId,
-			});
-
-			if (!result.success) {
-				// Provide helpful error messages for common issues
-				if (currentProviderId === "claude-code" && result.error.includes("claude")) {
-					return `Failed to load Claude Code models: ${result.error}\n\nTo use Claude Code provider:\n1. Install Claude CLI: npm install -g @anthropic-ai/claude-code\n2. Login: claude login\n3. Then try /model again`;
-				}
-
-				return `Failed to load models from ${currentProviderId}: ${result.error}`;
-			}
-
-			allModels = result.models;
-			context.addLog(`Loaded ${allModels.length} models from ${currentProviderId}`);
-		} catch (error) {
-			const errorMsg = error instanceof Error ? error.message : String(error);
-			context.addLog(`Failed to fetch models for ${currentProviderId}: ${errorMsg}`);
-			return `Failed to load models from ${currentProviderId}: ${errorMsg}`;
-		}
-
-		if (allModels.length === 0) {
-			return `No models available for ${currentProviderId}`;
-		}
-
-		// Use ModelSelection component
-		context.setInputComponent(
+		// Render ModelSelection component with loading state
+		const renderModelSelection = () => (
 			<ModelSelection
-				models={allModels}
+				models={modelsState.models}
 				currentProvider={currentProviderId}
+				loading={modelsState.loading}
+				error={modelsState.error || undefined}
 				onSelect={async (modelId) => {
 					const provider = currentProviderId;
 
@@ -182,11 +163,37 @@ export const modelCommand: Command = {
 					context.setInputComponent(null);
 					context.addLog("[model] Model selection cancelled");
 				}}
-			/>,
-			"Model Selection",
+			/>
 		);
 
-		context.addLog(`[model] Model selection opened`);
+		// Show loading UI immediately
+		context.setInputComponent(renderModelSelection(), "Model Selection");
+
+		// Fetch models asynchronously
+		const { getTRPCClient } = await import("@sylphx/code-client");
+		const trpc = getTRPCClient();
+
+		try {
+			const result = await trpc.config.fetchModels.query({
+				providerId: currentProviderId,
+			});
+
+			if (!result.success) {
+				modelsState.loading = false;
+				modelsState.error = result.error;
+				context.setInputComponent(renderModelSelection(), "Model Selection");
+				return;
+			}
+
+			modelsState.loading = false;
+			modelsState.models = result.models;
+			context.setInputComponent(renderModelSelection(), "Model Selection");
+		} catch (error) {
+			const errorMsg = error instanceof Error ? error.message : String(error);
+			modelsState.loading = false;
+			modelsState.error = errorMsg;
+			context.setInputComponent(renderModelSelection(), "Model Selection");
+		}
 	},
 };
 
