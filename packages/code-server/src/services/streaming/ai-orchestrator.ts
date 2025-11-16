@@ -103,7 +103,6 @@ export async function processAIStream(
 							part.content += chunk.text;
 						}
 						state.hasEmittedAnyEvent = true;
-						console.log("[AIOrchestrator] Processing text-delta, length:", chunk.text.length);
 						// NOTE: Only use callback - emitTextDelta() is called in callback
 						callbacks.onTextDelta?.(chunk.text);
 
@@ -159,7 +158,6 @@ export async function processAIStream(
 							part.content += chunk.text;
 						}
 						state.hasEmittedAnyEvent = true;
-						console.log("[AIOrchestrator] Processing reasoning-delta, length:", chunk.text.length);
 						// NOTE: Only use callback - emitReasoningDelta() is called in callback
 						callbacks.onReasoningDelta?.(chunk.text);
 
@@ -428,7 +426,6 @@ export async function processAIStream(
 					break;
 
 				default:
-					console.log("[AIOrchestrator] Unhandled chunk type:", (chunk as any).type);
 					break;
 			}
 		}
@@ -440,7 +437,6 @@ export async function processAIStream(
 
 		if (isAbortError) {
 			state.aborted = true;
-			console.log("[AIOrchestrator] Abort detected in catch");
 		} else {
 			console.error("[AIOrchestrator] Stream processing error:", error);
 			state.currentStepParts.push({

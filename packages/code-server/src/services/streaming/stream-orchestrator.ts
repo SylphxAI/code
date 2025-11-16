@@ -232,13 +232,11 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				const callbacks: StreamCallbacks = {
 					onTextStart: () => emitTextStart(observer),
 					onTextDelta: (text) => {
-						console.log("[StreamOrchestrator] Emitting text-delta, length:", text.length);
 						emitTextDelta(observer, text);
 					},
 					onTextEnd: () => emitTextEnd(observer),
 					onReasoningStart: () => emitReasoningStart(observer),
 					onReasoningDelta: (text) => {
-						console.log("[StreamOrchestrator] Emitting reasoning-delta, length:", text.length);
 						emitReasoningDelta(observer, text);
 					},
 					onReasoningEnd: (duration) => emitReasoningEnd(observer, duration),
