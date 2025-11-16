@@ -132,7 +132,7 @@ export function useChatEffects(state: ChatState) {
 	const handleSubmit = useMemo(
 		() =>
 			createHandleSubmit({
-				isStreaming: state.streamingState.isStreaming,
+				isStreaming: () => state.streamingState.isStreaming,
 				addMessage,
 				getAIConfig: state.getAIConfig,
 				setCurrentSessionId,
@@ -157,7 +157,7 @@ export function useChatEffects(state: ChatState) {
 				getCommands: () => commands,
 			}),
 		[
-			state.streamingState.isStreaming,
+			state.streamingState,
 			state.getAIConfig,
 			state.selectionState.pendingInput,
 			filteredCommands,

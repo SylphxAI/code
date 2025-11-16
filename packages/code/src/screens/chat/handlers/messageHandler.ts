@@ -11,8 +11,8 @@ import type { CommandContext } from "../../../commands/types.js";
  * Parameters needed to create handleSubmit
  */
 export interface MessageHandlerParams {
-	// State
-	isStreaming: boolean;
+	// State (functions to get current values, not captured snapshots)
+	isStreaming: () => boolean;
 
 	// Store methods (NAMED PARAMETERS for all options)
 	addMessage: (params: {
@@ -163,7 +163,7 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 		setTempInput("");
 
 		// If already streaming, ignore submit (don't start new stream)
-		if (isStreaming) {
+		if (isStreaming()) {
 			return;
 		}
 
@@ -351,7 +351,7 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 		}
 
 		// QUEUE LOGIC: If AI is currently streaming, enqueue the message instead of sending
-		if (isStreaming) {
+		if (isStreaming()) {
 			addLog(`[handleSubmit] AI is streaming, enqueueing message: "${userMessage.substring(0, 50)}..."`);
 
 			// Get attachments for this message
