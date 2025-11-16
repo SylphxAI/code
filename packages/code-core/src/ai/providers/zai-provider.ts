@@ -98,44 +98,49 @@ export class ZaiProvider implements AIProvider {
 
 	async getModelDetails(
 		modelId: string,
-		_config?: ProviderConfig,
+		config?: ProviderConfig,
 	): Promise<ProviderModelDetails | null> {
-		// Use known specs for common Z.ai models
-		// This is for UI display (context length, pricing) and doesn't require authentication
-		const specs: Record<string, ProviderModelDetails> = {
-			"glm-4.5": {
-				contextLength: 128000,
-				maxOutput: 4096,
-				inputPrice: 0,
-				outputPrice: 0,
-			},
-			"glm-4.6": {
-				contextLength: 128000,
-				maxOutput: 4096,
-				inputPrice: 0,
-				outputPrice: 0,
-			},
-			"glm-4-flash": {
-				contextLength: 128000,
-				maxOutput: 4096,
-				inputPrice: 0,
-				outputPrice: 0,
-			},
-			"glm-4-plus": {
-				contextLength: 128000,
-				maxOutput: 4096,
-				inputPrice: 0,
-				outputPrice: 0,
-			},
-			"glm-4-air": {
-				contextLength: 128000,
-				maxOutput: 4096,
-				inputPrice: 0,
-				outputPrice: 0,
-			},
-		};
+		const apiKey = config?.apiKey as string | undefined;
+		const codingPlan = config?.codingPlan as boolean | undefined;
+		const baseUrl = codingPlan
+			? "https://api.z.ai/api/coding/paas/v4"
+			: "https://api.z.ai/api/paas/v4";
 
-		return specs[modelId] || null;
+		// Try fetching from Z.ai API (with or without API key)
+		try {
+			const response = await fetch(`${baseUrl}/models`, {
+				headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+				signal: AbortSignal.timeout(10000),
+			});
+
+			if (response.ok) {
+				const data = (await response.json()) as {
+					data?: Array<{
+						id: string;
+						name?: string;
+						context_length?: number;
+						max_output_tokens?: number;
+						input_price?: number;
+						output_price?: number;
+					}>;
+				};
+
+				const model = data.data?.find((m) => m.id === modelId);
+				if (model) {
+					return {
+						contextLength: model.context_length || null,
+						maxOutput: model.max_output_tokens || null,
+						inputPrice: model.input_price || 0,
+						outputPrice: model.output_price || 0,
+					};
+				}
+			}
+		} catch (error) {
+			// Network error or timeout - return null
+			console.error(`[ZaiProvider] Failed to fetch model details:`, error);
+		}
+
+		return null;
 	}
 
 	getModelCapabilities(modelId: string): ModelCapabilities {

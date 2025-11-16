@@ -19,6 +19,7 @@ import {
 	countTokens,
 	scanProjectFiles,
 	PROVIDER_REGISTRY,
+	loadSettings,
 } from "@sylphx/code-core";
 import type { AIConfig, ProviderId } from "@sylphx/code-core";
 
@@ -682,8 +683,18 @@ export const configRouter = router({
 			try {
 				const provider = getProvider(input.providerId);
 
+				// Try to get provider config with API key from settings
+				// If config not available, provider will try unauthenticated API call
+				let config: any = undefined;
+				try {
+					const settings = await loadSettings(input.cwd);
+					config = settings.providers?.[input.providerId];
+				} catch {
+					// Config not available - continue without it
+				}
+
 				// Get model details and capabilities
-				const details = await provider.getModelDetails(input.modelId);
+				const details = await provider.getModelDetails(input.modelId, config);
 				const capabilities = provider.getModelCapabilities(input.modelId);
 
 				return {
