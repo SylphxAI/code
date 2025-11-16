@@ -350,6 +350,41 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 			return;
 		}
 
+		// QUEUE LOGIC: If AI is currently streaming, enqueue the message instead of sending
+		if (isStreaming) {
+			addLog(`[handleSubmit] AI is streaming, enqueueing message: "${userMessage.substring(0, 50)}..."`);
+
+			// Get attachments for this message
+			const attachmentsForMessage: FileAttachment[] = autoResolveFileReferences(
+				userMessage,
+				pendingAttachments,
+				projectFiles,
+			);
+
+			// Enqueue the message (will be auto-sent when stream completes)
+			try {
+				const { enqueueMessage } = await import("@sylphx/code-client");
+
+				// Must have a session to enqueue (can't queue before first message)
+				if (!currentSessionId) {
+					addLog("[handleSubmit] Cannot queue message - no active session");
+					return;
+				}
+
+				await enqueueMessage(currentSessionId, userMessage, attachmentsForMessage);
+				addLog(`[handleSubmit] Message queued successfully`);
+
+				// Clear input and attachments
+				setInput("");
+				clearAttachments();
+			} catch (error) {
+				console.error("[handleSubmit] Failed to enqueue message:", error);
+				addLog(`[handleSubmit] Failed to queue message: ${error instanceof Error ? error.message : String(error)}`);
+			}
+
+			return;
+		}
+
 		// For regular messages, clear input after getting the value
 		setInput("");
 
