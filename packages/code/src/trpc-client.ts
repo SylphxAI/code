@@ -14,7 +14,7 @@ import {
 	splitLink,
 } from "@trpc/client";
 import { EventSource } from "eventsource";
-import { getServerURL } from "@sylphx/code-core/constants/config";
+import { getServerURL } from "@sylphx/code-core";
 
 /**
  * Create HTTP tRPC client for remote connections

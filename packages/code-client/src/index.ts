@@ -147,6 +147,8 @@ export {
 export type { ParsedContentPart, ParsedUserInput } from "./utils/parse-user-input.js";
 export { parseUserInput } from "./utils/parse-user-input.js";
 
+export { renderTextWithTags, extractFileReferences } from "./utils/text-rendering-utils.js";
+
 export {
 	getTodoIcon,
 	getTodoColor,

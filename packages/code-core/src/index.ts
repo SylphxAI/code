@@ -414,6 +414,11 @@ export { scanProjectFiles } from "./utils/file-scanner.js";
 export { sendNotification } from "./utils/notifications.js";
 
 // ============================================================================
+// Constants
+// ============================================================================
+export * from "./constants/index.js";
+
+// ============================================================================
 // MCP Manager Service
 // ============================================================================
 export { getMCPManager, resetMCPManager, MCPManager } from "./services/mcp-manager.js";
