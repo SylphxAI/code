@@ -22,7 +22,6 @@ import { createGetHintText } from "../autocomplete/hintText.js";
 import type { ChatProps } from "../types.js";
 import { useCommandState } from "./useCommandState.js";
 import { useInputState } from "./useInputState.js";
-import { useQueueBrowsingState } from "./useQueueBrowsingState.js";
 import { useSelectionState } from "./useSelectionState.js";
 import { useStreamingState } from "./useStreamingState.js";
 
@@ -52,7 +51,6 @@ export function useChatState(_props: ChatProps) {
 	const streamingState = useStreamingState();
 	const selectionState = useSelectionState();
 	const commandState = useCommandState();
-	const queueBrowsingState = useQueueBrowsingState();
 
 	// Local state
 	const [selectedFileIndex, setSelectedFileIndex] = useState(0);
@@ -119,7 +117,6 @@ export function useChatState(_props: ChatProps) {
 		streamingState,
 		selectionState,
 		commandState,
-		queueBrowsingState,
 
 		// Local state
 		selectedFileIndex,

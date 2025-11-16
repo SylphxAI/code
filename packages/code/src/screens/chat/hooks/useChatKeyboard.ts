@@ -3,7 +3,7 @@
  * All keyboard navigation and shortcuts
  */
 
-import { updateQueuedMessage, useQueuedMessages } from "@sylphx/code-client";
+import { removeQueuedMessage, useQueuedMessages } from "@sylphx/code-client";
 import { useCallback } from "react";
 import { DEBUG_INPUT_MANAGER, USE_NEW_INPUT_MANAGER } from "../../../config/features.js";
 import {
@@ -22,11 +22,11 @@ export function useChatKeyboard(state: ChatState, effects: ChatEffects) {
 	// Get queued messages for queue browsing
 	const { queuedMessages } = useQueuedMessages();
 
-	// Create update function for queue browsing
-	const handleUpdateQueuedMessage = useCallback(
-		async (messageId: string, content: string, attachments: any[]) => {
+	// Create remove function for queue retrieval
+	const handleRemoveQueuedMessage = useCallback(
+		async (messageId: string) => {
 			if (!state.currentSessionId) return;
-			await updateQueuedMessage(state.currentSessionId, messageId, content, attachments);
+			await removeQueuedMessage(state.currentSessionId, messageId);
 		},
 		[state.currentSessionId],
 	);
@@ -113,15 +113,9 @@ export function useChatKeyboard(state: ChatState, effects: ChatEffects) {
 		setTempInput: state.inputState.setTempInput,
 		setTempAttachments: state.setTempAttachments,
 		setPendingAttachments: state.setPendingAttachments,
-		// Queue browsing mode
+		// Queue retrieval mode
 		queuedMessages,
-		queueBrowseIndex: state.queueBrowsingState.queueBrowseIndex,
-		tempQueueInput: state.queueBrowsingState.tempQueueInput,
-		tempQueueAttachments: state.queueBrowsingState.tempQueueAttachments,
-		setQueueBrowseIndex: state.queueBrowsingState.setQueueBrowseIndex,
-		setTempQueueInput: state.queueBrowsingState.setTempQueueInput,
-		setTempQueueAttachments: state.queueBrowsingState.setTempQueueAttachments,
-		updateQueuedMessage: handleUpdateQueuedMessage,
+		removeQueuedMessage: handleRemoveQueuedMessage,
 	});
 
 	// Setup input mode manager

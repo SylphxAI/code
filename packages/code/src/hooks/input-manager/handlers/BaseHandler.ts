@@ -55,8 +55,19 @@ export abstract class BaseInputHandler implements InputHandler {
 	 * @param callback - Function to execute
 	 * @returns true (event consumed)
 	 */
-	protected handleArrowUp(callback: () => void): boolean {
-		callback();
+	protected handleArrowUp(
+		callback: () => void | Promise<void>,
+	): boolean | Promise<boolean> {
+		const result = callback();
+		if (result instanceof Promise) {
+			return result
+				.then(() => true)
+				.catch((error) => {
+					console.error("[BaseHandler] Unhandled error in handleArrowUp:", error);
+					console.error("[BaseHandler] Stack trace:", error?.stack);
+					return true; // Still consume the event
+				});
+		}
 		return true;
 	}
 
@@ -65,8 +76,19 @@ export abstract class BaseInputHandler implements InputHandler {
 	 * @param callback - Function to execute
 	 * @returns true (event consumed)
 	 */
-	protected handleArrowDown(callback: () => void): boolean {
-		callback();
+	protected handleArrowDown(
+		callback: () => void | Promise<void>,
+	): boolean | Promise<boolean> {
+		const result = callback();
+		if (result instanceof Promise) {
+			return result
+				.then(() => true)
+				.catch((error) => {
+					console.error("[BaseHandler] Unhandled error in handleArrowDown:", error);
+					console.error("[BaseHandler] Stack trace:", error?.stack);
+					return true; // Still consume the event
+				});
+		}
 		return true;
 	}
 

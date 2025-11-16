@@ -85,13 +85,7 @@ export interface InputHandlerDeps {
 
 	// Queue browsing mode dependencies
 	queuedMessages: import("@sylphx/code-core").QueuedMessage[];
-	queueBrowseIndex: number;
-	tempQueueInput: string;
-	tempQueueAttachments: import("@sylphx/code-core").FileAttachment[];
-	setQueueBrowseIndex: React.Dispatch<React.SetStateAction<number>>;
-	setTempQueueInput: (value: string) => void;
-	setTempQueueAttachments: (attachments: import("@sylphx/code-core").FileAttachment[]) => void;
-	updateQueuedMessage: (messageId: string, content: string, attachments: import("@sylphx/code-core").FileAttachment[]) => Promise<void>;
+	removeQueuedMessage: (messageId: string) => Promise<void>;
 }
 
 /**
@@ -178,13 +172,7 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 
 		// Queue browsing mode
 		queuedMessages,
-		queueBrowseIndex,
-		tempQueueInput,
-		tempQueueAttachments,
-		setQueueBrowseIndex,
-		setTempQueueInput,
-		setTempQueueAttachments,
-		updateQueuedMessage,
+		removeQueuedMessage,
 	} = deps;
 
 	// Selection mode handler
@@ -363,11 +351,7 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 		() =>
 			new QueueBrowsingModeHandler({
 				queuedMessages,
-				queueBrowseIndex,
-				tempQueueInput,
-				tempQueueAttachments,
 				input,
-				pendingAttachments,
 				isStreaming,
 				inputComponent,
 				filteredCommands,
@@ -375,19 +359,12 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 				currentSessionId,
 				setInput,
 				setCursor,
-				setQueueBrowseIndex,
-				setTempQueueInput,
-				setTempQueueAttachments,
 				setPendingAttachments,
-				updateQueuedMessage,
+				removeQueuedMessage,
 			}),
 		[
 			queuedMessages,
-			queueBrowseIndex,
-			tempQueueInput,
-			tempQueueAttachments,
 			input,
-			pendingAttachments,
 			isStreaming,
 			inputComponent,
 			filteredCommands,
@@ -395,11 +372,8 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 			currentSessionId,
 			setInput,
 			setCursor,
-			setQueueBrowseIndex,
-			setTempQueueInput,
-			setTempQueueAttachments,
 			setPendingAttachments,
-			updateQueuedMessage,
+			removeQueuedMessage,
 		],
 	);
 

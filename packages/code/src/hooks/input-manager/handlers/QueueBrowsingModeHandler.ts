@@ -1,8 +1,8 @@
 /**
  * Queue Browsing Mode Handler
  *
- * Handles UP/DOWN arrow navigation through queued messages
- * Similar to message history browsing, but for pending queue
+ * Handles UP arrow to pop and edit queued messages
+ * User perspective: Queued messages are "already sent", so UP retrieves them for editing
  */
 
 import type { FilteredCommand, FilteredFile } from "@sylphx/code-client";
@@ -14,40 +14,32 @@ import { BaseInputHandler } from "./BaseHandler.js";
 
 export interface QueueBrowsingModeHandlerDeps {
 	queuedMessages: QueuedMessage[];
-	queueBrowseIndex: number;
-	tempQueueInput: string;
-	tempQueueAttachments: FileAttachment[];
 	input: string;
 	isStreaming: boolean;
 	inputComponent: React.ReactNode | null;
 	filteredCommands: FilteredCommand[];
 	filteredFileInfo: FilteredFile | null;
-	pendingAttachments: FileAttachment[];
 	currentSessionId: string | null;
 	setInput: (value: string) => void;
 	setCursor: (value: number) => void;
-	setQueueBrowseIndex: React.Dispatch<React.SetStateAction<number>>;
-	setTempQueueInput: (value: string) => void;
-	setTempQueueAttachments: (attachments: FileAttachment[]) => void;
 	setPendingAttachments: (attachments: FileAttachment[]) => void;
-	updateQueuedMessage: (messageId: string, content: string, attachments: FileAttachment[]) => Promise<void>;
+	removeQueuedMessage: (messageId: string) => Promise<void>;
 }
 
 /**
- * Handler for queue browsing mode
+ * Handler for queue message retrieval
  *
  * Active when:
  * - In NORMAL mode (no selection/pending/autocomplete)
  * - Not streaming
- * - No autocomplete showing (no filtered commands or files)
+ * - No autocomplete showing
  * - No custom inputComponent active
  * - Has queued messages available
+ * - Input is empty (only pop from queue when not editing)
  *
  * Features:
- * - Up arrow: navigate to previous queued message
- * - Down arrow: navigate to next queued message
- * - Submit: update the queued message with edits
- * - Any other key: exit queue browsing mode
+ * - UP arrow: Pop last queued message into input and remove from queue
+ * - This allows user to "retrieve" queued messages for editing before they're sent
  */
 export class QueueBrowsingModeHandler extends BaseInputHandler {
 	mode = InputMode.NORMAL;
@@ -62,16 +54,18 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 
 	/**
 	 * Check if handler should be active
-	 * Active only when in normal mode with no autocomplete or other UI, and has queued messages
+	 * Only active when input is empty and there are queued messages
 	 */
 	isActive(context: InputModeContext): boolean {
 		// Must be in NORMAL mode
 		if (context.mode !== this.mode) {
+			console.log("[QueueBrowsing] Not active - wrong mode:", context.mode);
 			return false;
 		}
 
 		const {
 			queuedMessages,
+			input,
 			isStreaming,
 			inputComponent,
 			filteredCommands,
@@ -80,16 +74,25 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 
 		// No queued messages = not active
 		if (queuedMessages.length === 0) {
+			console.log("[QueueBrowsing] Not active - no queued messages");
+			return false;
+		}
+
+		// Only active when input is empty (don't interfere with editing)
+		if (input.trim().length > 0) {
+			console.log("[QueueBrowsing] Not active - input not empty:", input);
 			return false;
 		}
 
 		// Don't handle when streaming
 		if (isStreaming) {
+			console.log("[QueueBrowsing] Not active - streaming");
 			return false;
 		}
 
 		// Don't handle when custom inputComponent is active
 		if (inputComponent) {
+			console.log("[QueueBrowsing] Not active - custom input component");
 			return false;
 		}
 
@@ -98,115 +101,52 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 			filteredCommands.length > 0 || (filteredFileInfo && filteredFileInfo.files.length > 0);
 
 		if (hasAutocomplete) {
+			console.log("[QueueBrowsing] Not active - autocomplete showing");
 			return false;
 		}
 
+		console.log("[QueueBrowsing] ACTIVE - ready to handle UP arrow");
 		return true;
 	}
 
 	/**
-	 * Handle keyboard input for queue browsing
+	 * Handle keyboard input for queue retrieval
 	 */
 	async handleInput(_char: string, key: Key, _context: InputModeContext): Promise<boolean> {
 		const {
 			queuedMessages,
-			queueBrowseIndex,
-			tempQueueInput,
-			tempQueueAttachments,
-			input,
-			pendingAttachments,
+			currentSessionId,
 			setInput,
 			setCursor,
-			setQueueBrowseIndex,
-			setTempQueueInput,
-			setTempQueueAttachments,
 			setPendingAttachments,
+			removeQueuedMessage,
 		} = this.deps;
 
-		// Arrow up - navigate to previous queued message
+		// Arrow up - pop last queued message into input
 		if (key.upArrow) {
-			return this.handleArrowUp(() => {
-				if (queuedMessages.length === 0) return;
+			return this.handleArrowUp(async () => {
+				if (queuedMessages.length === 0 || !currentSessionId) return;
 
-				if (queueBrowseIndex === -1) {
-					// First time going up - save current input and attachments
-					console.log("[QueueBrowsing] First up - saving current:", {
-						input: input.substring(0, 50),
-						attachments: pendingAttachments.length,
-					});
-					setTempQueueInput(input);
-					setTempQueueAttachments(pendingAttachments);
-					const newIndex = queuedMessages.length - 1;
-					const entry = queuedMessages[newIndex];
-					console.log("[QueueBrowsing] Loading queue entry:", {
-						index: newIndex,
-						messageId: entry.id,
-						content: entry.content.substring(0, 50),
-						attachments: entry.attachments.length,
-					});
-					setQueueBrowseIndex(newIndex);
-					setInput(entry.content);
-					setPendingAttachments(entry.attachments);
-					setCursor(0);
-				} else if (queueBrowseIndex > 0) {
-					// Navigate up in queue
-					const newIndex = queueBrowseIndex - 1;
-					const entry = queuedMessages[newIndex];
-					console.log("[QueueBrowsing] Navigate up:", {
-						newIndex,
-						messageId: entry.id,
-						content: entry.content.substring(0, 50),
-						attachments: entry.attachments.length,
-					});
-					setQueueBrowseIndex(newIndex);
-					setInput(entry.content);
-					setPendingAttachments(entry.attachments);
-					setCursor(0);
-				}
+				// Get the last (most recent) queued message
+				const lastMessage = queuedMessages[queuedMessages.length - 1];
+
+				console.log("[QueueRetrieval] Popping message from queue:", {
+					messageId: lastMessage.id,
+					content: lastMessage.content.substring(0, 50),
+					attachments: lastMessage.attachments.length,
+				});
+
+				// Load message into input
+				setInput(lastMessage.content);
+				setPendingAttachments(lastMessage.attachments);
+				setCursor(lastMessage.content.length);
+
+				// Remove from queue
+				await removeQueuedMessage(lastMessage.id);
 			});
 		}
 
-		// Arrow down - navigate to next queued message
-		if (key.downArrow) {
-			return this.handleArrowDown(() => {
-				if (queueBrowseIndex === -1) return;
-
-				if (queueBrowseIndex === queuedMessages.length - 1) {
-					// Reached end - restore original input and attachments
-					console.log("[QueueBrowsing] Reached end - restoring original input");
-					setQueueBrowseIndex(-1);
-					setInput(tempQueueInput);
-					setPendingAttachments(tempQueueAttachments);
-					setTempQueueInput("");
-					setTempQueueAttachments([]);
-					setCursor(0);
-				} else {
-					// Navigate down in queue
-					const newIndex = queueBrowseIndex + 1;
-					const entry = queuedMessages[newIndex];
-					console.log("[QueueBrowsing] Navigate down:", {
-						newIndex,
-						messageId: entry.id,
-						content: entry.content.substring(0, 50),
-						attachments: entry.attachments.length,
-					});
-					setQueueBrowseIndex(newIndex);
-					setInput(entry.content);
-					setPendingAttachments(entry.attachments);
-					setCursor(0);
-				}
-			});
-		}
-
-		// Exit queue browsing mode on any other key
-		// Don't consume the event - let other handlers process it
-		if (queueBrowseIndex !== -1) {
-			console.log("[QueueBrowsing] Exiting queue browse mode on other key");
-			setQueueBrowseIndex(-1);
-			setTempQueueInput("");
-			setTempQueueAttachments([]);
-		}
-
-		return false; // Not consumed - let other handlers process
+		// Don't consume other keys
+		return false;
 	}
 }
