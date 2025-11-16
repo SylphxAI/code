@@ -162,11 +162,6 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 		setHistoryIndex(-1);
 		setTempInput("");
 
-		// If already streaming, ignore submit (don't start new stream)
-		if (isStreaming()) {
-			return;
-		}
-
 		// Handle pendingInput for text type
 		if (pendingInput && pendingInput.type === "text" && inputResolver.current) {
 			addLog(`[handleSubmit] Resolving text input: ${value}`);
@@ -351,8 +346,10 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 		}
 
 		// QUEUE LOGIC: If AI is currently streaming, enqueue the message instead of sending
+		console.log(`[handleSubmit] About to call isStreaming() getter function`);
 		const streamingStatus = isStreaming();
-		console.log(`[handleSubmit] Queue check - isStreaming():`, streamingStatus);
+		console.log(`[handleSubmit] Queue check - isStreaming() returned:`, streamingStatus);
+		console.log(`[handleSubmit] Type of isStreaming:`, typeof isStreaming);
 		if (streamingStatus) {
 			addLog(`[handleSubmit] AI is streaming, enqueueing message: "${userMessage.substring(0, 50)}..."`);
 
