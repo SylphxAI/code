@@ -25,13 +25,6 @@ export async function getSessionById(
 		return null;
 	}
 
-	// DEBUG: Log raw session data from database
-		id: session.id,
-		provider: session.provider,
-		model: session.model,
-		providerType: typeof session.provider,
-		modelType: typeof session.model,
-	});
 
 	// Get messages with all parts, attachments, usage
 	const sessionMessages = await getSessionMessages(db, sessionId);
