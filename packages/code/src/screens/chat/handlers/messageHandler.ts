@@ -151,9 +151,7 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 	} = params;
 
 	return async (value: string) => {
-		console.log("[handleSubmit] ===== START =====", { value, trimmed: value.trim() });
 		if (!value.trim()) {
-			console.log("[handleSubmit] Empty value, returning");
 			return;
 		}
 
@@ -346,13 +344,8 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 		}
 
 		// QUEUE LOGIC: If AI is currently streaming, enqueue the message instead of sending
-		console.log(`[handleSubmit] About to call isStreaming() getter function`);
 		const streamingStatus = isStreaming();
-		console.log(`[handleSubmit] Queue check - isStreaming() returned:`, streamingStatus);
-		console.log(`[handleSubmit] Type of isStreaming:`, typeof isStreaming);
-		console.log(`[handleSubmit] About to enter if block, streamingStatus ===`, streamingStatus);
 		if (streamingStatus) {
-			console.log(`[handleSubmit] ENTERED QUEUE IF BLOCK`);
 			addLog(`[handleSubmit] AI is streaming, enqueueing message: "${userMessage.substring(0, 50)}..."`);
 
 			// Get attachments for this message
@@ -362,21 +355,17 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 				projectFiles,
 			);
 
-			console.log(`[handleSubmit] About to enqueue, currentSessionId:`, currentSessionId);
 			// Enqueue the message (will be auto-sent when stream completes)
 			try {
 				const { enqueueMessage } = await import("@sylphx/code-client");
 
 				// Must have a session to enqueue (can't queue before first message)
 				if (!currentSessionId) {
-					console.log(`[handleSubmit] NO SESSION ID, returning`);
 					addLog("[handleSubmit] Cannot queue message - no active session");
 					return;
 				}
 
-				console.log(`[handleSubmit] Calling enqueueMessage...`);
 				await enqueueMessage(currentSessionId, userMessage, attachmentsForMessage);
-				console.log(`[handleSubmit] enqueueMessage completed`);
 				addLog(`[handleSubmit] Message queued successfully`);
 
 				// Clear input and attachments
@@ -387,10 +376,8 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 				addLog(`[handleSubmit] Failed to queue message: ${error instanceof Error ? error.message : String(error)}`);
 			}
 
-			console.log(`[handleSubmit] Returning from queue block`);
 			return;
 		}
-		console.log(`[handleSubmit] DID NOT ENTER QUEUE IF BLOCK, proceeding to normal send`);
 
 
 		// For regular messages, clear input after getting the value
@@ -440,17 +427,14 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 		// Clear pending attachments after capturing them
 		clearAttachments();
 
-		console.log("[handleSubmit] Calling sendUserMessageToAI", { userMessage, attachmentsCount: attachmentsForMessage.length });
 		try {
 			// Regular message - send to AI using shared helper
 			await sendUserMessageToAI(userMessage, attachmentsForMessage);
-			console.log("[handleSubmit] sendUserMessageToAI completed successfully");
 		} catch (error) {
 			console.error("📤 [handleSubmit] sendUserMessageToAI threw error:", error);
 			console.error("[handleSubmit] Error stack:", error instanceof Error ? error.stack : 'No stack');
 			throw error;
 		}
-		console.log("[handleSubmit] ===== END =====");
 
 		// Add to message history with attachments (append since we store oldest-first)
 		setMessageHistory((prev) => {
