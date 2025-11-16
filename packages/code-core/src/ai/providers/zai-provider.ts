@@ -102,6 +102,12 @@ export class ZaiProvider implements AIProvider {
 	): Promise<ProviderModelDetails | null> {
 		// Known specs for Z.ai models
 		const specs: Record<string, ProviderModelDetails> = {
+			"glm-4.5": {
+				contextLength: 128000,
+				maxOutput: 4096,
+				inputPrice: 0,
+				outputPrice: 0,
+			},
 			"glm-4.6": {
 				contextLength: 128000,
 				maxOutput: 4096,
