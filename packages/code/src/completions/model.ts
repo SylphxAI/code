@@ -16,27 +16,23 @@ export interface CompletionOption {
 }
 
 /**
- * Get AI config from zen signals
- * First access: async load from server → cache in zen signal
- * Subsequent access: sync read from zen signal cache
- * Update: event-driven via setAIConfig()
+ * Get AI config with API keys for model fetching
+ * ARCHITECTURE: Direct filesystem access (CLI only, not web)
+ * - loadAIConfig() includes API keys (not sanitized)
+ * - Used for server-side operations like fetching models
+ * - DO NOT send this config to remote clients
  */
-async function getAIConfig(): Promise<AIConfig | null> {
-	// Already in zen signal? Return cached (fast!)
-	const currentConfig = get($aiConfig);
-	if (currentConfig) {
-		return currentConfig;
-	}
-
-	// First access - lazy load from server
+async function getAIConfigWithKeys(): Promise<AIConfig | null> {
 	try {
-		const trpc = getTRPCClient();
-		const config = await trpc.config.load.query({});
+		const { loadAIConfig } = await import("@sylphx/code-core");
+		const result = await loadAIConfig();
 
-		// Cache in zen signal (stays until explicitly updated)
-		setAIConfig(config);
+		if (!result.success) {
+			console.error("[completions] Failed to load AI config:", result.error);
+			return null;
+		}
 
-		return config;
+		return result.data;
 	} catch (error) {
 		console.error("[completions] Failed to load AI config:", error);
 		return null;
@@ -49,7 +45,8 @@ async function getAIConfig(): Promise<AIConfig | null> {
  */
 export async function getModelCompletions(partial = ""): Promise<CompletionOption[]> {
 	try {
-		const config = await getAIConfig();
+		// Load config with API keys (direct filesystem access)
+		const config = await getAIConfigWithKeys();
 
 		if (!config?.providers) {
 			return [];
@@ -63,18 +60,14 @@ export async function getModelCompletions(partial = ""): Promise<CompletionOptio
 			return [];
 		}
 
-		// Get provider config
+		// Get provider config (already includes API key from loadAIConfig)
 		const providerConfig = config.providers[currentProviderId];
 		if (!providerConfig) {
 			return [];
 		}
 
-		// Resolve API key from credential registry (secrets not in config)
-		const { getProviderConfigWithApiKey } = await import("@sylphx/code-core");
-		const providerConfigWithKey = await getProviderConfigWithApiKey(config, currentProviderId);
-
 		// Fetch models from provider API
-		const models = await fetchModels(currentProviderId as ProviderId, providerConfigWithKey || providerConfig);
+		const models = await fetchModels(currentProviderId as ProviderId, providerConfig);
 
 		// Filter by partial match
 		const filtered = partial
