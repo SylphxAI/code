@@ -163,6 +163,17 @@ export interface FileAttachmentInput {
 export type FileAttachment = FileAttachmentInput;
 
 /**
+ * Queued Message - Message waiting in queue to be sent
+ * Used for per-session message queuing during AI streaming
+ */
+export interface QueuedMessage {
+	id: string; // temp-queue-{timestamp}
+	content: string; // User message text
+	attachments: FileAttachment[]; // File references
+	enqueuedAt: number; // Unix timestamp (ms)
+}
+
+/**
  * System Message - Runtime warnings/notifications inserted between steps
  * Used for mid-execution alerts (context warnings, resource warnings, etc.)
  */

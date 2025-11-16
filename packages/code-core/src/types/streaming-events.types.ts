@@ -145,5 +145,31 @@ export type StreamEvent =
 			answer: string;
 	  }
 
+	// Queue events (per-session message queue)
+	| {
+			type: "queue-message-added";
+			sessionId: string;
+			message: {
+				id: string;
+				content: string;
+				attachments: Array<{
+					path: string;
+					relativePath: string;
+					size: number;
+					mimeType?: string;
+				}>;
+				enqueuedAt: number;
+			};
+	  }
+	| {
+			type: "queue-message-removed";
+			sessionId: string;
+			messageId: string;
+	  }
+	| {
+			type: "queue-cleared";
+			sessionId: string;
+	  }
+
 	// Error events
 	| { type: "error"; error: string };

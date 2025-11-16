@@ -147,6 +147,26 @@ export const sessions = sqliteTable(
 		baseContextTokens: integer("base_context_tokens"), // System prompt + tools (calculated once at session creation)
 		totalTokens: integer("total_tokens"), // Base + all messages (updated after each message)
 
+		// Message queue (per-session FIFO queue)
+		// Stores messages queued while AI is responding
+		// Auto-sent when step completes
+		messageQueue: text("message_queue", { mode: "json" })
+			.notNull()
+			.default("[]")
+			.$type<
+				Array<{
+					id: string; // temp-queue-{timestamp}
+					content: string; // User message text
+					attachments: Array<{
+						path: string;
+						relativePath: string;
+						size: number;
+						mimeType?: string;
+					}>; // File references
+					enqueuedAt: number; // Unix timestamp (ms)
+				}>
+			>(),
+
 		// Note: Streaming state moved to messages table (message-level, not session-level)
 		// Each message can be in streaming state with isStreaming flag
 

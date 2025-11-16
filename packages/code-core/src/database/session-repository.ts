@@ -249,6 +249,176 @@ export class SessionRepository {
 	}
 
 	// ============================================================================
+	// Message Queue Operations
+	// ============================================================================
+
+	/**
+	 * Enqueue message - Add message to session's queue (FIFO)
+	 * Used when user sends message while AI is responding
+	 */
+	async enqueueMessage(
+		sessionId: string,
+		content: string,
+		attachments: Array<{
+			path: string;
+			relativePath: string;
+			size: number;
+			mimeType?: string;
+		}> = [],
+	): Promise<{
+		id: string;
+		content: string;
+		attachments: Array<{
+			path: string;
+			relativePath: string;
+			size: number;
+			mimeType?: string;
+		}>;
+		enqueuedAt: number;
+	}> {
+		return await retryDatabase(async () => {
+			// Read current queue
+			const [session] = await this.db
+				.select({ messageQueue: sessions.messageQueue })
+				.from(sessions)
+				.where(eq(sessions.id, sessionId))
+				.limit(1);
+
+			if (!session) {
+				throw new Error(`Session ${sessionId} not found`);
+			}
+
+			// Create queued message
+			const queuedMessage = {
+				id: `temp-queue-${Date.now()}`,
+				content,
+				attachments,
+				enqueuedAt: Date.now(),
+			};
+
+			// Append to queue
+			const updatedQueue = [...(session.messageQueue || []), queuedMessage];
+
+			// Update session
+			await this.db
+				.update(sessions)
+				.set({ messageQueue: updatedQueue, updated: Date.now() })
+				.where(eq(sessions.id, sessionId));
+
+			return queuedMessage;
+		});
+	}
+
+	/**
+	 * Dequeue message - Get and remove next message from queue (FIFO)
+	 * Returns null if queue is empty
+	 */
+	async dequeueMessage(
+		sessionId: string,
+	): Promise<{
+		id: string;
+		content: string;
+		attachments: Array<{
+			path: string;
+			relativePath: string;
+			size: number;
+			mimeType?: string;
+		}>;
+		enqueuedAt: number;
+	} | null> {
+		return await retryDatabase(async () => {
+			// Read current queue
+			const [session] = await this.db
+				.select({ messageQueue: sessions.messageQueue })
+				.from(sessions)
+				.where(eq(sessions.id, sessionId))
+				.limit(1);
+
+			if (!session || !session.messageQueue || session.messageQueue.length === 0) {
+				return null;
+			}
+
+			// Get first message (FIFO)
+			const [firstMessage, ...rest] = session.messageQueue;
+
+			// Update queue (remove first)
+			await this.db
+				.update(sessions)
+				.set({ messageQueue: rest, updated: Date.now() })
+				.where(eq(sessions.id, sessionId));
+
+			return firstMessage;
+		});
+	}
+
+	/**
+	 * Get queued messages - Get all queued messages without removing
+	 * Used for displaying queue in UI
+	 */
+	async getQueuedMessages(
+		sessionId: string,
+	): Promise<
+		Array<{
+			id: string;
+			content: string;
+			attachments: Array<{
+				path: string;
+				relativePath: string;
+				size: number;
+				mimeType?: string;
+			}>;
+			enqueuedAt: number;
+		}>
+	> {
+		const [session] = await this.db
+			.select({ messageQueue: sessions.messageQueue })
+			.from(sessions)
+			.where(eq(sessions.id, sessionId))
+			.limit(1);
+
+		return session?.messageQueue || [];
+	}
+
+	/**
+	 * Clear queue - Remove all queued messages
+	 */
+	async clearQueue(sessionId: string): Promise<void> {
+		await retryDatabase(() =>
+			this.db
+				.update(sessions)
+				.set({ messageQueue: [], updated: Date.now() })
+				.where(eq(sessions.id, sessionId)),
+		);
+	}
+
+	/**
+	 * Remove queued message - Remove specific message from queue by ID
+	 */
+	async removeQueuedMessage(sessionId: string, messageId: string): Promise<void> {
+		await retryDatabase(async () => {
+			// Read current queue
+			const [session] = await this.db
+				.select({ messageQueue: sessions.messageQueue })
+				.from(sessions)
+				.where(eq(sessions.id, sessionId))
+				.limit(1);
+
+			if (!session || !session.messageQueue) {
+				return;
+			}
+
+			// Filter out the message
+			const updatedQueue = session.messageQueue.filter((msg) => msg.id !== messageId);
+
+			// Update session
+			await this.db
+				.update(sessions)
+				.set({ messageQueue: updatedQueue, updated: Date.now() })
+				.where(eq(sessions.id, sessionId));
+		});
+	}
+
+	// ============================================================================
 	// Session Queries (delegated to session-query.ts)
 	// ============================================================================
 
