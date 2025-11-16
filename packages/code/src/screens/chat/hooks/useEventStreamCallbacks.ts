@@ -292,6 +292,37 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 					eventContextParams,
 				);
 			},
+
+			// Queue events
+			onQueueMessageAdded: (sessionId: string, message: any) => {
+				handleStreamEvent(
+					{
+						type: "queue-message-added",
+						sessionId,
+						message,
+					},
+					eventContextParams,
+				);
+			},
+			onQueueMessageRemoved: (sessionId: string, messageId: string) => {
+				handleStreamEvent(
+					{
+						type: "queue-message-removed",
+						sessionId,
+						messageId,
+					},
+					eventContextParams,
+				);
+			},
+			onQueueCleared: (sessionId: string) => {
+				handleStreamEvent(
+					{
+						type: "queue-cleared",
+						sessionId,
+					},
+					eventContextParams,
+				);
+			},
 		}),
 		[eventContextParams, setIsTitleStreaming, setStreamingTitle],
 	);
