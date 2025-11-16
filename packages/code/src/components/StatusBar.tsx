@@ -63,6 +63,7 @@ function StatusBarInternal({
 	// Real-time tokens from $currentSession signal
 	// Updated live during streaming via session-tokens-updated events
 	const totalTokens = useTotalTokens();
+	console.log("[StatusBar] Rendering with totalTokens:", totalTokens);
 
 	// Fetch model details from server
 	const { details, loading } = useModelDetails(provider, model);
@@ -169,15 +170,9 @@ function StatusBarInternal({
 	);
 }
 
-// Memoize component to prevent unnecessary re-renders
-const StatusBar = React.memo(StatusBarInternal, (prevProps, nextProps) => {
-	return (
-		prevProps.sessionId === nextProps.sessionId &&
-		prevProps.provider === nextProps.provider &&
-		prevProps.model === nextProps.model &&
-		prevProps.modelStatus === nextProps.modelStatus &&
-		prevProps.usedTokens === nextProps.usedTokens
-	);
-});
-
-export default StatusBar;
+/**
+ * ARCHITECTURE NOTE: No React.memo here because component uses signal hooks (useTotalTokens)
+ * React.memo would prevent re-renders even when signals update, breaking reactivity.
+ * Signal-based hooks need component to re-render when their values change.
+ */
+export default StatusBarInternal;
