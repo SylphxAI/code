@@ -57,6 +57,7 @@ const STREAM_TIMEOUT_MS = 45000; // 45 seconds
  */
 export function streamAIResponse(opts: StreamAIResponseOptions): Observable<StreamEvent, unknown> {
 	return observable<StreamEvent>((observer) => {
+		let askToolRegistered = false;
 		const executionPromise = (async () => {
 			try {
 				const {
@@ -176,13 +177,12 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				// 11. Determine tool support and load tools
 				const supportsTools = modelCapabilities.has("tools");
 				let tools: Record<string, any> | undefined;
-				let _askToolRegistered = false;
 				if (supportsTools) {
 					const baseTools = await getAISDKTools({ interactive: false });
 					const { createAskTool } = await import("./ask-tool.js");
 					const askTool = createAskTool(sessionId, observer);
 					tools = { ...baseTools, ask: askTool };
-					_askToolRegistered = true;
+					askToolRegistered = true;
 				} else {
 					tools = undefined;
 				}
@@ -437,7 +437,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 		// Cleanup function
 		return () => {
 			// Unregister ask observer to prevent memory leak
-			if (_askToolRegistered) {
+			if (askToolRegistered) {
 				import("../ask-queue.service.js").then(({ unregisterAskObserver }) => {
 					unregisterAskObserver(sessionId, observer);
 				});
