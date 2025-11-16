@@ -35,7 +35,7 @@ export async function generateSessionTitle(
 		// Get the provider instance and create the model
 		const { getProvider } = await import("../ai/providers/index.js");
 		const providerInstance = getProvider(provider);
-		const model = providerInstance.createClient(providerConfig, modelName);
+		const model = await Promise.resolve(providerInstance.createClient(providerConfig, modelName));
 
 		// Use AI SDK's streamText directly
 		const { fullStream } = streamText({
@@ -100,7 +100,7 @@ export async function generateSessionTitleWithStreaming(
 		// Get the provider instance and create the model
 		const { getProvider } = await import("../ai/providers/index.js");
 		const providerInstance = getProvider(provider);
-		const model = providerInstance.createClient(providerConfig, modelName);
+		const model = await Promise.resolve(providerInstance.createClient(providerConfig, modelName));
 
 		const { fullStream } = streamText({
 			model,

@@ -160,8 +160,9 @@ export async function compactSession(
 		});
 
 		// Use AI SDK's streamText directly
+		const model = await Promise.resolve(provider.createClient(providerConfig, session.model));
 		const { fullStream } = streamText({
-			model: provider.createClient(providerConfig, session.model),
+			model,
 			messages: [
 				...conversationMessages, // Full conversation with all content types
 				{

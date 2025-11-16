@@ -3,7 +3,6 @@
  * Uses OpenAI-compatible API
  */
 
-import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModelV1 } from "ai";
 import type {
 	AIProvider,
@@ -18,6 +17,18 @@ import { hasRequiredFields } from "./base-provider.js";
 import { retryNetwork } from "../../utils/retry.js";
 import { getModelMetadata } from "../../utils/models-dev.js";
 import { TTLCacheManager } from "../../utils/ttl-cache.js";
+
+/**
+ * Lazy load OpenRouter SDK to reduce initial bundle size
+ * SDK is only loaded when provider is actually used
+ */
+let openrouterModule: typeof import("@openrouter/ai-sdk-provider") | null = null;
+async function getOpenRouterSdk() {
+	if (!openrouterModule) {
+		openrouterModule = await import("@openrouter/ai-sdk-provider");
+	}
+	return openrouterModule;
+}
 
 export class OpenRouterProvider implements AIProvider {
 	readonly id = "openrouter" as const;
@@ -253,7 +264,8 @@ export class OpenRouterProvider implements AIProvider {
 		return null;
 	}
 
-	createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {
+	async createClient(config: ProviderConfig, modelId: string): Promise<LanguageModelV1> {
+		const { createOpenRouter } = await getOpenRouterSdk();
 		const apiKey = config.apiKey as string;
 
 		if (!apiKey) {

@@ -2,7 +2,6 @@
  * OpenAI Provider
  */
 
-import { openai } from "@ai-sdk/openai";
 import type { LanguageModelV1 } from "ai";
 import type {
 	AIProvider,
@@ -17,6 +16,18 @@ import { hasRequiredFields } from "./base-provider.js";
 
 import { getModelMetadata } from "../../utils/models-dev.js";
 import { MODEL_REGISTRY, getProviderConsoleUrl } from "../models/model-registry.js";
+
+/**
+ * Lazy load OpenAI SDK to reduce initial bundle size
+ * SDK is only loaded when provider is actually used
+ */
+let openaiModule: typeof import("@ai-sdk/openai") | null = null;
+async function getOpenAISdk() {
+	if (!openaiModule) {
+		openaiModule = await import("@ai-sdk/openai");
+	}
+	return openaiModule;
+}
 
 export class OpenAIProvider implements AIProvider {
 	readonly id = "openai" as const;
@@ -145,7 +156,8 @@ export class OpenAIProvider implements AIProvider {
 		return capabilities;
 	}
 
-	createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {
+	async createClient(config: ProviderConfig, modelId: string): Promise<LanguageModelV1> {
+		const { openai } = await getOpenAISdk();
 		const apiKey = config.apiKey as string;
 		const baseUrl = config.baseUrl as string | undefined;
 		return openai(modelId, { apiKey, baseURL: baseUrl });

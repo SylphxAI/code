@@ -2,7 +2,6 @@
  * Anthropic Provider
  */
 
-import { anthropic } from "@ai-sdk/anthropic";
 import type { LanguageModelV1 } from "ai";
 import type {
 	AIProvider,
@@ -17,6 +16,18 @@ import { hasRequiredFields } from "./base-provider.js";
 
 import { getModelMetadata } from "../../utils/models-dev.js";
 import { MODEL_REGISTRY, getProviderConsoleUrl } from "../models/model-registry.js";
+
+/**
+ * Lazy load Anthropic SDK to reduce initial bundle size
+ * SDK is only loaded when provider is actually used
+ */
+let anthropicModule: typeof import("@ai-sdk/anthropic") | null = null;
+async function getAnthropicSdk() {
+	if (!anthropicModule) {
+		anthropicModule = await import("@ai-sdk/anthropic");
+	}
+	return anthropicModule;
+}
 
 export class AnthropicProvider implements AIProvider {
 	readonly id = "anthropic" as const;
@@ -105,7 +116,8 @@ export class AnthropicProvider implements AIProvider {
 		return capabilities;
 	}
 
-	createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {
+	async createClient(config: ProviderConfig, modelId: string): Promise<LanguageModelV1> {
+		const { anthropic } = await getAnthropicSdk();
 		return anthropic(modelId, { apiKey: config.apiKey as string });
 	}
 }

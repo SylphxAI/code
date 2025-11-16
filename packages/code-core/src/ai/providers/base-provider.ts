@@ -111,8 +111,9 @@ export interface AIProvider {
 	/**
 	 * Create AI SDK client for this provider
 	 * Uses provider config instead of just apiKey
+	 * Now async to support lazy loading of provider SDKs
 	 */
-	createClient(config: ProviderConfig, modelId: string): LanguageModelV2;
+	createClient(config: ProviderConfig, modelId: string): Promise<LanguageModelV2> | LanguageModelV2;
 }
 
 /**

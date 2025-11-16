@@ -3,7 +3,6 @@
  * Supports both AI Studio (apiKey) and Vertex AI (projectId + location)
  */
 
-import { google } from "@ai-sdk/google";
 import type { LanguageModelV1 } from "ai";
 import type {
 	AIProvider,
@@ -18,6 +17,18 @@ import { hasRequiredFields } from "./base-provider.js";
 
 import { getModelMetadata } from "../../utils/models-dev.js";
 import { MODEL_REGISTRY, getProviderConsoleUrl } from "../models/model-registry.js";
+
+/**
+ * Lazy load Google SDK to reduce initial bundle size
+ * SDK is only loaded when provider is actually used
+ */
+let googleModule: typeof import("@ai-sdk/google") | null = null;
+async function getGoogleSdk() {
+	if (!googleModule) {
+		googleModule = await import("@ai-sdk/google");
+	}
+	return googleModule;
+}
 
 export class GoogleProvider implements AIProvider {
 	readonly id = "google" as const;
@@ -121,7 +132,8 @@ export class GoogleProvider implements AIProvider {
 		return capabilities;
 	}
 
-	createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {
+	async createClient(config: ProviderConfig, modelId: string): Promise<LanguageModelV1> {
+		const { google } = await getGoogleSdk();
 		const apiKey = config.apiKey as string | undefined;
 		const projectId = config.projectId as string | undefined;
 		const location = (config.location as string | undefined) || "us-central1";

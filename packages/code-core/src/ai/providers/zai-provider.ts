@@ -3,7 +3,6 @@
  * Uses OpenAI-compatible API
  */
 
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModelV1 } from "ai";
 import type {
 	AIProvider,
@@ -15,6 +14,18 @@ import type {
 	ModelCapability,
 } from "./base-provider.js";
 import { hasRequiredFields } from "./base-provider.js";
+
+/**
+ * Lazy load OpenAI-compatible SDK to reduce initial bundle size
+ * SDK is only loaded when provider is actually used
+ */
+let openaiCompatibleModule: typeof import("@ai-sdk/openai-compatible") | null = null;
+async function getOpenAICompatibleSdk() {
+	if (!openaiCompatibleModule) {
+		openaiCompatibleModule = await import("@ai-sdk/openai-compatible");
+	}
+	return openaiCompatibleModule;
+}
 
 export class ZaiProvider implements AIProvider {
 	readonly id = "zai" as const;
@@ -156,7 +167,8 @@ export class ZaiProvider implements AIProvider {
 		return capabilities;
 	}
 
-	createClient(config: ProviderConfig, modelId: string): LanguageModelV1 {
+	async createClient(config: ProviderConfig, modelId: string): Promise<LanguageModelV1> {
+		const { createOpenAICompatible } = await getOpenAICompatibleSdk();
 		const apiKey = config.apiKey as string;
 		const codingPlan = config.codingPlan as boolean | undefined;
 
