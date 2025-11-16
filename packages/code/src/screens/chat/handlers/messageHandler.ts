@@ -197,7 +197,9 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 		}
 		// If we're in command mode with active autocomplete, don't handle here
 		// Let useInput handle the autocomplete selection
-		if (value.startsWith("/") && filteredCommands.length > 0) {
+		// EXCEPTION: If input is just "/command " with trailing space, execute command directly
+		const isCommandWithTrailingSpace = value.match(/^\/\w+\s+$/);
+		if (value.startsWith("/") && filteredCommands.length > 0 && !isCommandWithTrailingSpace) {
 			addLog(
 				`[handleSubmit] Skipping, autocomplete active (${filteredCommands.length} suggestions)`,
 			);
