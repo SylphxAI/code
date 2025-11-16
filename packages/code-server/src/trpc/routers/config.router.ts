@@ -12,6 +12,7 @@ import {
 	saveAIConfig,
 	getAIConfigPaths,
 	getProvider,
+	getProviderConfigWithApiKey,
 	AI_PROVIDERS,
 	fetchModels,
 	getTokenizerInfo,
@@ -679,17 +680,20 @@ export const configRouter = router({
 		)
 		.query(async ({ input, ctx }) => {
 			try {
+				console.log(`[getModelDetails] Called with providerId: ${input.providerId}, modelId: ${input.modelId}`);
+
 				const provider = getProvider(input.providerId);
+				console.log(`[getModelDetails] Provider obtained: ${provider.id}`);
 
 				// Get provider config with API key for fetching model details
-				const config = await getProviderConfigWithApiKey(
-					ctx.appContext,
-					input.providerId,
-					input.cwd,
-				);
+				const aiConfig = await loadAIConfig(input.cwd);
+				const config = await getProviderConfigWithApiKey(aiConfig, input.providerId);
+				console.log(`[getModelDetails] Config obtained, has apiKey: ${!!config?.apiKey}`);
 
 				// Get model details and capabilities
 				const details = await provider.getModelDetails(input.modelId, config);
+				console.log(`[getModelDetails] Details obtained:`, details);
+
 				const capabilities = provider.getModelCapabilities(input.modelId);
 
 				return {
@@ -700,6 +704,7 @@ export const configRouter = router({
 					},
 				};
 			} catch (error) {
+				console.error(`[getModelDetails] Error:`, error);
 				return {
 					success: false as const,
 					error: error instanceof Error ? error.message : "Failed to get model details",
