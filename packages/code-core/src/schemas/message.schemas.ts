@@ -8,8 +8,12 @@ import { z } from "zod";
 
 /**
  * Status schema shared across all message parts
+ * NOTE: Made optional with default to handle legacy data without status field
  */
-export const PartStatusSchema = z.enum(["pending", "active", "completed", "error", "abort"]);
+export const PartStatusSchema = z
+	.enum(["pending", "active", "completed", "error", "abort"])
+	.optional()
+	.default("completed");
 
 /**
  * System Message schema
