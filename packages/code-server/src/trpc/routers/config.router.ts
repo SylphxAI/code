@@ -687,8 +687,11 @@ export const configRouter = router({
 				// If config not available, provider will try unauthenticated API call
 				let config: any = undefined;
 				try {
-					const aiConfig = await loadAIConfig(input.cwd);
-					config = await getProviderConfigWithApiKey(aiConfig, input.providerId);
+					const aiConfigResult = await loadAIConfig(input.cwd);
+					if (aiConfigResult.ok) {
+						const aiConfig = aiConfigResult.value;
+						config = await getProviderConfigWithApiKey(aiConfig, input.providerId);
+					}
 				} catch {
 					// Config not available - continue without it
 				}

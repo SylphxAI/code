@@ -307,6 +307,7 @@ export const loadAIConfig = async (
 	return tryCatchAsync(
 		async () => {
 			const paths = getAIConfigPaths(cwd);
+			console.log("[loadAIConfig] Paths:", paths);
 
 			// Load all config files
 			const [globalConfig, projectConfig, localConfig, legacyConfig] = await Promise.all([
@@ -315,6 +316,14 @@ export const loadAIConfig = async (
 				loadConfigFile(paths.local),
 				loadConfigFile(paths.legacy),
 			]);
+
+			console.log("[loadAIConfig] Loaded configs:", {
+				hasGlobal: !!globalConfig,
+				hasProject: !!projectConfig,
+				hasLocal: !!localConfig,
+				hasLegacy: !!legacyConfig,
+				globalProviders: globalConfig?.providers ? Object.keys(globalConfig.providers) : [],
+			});
 
 			// Auto-migrate legacy config if it exists and global doesn't
 			if (legacyConfig && !globalConfig) {
@@ -342,6 +351,11 @@ export const loadAIConfig = async (
 			if (projectConfig) merged = mergeConfigs(merged, projectConfig);
 			if (localConfig) merged = mergeConfigs(merged, localConfig);
 			if (legacyConfig) merged = mergeConfigs(merged, legacyConfig);
+
+			console.log("[loadAIConfig] Merged config:", {
+				hasProviders: !!merged.providers,
+				providerIds: merged.providers ? Object.keys(merged.providers) : [],
+			});
 
 			return merged;
 		},
