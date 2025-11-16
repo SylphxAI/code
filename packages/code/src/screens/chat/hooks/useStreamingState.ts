@@ -9,6 +9,7 @@ import { useRef, useState } from "react";
 export interface StreamingState {
 	isStreaming: boolean;
 	setIsStreaming: (streaming: boolean) => void;
+	isStreamingRef: React.MutableRefObject<boolean>;
 	isTitleStreaming: boolean;
 	setIsTitleStreaming: (streaming: boolean) => void;
 	streamingTitle: string;
@@ -20,9 +21,18 @@ export interface StreamingState {
 }
 
 export function useStreamingState(): StreamingState {
-	const [isStreaming, setIsStreaming] = useState(false);
+	const [isStreaming, setIsStreamingState] = useState(false);
 	const [isTitleStreaming, setIsTitleStreaming] = useState(false);
 	const [streamingTitle, setStreamingTitle] = useState("");
+
+	// Ref to track current streaming state (for stable access across renders)
+	const isStreamingRef = useRef<boolean>(false);
+
+	// Wrapper to keep ref in sync with state
+	const setIsStreaming = (streaming: boolean) => {
+		isStreamingRef.current = streaming;
+		setIsStreamingState(streaming);
+	};
 
 	// Refs for streaming management
 	const abortControllerRef = useRef<AbortController | null>(null);
@@ -35,6 +45,7 @@ export function useStreamingState(): StreamingState {
 	return {
 		isStreaming,
 		setIsStreaming,
+		isStreamingRef,
 		isTitleStreaming,
 		setIsTitleStreaming,
 		streamingTitle,

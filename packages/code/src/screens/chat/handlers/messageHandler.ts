@@ -351,7 +351,9 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 		}
 
 		// QUEUE LOGIC: If AI is currently streaming, enqueue the message instead of sending
-		if (isStreaming()) {
+		const streamingStatus = isStreaming();
+		console.log(`[handleSubmit] Queue check - isStreaming():`, streamingStatus);
+		if (streamingStatus) {
 			addLog(`[handleSubmit] AI is streaming, enqueueing message: "${userMessage.substring(0, 50)}..."`);
 
 			// Get attachments for this message
