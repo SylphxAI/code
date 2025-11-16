@@ -97,7 +97,7 @@ export async function processAIStream(
 					});
 					state.currentTextPartIndex = partIndex;
 					state.hasEmittedAnyEvent = true;
-					emitTextStart(observer);
+					// NOTE: Only use callback - emitTextStart() is called in callback
 					callbacks.onTextStart?.();
 					break;
 				}
@@ -109,8 +109,8 @@ export async function processAIStream(
 							part.content += chunk.text;
 						}
 						state.hasEmittedAnyEvent = true;
-						console.log("[AIOrchestrator] Emitting text-delta, length:", chunk.text.length);
-						emitTextDelta(observer, chunk.text);
+						console.log("[AIOrchestrator] Processing text-delta, length:", chunk.text.length);
+						// NOTE: Only use callback - emitTextDelta() is called in callback
 						callbacks.onTextDelta?.(chunk.text);
 
 						// Update tokens in real-time (incremental)
@@ -136,7 +136,7 @@ export async function processAIStream(
 						state.currentTextPartIndex = null;
 					}
 					state.hasEmittedAnyEvent = true;
-					emitTextEnd(observer);
+					// NOTE: Only use callback - emitTextEnd() is called in callback
 					callbacks.onTextEnd?.();
 					break;
 				}
