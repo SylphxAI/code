@@ -18,6 +18,7 @@ import {
 	navigateTo,
 } from "@sylphx/code-client";
 import { Box, Text } from "ink";
+import Spinner from "../components/Spinner.js";
 import SelectInput from "ink-select-input";
 import TextInput from "ink-text-input";
 import React, { useEffect, useState } from "react";
@@ -172,7 +173,8 @@ export default function ModelSelection() {
 		if (isLoadingModels) {
 			return (
 				<Box>
-					<Text color="yellow">Loading models...</Text>
+					<Spinner color="yellow" />
+					<Text dimColor> Loading models from {selectedProvider}...</Text>
 				</Box>
 			);
 		}

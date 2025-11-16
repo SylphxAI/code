@@ -9,10 +9,9 @@
  * - UI rendering: Separated components (ChatHeader, ChatMessages, etc.)
  */
 
-import { Box, Text } from "ink";
+import { Box } from "ink";
 import StatusBar from "../components/StatusBar.js";
 import TodoList from "../components/TodoList.js";
-import Spinner from "../components/Spinner.js";
 import { ChatHeader } from "./chat/components/ChatHeader.js";
 import { ChatMessages } from "./chat/components/ChatMessages.js";
 import { InputSection } from "./chat/components/InputSection.js";
@@ -21,7 +20,6 @@ import { useChatState } from "./chat/hooks/useChatState.js";
 import { useChatEffects } from "./chat/hooks/useChatEffects.js";
 import { useChatKeyboard } from "./chat/hooks/useChatKeyboard.js";
 import type { ChatProps } from "./chat/types.js";
-import { useDebugLogs } from "@sylphx/code-client";
 
 export default function Chat(props: ChatProps) {
 	// Consolidated state management
@@ -32,11 +30,6 @@ export default function Chat(props: ChatProps) {
 
 	// Consolidated keyboard handling
 	const keyboard = useChatKeyboard(state, effects);
-
-	// Debug logs for loading indicators
-	const debugLogs = useDebugLogs();
-	const latestLog = debugLogs[debugLogs.length - 1] || "";
-	const isLoadingModels = latestLog.includes("Loading models from");
 
 	// Legacy command/file autocomplete handlers (undefined when using new input manager)
 	const handleCommandAutocompleteTab = undefined;
@@ -78,14 +71,6 @@ export default function Chat(props: ChatProps) {
 				<Box flexShrink={0}>
 					<TodoList />
 				</Box>
-
-				{/* Loading Indicator */}
-				{isLoadingModels && (
-					<Box flexShrink={0} paddingLeft={2}>
-						<Spinner color="yellow" />
-						<Text dimColor> {latestLog.replace(/^\[\d{1,2}:\d{2}:\d{2} [AP]M\] /, "")}</Text>
-					</Box>
-				)}
 
 				{/* Input Area */}
 				<Box flexShrink={0}>
