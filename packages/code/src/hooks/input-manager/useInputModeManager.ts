@@ -63,6 +63,7 @@ export function useInputModeManager(props: UseInputModeManagerProps) {
 
 	// Check if there's any active handler for current context
 	const hasActiveHandler = sortedHandlers.some((h) => h.isActive(context));
+	console.log("[InputModeManager] hasActiveHandler:", hasActiveHandler, "mode:", context.mode);
 
 	useInput(
 		async (char, key) => {

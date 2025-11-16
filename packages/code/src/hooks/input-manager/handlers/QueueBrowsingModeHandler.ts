@@ -54,7 +54,7 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 
 	/**
 	 * Check if handler should be active
-	 * Only active when input is empty and there are queued messages
+	 * Active when there are queued messages (input check happens in handleInput)
 	 */
 	isActive(context: InputModeContext): boolean {
 		// Must be in NORMAL mode
@@ -63,24 +63,12 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 			return false;
 		}
 
-		const {
-			queuedMessages,
-			input,
-			isStreaming,
-			inputComponent,
-			filteredCommands,
-			filteredFileInfo,
-		} = this.deps;
+		const { queuedMessages, isStreaming, inputComponent, filteredCommands, filteredFileInfo } =
+			this.deps;
 
 		// No queued messages = not active
 		if (queuedMessages.length === 0) {
 			console.log("[QueueBrowsing] Not active - no queued messages");
-			return false;
-		}
-
-		// Only active when input is empty (don't interfere with editing)
-		if (input.trim().length > 0) {
-			console.log("[QueueBrowsing] Not active - input not empty:", input);
 			return false;
 		}
 
@@ -121,6 +109,7 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 		const {
 			queuedMessages,
 			currentSessionId,
+			input,
 			setInput,
 			setCursor,
 			setPendingAttachments,
@@ -130,6 +119,13 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 		// Arrow up - pop last queued message into input
 		if (key.upArrow) {
 			console.log("[QueueBrowsing] UP arrow detected, queue length:", queuedMessages.length);
+
+			// Only pop from queue when input is empty (don't interfere with editing)
+			if (input.trim().length > 0) {
+				console.log("[QueueBrowsing] Input not empty, letting message history handle it");
+				return false; // Let message history handler take over
+			}
+
 			return this.handleArrowUp(async () => {
 				if (queuedMessages.length === 0 || !currentSessionId) {
 					console.log("[QueueBrowsing] Skipping - no messages or no session:", {
