@@ -427,13 +427,13 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		console.log("[sendUserMessageToAI] Streaming started successfully");
 		console.log("[sendUserMessageToAI] ===== END =====");
 		} catch (error) {
-		console.error("[sendUserMessageToAI] ===== ERROR =====");
-		console.error("[sendUserMessageToAI] Error details:", {
-			message: error instanceof Error ? error.message : String(error),
-			stack: error instanceof Error ? error.stack : undefined,
-			type: typeof error,
-			error
-		});
+			console.error("[sendUserMessageToAI] ===== ERROR =====");
+			console.error("[sendUserMessageToAI] Error details:", {
+				message: error instanceof Error ? error.message : String(error),
+				stack: error instanceof Error ? error.stack : undefined,
+				type: typeof error,
+				error
+			});
 			logSession("Mutation call error:", {
 				error: error instanceof Error ? error.message : String(error),
 				stack: error instanceof Error ? error.stack : undefined,
@@ -449,6 +449,9 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				// Always reset streaming state
 				setIsStreaming(false);
 			}
+
+			// Re-throw the error so it's not silently swallowed
+			throw error;
 		}
 	};
 }
