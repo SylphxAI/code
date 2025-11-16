@@ -304,6 +304,10 @@ export const sessionRouter = router({
 	delete: strictProcedure
 		.input(z.object({ sessionId: z.string() }))
 		.mutation(async ({ ctx, input }) => {
+			// Clear ask queue before deleting session
+			const { clearSessionAsks } = await import("../../services/ask-queue.service.js");
+			clearSessionAsks(input.sessionId);
+
 			await ctx.sessionRepository.deleteSession(input.sessionId);
 
 			// Publish to event stream for multi-client sync

@@ -20,9 +20,11 @@ export const adminRouter = router({
 			// Get all sessions
 			const sessions = await ctx.sessionRepository.getRecentSessionsMetadata(1000);
 
-			// Delete each session (cascade deletes messages, todos, attachments)
+			// Clear ask queues and delete each session (cascade deletes messages, todos, attachments)
+			const { clearSessionAsks } = await import("../../services/ask-queue.service.js");
 			let deletedCount = 0;
 			for (const session of sessions.sessions) {
+				clearSessionAsks(session.id);
 				await ctx.sessionRepository.deleteSession(session.id);
 				deletedCount++;
 			}

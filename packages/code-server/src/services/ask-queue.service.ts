@@ -28,6 +28,7 @@ export interface AskQuestion {
 	multiSelect?: boolean;
 	preSelected?: string[];
 	resolve: (answer: string) => void;
+	reject: (reason: Error) => void;
 	createdAt: number;
 }
 
@@ -116,7 +117,7 @@ export async function enqueueAsk(
 	multiSelect?: boolean,
 	preSelected?: string[],
 ): Promise<string> {
-	return new Promise<string>((resolve) => {
+	return new Promise<string>((resolve, reject) => {
 		const askQuestion: AskQuestion = {
 			id: toolCallId,
 			sessionId,
@@ -125,6 +126,7 @@ export async function enqueueAsk(
 			multiSelect,
 			preSelected,
 			resolve,
+			reject,
 			createdAt: Date.now(),
 		};
 
@@ -194,25 +196,23 @@ export function answerAsk(sessionId: string, toolCallId: string, answer: string)
 }
 
 /**
- * Get current processing ask for a session (for restore)
- */
-export function getCurrentAsk(sessionId: string): AskQuestion | null {
-	return processingAsks.get(sessionId) || null;
-}
-
-/**
- * Get queue length for a session
- */
-export function getQueueLength(sessionId: string): number {
-	const queue = sessionAskQueues.get(sessionId) || [];
-	const processing = processingAsks.has(sessionId) ? 1 : 0;
-	return queue.length + processing;
-}
-
-/**
  * Clear all asks for a session (on session end)
+ * Rejects all pending promises to prevent memory leaks
  */
 export function clearSessionAsks(sessionId: string): void {
+	// Reject all pending asks in queue
+	const queue = sessionAskQueues.get(sessionId) || [];
+	for (const ask of queue) {
+		ask.reject(new Error("Session ended"));
+	}
+
+	// Reject processing ask if exists
+	const processingAsk = processingAsks.get(sessionId);
+	if (processingAsk) {
+		processingAsk.reject(new Error("Session ended"));
+	}
+
+	// Clear all maps
 	sessionAskQueues.delete(sessionId);
 	processingAsks.delete(sessionId);
 	sessionObservers.delete(sessionId);
