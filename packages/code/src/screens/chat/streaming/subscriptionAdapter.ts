@@ -424,16 +424,16 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
 			// Set streaming flag immediately after mutation triggers
 			setIsStreaming(true);
-ttconsole.log("[sendUserMessageToAI] Streaming started successfully");
-ttconsole.log("[sendUserMessageToAI] ===== END =====");
+		console.log("[sendUserMessageToAI] Streaming started successfully");
+		console.log("[sendUserMessageToAI] ===== END =====");
 		} catch (error) {
-ttconsole.error("[sendUserMessageToAI] ===== ERROR =====");
-ttconsole.error("[sendUserMessageToAI] Error details:", {
-tttmessage: error instanceof Error ? error.message : String(error),
-tttstack: error instanceof Error ? error.stack : undefined,
-ttttype: typeof error,
-ttterror
-tt});
+		console.error("[sendUserMessageToAI] ===== ERROR =====");
+		console.error("[sendUserMessageToAI] Error details:", {
+			message: error instanceof Error ? error.message : String(error),
+			stack: error instanceof Error ? error.stack : undefined,
+			type: typeof error,
+			error
+		});
 			logSession("Mutation call error:", {
 				error: error instanceof Error ? error.message : String(error),
 				stack: error instanceof Error ? error.stack : undefined,
