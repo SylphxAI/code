@@ -77,10 +77,6 @@ export default function Chat(props: ChatProps) {
 					<TodoList />
 				</Box>
 
-			{/* Queued Messages */}
-			<QueuedMessagesDisplay queuedMessages={queuedMessages} />
-
-
 				{/* Input Area */}
 				<Box flexShrink={0}>
 					<InputSection

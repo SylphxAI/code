@@ -62,6 +62,7 @@ export { useModels } from "./hooks/useModels.js";
 export { useMouse } from "./hooks/useMouse.js";
 export { useProjectFiles } from "./hooks/useProjectFiles.js";
 export { useProviders } from "./hooks/useProviders.js";
+export { useQueuedMessages } from "./hooks/useQueuedMessages.js";
 export { useSessionInitialization } from "./hooks/useSessionInitialization.js";
 export { useSessionList } from "./hooks/useSessionList.js";
 export {
