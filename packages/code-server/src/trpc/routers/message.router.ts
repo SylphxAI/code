@@ -557,7 +557,6 @@ export const messageRouter = router({
 						// Publish all events to event stream for client subscriptions
 						if (eventSessionId) {
 							if (event.type === "message-status-updated") {
-								console.log("[TriggerStream] Publishing message-status-updated event:", event);
 							}
 							ctx.appContext.eventStream
 								.publish(`session:${eventSessionId}`, event)
@@ -565,7 +564,6 @@ export const messageRouter = router({
 									console.error("[TriggerStream] Event publish error:", err);
 								});
 							if (event.type === "message-status-updated") {
-								console.log("[TriggerStream] message-status-updated event published");
 							}
 						}
 					},

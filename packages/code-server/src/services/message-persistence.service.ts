@@ -93,14 +93,11 @@ export async function updateMessageStatus(
 		next: (event: StreamEvent) => void;
 	},
 ): Promise<void> {
-	console.log("[MessagePersistence] Updating message status to:", status, "messageId:", messageId);
 
 	try {
 		await messageRepository.updateMessageStatus(messageId, status, finishReason);
-		console.log("[MessagePersistence] Message status updated in DB");
 
 		// Emit message-status-updated event (unified status change event)
-		console.log("[MessagePersistence] Emitting message-status-updated event");
 		observer.next({
 			type: "message-status-updated",
 			messageId: messageId,
@@ -108,7 +105,6 @@ export async function updateMessageStatus(
 			usage: usage,
 			finishReason: finishReason,
 		});
-		console.log("[MessagePersistence] message-status-updated event emitted successfully");
 	} catch (dbError) {
 		console.error("[MessagePersistence] Failed to update message status:", dbError);
 		// Continue - not critical for user experience
@@ -132,7 +128,6 @@ export async function createAbortNotificationMessage(
 	}
 
 	try {
-		console.log("[MessagePersistence] Creating system message to notify LLM about abort");
 		const systemMessageId = await messageRepository.addMessage({
 			sessionId,
 			role: "system",
@@ -145,7 +140,6 @@ export async function createAbortNotificationMessage(
 			],
 			status: "completed",
 		});
-		console.log("[MessagePersistence] System message created:", systemMessageId);
 
 		// Emit system-message-created event
 		observer.next({
@@ -153,7 +147,6 @@ export async function createAbortNotificationMessage(
 			messageId: systemMessageId,
 			content: "Previous assistant message was aborted by user.",
 		});
-		console.log("[MessagePersistence] system-message-created event emitted");
 	} catch (systemMessageError) {
 		console.error(
 			"[MessagePersistence] Failed to create abort notification system message:",
