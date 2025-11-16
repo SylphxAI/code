@@ -349,13 +349,15 @@ export const sessionRouter = router({
 				};
 			}
 
-			// Compact session with progress tracking (TODO: stream progress via subscription)
+			// Compact session with progress tracking
+			// NOTE: Progress tracked but not streamed to client
+			// Tracked in: .sylphx/technical-debt.md (Medium Priority #4)
 			const result = await compactSession(
 				ctx.sessionRepository,
 				input.sessionId,
 				providerConfig,
 				(status, detail) => {
-					// TODO: Emit progress events for real-time updates
+					// Future: Emit progress events for real-time updates via subscription
 					console.log(`[Compact] ${status}: ${detail || ""}`);
 				},
 			);

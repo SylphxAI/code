@@ -31,8 +31,9 @@ export const notificationsCommand: Command = {
 	],
 
 	execute: async (context) => {
-		// TODO: Notification settings not implemented yet
-		// Need to add notificationSettings to store and CommandContext
+		// NOTE: Notification settings not fully implemented yet
+		// Tracked in: .sylphx/technical-debt.md (Medium Priority #5)
+		// Required: Add notificationSettings to store and CommandContext
 		return "⚠️ Notification settings are not yet implemented. Coming soon!";
 
 		// Helper to format settings display

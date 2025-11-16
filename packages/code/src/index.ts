@@ -209,7 +209,9 @@ async function main() {
 			const { render } = await import("ink");
 			const { default: App } = await import("./App.js");
 
-			// TODO: Initialize zen signals before React app (module resolution issue)
+			// NOTE: Signal initialization timing issue - module resolution prevents pre-render init
+			// Tracked in: .sylphx/technical-debt.md (Medium Priority #6)
+			// Current workaround: Runtime initialization (works but not optimal)
 			// const { initializeSignals } = await import('./signal-init.js');
 			// initializeSignals();
 

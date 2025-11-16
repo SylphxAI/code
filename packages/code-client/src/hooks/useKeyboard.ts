@@ -1,7 +1,9 @@
 /**
  * Keyboard Hook
  * Handle global keyboard shortcuts
- * TODO: Migrate to zen signals
+ *
+ * NOTE: Temporarily disabled - will migrate to zen signals for consistency
+ * Tracked in: .sylphx/technical-debt.md (Low Priority #7)
  */
 
 import { useInput } from "ink";
