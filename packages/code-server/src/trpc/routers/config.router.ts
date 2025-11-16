@@ -678,22 +678,12 @@ export const configRouter = router({
 				cwd: z.string().default(process.cwd()),
 			}),
 		)
-		.query(async ({ input, ctx }) => {
+		.query(async ({ input }) => {
 			try {
-				console.log(`[getModelDetails] Called with providerId: ${input.providerId}, modelId: ${input.modelId}`);
-
 				const provider = getProvider(input.providerId);
-				console.log(`[getModelDetails] Provider obtained: ${provider.id}`);
-
-				// Get provider config with API key for fetching model details
-				const aiConfig = await loadAIConfig(input.cwd);
-				const config = await getProviderConfigWithApiKey(aiConfig, input.providerId);
-				console.log(`[getModelDetails] Config obtained, has apiKey: ${!!config?.apiKey}`);
 
 				// Get model details and capabilities
-				const details = await provider.getModelDetails(input.modelId, config);
-				console.log(`[getModelDetails] Details obtained:`, details);
-
+				const details = await provider.getModelDetails(input.modelId);
 				const capabilities = provider.getModelCapabilities(input.modelId);
 
 				return {
@@ -704,7 +694,6 @@ export const configRouter = router({
 					},
 				};
 			} catch (error) {
-				console.error(`[getModelDetails] Error:`, error);
 				return {
 					success: false as const,
 					error: error instanceof Error ? error.message : "Failed to get model details",

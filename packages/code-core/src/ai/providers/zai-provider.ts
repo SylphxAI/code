@@ -98,62 +98,44 @@ export class ZaiProvider implements AIProvider {
 
 	async getModelDetails(
 		modelId: string,
-		config?: ProviderConfig,
+		_config?: ProviderConfig,
 	): Promise<ProviderModelDetails | null> {
-		const apiKey = config?.apiKey as string | undefined;
-		if (!apiKey) {
-			return null;
-		}
+		// Use known specs for common Z.ai models
+		// This is for UI display (context length, pricing) and doesn't require authentication
+		const specs: Record<string, ProviderModelDetails> = {
+			"glm-4.5": {
+				contextLength: 128000,
+				maxOutput: 4096,
+				inputPrice: 0,
+				outputPrice: 0,
+			},
+			"glm-4.6": {
+				contextLength: 128000,
+				maxOutput: 4096,
+				inputPrice: 0,
+				outputPrice: 0,
+			},
+			"glm-4-flash": {
+				contextLength: 128000,
+				maxOutput: 4096,
+				inputPrice: 0,
+				outputPrice: 0,
+			},
+			"glm-4-plus": {
+				contextLength: 128000,
+				maxOutput: 4096,
+				inputPrice: 0,
+				outputPrice: 0,
+			},
+			"glm-4-air": {
+				contextLength: 128000,
+				maxOutput: 4096,
+				inputPrice: 0,
+				outputPrice: 0,
+			},
+		};
 
-		const codingPlan = config?.codingPlan as boolean | undefined;
-		const baseUrl = codingPlan
-			? "https://api.z.ai/api/coding/paas/v4"
-			: "https://api.z.ai/api/paas/v4";
-
-		try {
-			const response = await fetch(`${baseUrl}/models`, {
-				headers: {
-					Authorization: `Bearer ${apiKey}`,
-				},
-				signal: AbortSignal.timeout(10000),
-			});
-
-			if (!response.ok) {
-				console.error(`[ZaiProvider] API error: ${response.status} ${response.statusText}`);
-				return null;
-			}
-
-			const data = (await response.json()) as {
-				data?: Array<{
-					id: string;
-					name?: string;
-					context_length?: number;
-					max_output_tokens?: number;
-					input_price?: number;
-					output_price?: number;
-				}>;
-			};
-
-			console.log(`[ZaiProvider] /models response:`, JSON.stringify(data, null, 2));
-
-			const model = data.data?.find((m) => m.id === modelId);
-			if (!model) {
-				console.error(`[ZaiProvider] Model ${modelId} not found in API response`);
-				return null;
-			}
-
-			console.log(`[ZaiProvider] Found model ${modelId}:`, JSON.stringify(model, null, 2));
-
-			return {
-				contextLength: model.context_length || null,
-				maxOutput: model.max_output_tokens || null,
-				inputPrice: model.input_price || 0,
-				outputPrice: model.output_price || 0,
-			};
-		} catch (error) {
-			console.error(`[ZaiProvider] Failed to fetch model details for ${modelId}:`, error);
-			return null;
-		}
+		return specs[modelId] || null;
 	}
 
 	getModelCapabilities(modelId: string): ModelCapabilities {

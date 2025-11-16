@@ -73,8 +73,6 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 							? detailsResult.details.capabilities || null
 							: null;
 
-					console.log("[useModelDetails] Fetched details - success:", detailsResult.success, "contextLength:", contextLength, "providerId:", providerId, "modelId:", modelId);
-
 					setDetails({
 						contextLength,
 						capabilities,
