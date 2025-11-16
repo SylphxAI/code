@@ -11,18 +11,13 @@
 import { eq, desc, and, sql, inArray, lt, sum } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { randomUUID } from "node:crypto";
-import { z } from "zod";
 import { sessions, messages, messageSteps, stepParts, stepUsage, fileContents } from "./schema.js";
 import type { MessagePart, TokenUsage } from "../types/session.types.js";
 import type { Todo as TodoType } from "../types/todo.types.js";
 import { retryDatabase } from "../utils/retry.js";
 import { FileRepository } from "./file-repository.js";
 import type { StorageOps } from "../storage/functional.js";
-
-/**
- * Zod schema for validating MessagePart JSON data from database
- */
-const MessagePartSchema: z.ZodType<MessagePart> = z.any(); // ASSUMPTION: MessagePart already validated when inserted
+import { MessagePartSchema } from "../schemas/message.schemas.js";
 
 export class MessageRepository {
 	private fileRepo: FileRepository;
@@ -383,9 +378,10 @@ export class MessageRepository {
 				const parsed = MessagePartSchema.safeParse(JSON.parse(part.content));
 				if (!parsed.success) {
 					// Skip corrupted part data
+					console.error("[message-repository] Invalid MessagePart:", parsed.error);
 					continue;
 				}
-				const content = parsed.data as any;
+				const content = parsed.data;
 
 				if (!messageData.has(messageId)) {
 					messageData.set(messageId, []);

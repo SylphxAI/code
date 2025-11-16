@@ -19,12 +19,10 @@ import type {
 } from "../types/session.types.js";
 import type { Todo as TodoType } from "../types/todo.types.js";
 import { retryDatabase } from "../utils/retry.js";
-
-/**
- * Zod schemas for validating JSON data from database
- */
-const MessagePartSchema: z.ZodType<MessagePart> = z.any(); // ASSUMPTION: MessagePart already validated when inserted
-const SystemMessageSchema: z.ZodType<SystemMessage> = z.any(); // ASSUMPTION: SystemMessage already validated when inserted
+import {
+	MessagePartSchema,
+	SystemMessageSchema,
+} from "../schemas/message.schemas.js";
 
 /**
  * Create a new step in a message
@@ -208,20 +206,24 @@ export async function loadMessageSteps(
 			id: step.id,
 			stepIndex: step.stepIndex,
 			parts: parts.map((p) => {
-			const parsed = MessagePartSchema.safeParse(JSON.parse(p.content));
-			return parsed.success ? parsed.data as MessagePart : JSON.parse(p.content) as MessagePart;
-		}),
+				const parsed = MessagePartSchema.safeParse(JSON.parse(p.content));
+				if (!parsed.success) {
+					console.error("[loadMessageSteps] Invalid MessagePart:", parsed.error);
+					return JSON.parse(p.content) as MessagePart;
+				}
+				return parsed.data;
+			}),
 			status: (step.status as "active" | "completed" | "error" | "abort") || "completed",
 		};
 
 		if (step.systemMessages) {
 			try {
 				const parsedSys = z.array(SystemMessageSchema).safeParse(JSON.parse(step.systemMessages));
-			if (parsedSys.success) {
-				messageStep.systemMessages = parsedSys.data as SystemMessage[];
-			} else {
-				console.error("[loadMessageSteps] Failed to validate systemMessages:", parsedSys.error);
-			}
+				if (parsedSys.success) {
+					messageStep.systemMessages = parsedSys.data;
+				} else {
+					console.error("[loadMessageSteps] Failed to validate systemMessages:", parsedSys.error);
+				}
 			} catch (error) {
 				console.error("[loadMessageSteps] Failed to parse systemMessages:", error);
 			}

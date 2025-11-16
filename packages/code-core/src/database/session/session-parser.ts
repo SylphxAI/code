@@ -3,7 +3,6 @@
  * Handles Zod schemas, JSON parsing, and data migration/validation
  */
 
-import { z } from "zod";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { eq, inArray } from "drizzle-orm";
 import {
@@ -22,50 +21,10 @@ import type {
 } from "../../types/session.types.js";
 import type { Todo as TodoType } from "../../types/todo.types.js";
 import type { SessionRow } from "./types.js";
-
-/**
- * Zod schemas for validating JSON data from database
- */
-export const StringArraySchema = z.array(z.string());
-
-/**
- * MessagePart validation schema
- * MessagePart is a discriminated union, validated at insertion time
- * Using z.custom() with runtime type guard for safe parsing
- */
-export const MessagePartSchema: z.ZodType<MessagePart> = z.custom<MessagePart>(
-	(data): data is MessagePart => {
-		if (!data || typeof data !== "object") return false;
-		const part = data as Record<string, unknown>;
-
-		// All parts must have type and status
-		if (typeof part.type !== "string") return false;
-		if (!["active", "completed", "error", "abort"].includes(part.status as string)) {
-			return false;
-		}
-
-		// Type-specific validation
-		switch (part.type) {
-			case "text":
-			case "reasoning":
-				return typeof part.content === "string";
-			case "tool":
-				return typeof part.toolId === "string" && typeof part.name === "string";
-			case "file":
-			case "file-ref":
-				return typeof part.relativePath === "string";
-			case "system-message":
-				return typeof part.content === "string";
-			case "error":
-				return typeof part.error === "string";
-			default:
-				return false;
-		}
-	},
-	{
-		message: "Invalid MessagePart structure",
-	},
-);
+import {
+	MessagePartSchema,
+	StringArraySchema,
+} from "../../schemas/message.schemas.js";
 
 /**
  * Parse and validate enabledRuleIds from raw database value
@@ -270,10 +229,11 @@ export async function getSessionMessages(
 			const parsedParts = parts.map((p) => {
 				const parsed = MessagePartSchema.safeParse(JSON.parse(p.content));
 				if (!parsed.success) {
-					// Fallback to raw parse (MessagePartSchema is z.any(), always succeeds)
+					// Validation failed - log and return fallback
+					console.error("[session-parser] Invalid MessagePart:", parsed.error);
 					return JSON.parse(p.content) as MessagePart;
 				}
-				return parsed.data as MessagePart;
+				return parsed.data;
 			});
 
 			const messageStep: MessageStep = {

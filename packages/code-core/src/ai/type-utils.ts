@@ -49,8 +49,8 @@ export const Schemas = {
 	/** Optional positive number */
 	optionalPositiveNumber: z.number().positive().optional(),
 
-	/** Array validation */
-	nonEmptyArray: z.array(z.any()).min(1, "Array cannot be empty"),
+	/** Array validation (generic - use for unknown array types) */
+	nonEmptyArray: z.array(z.unknown()).min(1, "Array cannot be empty"),
 
 	/** Email validation */
 	email: z.string().email("Invalid email format"),

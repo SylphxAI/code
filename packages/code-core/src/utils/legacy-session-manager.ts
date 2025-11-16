@@ -49,12 +49,20 @@ const SessionMessageSchema = z.object({
 	timestamp: z.number(),
 });
 
+const TodoSchema = z.object({
+	id: z.number(),
+	content: z.string(),
+	status: z.enum(["pending", "in_progress", "completed", "removed"]),
+	activeForm: z.string(),
+	ordering: z.number(),
+}).passthrough(); // Allow additional fields for backward compatibility
+
 const SessionSchema = z.object({
 	id: z.string(),
 	provider: z.string(), // ProviderId but stored as string
 	model: z.string(),
 	messages: z.array(SessionMessageSchema),
-	todos: z.array(z.any()).optional(), // Optional for migration
+	todos: z.array(TodoSchema).optional(), // Optional for migration
 	nextTodoId: z.number().optional(), // Optional for migration
 	created: z.number(),
 	updated: z.number(),
