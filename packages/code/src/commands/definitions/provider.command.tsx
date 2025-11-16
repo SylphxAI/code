@@ -267,6 +267,7 @@ export const providerCommand: Command = {
 					// If provider has no default model, fetch models and set first one as default
 					if (!providerDefaultModel) {
 						try {
+							context.addLog(`Loading models from ${providerId}...`);
 							const trpc = getTRPCClient();
 							const result = await trpc.config.fetchModels.query({ providerId: providerId as any });
 

@@ -50,6 +50,7 @@ export const modelCommand: Command = {
 
 			// Validate the model exists for this provider
 			try {
+				context.addLog(`Loading models from ${provider}...`);
 				const { getTRPCClient } = await import("@sylphx/code-client");
 				const trpc = getTRPCClient();
 				const result = await trpc.config.fetchModels.query({ providerId: provider });
@@ -105,6 +106,7 @@ export const modelCommand: Command = {
 		}
 
 		// Fetch models from server (server loads config with API keys)
+		context.addLog(`Loading models from ${currentProviderId}...`);
 		const { getTRPCClient } = await import("@sylphx/code-client");
 		const trpc = getTRPCClient();
 
