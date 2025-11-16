@@ -11,7 +11,7 @@ import type { Command, WaitForInputOptions } from "../../../commands/types.js";
 import { CommandAutocomplete } from "../../../components/CommandAutocomplete.js";
 import { FileAutocomplete } from "../../../components/FileAutocomplete.js";
 import { PendingCommandSelection } from "../../../components/PendingCommandSelection.js";
-import { SelectionUI } from "../../../components/SelectionUI.js";
+import { AskToolSelection } from "./AskToolSelection.js";
 import TextInputWithHint from "../../../components/TextInputWithHint.js";
 import type { FilteredCommand, FilteredFileInfo } from "../autocomplete/types.js";
 import type { SettingsMode } from "../types/settings-mode.js";
@@ -38,6 +38,10 @@ interface InputSectionProps {
 
 	// Selection mode
 	pendingInput: WaitForInputOptions | null;
+	setPendingInput: (options: WaitForInputOptions | null) => void;
+	inputResolver: React.MutableRefObject<
+		((value: string | Record<string, string | string[]>) => void) | null
+	>;
 	multiSelectionPage: number;
 	multiSelectionAnswers: Record<string, string | string[]>;
 	multiSelectChoices: Set<string>;
@@ -112,6 +116,8 @@ export function InputSection({
 	onFileAutocompleteUpArrow,
 	onFileAutocompleteDownArrow,
 	pendingInput,
+	setPendingInput,
+	inputResolver,
 	multiSelectionPage,
 	multiSelectionAnswers,
 	multiSelectChoices,
@@ -185,19 +191,26 @@ export function InputSection({
 				inputComponent
 			) : (
 				<>
-					{/* PendingInput Mode - when command calls waitForInput */}
+					{/* PendingInput Mode - when command calls waitForInput or ask tool is used */}
 					{pendingInput && pendingInput.type === "selection" ? (
-						<SelectionUI
+						<AskToolSelection
 							pendingInput={pendingInput}
-							multiSelectionPage={multiSelectionPage}
-							multiSelectionAnswers={multiSelectionAnswers}
-							multiSelectChoices={multiSelectChoices}
-							selectionFilter={selectionFilter}
-							isFilterMode={isFilterMode}
-							freeTextInput={freeTextInput}
-							isFreeTextMode={isFreeTextMode}
-							selectedCommandIndex={selectedCommandIndex}
-							askQueueLength={askQueueLength}
+							onSelect={(value) => {
+								// Resolve the ask tool promise with the selected value
+								if (inputResolver.current) {
+									inputResolver.current(value);
+									inputResolver.current = null;
+									setPendingInput(null);
+								}
+							}}
+							onCancel={() => {
+								// Cancel selection - resolve with empty string
+								if (inputResolver.current) {
+									inputResolver.current("");
+									inputResolver.current = null;
+									setPendingInput(null);
+								}
+							}}
 						/>
 					) : /* Selection Mode - when a command is pending and needs args */
 					pendingCommand ? (

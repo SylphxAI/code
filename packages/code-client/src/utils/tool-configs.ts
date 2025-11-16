@@ -46,14 +46,22 @@ const resultToLines = (result: unknown): string[] => {
  * - Custom component: MyCustomComponent
  */
 export const toolConfigs = {
-	// Ask tool
+	// Ask tool - with answer summary
 	ask: createDefaultToolDisplay(
-		"Ask",
+		"ask",
 		(args) => (args?.question ? truncateString(String(args.question), 80) : ""),
-		(result) => ({
-			lines: resultToLines(result),
-			summary: undefined,
-		}),
+		(result) => {
+			const answer = typeof result === "string" ? result : "";
+			const summary = answer
+				? answer.length > 100
+					? `Answer: ${answer.slice(0, 100)}...`
+					: `Answer: ${answer}`
+				: undefined;
+			return {
+				lines: [], // Don't show full result details for ask tool
+				summary,
+			};
+		},
 	),
 
 	// Read tool

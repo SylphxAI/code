@@ -11,6 +11,7 @@ export const providerCommand: Command = {
 	id: "provider",
 	label: "/provider",
 	description: "Manage AI providers",
+	silent: true, // UI-only command, don't add to conversation
 	args: [
 		{
 			name: "action",

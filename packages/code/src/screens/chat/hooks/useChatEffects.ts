@@ -10,6 +10,7 @@ import {
 	updateSessionTitle,
 	setCurrentSessionId,
 } from "@sylphx/code-client";
+import { setUserInputHandler, clearUserInputHandler } from "@sylphx/code-core";
 import { useCallback, useEffect, useMemo } from "react";
 import type { ChatState } from "./useChatState.js";
 import { useEventStreamCallbacks } from "./useEventStreamCallbacks.js";
@@ -209,6 +210,27 @@ export function useChatEffects(state: ChatState) {
 	useEffect(() => {
 		state.setSelectedFileIndex(0);
 	}, [filteredFileInfo.files.length, state.setSelectedFileIndex]);
+
+	// Register user input handler for ask tool on mount, clear on unmount
+	useEffect(() => {
+		const handler = async (request: any) => {
+			// ASSUMPTION: ask tool sends selection request matching pendingInput structure
+			// Set pendingInput to show UI, return promise that resolves when user selects
+			return new Promise<string | Record<string, string | string[]>>((resolve) => {
+				state.selectionState.inputResolver.current = resolve;
+				state.selectionState.setPendingInput({
+					type: "selection",
+					questions: request.questions,
+				});
+			});
+		};
+
+		setUserInputHandler(handler);
+
+		return () => {
+			clearUserInputHandler();
+		};
+	}, [state.selectionState]);
 
 	return {
 		handleSubmit,

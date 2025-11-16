@@ -259,23 +259,25 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 			// Clear input immediately
 			setInput("");
 
-			// Add user command to conversation
-			const aiConfig = getAIConfig();
-			const { provider, model } = resolveProviderAndModel(aiConfig);
+			// Add user command to conversation (unless command is silent)
+			if (!command.silent) {
+				const aiConfig = getAIConfig();
+				const { provider, model } = resolveProviderAndModel(aiConfig);
 
-			const sessionIdToUse = commandSessionRef.current || currentSessionId;
-			const resultSessionId = await addMessage({
-				sessionId: sessionIdToUse,
-				role: "user",
-				content: userMessage,
-				provider,
-				model,
-			});
+				const sessionIdToUse = commandSessionRef.current || currentSessionId;
+				const resultSessionId = await addMessage({
+					sessionId: sessionIdToUse,
+					role: "user",
+					content: userMessage,
+					provider,
+					model,
+				});
 
-			if (!commandSessionRef.current) {
-				commandSessionRef.current = resultSessionId;
-				// Update current session to show messages in UI
-				setCurrentSessionId(resultSessionId);
+				if (!commandSessionRef.current) {
+					commandSessionRef.current = resultSessionId;
+					// Update current session to show messages in UI
+					setCurrentSessionId(resultSessionId);
+				}
 			}
 
 			// Execute command - command has full control via CommandContext

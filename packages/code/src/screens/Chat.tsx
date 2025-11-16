@@ -123,6 +123,8 @@ export default function Chat(props: ChatProps) {
 						isStreaming={state.streamingState.isStreaming}
 						abortControllerRef={state.streamingState.abortControllerRef}
 						onPasteImage={keyboard.handlePasteImage}
+						inputResolver={state.selectionState.inputResolver}
+						setPendingInput={state.selectionState.setPendingInput}
 					/>
 				</Box>
 

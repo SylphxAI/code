@@ -11,6 +11,7 @@ export const modelCommand: Command = {
 	id: "model",
 	label: "/model",
 	description: "Switch AI model",
+	silent: true, // UI-only command, don't add to conversation
 	args: [
 		{
 			name: "model-name",

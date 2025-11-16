@@ -106,4 +106,9 @@ export interface Command {
 	description: string;
 	args?: CommandArg[];
 	execute: (context: CommandContext) => Promise<string | void>;
+	/**
+	 * If true, command execution won't be added to conversation history.
+	 * Use for UI-only commands like /model, /provider, etc.
+	 */
+	silent?: boolean;
 }
