@@ -50,13 +50,17 @@ export const modelCommand: Command = {
 
 			// Validate the model exists for this provider
 			try {
-				const { fetchModels } = await import("@sylphx/code-core");
-				const models = await fetchModels(provider as any, aiConfig.providers[provider]);
-				const modelExists = models.some((m) => m.id === modelId);
+				const { getTRPCClient } = await import("@sylphx/code-client");
+				const trpc = getTRPCClient();
+				const result = await trpc.config.fetchModels.query({ providerId: provider });
 
-				if (!modelExists) {
-					const availableModels = models.map((m) => m.id).join(", ");
-					return `Model '${modelId}' not found for ${provider}. Available models: ${availableModels}`;
+				if (result.success) {
+					const modelExists = result.models.some((m) => m.id === modelId);
+
+					if (!modelExists) {
+						const availableModels = result.models.map((m) => m.id).join(", ");
+						return `Model '${modelId}' not found for ${provider}. Available models: ${availableModels}`;
+					}
 				}
 			} catch (error) {
 				const errorMsg = error instanceof Error ? error.message : String(error);
@@ -90,49 +94,40 @@ export const modelCommand: Command = {
 		}
 
 		// No args - show model selection UI
-		// Load config with API keys (direct filesystem access for CLI)
-		const { loadAIConfig } = await import("@sylphx/code-core");
-		const aiConfigResult = await loadAIConfig();
-
-		if (!aiConfigResult.success) {
-			return `Failed to load AI config: ${aiConfigResult.error.message}`;
-		}
-
-		const aiConfig = aiConfigResult.data;
-		if (!aiConfig?.providers) {
-			return "No providers configured. Please configure a provider first.";
-		}
-
 		// Get current session's provider or selected provider from zen signals
 		const currentSession = get($currentSession);
 		const selectedProvider = get($selectedProvider);
-		const currentProviderId = currentSession?.provider || selectedProvider || aiConfig.defaultProvider;
+		const aiConfig = get($aiConfig);
+		const currentProviderId = currentSession?.provider || selectedProvider || aiConfig?.defaultProvider;
 
 		if (!currentProviderId) {
 			return "No provider selected. Use /provider to select a provider first.";
 		}
 
-		const config = aiConfig.providers[currentProviderId];
-		if (!config) {
-			return `Provider ${currentProviderId} is not configured.`;
-		}
+		// Fetch models from server (server loads config with API keys)
+		const { getTRPCClient } = await import("@sylphx/code-client");
+		const trpc = getTRPCClient();
 
-		// Fetch models from current provider (config now includes API key)
 		let allModels: Array<{ id: string; name: string }> = [];
 		try {
-			const { fetchModels } = await import("@sylphx/code-core");
-			const models = await fetchModels(currentProviderId as any, config);
-			allModels = models.map((m) => ({ id: m.id, name: m.name }));
-			context.addLog(`Loaded ${models.length} models from ${currentProviderId}`);
+			const result = await trpc.config.fetchModels.query({
+				providerId: currentProviderId,
+			});
+
+			if (!result.success) {
+				// Provide helpful error messages for common issues
+				if (currentProviderId === "claude-code" && result.error.includes("claude")) {
+					return `Failed to load Claude Code models: ${result.error}\n\nTo use Claude Code provider:\n1. Install Claude CLI: npm install -g @anthropic-ai/claude-code\n2. Login: claude login\n3. Then try /model again`;
+				}
+
+				return `Failed to load models from ${currentProviderId}: ${result.error}`;
+			}
+
+			allModels = result.models;
+			context.addLog(`Loaded ${allModels.length} models from ${currentProviderId}`);
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);
 			context.addLog(`Failed to fetch models for ${currentProviderId}: ${errorMsg}`);
-
-			// Provide helpful error messages for common issues
-			if (currentProviderId === "claude-code" && errorMsg.includes("claude")) {
-				return `Failed to load Claude Code models: ${errorMsg}\n\nTo use Claude Code provider:\n1. Install Claude CLI: npm install -g @anthropic-ai/claude-code\n2. Login: claude login\n3. Then try /model again`;
-			}
-
 			return `Failed to load models from ${currentProviderId}: ${errorMsg}`;
 		}
 

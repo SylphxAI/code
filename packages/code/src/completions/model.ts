@@ -4,10 +4,8 @@
  */
 
 import { getTRPCClient } from "@sylphx/code-client";
-import { fetchModels } from "@sylphx/code-core";
 import { get } from "@sylphx/zen";
-import { $aiConfig, $currentSession, setAIConfig } from "@sylphx/code-client";
-import type { AIConfig, ProviderId } from "@sylphx/code-core";
+import { $aiConfig, $currentSession } from "@sylphx/code-client";
 
 export interface CompletionOption {
 	id: string;
@@ -16,63 +14,39 @@ export interface CompletionOption {
 }
 
 /**
- * Get AI config with API keys for model fetching
- * ARCHITECTURE: Direct filesystem access (CLI only, not web)
- * - loadAIConfig() includes API keys (not sanitized)
- * - Used for server-side operations like fetching models
- * - DO NOT send this config to remote clients
- */
-async function getAIConfigWithKeys(): Promise<AIConfig | null> {
-	try {
-		const { loadAIConfig } = await import("@sylphx/code-core");
-		const result = await loadAIConfig();
-
-		if (!result.success) {
-			console.error("[completions] Failed to load AI config:", result.error);
-			return null;
-		}
-
-		return result.data;
-	} catch (error) {
-		console.error("[completions] Failed to load AI config:", error);
-		return null;
-	}
-}
-
-/**
  * Get model completion options for current provider
- * Fetches models from provider API (not cached - models can change frequently)
+ * ARCHITECTURE: Uses tRPC endpoint (server-side fetches models)
+ * - Client = Pure UI
+ * - Server = Business logic + File access
+ * - Works for both CLI and Web GUI
  */
 export async function getModelCompletions(partial = ""): Promise<CompletionOption[]> {
 	try {
-		// Load config with API keys (direct filesystem access)
-		const config = await getAIConfigWithKeys();
-
-		if (!config?.providers) {
-			return [];
-		}
+		const trpc = getTRPCClient();
 
 		// Get current provider from session or config
 		const currentSession = get($currentSession);
-		const currentProviderId = currentSession?.provider || config.defaultProvider;
+		const config = get($aiConfig);
+		const currentProviderId = currentSession?.provider || config?.defaultProvider;
 
 		if (!currentProviderId) {
 			return [];
 		}
 
-		// Get provider config (already includes API key from loadAIConfig)
-		const providerConfig = config.providers[currentProviderId];
-		if (!providerConfig) {
+		// Fetch models from server (server loads config with API keys)
+		const result = await trpc.config.fetchModels.query({
+			providerId: currentProviderId,
+		});
+
+		if (!result.success) {
+			console.error("[completions] Failed to fetch models:", result.error);
 			return [];
 		}
 
-		// Fetch models from provider API
-		const models = await fetchModels(currentProviderId as ProviderId, providerConfig);
-
 		// Filter by partial match
 		const filtered = partial
-			? models.filter((m) => m.name.toLowerCase().includes(partial.toLowerCase()))
-			: models;
+			? result.models.filter((m) => m.name.toLowerCase().includes(partial.toLowerCase()))
+			: result.models;
 
 		return filtered.map((m) => ({
 			id: m.id,

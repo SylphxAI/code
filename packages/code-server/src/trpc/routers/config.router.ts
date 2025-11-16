@@ -733,5 +733,59 @@ export const configRouter = router({
 			}
 		}),
 
+	/**
+	 * Fetch models from provider API
+	 * SERVER-SIDE: Loads config with API keys, calls provider API
+	 * ARCHITECTURE: Client = Pure UI, Server = Business logic + File access
+	 */
+	fetchModels: publicProcedure
+		.input(
+			z.object({
+				providerId: z.string(),
+				cwd: z.string().default(process.cwd()),
+			}),
+		)
+		.query(async ({ input }) => {
+			try {
+				// Load config with API keys (server-side only)
+				const aiConfigResult = await loadAIConfig(input.cwd);
+				if (!aiConfigResult.success) {
+					return {
+						success: false as const,
+						error: aiConfigResult.error.message,
+					};
+				}
+
+				const aiConfig = aiConfigResult.data;
+				const providerConfig = aiConfig.providers?.[input.providerId];
+
+				if (!providerConfig) {
+					return {
+						success: false as const,
+						error: `Provider ${input.providerId} is not configured. Please configure it using /provider first.`,
+					};
+				}
+
+				// Fetch models from provider API (server-side)
+				const models = await fetchModels(input.providerId as ProviderId, providerConfig);
+
+				// Transform to completion format
+				const modelList = models.map((m) => ({
+					id: m.id,
+					name: m.name,
+				}));
+
+				return {
+					success: true as const,
+					models: modelList,
+				};
+			} catch (error) {
+				return {
+					success: false as const,
+					error: error instanceof Error ? error.message : "Failed to fetch models",
+				};
+			}
+		}),
+
 	// Note: Config changes are persisted in database and loaded on demand
 });
