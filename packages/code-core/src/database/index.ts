@@ -12,6 +12,7 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 import { ConnectionError, DatabaseError } from "../utils/database-errors.js";
 import * as schema from "./schema.js";
 import { findPackageRoot } from "../utils/paths.js";
+import { logger } from "../utils/logger.js";
 
 export type Database = ReturnType<typeof drizzle<typeof schema>>;
 
@@ -81,11 +82,11 @@ export class DrizzleDatabase {
 			const migrationStatus = await this.getMigrationStatus();
 
 			if (migrationStatus.isMigrated) {
-				console.error("[INFO] Database tables already exist, checking migration state");
+				logger.info("Database tables already exist, checking migration state");
 
 				// Check if __drizzle_migrations table exists
 				const drizzleMigrationResult = await this.client.execute(`
-          SELECT name FROM sqlite_master 
+          SELECT name FROM sqlite_master
           WHERE type='table' AND name='__drizzle_migrations'
         `);
 
@@ -102,11 +103,11 @@ export class DrizzleDatabase {
 
 					// Insert our migration as already applied
 					await this.client.execute(`
-            INSERT OR IGNORE INTO __drizzle_migrations (hash, created_at) 
+            INSERT OR IGNORE INTO __drizzle_migrations (hash, created_at)
             VALUES ('0000_wooden_lady_bullseye', strftime('%s', 'now'))
           `);
 
-					console.error("[INFO] Migration tracking initialized for existing tables");
+					logger.info("Migration tracking initialized for existing tables");
 				}
 
 				return;
@@ -119,19 +120,18 @@ export class DrizzleDatabase {
 
 			if (fs.existsSync(migrationsPath)) {
 				await migrate(this.db, { migrationsFolder: migrationsPath });
-				console.error("[INFO] Database migrations completed");
+				logger.info("Database migrations completed");
 			} else {
-				console.error("[WARN] No migrations folder found, using fallback table creation");
+				logger.warn("No migrations folder found, using fallback table creation");
 				await this.createTablesFallback();
 			}
 		} catch (error) {
-			const errorMessage = `Migration failed: ${(error as Error).message}`;
-			console.error("[ERROR]", errorMessage);
+			logger.error("Migration failed", error as Error);
 
 			// Try fallback as last resort
 			try {
 				await this.createTablesFallback();
-				console.error("[WARN] Fallback table creation completed");
+				logger.warn("Fallback table creation completed");
 			} catch (fallbackError) {
 				throw new DatabaseError(
 					"Both migration and fallback failed",
@@ -149,7 +149,7 @@ export class DrizzleDatabase {
 	 */
 	private async createTablesFallback(): Promise<void> {
 		// This is a minimal fallback - in production we should always use migrations
-		console.error("[INFO] Using fallback table creation");
+		logger.info("Using fallback table creation");
 
 		// Create tables using the existing database connection
 		// The tables should already exist from previous runs

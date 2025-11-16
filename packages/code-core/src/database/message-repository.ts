@@ -18,6 +18,7 @@ import { retryDatabase } from "../utils/retry.js";
 import { FileRepository } from "./file-repository.js";
 import type { StorageOps } from "../storage/functional.js";
 import { MessagePartSchema } from "../schemas/message.schemas.js";
+import { logger } from "../utils/logger.js";
 
 export class MessageRepository {
 	private fileRepo: FileRepository;
@@ -112,7 +113,11 @@ export class MessageRepository {
 
 						// Migrate file parts to file_contents table
 						if (part.type === "file" && "base64" in part && part.base64) {
-							console.log(`[MessageRepository] Migrating file part ${i}: ${(part as any).relativePath} (${(part as any).base64?.length} bytes)`);
+							logger.debug("Migrating file part", {
+								index: i,
+								relativePath: (part as any).relativePath,
+								bytes: (part as any).base64?.length,
+							});
 							try {
 								// Convert base64 back to Buffer
 								const buffer = Buffer.from(part.base64, "base64");
@@ -136,14 +141,12 @@ export class MessageRepository {
 									status: "completed",
 								};
 
-								console.log(
-									`[MessageRepository] Migrated file to file_contents: ${part.relativePath} → ${fileId}`,
-								);
+								logger.debug("Migrated file to file_contents", {
+									relativePath: part.relativePath,
+									fileId,
+								});
 							} catch (error) {
-								console.error(
-									`[MessageRepository] Failed to migrate file ${part.relativePath}:`,
-									error,
-								);
+								logger.error(`Failed to migrate file ${part.relativePath}`, error as Error);
 								// Keep original file part if migration fails
 							}
 						}
@@ -378,7 +381,7 @@ export class MessageRepository {
 				const parsed = MessagePartSchema.safeParse(JSON.parse(part.content));
 				if (!parsed.success) {
 					// Skip corrupted part data
-					console.error("[message-repository] Invalid MessagePart:", parsed.error);
+					logger.error("Invalid MessagePart", parsed.error as Error);
 					continue;
 				}
 				const content = parsed.data;

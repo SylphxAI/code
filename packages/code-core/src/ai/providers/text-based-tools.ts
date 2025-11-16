@@ -6,6 +6,7 @@
 
 import type { LanguageModelV2ToolChoice } from "@ai-sdk/provider";
 import { z } from "zod";
+import { logger } from "../../utils/logger.js";
 
 /**
  * Zod schema for validating tool call arguments from AI-generated JSON
@@ -131,11 +132,9 @@ export function parseToolCalls(text: string): ParsedToolCall[] {
 		try {
 			const parsedArgs = ToolArgumentsSchema.safeParse(JSON.parse(match[3].trim()));
 			if (!parsedArgs.success) {
-				console.error(
-					"Invalid tool call arguments format:",
-					match[3],
-					parsedArgs.error.message,
-				);
+				logger.error("Invalid tool call arguments format", parsedArgs.error as Error, {
+					arguments: match[3],
+				});
 				// Skip invalid tool calls
 				continue;
 			}
@@ -146,7 +145,9 @@ export function parseToolCalls(text: string): ParsedToolCall[] {
 				arguments: parsedArgs.data,
 			});
 		} catch (error) {
-			console.error("Failed to parse tool call arguments JSON:", match[3], error);
+			logger.error("Failed to parse tool call arguments JSON", error as Error, {
+				arguments: match[3],
+			});
 			// Skip invalid tool calls
 		}
 	}
@@ -181,11 +182,9 @@ export function parseContentBlocks(text: string): ParsedContentBlock[] {
 			try {
 				const parsedArgs = ToolArgumentsSchema.safeParse(JSON.parse(match[4].trim()));
 				if (!parsedArgs.success) {
-					console.error(
-						"Invalid tool call arguments format:",
-						match[4],
-						parsedArgs.error.message,
-					);
+					logger.error("Invalid tool call arguments format", parsedArgs.error as Error, {
+						arguments: match[4],
+					});
 					// Skip invalid tool calls
 					continue;
 				}
@@ -197,7 +196,9 @@ export function parseContentBlocks(text: string): ParsedContentBlock[] {
 					arguments: parsedArgs.data,
 				});
 			} catch (error) {
-				console.error("Failed to parse tool call arguments JSON:", match[4], error);
+				logger.error("Failed to parse tool call arguments JSON", error as Error, {
+					arguments: match[4],
+				});
 				// Skip invalid tool calls
 			}
 		}

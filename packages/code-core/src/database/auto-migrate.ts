@@ -21,6 +21,7 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 import { sql } from "drizzle-orm";
 import { SessionRepository } from "./session-repository.js";
 import { loadSession } from "../utils/legacy-session-manager.js";
+import { logger } from "../utils/logger.js";
 
 const SESSION_DIR = join(homedir(), ".sylphx", "sessions");
 const DB_DIR = join(homedir(), ".sylphx-code");
@@ -87,7 +88,7 @@ async function cleanupOldJSONFiles(): Promise<void> {
 			return; // No files to cleanup
 		}
 
-		console.log(`Cleaning up ${sessionFiles.length} old JSON files...`);
+		logger.info(`Cleaning up ${sessionFiles.length} old JSON files...`);
 		let deletedCount = 0;
 
 		for (const file of sessionFiles) {
@@ -95,11 +96,11 @@ async function cleanupOldJSONFiles(): Promise<void> {
 				await unlink(join(SESSION_DIR, file));
 				deletedCount++;
 			} catch (error) {
-				console.warn(`Failed to delete ${file}:`, error);
+				logger.warn(`Failed to delete ${file}`, error as Error);
 			}
 		}
 
-		console.log(`Cleanup complete: deleted ${deletedCount}/${sessionFiles.length} JSON files`);
+		logger.info(`Cleanup complete: deleted ${deletedCount}/${sessionFiles.length} JSON files`);
 	} catch {
 		// Session directory doesn't exist or other error - ignore
 	}
@@ -238,7 +239,7 @@ async function migrateSessionFiles(
 
 			successCount++;
 		} catch (error) {
-			console.error(`Error migrating ${sessionId}:`, error);
+			logger.error(`Error migrating ${sessionId}`, error as Error);
 			errorCount++;
 			// Keep JSON file on error for debugging
 		}

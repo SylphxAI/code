@@ -23,6 +23,7 @@ import {
 	MessagePartSchema,
 	SystemMessageSchema,
 } from "../schemas/message.schemas.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Create a new step in a message
@@ -208,7 +209,7 @@ export async function loadMessageSteps(
 			parts: parts.map((p) => {
 				const parsed = MessagePartSchema.safeParse(JSON.parse(p.content));
 				if (!parsed.success) {
-					console.error("[loadMessageSteps] Invalid MessagePart:", parsed.error);
+					logger.error("Invalid MessagePart", parsed.error as Error);
 					return JSON.parse(p.content) as MessagePart;
 				}
 				return parsed.data;
@@ -222,10 +223,10 @@ export async function loadMessageSteps(
 				if (parsedSys.success) {
 					messageStep.systemMessages = parsedSys.data;
 				} else {
-					console.error("[loadMessageSteps] Failed to validate systemMessages:", parsedSys.error);
+					logger.error("Failed to validate systemMessages", parsedSys.error as Error);
 				}
 			} catch (error) {
-				console.error("[loadMessageSteps] Failed to parse systemMessages:", error);
+				logger.error("Failed to parse systemMessages", error as Error);
 			}
 		}
 

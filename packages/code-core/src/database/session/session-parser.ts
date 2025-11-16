@@ -25,6 +25,7 @@ import {
 	MessagePartSchema,
 	StringArraySchema,
 } from "../../schemas/message.schemas.js";
+import { logger } from "../../utils/logger.js";
 
 /**
  * Parse and validate enabledRuleIds from raw database value
@@ -230,7 +231,7 @@ export async function getSessionMessages(
 				const parsed = MessagePartSchema.safeParse(JSON.parse(p.content));
 				if (!parsed.success) {
 					// Validation failed - log and return fallback
-					console.error("[session-parser] Invalid MessagePart:", parsed.error);
+					logger.error("Invalid MessagePart", parsed.error as Error);
 					return JSON.parse(p.content) as MessagePart;
 				}
 				return parsed.data;

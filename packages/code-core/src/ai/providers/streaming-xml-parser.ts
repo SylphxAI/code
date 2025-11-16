@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { logger } from "../../utils/logger.js";
 
 /**
  * Zod schema for validating tool call arguments from AI-generated JSON
@@ -251,15 +252,15 @@ export class StreamingXMLParser {
 						if (parsedArgs.success) {
 							args = parsedArgs.data;
 						} else {
-							console.error(
-								"Invalid tool arguments format:",
-								this.state.argsBuffer,
-								parsedArgs.error.message,
-							);
+							logger.error("Invalid tool arguments format", parsedArgs.error as Error, {
+								arguments: this.state.argsBuffer,
+							});
 							// Fallback to empty object
 						}
 					} catch (error) {
-						console.error("Failed to parse tool arguments JSON:", this.state.argsBuffer, error);
+						logger.error("Failed to parse tool arguments JSON", error as Error, {
+							arguments: this.state.argsBuffer,
+						});
 						// Fallback to empty object
 					}
 
