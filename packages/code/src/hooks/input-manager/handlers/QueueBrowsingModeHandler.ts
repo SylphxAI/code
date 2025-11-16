@@ -59,7 +59,6 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 	isActive(context: InputModeContext): boolean {
 		// Must be in NORMAL mode
 		if (context.mode !== this.mode) {
-			console.log("[QueueBrowsing] Not active - wrong mode:", context.mode);
 			return false;
 		}
 
@@ -67,13 +66,11 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 
 		// No queued messages = not active
 		if (queuedMessages.length === 0) {
-			console.log("[QueueBrowsing] Not active - no queued messages");
 			return false;
 		}
 
 		// Don't handle when custom inputComponent is active
 		if (inputComponent) {
-			console.log("[QueueBrowsing] Not active - custom input component");
 			return false;
 		}
 
@@ -82,11 +79,9 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 			filteredCommands.length > 0 || (filteredFileInfo && filteredFileInfo.files.length > 0);
 
 		if (hasAutocomplete) {
-			console.log("[QueueBrowsing] Not active - autocomplete showing");
 			return false;
 		}
 
-		console.log("[QueueBrowsing] ACTIVE - ready to handle UP arrow (even while streaming)");
 		return true;
 	}
 
@@ -94,11 +89,6 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 	 * Handle keyboard input for queue retrieval
 	 */
 	async handleInput(_char: string, key: Key, _context: InputModeContext): Promise<boolean> {
-		console.log("[QueueBrowsing] handleInput called with key:", {
-			upArrow: key.upArrow,
-			downArrow: key.downArrow,
-		});
-
 		const {
 			queuedMessages,
 			currentSessionId,
@@ -111,31 +101,18 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 
 		// Arrow up - pop last queued message into input
 		if (key.upArrow) {
-			console.log("[QueueBrowsing] UP arrow detected, queue length:", queuedMessages.length);
-
 			// Only pop from queue when input is empty (don't interfere with editing)
 			if (input.trim().length > 0) {
-				console.log("[QueueBrowsing] Input not empty, letting message history handle it");
 				return false; // Let message history handler take over
 			}
 
 			return this.handleArrowUp(async () => {
 				if (queuedMessages.length === 0 || !currentSessionId) {
-					console.log("[QueueBrowsing] Skipping - no messages or no session:", {
-						queueLength: queuedMessages.length,
-						sessionId: currentSessionId,
-					});
 					return;
 				}
 
 				// Get the last (most recent) queued message
 				const lastMessage = queuedMessages[queuedMessages.length - 1];
-
-				console.log("[QueueRetrieval] Popping message from queue:", {
-					messageId: lastMessage.id,
-					content: lastMessage.content.substring(0, 50),
-					attachments: lastMessage.attachments.length,
-				});
 
 				// Load message into input
 				setInput(lastMessage.content);
@@ -148,7 +125,6 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 		}
 
 		// Don't consume other keys
-		console.log("[QueueBrowsing] Not handling this key, returning false");
 		return false;
 	}
 }

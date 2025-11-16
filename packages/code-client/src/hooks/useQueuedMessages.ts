@@ -10,13 +10,7 @@ export function useQueuedMessages() {
 	const currentSessionId = useStore($currentSessionId);
 	const sessionQueues = useStore($sessionQueues);
 
-	console.log("[useQueuedMessages] currentSessionId:", currentSessionId);
-	console.log("[useQueuedMessages] sessionQueues:", JSON.stringify(sessionQueues));
-
 	const queuedMessages = currentSessionId ? sessionQueues[currentSessionId] || [] : [];
-
-	console.log("[useQueuedMessages] queuedMessages:", JSON.stringify(queuedMessages));
-	console.log("[useQueuedMessages] queueLength:", queuedMessages.length);
 
 	return {
 		queuedMessages,

@@ -378,7 +378,7 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 	);
 
 	// Return all handlers in priority order (highest to lowest)
-	const allHandlers = [
+	return [
 		selectionHandler, // Priority 20
 		pendingCommandHandler, // Priority 15
 		fileNavigationHandler, // Priority 12
@@ -386,16 +386,4 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 		queueBrowsingHandler, // Priority 6
 		messageHistoryHandler, // Priority 5
 	];
-
-	console.log("[useInputHandlers] Created handlers:", {
-		count: allHandlers.length,
-		queueBrowsingActive: queueBrowsingHandler.isActive({
-			mode: queueBrowsingHandler.mode,
-			pendingInput: null,
-			debug: false,
-		}),
-		queuedMessagesLength: queuedMessages.length,
-	});
-
-	return allHandlers;
 }
