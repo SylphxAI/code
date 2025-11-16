@@ -234,19 +234,7 @@ export const getProviderConfigWithApiKey = async (
 	config: AIConfig,
 	providerId: string,
 ): Promise<ProviderConfigValue | undefined> => {
-	console.log("[getProviderConfigWithApiKey] Input:", {
-		providerId,
-		hasProviders: !!config.providers,
-		providerIds: config.providers ? Object.keys(config.providers) : [],
-	});
-
 	const providerConfig = config.providers?.[providerId];
-	console.log("[getProviderConfigWithApiKey] Found config:", {
-		hasConfig: !!providerConfig,
-		hasApiKey: !!(providerConfig as any)?.apiKey,
-		hasCredentialId: !!(providerConfig as any)?.credentialId,
-	});
-
 	if (!providerConfig) {
 		return undefined;
 	}
@@ -260,7 +248,6 @@ export const getProviderConfigWithApiKey = async (
 		};
 	}
 
-	console.log("[getProviderConfigWithApiKey] Returning:", providerConfig);
 	return providerConfig;
 };
 
@@ -320,7 +307,6 @@ export const loadAIConfig = async (
 	return tryCatchAsync(
 		async () => {
 			const paths = getAIConfigPaths(cwd);
-			console.log("[loadAIConfig] Paths:", paths);
 
 			// Load all config files
 			const [globalConfig, projectConfig, localConfig, legacyConfig] = await Promise.all([
@@ -329,14 +315,6 @@ export const loadAIConfig = async (
 				loadConfigFile(paths.local),
 				loadConfigFile(paths.legacy),
 			]);
-
-			console.log("[loadAIConfig] Loaded configs:", {
-				hasGlobal: !!globalConfig,
-				hasProject: !!projectConfig,
-				hasLocal: !!localConfig,
-				hasLegacy: !!legacyConfig,
-				globalProviders: globalConfig?.providers ? Object.keys(globalConfig.providers) : [],
-			});
 
 			// Auto-migrate legacy config if it exists and global doesn't
 			if (legacyConfig && !globalConfig) {
@@ -364,11 +342,6 @@ export const loadAIConfig = async (
 			if (projectConfig) merged = mergeConfigs(merged, projectConfig);
 			if (localConfig) merged = mergeConfigs(merged, localConfig);
 			if (legacyConfig) merged = mergeConfigs(merged, legacyConfig);
-
-			console.log("[loadAIConfig] Merged config:", {
-				hasProviders: !!merged.providers,
-				providerIds: merged.providers ? Object.keys(merged.providers) : [],
-			});
 
 			return merged;
 		},
