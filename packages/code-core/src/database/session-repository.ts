@@ -277,6 +277,8 @@ export class SessionRepository {
 		enqueuedAt: number;
 	}> {
 		return await retryDatabase(async () => {
+			console.log("[enqueueMessage] Enqueueing message:", { sessionId, content: content.substring(0, 50), attachments: attachments.length });
+
 			// Read current queue
 			const [session] = await this.db
 				.select({ messageQueue: sessions.messageQueue })
@@ -288,6 +290,8 @@ export class SessionRepository {
 				throw new Error(`Session ${sessionId} not found`);
 			}
 
+			console.log("[enqueueMessage] Current queue length:", session.messageQueue?.length || 0);
+
 			// Create queued message
 			const queuedMessage = {
 				id: `temp-queue-${Date.now()}`,
@@ -298,6 +302,8 @@ export class SessionRepository {
 
 			// Append to queue
 			const updatedQueue = [...(session.messageQueue || []), queuedMessage];
+			console.log("[enqueueMessage] New queue length:", updatedQueue.length);
+			console.log("[enqueueMessage] Queued message:", JSON.stringify(queuedMessage));
 
 			// Update session
 			await this.db
@@ -305,6 +311,7 @@ export class SessionRepository {
 				.set({ messageQueue: updatedQueue, updated: Date.now() })
 				.where(eq(sessions.id, sessionId));
 
+			console.log("[enqueueMessage] Message enqueued successfully with id:", queuedMessage.id);
 			return queuedMessage;
 		});
 	}
@@ -334,12 +341,20 @@ export class SessionRepository {
 				.where(eq(sessions.id, sessionId))
 				.limit(1);
 
+			console.log("[dequeueMessage] Session found:", !!session);
+			console.log("[dequeueMessage] Queue exists:", !!session?.messageQueue);
+			console.log("[dequeueMessage] Queue length:", session?.messageQueue?.length);
+			console.log("[dequeueMessage] Queue contents:", JSON.stringify(session?.messageQueue));
+
 			if (!session || !session.messageQueue || session.messageQueue.length === 0) {
+				console.log("[dequeueMessage] Queue is empty, returning null");
 				return null;
 			}
 
 			// Get first message (FIFO)
 			const [firstMessage, ...rest] = session.messageQueue;
+			console.log("[dequeueMessage] First message:", JSON.stringify(firstMessage));
+			console.log("[dequeueMessage] Remaining queue length:", rest.length);
 
 			// Update queue (remove first)
 			await this.db
@@ -347,6 +362,7 @@ export class SessionRepository {
 				.set({ messageQueue: rest, updated: Date.now() })
 				.where(eq(sessions.id, sessionId));
 
+			console.log("[dequeueMessage] Returning message with id:", firstMessage.id);
 			return firstMessage;
 		});
 	}

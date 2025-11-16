@@ -350,7 +350,9 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 		const streamingStatus = isStreaming();
 		console.log(`[handleSubmit] Queue check - isStreaming() returned:`, streamingStatus);
 		console.log(`[handleSubmit] Type of isStreaming:`, typeof isStreaming);
+		console.log(`[handleSubmit] About to enter if block, streamingStatus ===`, streamingStatus);
 		if (streamingStatus) {
+			console.log(`[handleSubmit] ENTERED QUEUE IF BLOCK`);
 			addLog(`[handleSubmit] AI is streaming, enqueueing message: "${userMessage.substring(0, 50)}..."`);
 
 			// Get attachments for this message
@@ -360,17 +362,21 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 				projectFiles,
 			);
 
+			console.log(`[handleSubmit] About to enqueue, currentSessionId:`, currentSessionId);
 			// Enqueue the message (will be auto-sent when stream completes)
 			try {
 				const { enqueueMessage } = await import("@sylphx/code-client");
 
 				// Must have a session to enqueue (can't queue before first message)
 				if (!currentSessionId) {
+					console.log(`[handleSubmit] NO SESSION ID, returning`);
 					addLog("[handleSubmit] Cannot queue message - no active session");
 					return;
 				}
 
+				console.log(`[handleSubmit] Calling enqueueMessage...`);
 				await enqueueMessage(currentSessionId, userMessage, attachmentsForMessage);
+				console.log(`[handleSubmit] enqueueMessage completed`);
 				addLog(`[handleSubmit] Message queued successfully`);
 
 				// Clear input and attachments
@@ -381,8 +387,11 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 				addLog(`[handleSubmit] Failed to queue message: ${error instanceof Error ? error.message : String(error)}`);
 			}
 
+			console.log(`[handleSubmit] Returning from queue block`);
 			return;
 		}
+		console.log(`[handleSubmit] DID NOT ENTER QUEUE IF BLOCK, proceeding to normal send`);
+
 
 		// For regular messages, clear input after getting the value
 		setInput("");
