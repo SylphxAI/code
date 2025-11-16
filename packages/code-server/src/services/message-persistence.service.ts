@@ -93,7 +93,6 @@ export async function updateMessageStatus(
 		next: (event: StreamEvent) => void;
 	},
 ): Promise<void> {
-
 	try {
 		await messageRepository.updateMessageStatus(messageId, status, finishReason);
 

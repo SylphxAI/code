@@ -151,7 +151,6 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 	} = params;
 
 	return async (value: string) => {
-
 		if (!value.trim()) {
 			return;
 		}
