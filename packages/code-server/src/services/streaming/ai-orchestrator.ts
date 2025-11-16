@@ -153,7 +153,7 @@ export async function processAIStream(
 					});
 					state.currentReasoningPartIndex = partIndex;
 					state.hasEmittedAnyEvent = true;
-					emitReasoningStart(observer);
+					// NOTE: Only use callback - emitReasoningStart() is called in callback
 					callbacks.onReasoningStart?.();
 					break;
 				}
@@ -165,8 +165,8 @@ export async function processAIStream(
 							part.content += chunk.text;
 						}
 						state.hasEmittedAnyEvent = true;
-						console.log("[AIOrchestrator] Emitting reasoning-delta, length:", chunk.text.length);
-						emitReasoningDelta(observer, chunk.text);
+						console.log("[AIOrchestrator] Processing reasoning-delta, length:", chunk.text.length);
+						// NOTE: Only use callback - emitReasoningDelta() is called in callback
 						callbacks.onReasoningDelta?.(chunk.text);
 
 						// Update tokens in real-time (incremental)
@@ -191,7 +191,7 @@ export async function processAIStream(
 							const duration = part.startTime ? Date.now() - part.startTime : 0;
 							part.duration = duration;
 							delete part.startTime;
-							emitReasoningEnd(observer, duration);
+							// NOTE: Only use callback - emitReasoningEnd() is called in callback
 							callbacks.onReasoningEnd?.(duration);
 						}
 						state.currentReasoningPartIndex = null;
