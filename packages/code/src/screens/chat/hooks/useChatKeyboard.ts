@@ -3,6 +3,7 @@
  * All keyboard navigation and shortcuts
  */
 
+import { updateQueuedMessage, useQueuedMessages } from "@sylphx/code-client";
 import { useCallback } from "react";
 import { DEBUG_INPUT_MANAGER, USE_NEW_INPUT_MANAGER } from "../../../config/features.js";
 import {
@@ -18,6 +19,18 @@ import type { ChatState } from "./useChatState.js";
 import { useFileAutocompleteHandlers } from "./useFileAutocompleteHandlers.js";
 
 export function useChatKeyboard(state: ChatState, effects: ChatEffects) {
+	// Get queued messages for queue browsing
+	const { queuedMessages } = useQueuedMessages();
+
+	// Create update function for queue browsing
+	const handleUpdateQueuedMessage = useCallback(
+		async (messageId: string, content: string, attachments: any[]) => {
+			if (!state.currentSessionId) return;
+			await updateQueuedMessage(state.currentSessionId, messageId, content, attachments);
+		},
+		[state.currentSessionId],
+	);
+
 	// 1. Abort handler - ESC to abort streaming (highest priority)
 	useAbortHandler({
 		isStreaming: state.streamingState.isStreaming,
@@ -100,6 +113,15 @@ export function useChatKeyboard(state: ChatState, effects: ChatEffects) {
 		setTempInput: state.inputState.setTempInput,
 		setTempAttachments: state.setTempAttachments,
 		setPendingAttachments: state.setPendingAttachments,
+		// Queue browsing mode
+		queuedMessages,
+		queueBrowseIndex: state.queueBrowsingState.queueBrowseIndex,
+		tempQueueInput: state.queueBrowsingState.tempQueueInput,
+		tempQueueAttachments: state.queueBrowsingState.tempQueueAttachments,
+		setQueueBrowseIndex: state.queueBrowsingState.setQueueBrowseIndex,
+		setTempQueueInput: state.queueBrowsingState.setTempQueueInput,
+		setTempQueueAttachments: state.queueBrowsingState.setTempQueueAttachments,
+		updateQueuedMessage: handleUpdateQueuedMessage,
 	});
 
 	// Setup input mode manager

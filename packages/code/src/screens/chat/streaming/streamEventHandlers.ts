@@ -55,6 +55,7 @@ export {
 	handleQueueClearedEvent,
 	handleQueueMessageAddedEvent,
 	handleQueueMessageRemovedEvent,
+	handleQueueMessageUpdatedEvent,
 } from "./handlers/queueHandlers.js";
 
 export {
@@ -104,6 +105,7 @@ import {
 	handleQueueClearedEvent,
 	handleQueueMessageAddedEvent,
 	handleQueueMessageRemovedEvent,
+	handleQueueMessageUpdatedEvent,
 } from "./handlers/queueHandlers.js";
 import {
 	handleToolCall,
@@ -175,6 +177,7 @@ const eventHandlers: Record<StreamEvent["type"], EventHandler> = {
 
 	// Queue events
 	"queue-message-added": handleQueueMessageAddedEvent,
+	"queue-message-updated": handleQueueMessageUpdatedEvent,
 	"queue-message-removed": handleQueueMessageRemovedEvent,
 	"queue-cleared": handleQueueClearedEvent,
 

@@ -304,6 +304,16 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 					eventContextParams,
 				);
 			},
+			onQueueMessageUpdated: (sessionId: string, message: any) => {
+				handleStreamEvent(
+					{
+						type: "queue-message-updated",
+						sessionId,
+						message,
+					},
+					eventContextParams,
+				);
+			},
 			onQueueMessageRemoved: (sessionId: string, messageId: string) => {
 				handleStreamEvent(
 					{
