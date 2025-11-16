@@ -56,7 +56,6 @@ export async function prepareStep(
 		}
 
 		// DEBUG: Log session object to verify provider/model are loaded
-		console.log(`[StepLifecycle] Loaded session:`, {
 			id: currentSession.id,
 			provider: currentSession.provider,
 			model: currentSession.model,

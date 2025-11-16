@@ -26,7 +26,6 @@ export async function getSessionById(
 	}
 
 	// DEBUG: Log raw session data from database
-	console.log(`[SessionRepository] Raw session from DB:`, {
 		id: session.id,
 		provider: session.provider,
 		model: session.model,
