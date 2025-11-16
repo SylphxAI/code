@@ -382,60 +382,63 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					cwd,
 				);
 
-				// 25. Auto-send queued message (if any)
-				// Only auto-send if stream completed successfully (not tool-calls, not aborted, not error)
-				if (
-					finalStatus === "completed" &&
-					(finalFinishReason === "stop" || finalFinishReason === "length")
-				) {
-					const nextQueued = await sessionRepository.dequeueMessage(sessionId);
+			// 25. Auto-send ALL queued messages (if any)
+			// Send all queued messages at once after step completes (regardless of finish reason)
+			if (finalStatus === "completed") {
+				const queuedMessages = await sessionRepository.getQueuedMessages(sessionId);
 
-					if (nextQueued) {
-						console.log("[StreamOrchestrator] Auto-sending queued message:", nextQueued.id);
+				if (queuedMessages.length > 0) {
+					console.log(
+						`[StreamOrchestrator] Auto-sending ${queuedMessages.length} queued messages`,
+					);
 
-						// Broadcast dequeue event
-						observer.next({
-							type: "queue-message-removed",
-							sessionId,
-							messageId: nextQueued.id,
-						});
+					// Clear the queue (all messages will be sent)
+					await sessionRepository.clearQueue(sessionId);
 
-						// Parse user input from queued message
-						const { parseUserInput } = await import("@sylphx/code-client");
-						const { parts } = parseUserInput(nextQueued.content, nextQueued.attachments);
+					// Broadcast queue-cleared event
+					observer.next({
+						type: "queue-cleared",
+						sessionId,
+					});
 
-						// Trigger new stream with queued message
-						// This creates a recursive streaming cycle until queue is empty
-						const queuedStream = streamAIResponse({
-							appContext: opts.appContext,
-							sessionRepository,
-							messageRepository,
-							aiConfig,
-							sessionId, // Use existing session
-							userMessageContent: parts,
-							// No abortSignal - queued messages can't be aborted mid-flight
-							// User can only abort the current active stream, not queued ones
-						});
+					// Combine all queued messages into a single message
+					const { parseUserInput } = await import("@sylphx/code-client");
+					const combinedContent = queuedMessages
+						.map((msg, idx) => `[Message ${idx + 1}]\n${msg.content}`)
+						.join("\n\n");
 
-						// Subscribe to queued stream and forward events
-						queuedStream.subscribe({
-							next: (event) => observer.next(event),
-							error: (err) => {
-								console.error("[StreamOrchestrator] Queued stream error:", err);
-								// Emit error but don't stop main stream
-								emitError(
-									observer,
-									`Queued message error: ${err instanceof Error ? err.message : String(err)}`,
-								);
-							},
-							// Note: Don't call observer.complete() here - let the outer stream manage completion
-							// The recursive queue processing will eventually complete when queue is empty
-						});
+					// Collect all attachments
+					const allAttachments = queuedMessages.flatMap((msg) => msg.attachments);
 
-						// Return early - don't complete yet, wait for queued stream
-						return;
-					}
+					// Parse combined input
+					const { parts } = parseUserInput(combinedContent, allAttachments);
+
+					// Trigger new stream with all queued messages combined
+					const queuedStream = streamAIResponse({
+						appContext: opts.appContext,
+						sessionRepository,
+						messageRepository,
+						aiConfig,
+						sessionId,
+						userMessageContent: parts,
+					});
+
+					// Subscribe to queued stream and forward events
+					queuedStream.subscribe({
+						next: (event) => observer.next(event),
+						error: (err) => {
+							console.error("[StreamOrchestrator] Queued stream error:", err);
+							emitError(
+								observer,
+								`Queued messages error: ${err instanceof Error ? err.message : String(err)}`,
+							);
+						},
+					});
+
+					// Return early - don't complete yet, wait for queued stream
+					return;
 				}
+			}
 
 				// 26. Complete observable
 				observer.complete();
