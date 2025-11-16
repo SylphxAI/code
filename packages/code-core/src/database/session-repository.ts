@@ -396,6 +396,55 @@ export class SessionRepository {
 	}
 
 	/**
+	 * Update queued message - Update content/attachments of specific queued message
+	 */
+	async updateQueuedMessage(
+		sessionId: string,
+		messageId: string,
+		content: string,
+		attachments: Array<{ path: string; relativePath: string; size: number; mimeType?: string }>,
+	): Promise<{
+		id: string;
+		content: string;
+		attachments: Array<{ path: string; relativePath: string; size: number; mimeType?: string }>;
+		enqueuedAt: number;
+	}> {
+		return await retryDatabase(async () => {
+			// Read current queue
+			const [session] = await this.db
+				.select({ messageQueue: sessions.messageQueue })
+				.from(sessions)
+				.where(eq(sessions.id, sessionId))
+				.limit(1);
+
+			if (!session || !session.messageQueue) {
+				throw new Error(`Queue not found for session ${sessionId}`);
+			}
+
+			// Find and update the message
+			const messageIndex = session.messageQueue.findIndex((msg) => msg.id === messageId);
+			if (messageIndex === -1) {
+				throw new Error(`Queued message ${messageId} not found in session ${sessionId}`);
+			}
+
+			const updatedQueue = [...session.messageQueue];
+			updatedQueue[messageIndex] = {
+				...updatedQueue[messageIndex],
+				content,
+				attachments,
+			};
+
+			// Update session
+			await this.db
+				.update(sessions)
+				.set({ messageQueue: updatedQueue, updated: Date.now() })
+				.where(eq(sessions.id, sessionId));
+
+			return updatedQueue[messageIndex];
+		});
+	}
+
+	/**
 	 * Clear queue - Remove all queued messages
 	 */
 	async clearQueue(sessionId: string): Promise<void> {

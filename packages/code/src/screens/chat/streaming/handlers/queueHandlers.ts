@@ -7,6 +7,7 @@ import {
 	handleQueueCleared,
 	handleQueueMessageAdded,
 	handleQueueMessageRemoved,
+	handleQueueMessageUpdated,
 } from "@sylphx/code-client";
 import type { EventHandlerContext } from "../types.js";
 
@@ -34,6 +35,35 @@ export function handleQueueMessageAddedEvent(
 ): void {
 	// Forward to queue signal handler
 	handleQueueMessageAdded({
+		sessionId: event.sessionId,
+		message: event.message,
+	});
+}
+
+/**
+ * Handle queue-message-updated event
+ * Server updated message in queue
+ */
+export function handleQueueMessageUpdatedEvent(
+	event: {
+		type: "queue-message-updated";
+		sessionId: string;
+		message: {
+			id: string;
+			content: string;
+			attachments: Array<{
+				path: string;
+				relativePath: string;
+				size: number;
+				mimeType?: string;
+			}>;
+			enqueuedAt: number;
+		};
+	},
+	_context: EventHandlerContext,
+): void {
+	// Forward to queue signal handler
+	handleQueueMessageUpdated({
 		sessionId: event.sessionId,
 		message: event.message,
 	});

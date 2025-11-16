@@ -803,6 +803,40 @@ export const messageRouter = router({
 		}),
 
 	/**
+	 * Update queued message - Update content/attachments of specific queued message
+	 * Used when user edits queued message via UP arrow browsing
+	 * REACTIVE: Emits queue-message-updated event
+	 * SECURITY: Protected + moderate rate limiting (30 req/min)
+	 */
+	updateQueuedMessage: moderateProcedure
+		.input(
+			z.object({
+				sessionId: z.string(),
+				messageId: z.string(),
+				content: z.string(),
+				attachments: z.array(FileAttachmentSchema).optional(),
+			}),
+		)
+		.mutation(async ({ ctx, input }) => {
+			const updatedMessage = await ctx.sessionRepository.updateQueuedMessage(
+				input.sessionId,
+				input.messageId,
+				input.content,
+				input.attachments || [],
+			);
+
+			// Publish queue-message-updated event
+			const channel = `session:${input.sessionId}`;
+			await ctx.appContext.eventStream.publish(channel, {
+				type: "queue-message-updated" as const,
+				sessionId: input.sessionId,
+				message: updatedMessage,
+			});
+
+			return updatedMessage;
+		}),
+
+	/**
 	 * Clear queue - Remove all queued messages
 	 * REACTIVE: Emits queue-cleared event
 	 * SECURITY: Protected + moderate rate limiting (30 req/min)

@@ -70,6 +70,28 @@ export function handleQueueMessageAdded(event: {
 }
 
 /**
+ * Handle queue-message-updated event
+ * Updates message in session's queue
+ */
+export function handleQueueMessageUpdated(event: {
+	sessionId: string;
+	message: QueuedMessage;
+}): void {
+	const queues = get($sessionQueues);
+	const sessionQueue = queues[event.sessionId] || [];
+
+	// Find and update the message
+	const updatedQueue = sessionQueue.map((msg) =>
+		msg.id === event.message.id ? event.message : msg,
+	);
+
+	set($sessionQueues, {
+		...queues,
+		[event.sessionId]: updatedQueue,
+	});
+}
+
+/**
  * Handle queue-message-removed event
  * Removes message from session's queue by ID
  */
@@ -137,6 +159,32 @@ export async function clearQueue(sessionId: string): Promise<void> {
 	const caller = await getTRPCClient();
 
 	await caller.message.clearQueue.mutate({ sessionId });
+}
+
+/**
+ * Update queued message
+ * Updates message content/attachments by ID in server queue, emits queue-message-updated event
+ */
+export async function updateQueuedMessage(
+	sessionId: string,
+	messageId: string,
+	content: string,
+	attachments: Array<{
+		path: string;
+		relativePath: string;
+		size: number;
+		mimeType?: string;
+	}> = [],
+): Promise<QueuedMessage> {
+	const { getTRPCClient } = await import("../../../trpc-provider.js");
+	const caller = await getTRPCClient();
+
+	return await caller.message.updateQueuedMessage.mutate({
+		sessionId,
+		messageId,
+		content,
+		attachments,
+	});
 }
 
 /**

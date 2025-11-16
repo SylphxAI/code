@@ -45,6 +45,8 @@ export type { MessageHistoryModeHandlerDeps } from "./handlers/MessageHistoryMod
 export { MessageHistoryModeHandler } from "./handlers/MessageHistoryModeHandler.js";
 export type { PendingCommandModeHandlerDeps } from "./handlers/PendingCommandModeHandler.js";
 export { PendingCommandModeHandler } from "./handlers/PendingCommandModeHandler.js";
+export type { QueueBrowsingModeHandlerDeps } from "./handlers/QueueBrowsingModeHandler.js";
+export { QueueBrowsingModeHandler } from "./handlers/QueueBrowsingModeHandler.js";
 export type { SelectionModeHandlerDeps } from "./handlers/SelectionModeHandler.js";
 // Concrete handlers
 export { SelectionModeHandler } from "./handlers/SelectionModeHandler.js";

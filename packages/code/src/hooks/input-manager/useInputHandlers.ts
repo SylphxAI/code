@@ -14,6 +14,7 @@ import {
 	FileNavigationModeHandler,
 	MessageHistoryModeHandler,
 	PendingCommandModeHandler,
+	QueueBrowsingModeHandler,
 	SelectionModeHandler,
 } from "./index.js";
 
@@ -81,6 +82,16 @@ export interface InputHandlerDeps {
 	setTempInput: (value: string) => void;
 	setTempAttachments: (attachments: import("@sylphx/code-core").FileAttachment[]) => void;
 	setPendingAttachments: (attachments: import("@sylphx/code-core").FileAttachment[]) => void;
+
+	// Queue browsing mode dependencies
+	queuedMessages: import("@sylphx/code-core").QueuedMessage[];
+	queueBrowseIndex: number;
+	tempQueueInput: string;
+	tempQueueAttachments: import("@sylphx/code-core").FileAttachment[];
+	setQueueBrowseIndex: React.Dispatch<React.SetStateAction<number>>;
+	setTempQueueInput: (value: string) => void;
+	setTempQueueAttachments: (attachments: import("@sylphx/code-core").FileAttachment[]) => void;
+	updateQueuedMessage: (messageId: string, content: string, attachments: import("@sylphx/code-core").FileAttachment[]) => Promise<void>;
 }
 
 /**
@@ -164,6 +175,16 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 		setTempInput,
 		setTempAttachments,
 		setPendingAttachments,
+
+		// Queue browsing mode
+		queuedMessages,
+		queueBrowseIndex,
+		tempQueueInput,
+		tempQueueAttachments,
+		setQueueBrowseIndex,
+		setTempQueueInput,
+		setTempQueueAttachments,
+		updateQueuedMessage,
 	} = deps;
 
 	// Selection mode handler
@@ -337,12 +358,58 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 		],
 	);
 
+	// Queue browsing mode handler
+	const queueBrowsingHandler = useMemo(
+		() =>
+			new QueueBrowsingModeHandler({
+				queuedMessages,
+				queueBrowseIndex,
+				tempQueueInput,
+				tempQueueAttachments,
+				input,
+				pendingAttachments,
+				isStreaming,
+				inputComponent,
+				filteredCommands,
+				filteredFileInfo,
+				currentSessionId,
+				setInput,
+				setCursor,
+				setQueueBrowseIndex,
+				setTempQueueInput,
+				setTempQueueAttachments,
+				setPendingAttachments,
+				updateQueuedMessage,
+			}),
+		[
+			queuedMessages,
+			queueBrowseIndex,
+			tempQueueInput,
+			tempQueueAttachments,
+			input,
+			pendingAttachments,
+			isStreaming,
+			inputComponent,
+			filteredCommands,
+			filteredFileInfo,
+			currentSessionId,
+			setInput,
+			setCursor,
+			setQueueBrowseIndex,
+			setTempQueueInput,
+			setTempQueueAttachments,
+			setPendingAttachments,
+			updateQueuedMessage,
+		],
+	);
+
 	// Return all handlers in priority order (highest to lowest)
 	return [
 		selectionHandler, // Priority 20
 		pendingCommandHandler, // Priority 15
 		fileNavigationHandler, // Priority 12
 		commandAutocompleteHandler, // Priority 10
+		queueBrowsingHandler, // Priority 6
 		messageHistoryHandler, // Priority 5
 	];
 }
