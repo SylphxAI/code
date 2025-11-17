@@ -6,6 +6,11 @@
 import { useEffect, useState } from "react";
 import type { Accessor } from "solid-js";
 
+// Use setImmediate for Node.js, requestAnimationFrame for browser
+const scheduleCheck = typeof requestAnimationFrame !== "undefined"
+	? requestAnimationFrame
+	: setImmediate;
+
 /**
  * React hook to subscribe to a SolidJS Accessor
  * @param accessor SolidJS signal getter function
@@ -16,7 +21,7 @@ export function useSignal<T>(accessor: Accessor<T>): T {
 
 	useEffect(() => {
 		// SolidJS signals don't have built-in subscription mechanism
-		// We poll for changes using requestAnimationFrame for React integration
+		// We poll for changes using scheduleCheck (requestAnimationFrame in browser, setImmediate in Node.js)
 		let isActive = true;
 		let lastValue = accessor();
 
@@ -27,7 +32,7 @@ export function useSignal<T>(accessor: Accessor<T>): T {
 				lastValue = currentValue;
 				setValue(currentValue);
 			}
-			requestAnimationFrame(check);
+			scheduleCheck(check);
 		};
 
 		check();
