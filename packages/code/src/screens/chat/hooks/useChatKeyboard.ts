@@ -3,7 +3,8 @@
  * All keyboard navigation and shortcuts
  */
 
-import { removeQueuedMessage, useQueuedMessages } from "@sylphx/code-client";
+import { useQueuedMessages } from "../../../hooks/client/useQueuedMessages.js";
+import { removeQueuedMessage } from "@sylphx/code-client";
 import { useCallback } from "react";
 import { DEBUG_INPUT_MANAGER, USE_NEW_INPUT_MANAGER } from "../../../config/features.js";
 import {

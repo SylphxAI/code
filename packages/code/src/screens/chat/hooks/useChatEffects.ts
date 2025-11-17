@@ -3,13 +3,9 @@
  * All useEffect logic and side effects for Chat component
  */
 
-import {
-	addMessageAsync as addMessage,
-	setCurrentSessionId,
-	updateSessionTitle,
-	useAIConfigActions,
-	useEventStream,
-} from "@sylphx/code-client";
+import { useAIConfigActions } from "../../../hooks/client/useAIConfig.js";
+import { useEventStream } from "../../../hooks/client/useEventStream.js";
+import { addMessageAsync as addMessage, setCurrentSessionId, updateSessionTitle } from "@sylphx/code-client";
 import { clearUserInputHandler, setUserInputHandler } from "@sylphx/code-core";
 import { useCallback, useEffect, useMemo } from "react";
 import { commands } from "../../../commands/registry.js";

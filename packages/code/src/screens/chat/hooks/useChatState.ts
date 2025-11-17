@@ -3,18 +3,14 @@
  * Single source of truth for all Chat component state
  */
 
-import {
-	addDebugLog,
-	useAIConfig,
-	useAskToolHandler,
-	useChat,
-	useCurrentSession,
-	useFileAttachments,
-	useProjectFiles,
-	useSelectedModel,
-	useSelectedProvider,
-	useTokenCalculation,
-} from "@sylphx/code-client";
+import { useAIConfig } from "../../../hooks/client/useAIConfig.js";
+import { useAskToolHandler } from "../../../hooks/client/useAskToolHandler.js";
+import { useChat } from "../../../hooks/client/useChat.js";
+import { useCurrentSession } from "../../../hooks/client/useCurrentSession.js";
+import { useFileAttachments } from "../../../hooks/client/useFileAttachments.js";
+import { useProjectFiles } from "../../../hooks/client/useProjectFiles.js";
+import { useTokenCalculation } from "../../../hooks/client/useTokenCalculation.js";
+import { addDebugLog, useSelectedModel, useSelectedProvider } from "@sylphx/code-client";
 import type { FileAttachment } from "@sylphx/code-core";
 import { useCallback, useMemo, useState } from "react";
 import { commands } from "../../../commands/registry.js";

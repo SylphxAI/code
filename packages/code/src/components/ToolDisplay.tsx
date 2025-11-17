@@ -3,7 +3,8 @@
  * Simply renders the registered component for a tool
  */
 
-import { getToolComponent, type ToolDisplayProps, useElapsedTime } from "@sylphx/code-client";
+import { useElapsedTime } from "../hooks/client/useElapsedTime.js";
+import { getToolComponent, type ToolDisplayProps } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import React from "react";
 import Spinner from "./Spinner.js";

@@ -10,7 +10,7 @@ import { randomBytes } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { useElapsedTime } from "@sylphx/code-client";
+import { useElapsedTime } from "../hooks/client/useElapsedTime.js";
 import type { MessagePart as MessagePartType } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import React, { useEffect, useMemo } from "react";

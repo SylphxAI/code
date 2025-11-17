@@ -3,14 +3,9 @@
  * Add, edit, remove AI providers
  */
 
-import {
-	navigateTo,
-	removeProvider,
-	updateProvider,
-	useAIConfig,
-	useAIConfigActions,
-	useKeyboard,
-} from "@sylphx/code-client";
+import { useAIConfig, useAIConfigActions } from "../hooks/client/useAIConfig.js";
+import { useKeyboard } from "../hooks/client/useKeyboard.js";
+import { navigateTo, removeProvider, updateProvider } from "@sylphx/code-client";
 import { AI_PROVIDERS, type ProviderId } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";

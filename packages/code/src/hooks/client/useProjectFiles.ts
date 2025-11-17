@@ -1,0 +1,33 @@
+/**
+ * Project Files Hook
+ * Loads project files on mount for @file auto-completion
+ */
+
+import { useEffect, useState } from "react";
+import { getTRPCClient } from "@sylphx/code-client";
+
+export function useProjectFiles() {
+	const [projectFiles, setProjectFiles] = useState<
+		Array<{ path: string; relativePath: string; size: number }>
+	>([]);
+	const [filesLoading, setFilesLoading] = useState(false);
+
+	useEffect(() => {
+		const loadFiles = async () => {
+			setFilesLoading(true);
+			try {
+				const client = getTRPCClient();
+				const result = await client.config.scanProjectFiles.query({});
+				setProjectFiles(result.files);
+			} catch (error) {
+				console.error("Failed to load project files:", error);
+			} finally {
+				setFilesLoading(false);
+			}
+		};
+
+		loadFiles();
+	}, []);
+
+	return { projectFiles, filesLoading };
+}

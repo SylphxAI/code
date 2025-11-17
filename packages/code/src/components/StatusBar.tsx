@@ -5,13 +5,10 @@
  * PERFORMANCE: Memoized to prevent re-renders when unrelated props change
  */
 
-import {
-	useEnabledRuleIds,
-	useMCPStatus,
-	useModelDetails,
-	useSelectedAgentId,
-	useTotalTokens,
-} from "@sylphx/code-client";
+import { useMCPStatus } from "../hooks/client/useMCPStatus.js";
+import { useModelDetails } from "../hooks/client/useModelDetails.js";
+import { useTotalTokens } from "../hooks/client/useTotalTokens.js";
+import { useEnabledRuleIds, useSelectedAgentId } from "@sylphx/code-client";
 import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Spacer, Text } from "ink";
 import { useMemo } from "react";

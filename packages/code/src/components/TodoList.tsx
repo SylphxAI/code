@@ -5,15 +5,8 @@
  * PERFORMANCE: Memoized to prevent re-renders when parent updates
  */
 
-import {
-	getTodoColor,
-	getTodoDisplayText,
-	getTodoIcon,
-	isTodoBold,
-	isTodoDimmed,
-	isTodoStrikethrough,
-	useCurrentSession,
-} from "@sylphx/code-client";
+import { useCurrentSession } from "../hooks/client/useCurrentSession.js";
+import { getTodoColor, getTodoDisplayText, getTodoIcon, isTodoBold, isTodoDimmed, isTodoStrikethrough } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import React, { useMemo } from "react";
 

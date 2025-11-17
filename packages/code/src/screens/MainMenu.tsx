@@ -3,7 +3,8 @@
  * Entry point with navigation options
  */
 
-import { navigateTo, useAIConfig } from "@sylphx/code-client";
+import { useAIConfig } from "../hooks/client/useAIConfig.js";
+import { navigateTo } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
 

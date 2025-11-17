@@ -4,7 +4,7 @@
  */
 
 import type { ToolDisplayProps } from "@sylphx/code-client";
-import { useElapsedTime } from "@sylphx/code-client";
+import { useElapsedTime } from "../../hooks/client/useElapsedTime.js";
 import { Box, Text } from "ink";
 import Spinner from "../Spinner.js";
 

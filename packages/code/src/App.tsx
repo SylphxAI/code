@@ -3,14 +3,9 @@
  * Root React + Ink component with screen routing
  */
 
-import {
-	setError,
-	useAIConfigActions,
-	useCurrentScreen,
-	useIsLoading,
-	useSessionPersistence,
-	useUIError,
-} from "@sylphx/code-client";
+import { useAIConfigActions } from "./hooks/client/useAIConfig.js";
+import { useSessionPersistence } from "./hooks/client/useSessionPersistence.js";
+import { setError, useCurrentScreen, useIsLoading, useUIError } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
 import Chat from "./screens/Chat.js";

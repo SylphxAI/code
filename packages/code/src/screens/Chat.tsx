@@ -9,7 +9,7 @@
  * - UI rendering: Separated components (ChatHeader, ChatMessages, etc.)
  */
 
-import { useQueuedMessages } from "@sylphx/code-client";
+import { useQueuedMessages } from "../hooks/client/useQueuedMessages.js";
 import { Box } from "ink";
 import StatusBar from "../components/StatusBar.js";
 import TodoList from "../components/TodoList.js";

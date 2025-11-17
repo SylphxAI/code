@@ -3,19 +3,10 @@
  * Select provider and model with dynamic loading
  */
 
-import {
-	navigateTo,
-	setError,
-	setSelectedModel,
-	setSelectedProvider,
-	updateProvider,
-	useAIConfig,
-	useAIConfigActions,
-	useModels,
-	useProviders,
-	useSelectedModel,
-	useSelectedProvider,
-} from "@sylphx/code-client";
+import { useAIConfig, useAIConfigActions } from "../hooks/client/useAIConfig.js";
+import { useModels } from "../hooks/client/useModels.js";
+import { useProviders } from "../hooks/client/useProviders.js";
+import { navigateTo, setError, setSelectedModel, setSelectedProvider, updateProvider, useSelectedModel, useSelectedProvider } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
 import TextInput from "ink-text-input";
