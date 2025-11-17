@@ -24,11 +24,10 @@
 
 import {
 	currentSession,
-	get as getSignal,
 	getTRPCClient,
 	parseUserInput,
 	setCurrentSessionId,
-	set as setSignal,
+	setCurrentSession,
 } from "@sylphx/code-client";
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
@@ -300,12 +299,12 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				// IMMUTABLE UPDATE: zen signals need immutable updates to trigger re-renders
 				if (sessionId && currentSessionValue?.id === sessionId) {
 					// For existing sessions, add to current session
-					const beforeCount = currentSession.messages.length;
+					const beforeCount = currentSessionValue.messages.length;
 
-					setSignal(currentSession, {
-						...currentSession,
+					setCurrentSession({
+						...currentSessionValue,
 						messages: [
-							...currentSession.messages,
+							...currentSessionValue.messages,
 							{
 								id: optimisticMessageId,
 								role: "user",
@@ -326,7 +325,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 					logSession("Creating temporary session for optimistic display");
 
 					setCurrentSessionId("temp-session");
-					setSignal(currentSession, {
+					setCurrentSession( {
 						id: "temp-session",
 						title: "New Chat",
 						agentId: "coder",
@@ -397,7 +396,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				if (currentSession && currentSession.id === "temp-session") {
 					// Transition temp-session → real session while preserving messages
 					logSession("Transitioning temp-session to real session, preserving messages");
-					setSignal(currentSession, {
+					setCurrentSession( {
 						...currentSession,
 						id: result.sessionId,
 					});
