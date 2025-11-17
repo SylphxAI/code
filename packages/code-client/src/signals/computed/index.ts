@@ -4,7 +4,7 @@
  */
 
 import { createMemo } from "solid-js";
-import { useSignal } from "../../react-bridge.js";
+import { useSignal } from "../react-bridge.js";
 import * as ai from "../domain/ai/index.js";
 import * as session from "../domain/session/index.js";
 import * as ui from "../domain/ui/index.js";
