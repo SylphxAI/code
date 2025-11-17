@@ -5,7 +5,7 @@
 
 import type { ProviderId, Session, SessionMessage } from "@sylphx/code-core";
 import { createMemo, createSignal } from "solid-js";
-import { useStore } from "@sylphx/zen-react";
+import { useSignal } from "../react-bridge.js";
 import { eventBus } from "../../../lib/event-bus.js";
 import { getTRPCClient } from "../../../trpc-provider.js";
 
@@ -44,7 +44,8 @@ export const updateCurrentSession = (session: Session | null) => {
 };
 
 export const updateStreamingStatus = (streaming: boolean) => setIsStreaming(streaming);
-export const updateStreamingMessageId = (messageId: string | null) => setStreamingMessageId(messageId);
+export const updateStreamingMessageId = (messageId: string | null) =>
+	setStreamingMessageId(messageId);
 
 export const addMessage = (message: SessionMessage) => {
 	const msgs = messages();
@@ -191,14 +192,14 @@ export const addMessageAsync = async (params: {
 };
 
 // Hooks for React components
-export const useCurrentSessionId = () => useStore(currentSessionId);
-export const useCurrentSession = () => useStore(currentSession);
-export const useIsStreaming = () => useStore(isStreaming);
-export const useMessages = () => useStore(messages);
-export const useMessageCount = () => useStore(messageCount);
-export const useLastMessage = () => useStore(lastMessage);
-export const useHasCurrentSession = () => useStore(hasCurrentSession);
-export const useCurrentSessionTitle = () => useStore(currentSessionTitle);
+export const useCurrentSessionId = () => useSignal(currentSessionId);
+export const useCurrentSession = () => useSignal(currentSession);
+export const useIsStreaming = () => useSignal(isStreaming);
+export const useMessages = () => useSignal(messages);
+export const useMessageCount = () => useSignal(messageCount);
+export const useLastMessage = () => useSignal(lastMessage);
+export const useHasCurrentSession = () => useSignal(hasCurrentSession);
+export const useCurrentSessionTitle = () => useSignal(currentSessionTitle);
 
 // Setup event listeners
 eventBus.on("streaming:started", () => {

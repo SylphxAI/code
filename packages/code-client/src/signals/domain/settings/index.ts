@@ -4,7 +4,7 @@
  */
 
 import { createSignal } from "solid-js";
-import { useStore } from "@sylphx/zen-react";
+import { useSignal } from "../react-bridge.js";
 import { eventBus } from "../../../lib/event-bus.js";
 import { getTRPCClient } from "../../../trpc-provider.js";
 import * as ai from "../ai/index.js";
@@ -66,8 +66,8 @@ export const setEnabledRuleIdsDeprecated = async (ruleIds: string[], sessionId?:
 };
 
 // Hooks for React components
-export const useSelectedAgentId = () => useStore(selectedAgentId);
-export const useEnabledRuleIds = () => useStore(enabledRuleIds);
+export const useSelectedAgentId = () => useSignal(selectedAgentId);
+export const useEnabledRuleIds = () => useSignal(enabledRuleIds);
 
 // Setup event listeners
 eventBus.on("session:changed", ({ sessionId }: { sessionId: string | null }) => {

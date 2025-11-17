@@ -4,7 +4,7 @@
  */
 
 import { createMemo, createSignal } from "solid-js";
-import { useStore } from "@sylphx/zen-react";
+import { useSignal } from "../react-bridge.js";
 
 export type Screen = "chat" | "settings" | "provider" | "help";
 
@@ -81,10 +81,10 @@ export const addDebugLog = (message: string) => {
 export const clearDebugLogs = () => setDebugLogs([]);
 
 // Hooks for React components
-export const useCurrentScreen = () => useStore(currentScreen);
-export const useCanGoBack = () => useStore(canGoBack);
-export const useIsLoading = () => useStore(isLoading);
-export const useUIError = () => useStore(error);
-export const useShowNavigation = () => useStore(showNavigation);
-export const useDebugLogs = () => useStore(debugLogs);
-export const useIsCompacting = () => useStore(isCompacting);
+export const useCurrentScreen = () => useSignal(currentScreen);
+export const useCanGoBack = () => useSignal(canGoBack);
+export const useIsLoading = () => useSignal(isLoading);
+export const useUIError = () => useSignal(error);
+export const useShowNavigation = () => useSignal(showNavigation);
+export const useDebugLogs = () => useSignal(debugLogs);
+export const useIsCompacting = () => useSignal(isCompacting);

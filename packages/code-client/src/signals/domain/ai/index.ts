@@ -5,7 +5,7 @@
 
 import type { AIConfig } from "@sylphx/code-core";
 import { createMemo, createSignal } from "solid-js";
-import { useStore } from "@sylphx/zen-react";
+import { useSignal } from "../react-bridge.js";
 
 // Core AI signals
 export const [aiConfig, setAiConfig] = createSignal<AIConfig | null>(null);
@@ -31,7 +31,7 @@ export const selectedModelConfig = createMemo(() => {
 	const providerId = selectedProvider();
 	const modelId = selectedModel();
 	if (!config || !providerId || !modelId) return null;
-	return config.providers?.[providerId]?.models?.find((m) => m.id === modelId) || null;
+	return config.providers?.[providerId]?.models?.find((m: any) => m.id === modelId) || null;
 });
 
 // Actions
@@ -105,15 +105,15 @@ export const selectModel = (modelId: string | null) => {
 	setSelectedModel(modelId);
 };
 
-export const setConfigLoading = (loading: boolean) => setIsConfigLoading(loading);
-export const setConfigError = (error: string | null) => setConfigError(error);
+export const setLoading = (loading: boolean) => setIsConfigLoading(loading);
+export const setError = (error: string | null) => setConfigError(error);
 
 // Hooks for React components
-export const useAIConfig = () => useStore(aiConfig);
-export const useHasAIConfig = () => useStore(hasConfig);
-export const useSelectedProvider = () => useStore(selectedProvider);
-export const useSelectedModel = () => useStore(selectedModel);
-export const useAvailableProviders = () => useStore(availableProviders);
-export const useProviderModels = () => useStore(providerModels);
-export const useSelectedModelConfig = () => useStore(selectedModelConfig);
-export const useIsConfigLoading = () => useStore(isConfigLoading);
+export const useAIConfig = () => useSignal(aiConfig);
+export const useHasAIConfig = () => useSignal(hasConfig);
+export const useSelectedProvider = () => useSignal(selectedProvider);
+export const useSelectedModel = () => useSignal(selectedModel);
+export const useAvailableProviders = () => useSignal(availableProviders);
+export const useProviderModels = () => useSignal(providerModels);
+export const useSelectedModelConfig = () => useSignal(selectedModelConfig);
+export const useIsConfigLoading = () => useSignal(isConfigLoading);

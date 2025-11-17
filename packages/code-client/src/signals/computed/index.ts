@@ -4,7 +4,7 @@
  */
 
 import { createMemo } from "solid-js";
-import { useStore } from "@sylphx/zen-react";
+import { useSignal } from "../react-bridge.js";
 import * as ai from "../domain/ai/index.js";
 import * as session from "../domain/session/index.js";
 import * as ui from "../domain/ui/index.js";
@@ -31,7 +31,7 @@ export const currentModelConfig = createMemo(() => {
 	const providerId = ai.selectedProvider();
 	const modelId = ai.selectedModel();
 	if (!config || !providerId || !modelId) return null;
-	return config.providers?.[providerId]?.models?.find((m) => m.id === modelId) || null;
+	return config.providers?.[providerId]?.models?.find((m: any) => m.id === modelId) || null;
 });
 
 // Session context for AI requests
@@ -56,11 +56,11 @@ export const hasAnyError = createMemo(() => !!(ui.error() || ai.configError()));
 export const firstError = createMemo(() => ui.error() || ai.configError() || null);
 
 // Hooks for React components
-export const useIsAppReady = () => useStore(isAppReady);
-export const useCanStartChat = () => useStore(canStartChat);
-export const useActiveProviderConfig = () => useStore(activeProviderConfig);
-export const useCurrentModelConfig = () => useStore(currentModelConfig);
-export const useSessionContext = () => useStore(sessionContext);
-export const useIsAnyLoading = () => useStore(isAnyLoading);
-export const useHasAnyError = () => useStore(hasAnyError);
-export const useFirstError = () => useStore(firstError);
+export const useIsAppReady = () => useSignal(isAppReady);
+export const useCanStartChat = () => useSignal(canStartChat);
+export const useActiveProviderConfig = () => useSignal(activeProviderConfig);
+export const useCurrentModelConfig = () => useSignal(currentModelConfig);
+export const useSessionContext = () => useSignal(sessionContext);
+export const useIsAnyLoading = () => useSignal(isAnyLoading);
+export const useHasAnyError = () => useSignal(hasAnyError);
+export const useFirstError = () => useSignal(firstError);
