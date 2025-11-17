@@ -5,7 +5,6 @@
 		{ "path": "./packages/code-core" },
 		{ "path": "./packages/code-server" },
 		{ "path": "./packages/code-client" },
-		{ "path": "./packages/code" },
-		{ "path": "./packages/code-web" }
+		{ "path": "./packages/code" }
 	]
 }
