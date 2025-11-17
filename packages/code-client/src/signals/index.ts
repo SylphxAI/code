@@ -6,9 +6,6 @@
  * External packages should import from the main package index which uses explicit exports.
  */
 
-// Framework-agnostic core (replaces @sylphx/zen)
-export * from "./core.js";
-
 // Cross-domain computed signals
 export * from "./computed/index.js";
 export * from "./domain/ai/index.js";
@@ -27,7 +24,7 @@ export * from "./events/index.js";
 // export * from './persistence';
 
 // DEPRECATED: Legacy zen re-export for backwards compatibility during migration
-// TODO: Remove once all domain signals use ./core.ts
+// TODO: Remove once all domain signals use solid-js directly
 import { zen } from "@sylphx/zen";
 export { zen };
 

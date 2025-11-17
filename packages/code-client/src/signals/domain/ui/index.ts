@@ -3,63 +3,61 @@
  * Manages UI state across the application
  */
 
-import { computed, get, set, signal } from "../../core.js";
+import { createMemo, createSignal } from "solid-js";
 import { useStore } from "@sylphx/zen-react";
 
 export type Screen = "chat" | "settings" | "provider" | "help";
 
 // Core UI signals
-export const $currentScreen = signal<Screen>("chat");
-export const $previousScreen = signal<Screen | null>(null);
-export const $isLoading = signal(false);
-export const $error = signal<string | null>(null);
-export const $debugLogs = signal<string[]>([]);
+export const [currentScreen, setCurrentScreen] = createSignal<Screen>("chat");
+export const [previousScreen, setPreviousScreen] = createSignal<Screen | null>(null);
+export const [isLoading, setIsLoading] = createSignal(false);
+export const [error, setError] = createSignal<string | null>(null);
+export const [debugLogs, setDebugLogs] = createSignal<string[]>([]);
 
 // Compacting state (for /compact command)
-export const $isCompacting = signal(false);
-export const $compactAbortController = signal<AbortController | null>(null);
+export const [isCompacting, setIsCompacting] = createSignal(false);
+export const [compactAbortController, setCompactAbortController] =
+	createSignal<AbortController | null>(null);
 
 // Computed signals
-export const $canGoBack = computed(
-	[$currentScreen, $previousScreen],
-	(current, previous) => current !== "chat" && previous !== null,
+export const canGoBack = createMemo(
+	() => currentScreen() !== "chat" && previousScreen() !== null,
 );
 
-export const $showNavigation = computed([$currentScreen], (screen) =>
-	["chat", "settings"].includes(screen),
-);
+export const showNavigation = createMemo(() => ["chat", "settings"].includes(currentScreen()));
 
 // Actions
 export const navigateTo = (screen: Screen) => {
-	const current = get($currentScreen);
-	set($previousScreen, current);
-	set($currentScreen, screen);
+	const current = currentScreen();
+	setPreviousScreen(current);
+	setCurrentScreen(screen);
 };
 
 export const goBack = () => {
-	const previous = get($previousScreen);
+	const previous = previousScreen();
 	if (previous) {
 		navigateTo(previous);
 	}
 };
 
-export const setLoading = (loading: boolean) => set($isLoading, loading);
-export const setError = (error: string | null) => set($error, error);
+export const setLoading = (loading: boolean) => setIsLoading(loading);
+export const setUIError = (err: string | null) => setError(err);
 
 export const setCompacting = (compacting: boolean) => {
-	set($isCompacting, compacting);
+	setIsCompacting(compacting);
 	if (!compacting) {
 		// Clear abort controller when done
-		set($compactAbortController, null);
+		setCompactAbortController(null);
 	}
 };
 
-export const setCompactAbortController = (controller: AbortController | null) => {
-	set($compactAbortController, controller);
+export const updateCompactAbortController = (controller: AbortController | null) => {
+	setCompactAbortController(controller);
 };
 
 export const abortCompact = () => {
-	const controller = get($compactAbortController);
+	const controller = compactAbortController();
 	if (controller) {
 		controller.abort();
 		setCompacting(false);
@@ -68,7 +66,7 @@ export const abortCompact = () => {
 
 export const addDebugLog = (message: string) => {
 	const timestamp = new Date().toLocaleTimeString();
-	const logs = get($debugLogs) || [];
+	const logs = debugLogs() || [];
 	const newLogs = [...logs, `[${timestamp}] ${message}`];
 
 	// Keep only last 500 logs
@@ -77,16 +75,16 @@ export const addDebugLog = (message: string) => {
 		newLogs.splice(0, newLogs.length - MAX_LOGS / 2);
 	}
 
-	set($debugLogs, newLogs);
+	setDebugLogs(newLogs);
 };
 
-export const clearDebugLogs = () => set($debugLogs, []);
+export const clearDebugLogs = () => setDebugLogs([]);
 
 // Hooks for React components
-export const useCurrentScreen = () => useStore($currentScreen);
-export const useCanGoBack = () => useStore($canGoBack);
-export const useIsLoading = () => useStore($isLoading);
-export const useUIError = () => useStore($error);
-export const useShowNavigation = () => useStore($showNavigation);
-export const useDebugLogs = () => useStore($debugLogs);
-export const useIsCompacting = () => useStore($isCompacting);
+export const useCurrentScreen = () => useStore(currentScreen);
+export const useCanGoBack = () => useStore(canGoBack);
+export const useIsLoading = () => useStore(isLoading);
+export const useUIError = () => useStore(error);
+export const useShowNavigation = () => useStore(showNavigation);
+export const useDebugLogs = () => useStore(debugLogs);
+export const useIsCompacting = () => useStore(isCompacting);

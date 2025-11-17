@@ -10,20 +10,23 @@
  */
 
 import type { QueuedMessage } from "@sylphx/code-core";
-import { computed, get, set, signal } from "../../core.js";
+import type { Accessor } from "solid-js";
+import { createMemo, createSignal } from "solid-js";
 
 /**
  * Per-session queue state
  * Key: sessionId, Value: array of queued messages
  */
-export const $sessionQueues = signal<Record<string, QueuedMessage[]>>({});
+export const [sessionQueues, setSessionQueues] = createSignal<Record<string, QueuedMessage[]>>(
+	{},
+);
 
 /**
  * Get queue for specific session
  */
 export function getSessionQueue(sessionId: string | null): QueuedMessage[] {
 	if (!sessionId) return [];
-	const queues = get($sessionQueues);
+	const queues = sessionQueues();
 	return queues[sessionId] || [];
 }
 
@@ -36,10 +39,11 @@ export function getQueueLength(sessionId: string | null): number {
 
 /**
  * Computed signal for current session's queue
- * Requires $currentSessionId from session signals
+ * Requires currentSessionId from session signals
  */
-export const createCurrentQueueComputed = (getCurrentSessionId: () => string | null) =>
-	computed([$sessionQueues], () => getSessionQueue(getCurrentSessionId()));
+export const createCurrentQueueComputed = (
+	getCurrentSessionId: () => string | null,
+): Accessor<QueuedMessage[]> => createMemo(() => getSessionQueue(getCurrentSessionId()));
 
 /**
  * Event Handlers
@@ -55,7 +59,7 @@ export function handleQueueMessageAdded(event: {
 	message: QueuedMessage;
 }): void {
 	console.log("[handleQueueMessageAdded] Event received:", JSON.stringify(event));
-	const queues = get($sessionQueues);
+	const queues = sessionQueues();
 	console.log("[handleQueueMessageAdded] Current queues:", JSON.stringify(queues));
 	const sessionQueue = queues[event.sessionId] || [];
 	console.log("[handleQueueMessageAdded] Current session queue length:", sessionQueue.length);
@@ -65,7 +69,7 @@ export function handleQueueMessageAdded(event: {
 		[event.sessionId]: [...sessionQueue, event.message],
 	};
 	console.log("[handleQueueMessageAdded] New queues:", JSON.stringify(newQueues));
-	set($sessionQueues, newQueues);
+	setSessionQueues(newQueues);
 	console.log("[handleQueueMessageAdded] Signal updated");
 }
 
@@ -77,7 +81,7 @@ export function handleQueueMessageUpdated(event: {
 	sessionId: string;
 	message: QueuedMessage;
 }): void {
-	const queues = get($sessionQueues);
+	const queues = sessionQueues();
 	const sessionQueue = queues[event.sessionId] || [];
 
 	// Find and update the message
@@ -85,7 +89,7 @@ export function handleQueueMessageUpdated(event: {
 		msg.id === event.message.id ? event.message : msg,
 	);
 
-	set($sessionQueues, {
+	setSessionQueues({
 		...queues,
 		[event.sessionId]: updatedQueue,
 	});
@@ -99,10 +103,10 @@ export function handleQueueMessageRemoved(event: {
 	sessionId: string;
 	messageId: string;
 }): void {
-	const queues = get($sessionQueues);
+	const queues = sessionQueues();
 	const sessionQueue = queues[event.sessionId] || [];
 
-	set($sessionQueues, {
+	setSessionQueues({
 		...queues,
 		[event.sessionId]: sessionQueue.filter((msg) => msg.id !== event.messageId),
 	});
@@ -113,9 +117,9 @@ export function handleQueueMessageRemoved(event: {
  * Removes all queued messages for session
  */
 export function handleQueueCleared(event: { sessionId: string }): void {
-	const queues = get($sessionQueues);
+	const queues = sessionQueues();
 
-	set($sessionQueues, {
+	setSessionQueues({
 		...queues,
 		[event.sessionId]: [],
 	});

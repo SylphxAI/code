@@ -3,77 +3,64 @@
  * Combines signals from different domains for derived state
  */
 
-import { computed } from "@sylphx/zen";
+import { createMemo } from "solid-js";
 import { useStore } from "@sylphx/zen-react";
-import * as ai from "../domain/ai";
-import * as session from "../domain/session";
-import * as ui from "../domain/ui";
+import * as ai from "../domain/ai/index.js";
+import * as session from "../domain/session/index.js";
+import * as ui from "../domain/ui/index.js";
 
 // App readiness computed signal
-export const $isAppReady = computed(
-	[ai.$hasConfig, session.$hasCurrentSession],
-	(hasConfig, hasSession) => hasConfig && hasSession,
-);
+export const isAppReady = createMemo(() => ai.hasConfig() && session.hasCurrentSession());
 
 // Chat availability computed signal
-export const $canStartChat = computed(
-	[ai.$hasConfig, session.$currentSessionId, ui.$currentScreen],
-	(hasConfig, sessionId, currentScreen) => {
-		return hasConfig && sessionId && currentScreen === "chat";
-	},
-);
+export const canStartChat = createMemo(() => {
+	return ai.hasConfig() && session.currentSessionId() !== null && ui.currentScreen() === "chat";
+});
 
 // Active provider configuration
-export const $activeProviderConfig = computed(
-	[ai.$aiConfig, ai.$selectedProvider],
-	(config, providerId) => {
-		if (!config || !providerId) return null;
-		return config.providers?.[providerId] || null;
-	},
-);
+export const activeProviderConfig = createMemo(() => {
+	const config = ai.aiConfig();
+	const providerId = ai.selectedProvider();
+	if (!config || !providerId) return null;
+	return config.providers?.[providerId] || null;
+});
 
 // Current model configuration
-export const $currentModelConfig = computed(
-	[ai.$aiConfig, ai.$selectedProvider, ai.$selectedModel],
-	(config, providerId, modelId) => {
-		if (!config || !providerId || !modelId) return null;
-		return config.providers?.[providerId]?.models?.find((m) => m.id === modelId) || null;
-	},
-);
+export const currentModelConfig = createMemo(() => {
+	const config = ai.aiConfig();
+	const providerId = ai.selectedProvider();
+	const modelId = ai.selectedModel();
+	if (!config || !providerId || !modelId) return null;
+	return config.providers?.[providerId]?.models?.find((m) => m.id === modelId) || null;
+});
 
 // Session context for AI requests
-export const $sessionContext = computed(
-	[session.$currentSession, session.$messages],
-	(currentSession, messages) => ({
+export const sessionContext = createMemo(() => {
+	const currentSession = session.currentSession();
+	const messages = session.messages();
+	return {
 		sessionId: currentSession?.id,
 		messageCount: messages.length,
 		hasMessages: messages.length > 0,
-	}),
-);
+	};
+});
 
 // UI state combined with loading states
-export const $isAnyLoading = computed(
-	[ai.$isConfigLoading, session.$sessionsLoading, ui.$isLoading],
-	(configLoading, sessionsLoading, uiLoading) => configLoading || sessionsLoading || uiLoading,
+export const isAnyLoading = createMemo(
+	() => ai.isConfigLoading() || session.sessionsLoading() || ui.isLoading(),
 );
 
 // Error state aggregation
-export const $hasAnyError = computed(
-	[ui.$error, ai.$configError],
-	(uiError, configError) => !!(uiError || configError),
-);
+export const hasAnyError = createMemo(() => !!(ui.error() || ai.configError()));
 
-export const $firstError = computed(
-	[ui.$error, ai.$configError],
-	(uiError, configError) => uiError || configError || null,
-);
+export const firstError = createMemo(() => ui.error() || ai.configError() || null);
 
 // Hooks for React components
-export const useIsAppReady = () => useStore($isAppReady);
-export const useCanStartChat = () => useStore($canStartChat);
-export const useActiveProviderConfig = () => useStore($activeProviderConfig);
-export const useCurrentModelConfig = () => useStore($currentModelConfig);
-export const useSessionContext = () => useStore($sessionContext);
-export const useIsAnyLoading = () => useStore($isAnyLoading);
-export const useHasAnyError = () => useStore($hasAnyError);
-export const useFirstError = () => useStore($firstError);
+export const useIsAppReady = () => useStore(isAppReady);
+export const useCanStartChat = () => useStore(canStartChat);
+export const useActiveProviderConfig = () => useStore(activeProviderConfig);
+export const useCurrentModelConfig = () => useStore(currentModelConfig);
+export const useSessionContext = () => useStore(sessionContext);
+export const useIsAnyLoading = () => useStore(isAnyLoading);
+export const useHasAnyError = () => useStore(hasAnyError);
+export const useFirstError = () => useStore(firstError);
