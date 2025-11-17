@@ -115,12 +115,6 @@ export {
 	isTodoDimmed,
 	isTodoStrikethrough,
 } from "./utils/todo-formatters.js";
-export {
-	getToolComponent,
-	isBuiltInTool,
-	registerTool,
-	toolConfigs,
-} from "./utils/tool-configs.js";
 
 // ============================================================================
 // Version

@@ -6,7 +6,7 @@
  * They will be replaced with proper tRPC calls in the future.
  */
 
-import { $enabledRuleIds, get } from "@sylphx/code-client";
+import { enabledRuleIds } from "@sylphx/code-client";
 import type { Agent, Rule } from "@sylphx/code-core";
 import type { CodeServer } from "@sylphx/code-server";
 
@@ -64,10 +64,10 @@ export function getRuleById(id: string): Rule | null {
 }
 
 /**
- * Get enabled rule IDs from zen signals
+ * Get enabled rule IDs from SolidJS signals
  */
 export function getEnabledRuleIds(): string[] {
-	return get($enabledRuleIds);
+	return enabledRuleIds();
 }
 
 /**

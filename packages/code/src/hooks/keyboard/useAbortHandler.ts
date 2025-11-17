@@ -5,7 +5,7 @@
  * Single Responsibility: Abort control during streaming and compacting
  */
 
-import { $isCompacting, abortCompact, get } from "@sylphx/code-client";
+import { $isCompacting, abortCompact } from "@sylphx/code-client";
 import { useInput } from "ink";
 import type React from "react";
 

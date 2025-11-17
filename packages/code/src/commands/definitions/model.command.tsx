@@ -26,10 +26,10 @@ export const modelCommand: Command = {
 		// Get zen signals
 		const { get } = await import("@sylphx/code-client");
 		const {
-			$aiConfig,
-			$currentSession,
-			$selectedProvider,
-			$currentSessionId,
+			aiConfig: aiConfigSignal,
+			currentSession: currentSessionSignal,
+			selectedProvider: selectedProviderSignal,
+			currentSessionId: currentSessionIdSignal,
 			setAIConfig,
 			updateSessionModel,
 		} = await import("@sylphx/code-client");
@@ -37,8 +37,8 @@ export const modelCommand: Command = {
 		// If arg provided, switch directly
 		if (context.args.length > 0) {
 			const modelId = context.args[0];
-			const currentSession = get($currentSession);
-			const aiConfig = get($aiConfig);
+			const currentSession = currentSessionSignal();
+			const aiConfig = aiConfigSignal();
 			const provider = currentSession?.provider || aiConfig?.defaultProvider;
 
 			if (!provider) {
@@ -87,7 +87,7 @@ export const modelCommand: Command = {
 			await context.saveConfig(newConfig);
 
 			// Update current session's model (preserve history)
-			const currentSessionId = get($currentSessionId);
+			const currentSessionId = currentSessionIdSignal();
 			if (currentSessionId) {
 				await updateSessionModel(currentSessionId, modelId);
 			}
@@ -97,9 +97,9 @@ export const modelCommand: Command = {
 
 		// No args - show model selection UI
 		// Get current session's provider or selected provider from zen signals
-		const currentSession = get($currentSession);
-		const selectedProvider = get($selectedProvider);
-		const aiConfig = get($aiConfig);
+		const currentSession = currentSessionSignal();
+		const selectedProvider = selectedProviderSignal();
+		const aiConfig = aiConfigSignal();
 		const currentProviderId =
 			currentSession?.provider || selectedProvider || aiConfig?.defaultProvider;
 
@@ -130,11 +130,11 @@ export const modelCommand: Command = {
 
 					// Get fresh zen signal values
 					const { get } = await import("@sylphx/code-client");
-					const { $aiConfig, $currentSessionId, setAIConfig, updateSessionModel } = await import(
+					const { aiConfig, currentSessionId, setAIConfig, updateSessionModel } = await import(
 						"@sylphx/code-client"
 					);
-					const freshAIConfig = get($aiConfig);
-					const freshCurrentSessionId = get($currentSessionId);
+					const freshAIConfig = aiConfig();
+					const freshCurrentSessionId = currentSessionId();
 
 					// Update model and save to provider config
 					const newConfig = {

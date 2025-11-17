@@ -13,7 +13,7 @@ import type { Session } from "@sylphx/code-core";
 import { get } from "@sylphx/zen";
 import { useEffect, useRef, useState } from "react";
 import {  eventBus  } from "@sylphx/code-client";
-import { $currentSession, $isStreaming, getTRPCClient, setCurrentSession, useCurrentSession as useOptimisticSession, useCurrentSessionId, useIsStreaming } from "@sylphx/code-client";
+import { currentSession, isStreamingTRPCClient, setCurrentSession, useCurrentSession as useOptimisticSession, useCurrentSessionId, useIsStreaming } from "@sylphx/code-client";
 
 export function useCurrentSession() {
 	const currentSessionId = useCurrentSessionId();
@@ -66,10 +66,10 @@ export function useCurrentSession() {
 
 				// Only update store and emit events if not streaming
 				// During streaming, optimistic data is authoritative
-				if (!get($isStreaming)) {
+				if (!isStreaming()) {
 					// IMPORTANT: Merge with existing optimistic messages (don't overwrite)
 					// System messages may have been added by events after this query started
-					const currentOptimistic = get($currentSession);
+					const currentOptimistic = currentSession();
 
 					// Always merge if we have optimistic data (even if session IDs don't match)
 					// This handles the case where temp-session → real session transition

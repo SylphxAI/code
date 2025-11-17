@@ -23,7 +23,7 @@
  */
 
 import {
-	$currentSession,
+	currentSession,
 	get as getSignal,
 	getTRPCClient,
 	parseUserInput,
@@ -293,16 +293,16 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
 				// Add optimistic message to store (works for both existing and new sessions)
 				// IMPORTANT: Use get() to avoid triggering re-renders during subscription setup
-				const currentSession = getSignal($currentSession);
+				const currentSessionValue = currentSession();
 				const _shouldCreateTempSession =
 					!sessionId || !currentSession || currentSession.id !== sessionId;
 
 				// IMMUTABLE UPDATE: zen signals need immutable updates to trigger re-renders
-				if (sessionId && currentSession?.id === sessionId) {
+				if (sessionId && currentSessionValue?.id === sessionId) {
 					// For existing sessions, add to current session
 					const beforeCount = currentSession.messages.length;
 
-					setSignal($currentSession, {
+					setSignal(currentSession, {
 						...currentSession,
 						messages: [
 							...currentSession.messages,
@@ -326,7 +326,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 					logSession("Creating temporary session for optimistic display");
 
 					setCurrentSessionId("temp-session");
-					setSignal($currentSession, {
+					setSignal(currentSession, {
 						id: "temp-session",
 						title: "New Chat",
 						agentId: "coder",
@@ -387,9 +387,9 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				// RACE CONDITION FIX: Preserve optimistic messages when transitioning session ID
 				// The session-created event will arrive later, but we need to update now
 				// to ensure useEventStream subscribes to the correct session
-				const currentSession = getSignal($currentSession);
+				const currentSessionValue = currentSession();
 				logSession("Before session transition:", {
-					currentId: currentSession?.id,
+					currentId: currentSessionValue?.id,
 					messageCount: currentSession?.messages?.length || 0,
 					newId: result.sessionId,
 				});
@@ -397,7 +397,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				if (currentSession && currentSession.id === "temp-session") {
 					// Transition temp-session → real session while preserving messages
 					logSession("Transitioning temp-session to real session, preserving messages");
-					setSignal($currentSession, {
+					setSignal(currentSession, {
 						...currentSession,
 						id: result.sessionId,
 					});

@@ -4,8 +4,8 @@
  */
 
 import {
-	$aiConfig,
-	$currentSessionId,
+	aiConfig as aiConfigSignal,
+	currentSessionId as currentSessionIdSignal,
 	get,
 	setAIConfig,
 	setSelectedModel,
@@ -24,7 +24,7 @@ export async function getProviderOptions(
 ): Promise<Array<{ label: string; value: string }>> {
 	const { AI_PROVIDERS } = await import("@sylphx/code-core");
 	const { getProvider } = await import("@sylphx/code-core");
-	const aiConfig = get($aiConfig);
+	const aiConfig = aiConfigSignal();
 
 	return Object.values(AI_PROVIDERS).map((p) => {
 		let isConfigured = false;
@@ -79,7 +79,7 @@ export async function ensureProviderConfigured(
 ): Promise<{ success: true; config: any } | { success: false; message: string }> {
 	const { AI_PROVIDERS } = await import("@sylphx/code-core");
 	const { getProvider } = await import("@sylphx/code-core");
-	const aiConfig = get($aiConfig);
+	const aiConfig = aiConfigSignal();
 
 	const provider = getProvider(providerId);
 	const providerConfig = aiConfig?.providers?.[providerId];
@@ -129,7 +129,7 @@ export async function ensureProviderConfigured(
 	const configResult = await configureProvider(context, providerId);
 
 	// Check if now configured
-	const updatedConfig = get($aiConfig);
+	const updatedConfig = aiConfigSignal();
 	const updatedProviderConfig = updatedConfig?.providers?.[providerId];
 
 	if (!updatedProviderConfig || !provider.isConfigured(updatedProviderConfig)) {
@@ -152,7 +152,7 @@ export async function switchToProvider(
 	providerConfig: any,
 ): Promise<string> {
 	const { AI_PROVIDERS } = await import("@sylphx/code-core");
-	const aiConfig = get($aiConfig);
+	const aiConfig = aiConfigSignal();
 
 	const newConfig = {
 		...aiConfig!,
@@ -184,7 +184,7 @@ export async function switchToProvider(
 	setSelectedModel(defaultModel);
 
 	// Update current session's provider (preserve history)
-	const currentSessionId = get($currentSessionId);
+	const currentSessionId = currentSessionIdSignal();
 	if (currentSessionId) {
 		await updateSessionProvider(currentSessionId, providerId, defaultModel);
 	}

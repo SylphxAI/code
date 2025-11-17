@@ -3,11 +3,11 @@
  */
 
 import { useStore } from "@sylphx/zen-react";
-import { $currentSessionId, $sessionQueues } from "@sylphx/code-client";
+import { currentSessionId, sessionQueues } from "@sylphx/code-client";
 
 export function useQueuedMessages() {
-	const currentSessionId = useStore($currentSessionId);
-	const sessionQueues = useStore($sessionQueues);
+	const currentSessionId = useStore(currentSessionId);
+	const sessionQueues = useStore(sessionQueues);
 
 	const queuedMessages = currentSessionId ? sessionQueues[currentSessionId] || [] : [];
 

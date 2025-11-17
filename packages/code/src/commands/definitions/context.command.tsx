@@ -18,23 +18,23 @@ export const contextCommand: Command = {
 			const { formatTokenCount, calculateReservedTokens, loadSettings } = await import(
 				"@sylphx/code-core"
 			);
-			const { get, getTRPCClient } = await import("@sylphx/code-client");
+			const { getTRPCClient } = await import("@sylphx/code-client");
 			const {
-				$currentSession,
-				$selectedModel,
-				$selectedProvider,
-				$selectedAgentId,
-				$enabledRuleIds,
+				currentSessionSignal,
+				selectedModelSignal,
+				selectedProviderSignal,
+				selectedAgentIdSignal,
+				enabledRuleIdsSignal,
 			} = await import("@sylphx/code-client");
 
 			console.log("[Context] Imports loaded");
 			commandContext.addLog("[Context] Imports loaded");
 
-			const currentSession = get($currentSession);
-			const selectedModel = get($selectedModel);
-			const selectedProvider = get($selectedProvider);
-			const selectedAgentId = get($selectedAgentId);
-			const enabledRuleIds = get($enabledRuleIds);
+			const currentSession = get(currentSessionSignal);
+			const selectedModel = get(selectedModelSignal);
+			const selectedProvider = get(selectedProviderSignal);
+			const selectedAgentId = get(selectedAgentIdSignal);
+			const enabledRuleIds = get(enabledRuleIdsSignal);
 
 			// Get model, provider, agent, and rules from session or selection (match StatusBar logic)
 			const modelName = currentSession?.model || selectedModel || null;

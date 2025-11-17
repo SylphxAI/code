@@ -4,7 +4,7 @@
  */
 
 import {
-	$currentSession,
+	currentSession,
 	getCurrentSessionId,
 	get as getSignal,
 	set as setSignal,
@@ -65,7 +65,7 @@ export function handleMessageStatusUpdated(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSession = getSignal($currentSession);
+	const currentSession = getSignal(currentSession);
 
 	context.addLog(`[StreamEvent] Message status updated to: ${event.status}`);
 
@@ -82,7 +82,7 @@ export function handleMessageStatusUpdated(
 				: msg,
 		);
 
-		setSignal($currentSession, {
+		setSignal(currentSession, {
 			...currentSession,
 			messages: updatedMessages,
 		});

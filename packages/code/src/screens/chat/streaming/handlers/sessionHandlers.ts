@@ -4,7 +4,7 @@
  */
 
 import {
-	$currentSession,
+	currentSession,
 	getCurrentSessionId,
 	get as getSignal,
 	setCurrentSessionId,
@@ -28,23 +28,23 @@ export function handleSessionCreated(
 	context.addLog(`[Session] Created: ${event.sessionId}`);
 
 	// Get current session state to preserve optimistic messages
-	const currentSession = getSignal($currentSession);
+	const currentSessionValue = currentSession();
 
 	// RACE CONDITION FIX: If the session was already transitioned by subscriptionAdapter
 	// (mutation completed before event arrived), just skip - messages already preserved
-	if (currentSession?.id === event.sessionId && currentSession.messages.length > 0) {
+	if (currentSessionValue?.id === event.sessionId && currentSessionValue.messages.length > 0) {
 		logSession("Session already transitioned with messages, skipping event handler");
 		return;
 	}
 
 	// Check if there's a temporary session with optimistic messages
-	const optimisticMessages = currentSession?.id === "temp-session" ? currentSession.messages : [];
+	const optimisticMessages = currentSessionValue?.id === "temp-session" ? currentSessionValue.messages : [];
 
 	logSession("Creating session, preserving optimistic messages:", optimisticMessages.length);
 
 	// IMMUTABLE UPDATE: Create new session with optimistic messages preserved
 	setCurrentSessionId(event.sessionId);
-	setSignal($currentSession, {
+	setSignal(currentSession, {
 		id: event.sessionId,
 		title: "New Chat",
 		agentId: "coder",
@@ -68,7 +68,7 @@ export function handleSessionDeleted(
 
 	if (event.sessionId === currentSessionId) {
 		setCurrentSessionId(null);
-		setSignal($currentSession, null);
+		setSignal(currentSession, null);
 		context.addLog(`[Session] Deleted: ${event.sessionId}`);
 	}
 }
@@ -78,10 +78,10 @@ export function handleSessionModelUpdated(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSession = getSignal($currentSession);
+	const currentSessionValue = currentSession();
 
 	if (event.sessionId === currentSessionId && currentSession) {
-		setSignal($currentSession, {
+		setSignal(currentSession, {
 			...currentSession,
 			model: event.model,
 		});
@@ -94,10 +94,10 @@ export function handleSessionProviderUpdated(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSession = getSignal($currentSession);
+	const currentSessionValue = currentSession();
 
 	if (event.sessionId === currentSessionId && currentSession) {
-		setSignal($currentSession, {
+		setSignal(currentSession, {
 			...currentSession,
 			provider: event.provider,
 			model: event.model,
@@ -170,7 +170,7 @@ export function handleSessionTokensUpdated(
 	_context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSession = getSignal($currentSession);
+	const currentSessionValue = currentSession();
 
 	// Only handle if this is the current session
 	if (event.sessionId !== currentSessionId || !currentSession) {
@@ -187,7 +187,7 @@ export function handleSessionTokensUpdated(
 	});
 
 	// Update local state with data from event (no API call needed)
-	setSignal($currentSession, {
+	setSignal(currentSession, {
 		...currentSession,
 		totalTokens: event.totalTokens,
 		baseContextTokens: event.baseContextTokens,

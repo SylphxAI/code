@@ -3,7 +3,7 @@
  * Tests event handling logic without full integration
  */
 
-import { $currentSession, $currentSessionId, $messages } from "@sylphx/code-client";
+import { currentSession as currentSessionSignal, currentSessionId, $messages } from "@sylphx/code-client";
 import type { StreamEvent } from "@sylphx/code-server";
 import { get, set } from "@sylphx/zen";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -11,8 +11,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 describe("Subscription Adapter", () => {
 	beforeEach(() => {
 		// Reset signals before each test
-		set($currentSessionId, null);
-		set($currentSession, null);
+		set(currentSessionId, null);
+		set(currentSessionSignal, null);
 		set($messages, []);
 	});
 
@@ -25,8 +25,8 @@ describe("Subscription Adapter", () => {
 		};
 
 		// Simulate session-created handling
-		set($currentSessionId, event.sessionId);
-		set($currentSession, {
+		set(currentSessionId, event.sessionId);
+		set(currentSessionSignal, {
 			id: event.sessionId,
 			provider: event.provider,
 			model: event.model,
@@ -40,8 +40,8 @@ describe("Subscription Adapter", () => {
 		});
 
 		// Check state
-		expect(get($currentSessionId)).toBe("test-session-123");
-		const currentSession = get($currentSession);
+		expect(get(currentSessionId)).toBe("test-session-123");
+		const currentSession = currentSessionSignal();
 		expect(currentSession).toBeTruthy();
 		expect(currentSession?.id).toBe("test-session-123");
 		expect(currentSession?.provider).toBe("openrouter");
@@ -50,7 +50,7 @@ describe("Subscription Adapter", () => {
 
 	it("should add assistant message on assistant-message-created event", () => {
 		// Setup: Create a session first
-		set($currentSessionId, "test-session");
+		set(currentSessionId, "test-session");
 		const testSession = {
 			id: "test-session",
 			provider: "openrouter",
@@ -63,7 +63,7 @@ describe("Subscription Adapter", () => {
 			created: Date.now(),
 			updated: Date.now(),
 		};
-		set($currentSession, testSession);
+		set(currentSessionSignal, testSession);
 
 		const _event: StreamEvent = {
 			type: "assistant-message-created",
@@ -71,9 +71,9 @@ describe("Subscription Adapter", () => {
 		};
 
 		// Simulate assistant-message-created handling
-		const currentSession = get($currentSession);
+		const currentSession = currentSessionSignal();
 		if (currentSession && currentSession.id === "test-session") {
-			set($currentSession, {
+			set(currentSessionSignal, {
 				...currentSession,
 				messages: [
 					...currentSession.messages,
@@ -88,7 +88,7 @@ describe("Subscription Adapter", () => {
 		}
 
 		// Check state
-		const updatedSession = get($currentSession);
+		const updatedSession = currentSessionSignal();
 		expect(updatedSession?.messages).toHaveLength(1);
 		expect(updatedSession?.messages[0].role).toBe("assistant");
 		expect(updatedSession?.messages[0].status).toBe("active");
@@ -115,15 +115,15 @@ describe("Subscription Adapter", () => {
 			created: Date.now(),
 			updated: Date.now(),
 		};
-		set($currentSessionId, "test-session");
-		set($currentSession, testSessionWithMessage);
+		set(currentSessionId, "test-session");
+		set(currentSessionSignal, testSessionWithMessage);
 
 		// Simulate reasoning-start handling
-		const currentSession = get($currentSession);
+		const currentSession = currentSessionSignal();
 		if (currentSession) {
 			const activeMessage = currentSession.messages.find((m) => m.status === "active");
 			if (activeMessage) {
-				set($currentSession, {
+				set(currentSessionSignal, {
 					...currentSession,
 					messages: currentSession.messages.map((msg) =>
 						msg.status === "active"
@@ -146,7 +146,7 @@ describe("Subscription Adapter", () => {
 		}
 
 		// Check state
-		const updatedSession = get($currentSession);
+		const updatedSession = currentSessionSignal();
 		expect(updatedSession?.messages[0].content).toHaveLength(1);
 		expect(updatedSession?.messages[0].content[0].type).toBe("reasoning");
 		expect(updatedSession?.messages[0].content[0].status).toBe("active");
@@ -180,17 +180,17 @@ describe("Subscription Adapter", () => {
 			created: Date.now(),
 			updated: Date.now(),
 		};
-		set($currentSessionId, "test-session");
-		set($currentSession, testSessionWithReasoning);
+		set(currentSessionId, "test-session");
+		set(currentSessionSignal, testSessionWithReasoning);
 
 		// Simulate reasoning-delta handling
 		const deltaText = "thought";
 
-		const currentSession = get($currentSession);
+		const currentSession = currentSessionSignal();
 		if (currentSession) {
 			const activeMessage = currentSession.messages.find((m) => m.status === "active");
 			if (activeMessage) {
-				set($currentSession, {
+				set(currentSessionSignal, {
 					...currentSession,
 					messages: currentSession.messages.map((msg) =>
 						msg.status === "active"
@@ -209,7 +209,7 @@ describe("Subscription Adapter", () => {
 		}
 
 		// Check state
-		const updatedSession = get($currentSession);
+		const updatedSession = currentSessionSignal();
 		expect(updatedSession?.messages[0].content[0].content).toBe("Initial thought");
 	});
 
@@ -242,13 +242,13 @@ describe("Subscription Adapter", () => {
 			created: Date.now(),
 			updated: Date.now(),
 		};
-		set($currentSessionId, "test-session");
-		set($currentSession, testSessionForEnd);
+		set(currentSessionId, "test-session");
+		set(currentSessionSignal, testSessionForEnd);
 
 		// Simulate reasoning-end handling
 		const endTime = Date.now();
 
-		const currentSession = get($currentSession);
+		const currentSession = currentSessionSignal();
 		if (currentSession) {
 			const activeMessage = currentSession.messages.find((m) => m.status === "active");
 			if (activeMessage) {
@@ -258,7 +258,7 @@ describe("Subscription Adapter", () => {
 					.find(({ p }) => p.type === "reasoning" && p.status === "active")?.i;
 
 				if (lastReasoningIndex !== undefined) {
-					set($currentSession, {
+					set(currentSessionSignal, {
 						...currentSession,
 						messages: currentSession.messages.map((msg) =>
 							msg.status === "active"
@@ -285,7 +285,7 @@ describe("Subscription Adapter", () => {
 		}
 
 		// Check state
-		const updatedSession = get($currentSession);
+		const updatedSession = currentSessionSignal();
 		const reasoning = updatedSession?.messages[0].content[0];
 		expect(reasoning?.status).toBe("completed");
 		expect(reasoning?.type).toBe("reasoning");

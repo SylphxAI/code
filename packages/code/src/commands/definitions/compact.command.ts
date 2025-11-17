@@ -15,10 +15,10 @@ export const compactCommand: Command = {
 		const { getTRPCClient, setCompacting, setCompactAbortController } = await import(
 			"@sylphx/code-client"
 		);
-		const { $currentSession } = await import("@sylphx/code-client");
+		const { currentSession: currentSessionSignal } = await import("@sylphx/code-client");
 		const { get } = await import("@sylphx/zen");
 
-		const currentSession = get($currentSession);
+		const currentSession = currentSessionSignal();
 
 		if (!currentSession) {
 			return "No active session to compact.";
@@ -74,10 +74,10 @@ export const compactCommand: Command = {
 			const completedMessages = newSession.messages.filter((m) => m.status === "completed");
 
 			// Switch to new session with completed messages only
-			const { setCurrentSessionId, set, $currentSession } = await import("@sylphx/code-client");
+			const { setCurrentSessionId, set, currentSession: currentSessionSignal2 } = await import("@sylphx/code-client");
 
 			setCurrentSessionId(result.newSessionId!);
-			set($currentSession, {
+			set(currentSessionSignal2, {
 				...newSession,
 				messages: completedMessages, // Only completed messages (system message)
 			});

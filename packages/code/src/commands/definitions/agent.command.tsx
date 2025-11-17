@@ -22,9 +22,9 @@ export const agentCommand: Command = {
 		},
 	],
 	execute: async (context) => {
-		const { getAllAgents, getAgentById } = await import("../../embedded-context.js");
+		const { getAllAgentsAgentById } = await import("../../embedded-context.js");
 		const { get } = await import("@sylphx/code-client");
-		const { $selectedAgentId, $currentSessionId, setSelectedAgent, updateSessionAgent } =
+		const { selectedAgentId: selectedAgentIdSignal, currentSessionId: currentSessionIdSignal, setSelectedAgent, updateSessionAgent } =
 			await import("@sylphx/code-client");
 
 		// If arg provided, switch directly
@@ -40,7 +40,7 @@ export const agentCommand: Command = {
 			await setSelectedAgent(agentId);
 
 			// Update current session if exists
-			const currentSessionId = get($currentSessionId);
+			const currentSessionId = currentSessionIdSignal();
 			if (currentSessionId) {
 				await updateSessionAgent(currentSessionId, agentId);
 			}
@@ -50,7 +50,7 @@ export const agentCommand: Command = {
 
 		// No args - show agent selection UI
 		const agents = getAllAgents();
-		const selectedAgentId = get($selectedAgentId);
+		const selectedAgentId = selectedAgentIdSignal();
 		const currentAgent = getAgentById(selectedAgentId);
 
 		if (!currentAgent) {
@@ -74,7 +74,7 @@ export const agentCommand: Command = {
 				currentAgentId={currentAgent.id}
 				onSelect={async (agentId) => {
 					const { get } = await import("@sylphx/code-client");
-					const { $currentSessionId, setSelectedAgent, updateSessionAgent } = await import(
+					const { currentSessionId: currentSessionIdSignal2, setSelectedAgent, updateSessionAgent } = await import(
 						"@sylphx/code-client"
 					);
 					const selectedAgent = getAgentById(agentId);
@@ -89,7 +89,7 @@ export const agentCommand: Command = {
 					await setSelectedAgent(agentId);
 
 					// Update current session if exists
-					const currentSessionId = get($currentSessionId);
+					const currentSessionId = currentSessionIdSignal2();
 					if (currentSessionId) {
 						await updateSessionAgent(currentSessionId, agentId);
 					}

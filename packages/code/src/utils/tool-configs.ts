@@ -14,11 +14,11 @@ import {
 	pluralize,
 	truncateString,
 } from "@sylphx/code-core";
+import type { ToolConfig, ToolDisplayProps } from "@sylphx/code-client";
 import { createDefaultToolDisplay } from "../components/DefaultToolDisplay.js";
-import type { ToolConfig } from "../types/tool.types.js";
 
 // Re-export types for backward compatibility
-export type { ToolConfig, ToolDisplayProps } from "../types/tool.types.js";
+export type { ToolConfig, ToolDisplayProps };
 
 /**
  * Helper to convert result to lines

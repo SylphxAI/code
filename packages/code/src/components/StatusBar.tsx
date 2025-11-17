@@ -57,7 +57,7 @@ function StatusBarInternal({
 	// Subscribe to MCP status
 	const mcpStatus = useMCPStatus();
 
-	// Real-time tokens from $currentSession signal
+	// Real-time tokens from currentSession signal
 	// Updated live during streaming via session-tokens-updated events
 	const totalTokens = useTotalTokens();
 

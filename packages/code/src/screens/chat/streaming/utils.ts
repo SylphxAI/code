@@ -3,7 +3,7 @@
  * Shared helper functions used across all event handlers
  */
 
-import { $currentSession, get as getSignal, set as setSignal } from "@sylphx/code-client";
+import { currentSession, setCurrentSession } from "@sylphx/code-client";
 import type { MessagePart } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
 
@@ -24,7 +24,7 @@ export function updateActiveMessageContent(
 	messageId: string | null | undefined,
 	updater: (prev: MessagePart[]) => MessagePart[],
 ) {
-	const session = getSignal($currentSession);
+	const session = currentSession();
 
 	if (!session || session.id !== currentSessionId) {
 		logContent("Session mismatch! expected:", currentSessionId, "got:", session?.id);
@@ -82,7 +82,7 @@ export function updateActiveMessageContent(
 	});
 
 	// Update signal with new session object
-	setSignal($currentSession, {
+	setCurrentSession({
 		...session,
 		messages: updatedMessages,
 	});

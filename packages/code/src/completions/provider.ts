@@ -3,7 +3,7 @@
  * Lazy loading from zen signals, no extra cache needed
  */
 
-import { $aiConfig, getTRPCClient, setAIConfig } from "@sylphx/code-client";
+import { aiConfigTRPCClient, setAIConfig } from "@sylphx/code-client";
 import type { AIConfig, ProviderId } from "@sylphx/code-core";
 import { get } from "@sylphx/zen";
 
@@ -21,7 +21,7 @@ export interface CompletionOption {
  */
 async function _getAIConfig(): Promise<AIConfig | null> {
 	// Already in zen signal? Return cached (fast!)
-	const currentConfig = get($aiConfig);
+	const currentConfig = aiConfig();
 	if (currentConfig) {
 		return currentConfig;
 	}

@@ -3,7 +3,7 @@
  * Configure and switch AI providers using component-based UI
  */
 
-import { getActionCompletions, getProviderCompletions } from "../../completions/provider.js";
+import { getActionCompletionsProviderCompletions } from "../../completions/provider.js";
 import { ProviderManagement } from "../../screens/chat/components/ProviderManagementV2.js";
 import type { Command } from "../types.js";
 
@@ -81,8 +81,8 @@ export const providerCommand: Command = {
 		// Get zen signals
 		const { get } = await import("@sylphx/code-client");
 		const { getTRPCClient } = await import("@sylphx/code-client");
-		const { $aiConfig, updateProvider, setAIConfig } = await import("@sylphx/code-client");
-		const aiConfig = get($aiConfig);
+		const { aiConfig: aiConfigSignal, updateProvider, setAIConfig } = await import("@sylphx/code-client");
+		const aiConfig = aiConfigSignal();
 
 		// Handle command-line configuration (set/get/show)
 		if (action === "configure" && providerId && subaction) {
@@ -210,8 +210,8 @@ export const providerCommand: Command = {
 				const providerDefaultModel = providerConfig.defaultModel as string;
 
 				// Update current session's provider + model (if exists)
-				const { $currentSessionId, updateSessionProvider } = await import("@sylphx/code-client");
-				const currentSessionId = get($currentSessionId);
+				const { currentSessionId: currentSessionIdSignal, updateSessionProvider } = await import("@sylphx/code-client");
+				const currentSessionId = currentSessionIdSignal();
 				if (currentSessionId && providerDefaultModel) {
 					await updateSessionProvider(currentSessionId, providerId as any, providerDefaultModel);
 				}
@@ -241,15 +241,15 @@ export const providerCommand: Command = {
 					// Get fresh zen signal values
 					const { get } = await import("@sylphx/code-client");
 					const {
-						$aiConfig,
-						$currentSessionId,
+						aiConfig,
+						currentSessionId: currentSessionIdSignal,
 						updateProvider,
 						setAIConfig,
 						setSelectedModel,
 						updateSessionProvider,
 					} = await import("@sylphx/code-client");
 					const { getTRPCClient } = await import("@sylphx/code-client");
-					const freshAiConfig = get($aiConfig);
+					const freshAiConfig = aiConfig();
 
 					// Update zen signal state
 					updateProvider(providerId as any, {});
@@ -314,7 +314,7 @@ export const providerCommand: Command = {
 					}
 
 					// Update current session's provider + model (if exists)
-					const currentSessionId = get($currentSessionId);
+					const currentSessionId = currentSessionIdSignal();
 					if (currentSessionId && providerDefaultModel) {
 						await updateSessionProvider(currentSessionId, providerId as any, providerDefaultModel);
 					}
@@ -364,8 +364,8 @@ export const providerCommand: Command = {
 
 					// Save non-secrets using regular config save
 					const { get } = await import("@sylphx/code-client");
-					const { $aiConfig, setAIConfig } = await import("@sylphx/code-client");
-					const currentConfig = get($aiConfig);
+					const { aiConfig, setAIConfig } = await import("@sylphx/code-client");
+					const currentConfig = aiConfig();
 
 					const updatedConfig = {
 						...currentConfig!,

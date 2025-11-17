@@ -1,10 +1,10 @@
 /**
  * Total Tokens Hook (Real-time)
- * Subscribes to $currentSession signal for real-time token updates during streaming
+ * Subscribes to currentSession signal for real-time token updates during streaming
  *
  * ARCHITECTURE: Event-driven real-time updates
  * - Server emits session-tokens-updated events during streaming
- * - useEventStream receives events and updates $currentSession signal
+ * - useEventStream receives events and updates currentSession signal
  * - This hook subscribes to signal for instant UI updates
  * - No API polling, no delayed updates
  *
@@ -15,7 +15,7 @@ import { useCurrentSession } from "@sylphx/code-client";
 
 /**
  * Get total tokens from current session (real-time)
- * Subscribes to $currentSession signal which is updated via event stream
+ * Subscribes to currentSession signal which is updated via event stream
  *
  * @returns Total tokens or 0 if no session
  */

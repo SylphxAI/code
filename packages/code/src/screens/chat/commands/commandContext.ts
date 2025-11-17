@@ -96,13 +96,12 @@ export function createCommandContext(args: string[], params: CommandContextParam
 		args,
 
 		sendMessage: async (content: string) => {
-			// Get selected provider/model from zen signals directly
-			const { get } = await import("@sylphx/code-client");
-			const { $selectedProvider, $selectedModel } = await import("@sylphx/code-client");
-			const selectedProvider = get($selectedProvider);
-			const selectedModel = get($selectedModel);
-			const provider = (selectedProvider || "openrouter") as ProviderId;
-			const model = selectedModel || "anthropic/claude-3.5-sonnet";
+			// Get selected provider/model from SolidJS signals directly
+			const { selectedProvider: selectedProviderSignal, selectedModel: selectedModelSignal } = await import("@sylphx/code-client");
+			const providerValue = selectedProviderSignal();
+			const modelValue = selectedModelSignal();
+			const provider = (providerValue || "openrouter") as ProviderId;
+			const model = modelValue || "anthropic/claude-3.5-sonnet";
 
 			// Reuse existing command session or pass null (will create new session)
 			const sessionIdToUse = commandSessionRef.current || currentSessionId;

@@ -15,8 +15,8 @@ export const settingsCommand: Command = {
 	execute: async (context) => {
 		// Get current config
 		const { get } = await import("@sylphx/code-client");
-		const { $aiConfig } = await import("@sylphx/code-client");
-		const aiConfig = get($aiConfig);
+		const { aiConfig: aiConfigSignal } = await import("@sylphx/code-client");
+		const aiConfig = aiConfigSignal();
 
 		// Show settings UI
 		context.setInputComponent(

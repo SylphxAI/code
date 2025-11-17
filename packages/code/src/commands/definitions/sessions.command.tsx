@@ -14,7 +14,7 @@ export const sessionsCommand: Command = {
 		const { formatSessionDisplay } = await import("@sylphx/code-core");
 		const { getRecentSessions } = await import("@sylphx/code-client");
 		const { get } = await import("@sylphx/code-client");
-		const { $currentSessionId, setCurrentSessionId } = await import("@sylphx/code-client");
+		const { currentSessionId: currentSessionIdSignal, setCurrentSessionId } = await import("@sylphx/code-client");
 
 		// Get sessions
 		const sessions = await getRecentSessions(100);
@@ -23,7 +23,7 @@ export const sessionsCommand: Command = {
 			return "No sessions available. Start chatting to create a session.";
 		}
 
-		const currentSessionId = get($currentSessionId);
+		const currentSessionId = currentSessionIdSignal();
 
 		// Sort sessions by updated time (most recent first), then by created time
 		const sortedSessions = [...sessions].sort((a, b) => {

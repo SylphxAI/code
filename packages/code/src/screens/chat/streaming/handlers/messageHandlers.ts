@@ -4,7 +4,7 @@
  */
 
 import {
-	$currentSession,
+	currentSession,
 	eventBus,
 	getCurrentSessionId,
 	get as getSignal,
@@ -28,7 +28,7 @@ export function handleUserMessageCreated(
 	_context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSession = getSignal($currentSession);
+	const currentSession = getSignal(currentSession);
 
 	logMessage("User message created:", event.messageId);
 
@@ -72,7 +72,7 @@ export function handleUserMessageCreated(
 		logMessage("Added user message (no optimistic found), total:", updatedMessages.length);
 	}
 
-	setSignal($currentSession, {
+	setSignal(currentSession, {
 		...currentSession,
 		messages: updatedMessages,
 	});
@@ -83,7 +83,7 @@ export function handleAssistantMessageCreated(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSession = getSignal($currentSession);
+	const currentSession = getSignal(currentSession);
 
 	context.streamingMessageIdRef.current = event.messageId;
 	logMessage("Message created:", event.messageId, "session:", currentSessionId);
@@ -120,7 +120,7 @@ export function handleAssistantMessageCreated(
 		status: "active",
 	};
 
-	setSignal($currentSession, {
+	setSignal(currentSession, {
 		...currentSession,
 		messages: [...currentSession.messages, newMessage],
 	});
@@ -132,7 +132,7 @@ export function handleSystemMessageCreated(
 	event: Extract<StreamEvent, { type: "system-message-created" }>,
 	_context: EventHandlerContext,
 ) {
-	const currentSession = getSignal($currentSession);
+	const currentSession = getSignal(currentSession);
 
 	logMessage("System message created:", event.messageId);
 
@@ -140,8 +140,8 @@ export function handleSystemMessageCreated(
 		return;
 	}
 
-	// NOTE: Don't check session ID match - during session creation, $currentSessionId
-	// may be updated before $currentSession, causing race condition.
+	// NOTE: Don't check session ID match - during session creation, currentSessionId
+	// may be updated before currentSession, causing race condition.
 	// Since this event comes from the subscription which is already filtered by session,
 	// we can trust it belongs to the current session.
 
@@ -163,7 +163,7 @@ export function handleSystemMessageCreated(
 
 	const updatedMessages = [...currentSession.messages, newMessage];
 
-	setSignal($currentSession, {
+	setSignal(currentSession, {
 		...currentSession,
 		messages: updatedMessages,
 	});
@@ -180,7 +180,7 @@ export function handleStepStart(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSession = getSignal($currentSession);
+	const currentSession = getSignal(currentSession);
 
 	logMessage(
 		"Step started:",
@@ -226,7 +226,7 @@ export function handleStepStart(
 			return msg;
 		});
 
-		setSignal($currentSession, {
+		setSignal(currentSession, {
 			...currentSession,
 			messages: updatedMessages,
 		});

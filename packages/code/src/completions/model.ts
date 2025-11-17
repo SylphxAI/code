@@ -3,7 +3,7 @@
  * Fetches models from provider API for current provider
  */
 
-import { $aiConfig, $currentSession, getTRPCClient } from "@sylphx/code-client";
+import { aiConfig, currentSessionTRPCClient } from "@sylphx/code-client";
 import { get } from "@sylphx/zen";
 
 export interface CompletionOption {
@@ -24,9 +24,9 @@ export async function getModelCompletions(partial = ""): Promise<CompletionOptio
 		const trpc = getTRPCClient();
 
 		// Get current provider from session or config
-		const currentSession = get($currentSession);
-		const config = get($aiConfig);
-		const currentProviderId = currentSession?.provider || config?.defaultProvider;
+		const currentSessionValue = currentSession();
+		const config = aiConfig();
+		const currentProviderId = currentSessionValue?.provider || config?.defaultProvider;
 
 		if (!currentProviderId) {
 			return [];
