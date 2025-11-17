@@ -3,21 +3,21 @@
  * Manages UI state across the application
  */
 
-import { computed, get, set, zen } from "@sylphx/zen";
+import { computed, get, set, signal } from "../../core.js";
 import { useStore } from "@sylphx/zen-react";
 
 export type Screen = "chat" | "settings" | "provider" | "help";
 
 // Core UI signals
-export const $currentScreen = zen<Screen>("chat");
-export const $previousScreen = zen<Screen | null>(null);
-export const $isLoading = zen(false);
-export const $error = zen<string | null>(null);
-export const $debugLogs = zen<string[]>([]);
+export const $currentScreen = signal<Screen>("chat");
+export const $previousScreen = signal<Screen | null>(null);
+export const $isLoading = signal(false);
+export const $error = signal<string | null>(null);
+export const $debugLogs = signal<string[]>([]);
 
 // Compacting state (for /compact command)
-export const $isCompacting = zen(false);
-export const $compactAbortController = zen<AbortController | null>(null);
+export const $isCompacting = signal(false);
+export const $compactAbortController = signal<AbortController | null>(null);
 
 // Computed signals
 export const $canGoBack = computed(

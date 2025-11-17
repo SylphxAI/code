@@ -10,13 +10,13 @@
  */
 
 import type { QueuedMessage } from "@sylphx/code-core";
-import { computed, get, set, zen } from "@sylphx/zen";
+import { computed, get, set, signal } from "../../core.js";
 
 /**
  * Per-session queue state
  * Key: sessionId, Value: array of queued messages
  */
-export const $sessionQueues = zen<Record<string, QueuedMessage[]>>({});
+export const $sessionQueues = signal<Record<string, QueuedMessage[]>>({});
 
 /**
  * Get queue for specific session

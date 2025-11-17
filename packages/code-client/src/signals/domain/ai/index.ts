@@ -4,15 +4,15 @@
  */
 
 import type { AIConfig } from "@sylphx/code-core";
-import { computed, get, set, zen } from "@sylphx/zen";
+import { computed, get, set, signal } from "../../core.js";
 import { useStore } from "@sylphx/zen-react";
 
 // Core AI signals
-export const $aiConfig = zen<AIConfig | null>(null);
-export const $isConfigLoading = zen(false);
-export const $configError = zen<string | null>(null);
-export const $selectedProvider = zen<string | null>(null);
-export const $selectedModel = zen<string | null>(null);
+export const $aiConfig = signal<AIConfig | null>(null);
+export const $isConfigLoading = signal(false);
+export const $configError = signal<string | null>(null);
+export const $selectedProvider = signal<string | null>(null);
+export const $selectedModel = signal<string | null>(null);
 
 // Computed signals
 export const $hasConfig = computed([$aiConfig], (config) => config !== null);

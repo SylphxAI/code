@@ -3,15 +3,15 @@
  * Manages user settings (agent selection, enabled rules)
  */
 
-import { get, set, zen } from "@sylphx/zen";
+import { get, set, signal } from "../../core.js";
 import { useStore } from "@sylphx/zen-react";
 import { eventBus } from "../../../lib/event-bus.js";
 import { getTRPCClient } from "../../../trpc-provider.js";
 import * as ai from "../ai/index.js";
 
 // Core settings signals
-export const $selectedAgentId = zen<string>("coder");
-export const $enabledRuleIds = zen<string[]>([]);
+export const $selectedAgentId = signal<string>("coder");
+export const $enabledRuleIds = signal<string[]>([]);
 
 // Actions
 export const setSelectedAgent = async (agentId: string) => {

@@ -1,10 +1,13 @@
 /**
- * Zen Signals Public API
+ * Framework-Agnostic Signals Public API
  * Main entry point for all signal functionality
  *
  * NOTE: This internal barrel file is kept for backwards compatibility.
  * External packages should import from the main package index which uses explicit exports.
  */
+
+// Framework-agnostic core (replaces @sylphx/zen)
+export * from "./core.js";
 
 // Cross-domain computed signals
 export * from "./computed/index.js";
@@ -23,8 +26,9 @@ export * from "./events/index.js";
 // All state comes from server via tRPC
 // export * from './persistence';
 
-// Convenience re-exports from zen
-import { computed, get, set, subscribe, zen } from "@sylphx/zen";
-export { zen, computed, subscribe, get, set };
+// DEPRECATED: Legacy zen re-export for backwards compatibility during migration
+// TODO: Remove once all domain signals use ./core.ts
+import { zen } from "@sylphx/zen";
+export { zen };
 
 // Note: useStore is exported by individual domain modules that need it

@@ -4,24 +4,24 @@
  */
 
 import type { ProviderId, Session, SessionMessage } from "@sylphx/code-core";
-import { computed, get, set, zen } from "@sylphx/zen";
+import { computed, get, set, signal } from "../../core.js";
 import { useStore } from "@sylphx/zen-react";
 import { eventBus } from "../../../lib/event-bus.js";
 import { getTRPCClient } from "../../../trpc-provider.js";
 
 // Core session signals
-export const $currentSessionId = zen<string | null>(null);
-export const $currentSession = zen<Session | null>(null);
-export const $isStreaming = zen(false);
-export const $streamingMessageId = zen<string | null>(null);
+export const $currentSessionId = signal<string | null>(null);
+export const $currentSession = signal<Session | null>(null);
+export const $isStreaming = signal(false);
+export const $streamingMessageId = signal<string | null>(null);
 
 // Message management
-export const $messages = zen<SessionMessage[]>([]);
+export const $messages = signal<SessionMessage[]>([]);
 export const $messageLimit = 100;
 
 // Session list
-export const $recentSessions = zen<Session[]>([]);
-export const $sessionsLoading = zen(false);
+export const $recentSessions = signal<Session[]>([]);
+export const $sessionsLoading = signal(false);
 
 // Computed signals
 export const $hasCurrentSession = computed([$currentSessionId], (sessionId) => sessionId !== null);
