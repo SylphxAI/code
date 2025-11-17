@@ -5,7 +5,7 @@
 
 import type { AIConfig } from "@sylphx/code-core";
 import { createMemo, createSignal } from "solid-js";
-import { useSignal } from "../react-bridge.js";
+import { useSignal } from "../../react-bridge.js";
 
 // Core AI signals
 export const [aiConfig, setAiConfig] = createSignal<AIConfig | null>(null);
@@ -105,8 +105,8 @@ export const selectModel = (modelId: string | null) => {
 	setSelectedModel(modelId);
 };
 
-export const setLoading = (loading: boolean) => setIsConfigLoading(loading);
-export const setError = (error: string | null) => setConfigError(error);
+export const setAIConfigLoading = (loading: boolean) => setIsConfigLoading(loading);
+export const setAIConfigError = (error: string | null) => setConfigError(error);
 
 // Hooks for React components
 export const useAIConfig = () => useSignal(aiConfig);

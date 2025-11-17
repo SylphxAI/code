@@ -4,7 +4,7 @@
  */
 
 import { createSignal } from "solid-js";
-import { useSignal } from "../react-bridge.js";
+import { useSignal } from "../../react-bridge.js";
 import { eventBus } from "../../../lib/event-bus.js";
 import { getTRPCClient } from "../../../trpc-provider.js";
 import * as ai from "../ai/index.js";

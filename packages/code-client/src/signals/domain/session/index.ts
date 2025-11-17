@@ -5,7 +5,7 @@
 
 import type { ProviderId, Session, SessionMessage } from "@sylphx/code-core";
 import { createMemo, createSignal } from "solid-js";
-import { useSignal } from "../react-bridge.js";
+import { useSignal } from "../../react-bridge.js";
 import { eventBus } from "../../../lib/event-bus.js";
 import { getTRPCClient } from "../../../trpc-provider.js";
 

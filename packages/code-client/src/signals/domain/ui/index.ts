@@ -4,7 +4,7 @@
  */
 
 import { createMemo, createSignal } from "solid-js";
-import { useSignal } from "../react-bridge.js";
+import { useSignal } from "../../react-bridge.js";
 
 export type Screen = "chat" | "settings" | "provider" | "help";
 
