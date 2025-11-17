@@ -6,9 +6,8 @@
 import {
 	currentSession,
 	getCurrentSessionId,
-	get as getSignal,
 	setCurrentSessionId,
-	set as setSignal,
+	setCurrentSession,
 } from "@sylphx/code-client";
 import { createLogger } from "@sylphx/code-core";
 import type { StreamEvent } from "@sylphx/code-server";
@@ -44,7 +43,7 @@ export function handleSessionCreated(
 
 	// IMMUTABLE UPDATE: Create new session with optimistic messages preserved
 	setCurrentSessionId(event.sessionId);
-	setSignal(currentSession, {
+	setCurrentSession( {
 		id: event.sessionId,
 		title: "New Chat",
 		agentId: "coder",
@@ -68,7 +67,7 @@ export function handleSessionDeleted(
 
 	if (event.sessionId === currentSessionId) {
 		setCurrentSessionId(null);
-		setSignal(currentSession, null);
+		setCurrentSession( null);
 		context.addLog(`[Session] Deleted: ${event.sessionId}`);
 	}
 }
@@ -80,9 +79,9 @@ export function handleSessionModelUpdated(
 	const currentSessionId = getCurrentSessionId();
 	const currentSessionValue = currentSession();
 
-	if (event.sessionId === currentSessionId && currentSession) {
-		setSignal(currentSession, {
-			...currentSession,
+	if (event.sessionId === currentSessionId && currentSessionValue) {
+		setCurrentSession({
+			...currentSessionValue,
 			model: event.model,
 		});
 		context.addLog(`[Session] Model updated: ${event.model}`);
@@ -96,9 +95,9 @@ export function handleSessionProviderUpdated(
 	const currentSessionId = getCurrentSessionId();
 	const currentSessionValue = currentSession();
 
-	if (event.sessionId === currentSessionId && currentSession) {
-		setSignal(currentSession, {
-			...currentSession,
+	if (event.sessionId === currentSessionId && currentSessionValue) {
+		setCurrentSession({
+			...currentSessionValue,
 			provider: event.provider,
 			model: event.model,
 		});
@@ -173,7 +172,7 @@ export function handleSessionTokensUpdated(
 	const currentSessionValue = currentSession();
 
 	// Only handle if this is the current session
-	if (event.sessionId !== currentSessionId || !currentSession) {
+	if (event.sessionId !== currentSessionId || !currentSessionValue) {
 		return;
 	}
 
@@ -187,8 +186,8 @@ export function handleSessionTokensUpdated(
 	});
 
 	// Update local state with data from event (no API call needed)
-	setSignal(currentSession, {
-		...currentSession,
+	setCurrentSession({
+		...currentSessionValue,
 		totalTokens: event.totalTokens,
 		baseContextTokens: event.baseContextTokens,
 	});

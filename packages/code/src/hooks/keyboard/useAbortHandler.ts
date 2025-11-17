@@ -5,7 +5,7 @@
  * Single Responsibility: Abort control during streaming and compacting
  */
 
-import { $isCompacting, abortCompact } from "@sylphx/code-client";
+import { isCompacting, abortCompact } from "@sylphx/code-client";
 import { useInput } from "ink";
 import type React from "react";
 
@@ -31,8 +31,8 @@ export function useAbortHandler(options: UseAbortHandlerOptions) {
 			}
 
 			// Check if compacting (highest priority)
-			const isCompacting = get($isCompacting);
-			if (isCompacting) {
+			const isCompactingValue = isCompacting();
+			if (isCompactingValue) {
 				addLog("[abort] Cancelling session compaction...");
 				abortCompact();
 				return true; // Consumed

@@ -6,8 +6,7 @@
 import {
 	currentSession,
 	getCurrentSessionId,
-	get as getSignal,
-	set as setSignal,
+	setCurrentSession,
 } from "@sylphx/code-client";
 import type { MessagePart } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
@@ -65,13 +64,13 @@ export function handleMessageStatusUpdated(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSession = getSignal(currentSession);
+	const currentSessionValue = currentSession();
 
 	context.addLog(`[StreamEvent] Message status updated to: ${event.status}`);
 
 	// Update message status in session (server is source of truth)
-	if (currentSession?.messages.some((m) => m.id === event.messageId)) {
-		const updatedMessages = currentSession.messages.map((msg) =>
+	if (currentSessionValue?.messages.some((m) => m.id === event.messageId)) {
+		const updatedMessages = currentSessionValue.messages.map((msg) =>
 			msg.id === event.messageId
 				? {
 						...msg,
@@ -82,8 +81,8 @@ export function handleMessageStatusUpdated(
 				: msg,
 		);
 
-		setSignal(currentSession, {
-			...currentSession,
+		setCurrentSession({
+			...currentSessionValue,
 			messages: updatedMessages,
 		});
 	}

@@ -126,6 +126,14 @@ export function handleQueueCleared(event: { sessionId: string }): void {
 }
 
 /**
+ * React Hooks
+ */
+export const useSessionQueues = () => {
+	const { useSignal } = require("../../react-bridge.js");
+	return useSignal(sessionQueues);
+};
+
+/**
  * Client Actions
  * These call tRPC mutations which emit events back to all clients
  */

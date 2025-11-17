@@ -7,8 +7,7 @@ import {
 	currentSession,
 	eventBus,
 	getCurrentSessionId,
-	get as getSignal,
-	set as setSignal,
+	setCurrentSession,
 } from "@sylphx/code-client";
 import type { Message, MessagePart } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
@@ -28,24 +27,24 @@ export function handleUserMessageCreated(
 	_context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSession = getSignal(currentSession);
+	const currentSessionValue = currentSession();
 
 	logMessage("User message created:", event.messageId);
 
-	if (!currentSession || currentSession.id !== currentSessionId) {
-		logMessage("Session mismatch! expected:", currentSessionId, "got:", currentSession?.id);
+	if (!currentSessionValue || currentSessionValue.id !== currentSessionId) {
+		logMessage("Session mismatch! expected:", currentSessionId, "got:", currentSessionValue?.id);
 		return;
 	}
 
 	// Check if message already exists (prevent duplicates from multiple event emissions)
-	const messageExists = currentSession.messages.some((m) => m.id === event.messageId);
+	const messageExists = currentSessionValue.messages.some((m) => m.id === event.messageId);
 	if (messageExists) {
 		logMessage("Message already exists, skipping:", event.messageId);
 		return;
 	}
 
 	// Find and replace optimistic message (temp-user-*)
-	const optimisticIndex = currentSession.messages.findIndex(
+	const optimisticIndex = currentSessionValue.messages.findIndex(
 		(m) => m.role === "user" && m.id.startsWith("temp-user-"),
 	);
 
@@ -53,14 +52,14 @@ export function handleUserMessageCreated(
 
 	if (optimisticIndex !== -1) {
 		// Replace optimistic message ID with server's ID
-		updatedMessages = currentSession.messages.map((msg, idx) =>
+		updatedMessages = currentSessionValue.messages.map((msg, idx) =>
 			idx === optimisticIndex ? { ...msg, id: event.messageId } : msg,
 		);
 		logMessage("Replaced optimistic message with server ID:", event.messageId);
 	} else {
 		// No optimistic message found (shouldn't happen), add new message
 		updatedMessages = [
-			...currentSession.messages,
+			...currentSessionValue.messages,
 			{
 				id: event.messageId,
 				role: "user",
@@ -72,8 +71,8 @@ export function handleUserMessageCreated(
 		logMessage("Added user message (no optimistic found), total:", updatedMessages.length);
 	}
 
-	setSignal(currentSession, {
-		...currentSession,
+	setCurrentSession( {
+		...currentSessionValue,
 		messages: updatedMessages,
 	});
 }
@@ -83,7 +82,7 @@ export function handleAssistantMessageCreated(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSession = getSignal(currentSession);
+	const currentSessionValue = currentSession();
 
 	context.streamingMessageIdRef.current = event.messageId;
 	logMessage("Message created:", event.messageId, "session:", currentSessionId);
@@ -99,13 +98,13 @@ export function handleAssistantMessageCreated(
 		});
 	}
 
-	if (!currentSession || currentSession.id !== currentSessionId) {
-		logMessage("Session mismatch! expected:", currentSessionId, "got:", currentSession?.id);
+	if (!currentSessionValue || currentSessionValue.id !== currentSessionId) {
+		logMessage("Session mismatch! expected:", currentSessionId, "got:", currentSessionValue?.id);
 		return;
 	}
 
 	// Check if message already exists (prevent duplicates)
-	const messageExists = currentSession.messages.some((m) => m.id === event.messageId);
+	const messageExists = currentSessionValue.messages.some((m) => m.id === event.messageId);
 	if (messageExists) {
 		logMessage("Message already exists, skipping:", event.messageId);
 		return;
@@ -120,23 +119,23 @@ export function handleAssistantMessageCreated(
 		status: "active",
 	};
 
-	setSignal(currentSession, {
-		...currentSession,
-		messages: [...currentSession.messages, newMessage],
+	setCurrentSession( {
+		...currentSessionValue,
+		messages: [...currentSessionValue.messages, newMessage],
 	});
 
-	logMessage("Added assistant message, total:", currentSession.messages.length + 1);
+	logMessage("Added assistant message, total:", currentSessionValue.messages.length + 1);
 }
 
 export function handleSystemMessageCreated(
 	event: Extract<StreamEvent, { type: "system-message-created" }>,
 	_context: EventHandlerContext,
 ) {
-	const currentSession = getSignal(currentSession);
+	const currentSessionValue = currentSession();
 
 	logMessage("System message created:", event.messageId);
 
-	if (!currentSession) {
+	if (!currentSessionValue) {
 		return;
 	}
 
@@ -146,7 +145,7 @@ export function handleSystemMessageCreated(
 	// we can trust it belongs to the current session.
 
 	// Check if message already exists (prevent duplicates)
-	const messageExists = currentSession.messages?.some((m) => m.id === event.messageId);
+	const messageExists = currentSessionValue.messages?.some((m) => m.id === event.messageId);
 	if (messageExists) {
 		logMessage("System message already exists, skipping:", event.messageId);
 		return;
@@ -161,14 +160,14 @@ export function handleSystemMessageCreated(
 		status: "completed",
 	};
 
-	const updatedMessages = [...currentSession.messages, newMessage];
+	const updatedMessages = [...currentSessionValue.messages, newMessage];
 
-	setSignal(currentSession, {
-		...currentSession,
+	setCurrentSession( {
+		...currentSessionValue,
 		messages: updatedMessages,
 	});
 
-	logMessage("Added system message, total:", currentSession.messages.length + 1);
+	logMessage("Added system message, total:", currentSessionValue.messages.length + 1);
 }
 
 // ============================================================================
@@ -180,7 +179,7 @@ export function handleStepStart(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSession = getSignal(currentSession);
+	const currentSessionValue = currentSession();
 
 	logMessage(
 		"Step started:",
@@ -197,7 +196,7 @@ export function handleStepStart(
 
 	// Create/update steps array in optimistic message
 	if (currentSession && context.streamingMessageIdRef.current) {
-		const updatedMessages = currentSession.messages.map((msg) => {
+		const updatedMessages = currentSessionValue.messages.map((msg) => {
 			if (msg.id !== context.streamingMessageIdRef.current) return msg;
 
 			// Initialize steps array if not exists
@@ -226,8 +225,8 @@ export function handleStepStart(
 			return msg;
 		});
 
-		setSignal(currentSession, {
-			...currentSession,
+		setCurrentSession( {
+			...currentSessionValue,
 			messages: updatedMessages,
 		});
 	}

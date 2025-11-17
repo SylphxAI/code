@@ -2,12 +2,11 @@
  * Hook to access queued messages for current session
  */
 
-import { useStore } from "@sylphx/zen-react";
-import { currentSessionId, sessionQueues } from "@sylphx/code-client";
+import { useCurrentSessionId, useSessionQueues } from "@sylphx/code-client";
 
 export function useQueuedMessages() {
-	const currentSessionId = useStore(currentSessionId);
-	const sessionQueues = useStore(sessionQueues);
+	const currentSessionId = useCurrentSessionId();
+	const sessionQueues = useSessionQueues();
 
 	const queuedMessages = currentSessionId ? sessionQueues[currentSessionId] || [] : [];
 
