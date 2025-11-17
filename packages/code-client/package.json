@@ -1,7 +1,7 @@
 {
 	"name": "@sylphx/code-client",
 	"version": "1.0.0",
-	"description": "Sylphx Code Client - Shared React hooks and components",
+	"description": "Sylphx Code Client - Framework-agnostic signals and utilities",
 	"type": "module",
 	"main": "./src/index.ts",
 	"module": "./src/index.ts",

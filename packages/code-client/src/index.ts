@@ -1,12 +1,14 @@
 /**
  * @sylphx/code-client
- * Shared React code for Web and TUI clients
+ * Framework-agnostic client utilities
  *
  * This package provides:
- * - State management (Zen signals)
- * - React hooks for common operations
+ * - Framework-agnostic state management (signals)
  * - Utility functions
  * - Shared types
+ * - tRPC client setup
+ *
+ * React hooks are now in the TUI package (packages/code/src/hooks/client/)
  */
 
 // ============================================================================
@@ -37,42 +39,9 @@ export {
 	truncateString,
 } from "@sylphx/code-core";
 export type { AppRouter } from "@sylphx/code-server";
-// Core zen exports
-export { computed, get, set, subscribe, zen } from "@sylphx/zen";
+
 // API functions
 export { getLastSession, getRecentSessions } from "./api/sessions.js";
-// ============================================================================
-// React Hooks
-// ============================================================================
-export { useAIConfig as useAIConfigActions } from "./hooks/useAIConfig.js";
-export { useAskToolHandler } from "./hooks/useAskToolHandler.js";
-export { useChat } from "./hooks/useChat.js";
-export { useCurrentSession } from "./hooks/useCurrentSession.js";
-export { useElapsedTime } from "./hooks/useElapsedTime.js";
-export {
-	type EventStreamCallbacks,
-	type UseEventStreamOptions,
-	useEventStream,
-} from "./hooks/useEventStream.js";
-export { useFileAttachments } from "./hooks/useFileAttachments.js";
-export { useKeyboard } from "./hooks/useKeyboard.js";
-export { type MCPStatus, useMCPStatus } from "./hooks/useMCPStatus.js";
-export { useModelDetails } from "./hooks/useModelDetails.js";
-export { useModels } from "./hooks/useModels.js";
-export { useMouse } from "./hooks/useMouse.js";
-export { useProjectFiles } from "./hooks/useProjectFiles.js";
-export { useProviders } from "./hooks/useProviders.js";
-export { useQueuedMessages } from "./hooks/useQueuedMessages.js";
-export { useSessionInitialization } from "./hooks/useSessionInitialization.js";
-export { useSessionList } from "./hooks/useSessionList.js";
-export {
-	type SessionListSyncCallbacks,
-	type UseSessionListSyncOptions,
-	useSessionListSync,
-} from "./hooks/useSessionListSync.js";
-export { useSessionPersistence } from "./hooks/useSessionPersistence.js";
-export { useTokenCalculation } from "./hooks/useTokenCalculation.js";
-export { useTotalTokens } from "./hooks/useTotalTokens.js";
 // Cross-domain computed signals
 export * from "./signals/computed/index.js";
 export * from "./signals/domain/ai/index.js";
