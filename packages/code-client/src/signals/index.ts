@@ -23,9 +23,4 @@ export * from "./events/index.js";
 // All state comes from server via tRPC
 // export * from './persistence';
 
-// DEPRECATED: Legacy zen re-export for backwards compatibility during migration
-// TODO: Remove once all domain signals use solid-js directly
-import { zen } from "@sylphx/zen";
-export { zen };
-
 // Note: useStore is exported by individual domain modules that need it

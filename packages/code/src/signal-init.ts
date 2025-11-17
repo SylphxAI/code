@@ -1,15 +1,14 @@
 /**
  * Signal Initialization
- * Initialize zen signals before React app starts
+ * Initialize SolidJS signals before React app starts
  */
 
-import { initializePersistence } from "@sylphx/code-client/signals";
+// NOTE: Persistence is browser-only (uses localStorage) and disabled for CLI
+// No initialization needed for SolidJS signals - they auto-initialize on import
 
 // Initialize signal persistence and effects
 export const initializeSignals = () => {
-	// Initialize persistence layer first
-	initializePersistence();
-
-	// Initialize effects and event listeners
-	// initializeEffects(); // Will be called later when hooks are ready
+	// No-op: SolidJS signals are initialized automatically on import
+	// Persistence disabled: CLI apps don't use localStorage
+	// Effects initialized via React hooks in App component
 };

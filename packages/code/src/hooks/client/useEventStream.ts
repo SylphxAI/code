@@ -15,9 +15,8 @@
  * - Automatically resubscribes when session changes
  */
 
-import { get as getSignal, set as setSignal } from "@sylphx/zen";
 import { useEffect, useRef } from "react";
-import { currentSessionTRPCClient, setError, useCurrentSessionId } from "@sylphx/code-client";
+import { currentSession, setCurrentSession, getTRPCClient, setError, useCurrentSessionId } from "@sylphx/code-client";
 
 export interface EventStreamCallbacks {
 	// Session events
@@ -185,10 +184,10 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 							// DO NOT call updateSessionTitle() - that would trigger another API call → event loop!
 							// Just update local signals directly
 							if (event.sessionId === currentSessionId) {
-								const currentSession = getSignal(currentSession);
-								if (currentSession && currentSession.id === event.sessionId) {
-									setSignal(currentSession, {
-										...currentSession,
+								const currentSessionValue = currentSession();
+								if (currentSessionValue && currentSessionValue.id === event.sessionId) {
+									setCurrentSession({
+										...currentSessionValue,
 										title: event.title,
 									});
 								}

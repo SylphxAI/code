@@ -3,9 +3,8 @@
  * Lazy loading from zen signals, no extra cache needed
  */
 
-import { aiConfigTRPCClient, setAIConfig } from "@sylphx/code-client";
+import { aiConfig, setAIConfig, getTRPCClient } from "@sylphx/code-client";
 import type { AIConfig, ProviderId } from "@sylphx/code-core";
-import { get } from "@sylphx/zen";
 
 export interface CompletionOption {
 	id: string;

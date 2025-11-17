@@ -10,10 +10,8 @@
  */
 
 import type { Session } from "@sylphx/code-core";
-import { get } from "@sylphx/zen";
 import { useEffect, useRef, useState } from "react";
-import {  eventBus  } from "@sylphx/code-client";
-import { currentSession, isStreamingTRPCClient, setCurrentSession, useCurrentSession as useOptimisticSession, useCurrentSessionId, useIsStreaming } from "@sylphx/code-client";
+import {  eventBus, currentSession, getTRPCClient, isStreaming, setCurrentSession, useCurrentSession as useOptimisticSession, useCurrentSessionId, useIsStreaming  } from "@sylphx/code-client";
 
 export function useCurrentSession() {
 	const currentSessionId = useCurrentSessionId();
