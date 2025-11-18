@@ -43,6 +43,7 @@
 		"clean:all": "rm -rf packages/*/dist packages/*/node_modules node_modules .turbo",
 		"dev:code": "bun --cwd packages/code dev",
 		"dev:server": "bun --cwd packages/code-server dev",
+		"dev:web": "bun --cwd packages/code-web dev",
 		"build:core": "bun --cwd packages/code-core build",
 		"build:server": "bun --cwd packages/code-server build",
 		"build:client": "bun --cwd packages/code-client build",
