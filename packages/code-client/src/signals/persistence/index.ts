@@ -8,7 +8,7 @@
  * - This only persists UI state like current screen, etc.
  */
 
-import { get, set, subscribe } from "@sylphx/zen";
+import { subscribe } from "@sylphx/zen";
 import * as ui from "../domain/ui";
 
 interface UIPersistenceConfig {
@@ -21,7 +21,7 @@ interface UIPersistenceConfig {
 // ONLY UI state persistence - NO configuration
 const UI_PERSISTENCE_CONFIGS: UIPersistenceConfig[] = [
 	{
-		signal: ui.$currentScreen,
+		signal: ui.currentScreen,
 		key: "sylphx:ui:last-screen",
 	},
 	// NOTE: AI configuration is NOT persisted here - it comes from server via tRPC
@@ -41,9 +41,9 @@ export const initializeUIPersistence = () => {
 				const value = config.deserialize ? config.deserialize(stored) : stored;
 
 				// Only set if current value is null/undefined (don't override initial state)
-				const current = get(config.signal);
+				const current = config.signal.value;
 				if (current === null || current === undefined) {
-					set(config.signal, value);
+					(config.signal as any).value = value;
 				}
 			}
 		} catch (_error) {

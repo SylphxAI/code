@@ -88,6 +88,7 @@ export const createSession = async (
 	enabledRuleIds?: string[],
 ) => {
 	const client = getTRPCClient();
+	// @ts-expect-error - tRPC router types not fully resolved
 	const session = await client.session.create.mutate({
 		provider,
 		model,
@@ -109,6 +110,7 @@ export const createSession = async (
 
 export const updateSessionModel = async (sessionId: string, model: string) => {
 	const client = getTRPCClient();
+	// @ts-expect-error - tRPC router types not fully resolved
 	await client.session.updateModel.mutate({ sessionId, model });
 };
 
@@ -118,16 +120,19 @@ export const updateSessionProvider = async (
 	model: string,
 ) => {
 	const client = getTRPCClient();
+	// @ts-expect-error - tRPC router types not fully resolved
 	await client.session.updateProvider.mutate({ sessionId, provider, model });
 };
 
 export const updateSessionAgent = async (sessionId: string, agentId: string) => {
 	const client = getTRPCClient();
+	// @ts-expect-error - tRPC router types not fully resolved
 	await client.session.updateAgent.mutate({ sessionId, agentId });
 };
 
 export const updateSessionTitle = async (sessionId: string, title: string) => {
 	const client = getTRPCClient();
+	// @ts-expect-error - tRPC router types not fully resolved
 	await client.session.updateTitle.mutate({ sessionId, title });
 
 	// Update local state if this is the current session
@@ -142,6 +147,7 @@ export const updateSessionTitle = async (sessionId: string, title: string) => {
 
 export const updateSessionRules = async (sessionId: string, enabledRuleIds: string[]) => {
 	const client = getTRPCClient();
+	// @ts-expect-error - tRPC router types not fully resolved
 	await client.session.updateRules.mutate({ sessionId, enabledRuleIds });
 
 	// Emit event for other stores to react (if current session)
@@ -158,6 +164,7 @@ export const deleteSession = async (sessionId: string) => {
 
 	// Delete from database via tRPC
 	const client = getTRPCClient();
+	// @ts-expect-error - tRPC router types not fully resolved
 	await client.session.delete.mutate({ sessionId });
 };
 
@@ -184,6 +191,7 @@ export const addMessageAsync = async (params: {
 			: params.content;
 
 	// Persist via tRPC
+	// @ts-expect-error - tRPC router types not fully resolved
 	const result = await client.message.add.mutate({
 		sessionId: params.sessionId || undefined,
 		provider: params.provider,

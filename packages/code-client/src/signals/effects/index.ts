@@ -21,6 +21,7 @@ export const initializeEffects = () => {
 		if (currentSessionValue) {
 			emitSessionEvent("session:loaded", { sessionId: currentSessionValue.id });
 		}
+		return undefined;
 	});
 
 	effect(() => {
@@ -28,6 +29,7 @@ export const initializeEffects = () => {
 		emitUIEvent(isStreamingValue ? "loading:started" : "loading:finished", {
 			context: "streaming",
 		});
+		return undefined;
 	});
 
 	// AI domain effects
@@ -36,6 +38,7 @@ export const initializeEffects = () => {
 		if (config) {
 			emitAIEvent("config:loaded", { config });
 		}
+		return undefined;
 	});
 
 	effect(() => {
@@ -43,6 +46,7 @@ export const initializeEffects = () => {
 		if (providerId) {
 			emitAIEvent("provider:selected", { providerId });
 		}
+		return undefined;
 	});
 
 	effect(() => {
@@ -51,6 +55,7 @@ export const initializeEffects = () => {
 		if (providerId && modelId) {
 			emitAIEvent("model:selected", { providerId, modelId: modelId });
 		}
+		return undefined;
 	});
 
 	effect(() => {
@@ -58,6 +63,7 @@ export const initializeEffects = () => {
 		if (error) {
 			emitUIEvent("error:shown", { error });
 		}
+		return undefined;
 	});
 
 	// UI domain effects
@@ -70,6 +76,7 @@ export const initializeEffects = () => {
 				to: currentScreenValue,
 			});
 		}
+		return undefined;
 	});
 
 	// Cross-domain effects
@@ -79,6 +86,7 @@ export const initializeEffects = () => {
 		if (config?.defaultProvider && !ai.selectedProvider.value) {
 			(ai.selectedProvider as any).value = config.defaultProvider;
 		}
+		return undefined;
 	});
 
 	// Auto-select session when config loads
@@ -89,11 +97,13 @@ export const initializeEffects = () => {
 			// Auto-create temp session when config is ready
 			(session.currentSessionId as any).value = "temp-session";
 		}
+		return undefined;
 	});
 
 	// Clean global loading state
 	effect(() => {
 		const loading = ai.isConfigLoading.value;
 		ui.setLoading?.(loading);
+		return undefined;
 	});
 };

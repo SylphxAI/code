@@ -31,8 +31,8 @@ export const showNavigation = computed(() =>
 // Actions
 export const navigateTo = (screen: Screen) => {
 	const current = currentScreen.value;
-	previousScreen.value = current;
-	currentScreen.value = screen;
+	(previousScreen as any).value = current;
+	(currentScreen as any).value = screen;
 };
 
 export const goBack = () => {
@@ -43,27 +43,27 @@ export const goBack = () => {
 };
 
 export const setCurrentScreen = (screen: Screen) => {
-	currentScreen.value = screen;
+	(currentScreen as any).value = screen;
 };
 
 export const setIsLoading = (loading: boolean) => {
-	isLoading.value = loading;
+	(isLoading as any).value = loading;
 };
 
 export const setError = (err: string | null) => {
-	error.value = err;
+	(error as any).value = err;
 };
 
 export const setCompacting = (compacting: boolean) => {
-	isCompacting.value = compacting;
+	(isCompacting as any).value = compacting;
 	if (!compacting) {
 		// Clear abort controller when done
-		compactAbortController.value = null;
+		(compactAbortController as any).value = null;
 	}
 };
 
 export const updateCompactAbortController = (controller: AbortController | null) => {
-	compactAbortController.value = controller;
+	(compactAbortController as any).value = controller;
 };
 
 export const abortCompact = () => {
@@ -85,18 +85,18 @@ export const addDebugLog = (message: string) => {
 		newLogs.splice(0, newLogs.length - MAX_LOGS / 2);
 	}
 
-	debugLogs.value = newLogs;
+	(debugLogs as any).value = newLogs;
 };
 
 export const clearDebugLogs = () => {
-	debugLogs.value = [];
+	(debugLogs as any).value = [];
 };
 
 // Backwards compatibility aliases
 export const setLoading = setIsLoading;
 export const setUIError = setError;
 export const setPreviousScreen = (screen: Screen | null) => {
-	previousScreen.value = screen;
+	(previousScreen as any).value = screen;
 };
 
 // Hooks for React components

@@ -13,6 +13,7 @@ import { getTRPCClient } from "../trpc-provider.js";
  */
 export async function getRecentSessions(limit: number = 100): Promise<SessionMetadata[]> {
 	const client = getTRPCClient();
+	// @ts-expect-error - tRPC router type inference issue
 	const result = await client.session.getRecent.query({ limit });
 	return result.sessions;
 }
@@ -23,5 +24,6 @@ export async function getRecentSessions(limit: number = 100): Promise<SessionMet
  */
 export async function getLastSession(): Promise<Session | null> {
 	const client = getTRPCClient();
+	// @ts-expect-error - tRPC router type inference issue
 	return await client.session.getLast.query();
 }

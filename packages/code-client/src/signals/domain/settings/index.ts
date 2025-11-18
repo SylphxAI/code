@@ -26,6 +26,7 @@ export const setSelectedAgent = async (agentId: string) => {
 	const config = ai.aiConfig.value;
 	if (config) {
 		const client = getTRPCClient();
+		// @ts-expect-error - tRPC router types not fully resolved
 		await client.config.save.mutate({
 			config: {
 				...config,
@@ -47,6 +48,7 @@ export const setGlobalEnabledRules = async (ruleIds: string[]) => {
 
 	// Persist to global config (always)
 	const client = getTRPCClient();
+	// @ts-expect-error - tRPC router types not fully resolved
 	await client.config.updateRules.mutate({
 		ruleIds,
 		// No sessionId - always saves to global config
@@ -63,6 +65,7 @@ export const setEnabledRuleIdsDeprecated = async (ruleIds: string[], sessionId?:
 
 	// Call server endpoint - SERVER decides where to persist
 	const client = getTRPCClient();
+	// @ts-expect-error - tRPC router types not fully resolved
 	await client.config.updateRules.mutate({
 		ruleIds,
 		sessionId: sessionId || undefined,

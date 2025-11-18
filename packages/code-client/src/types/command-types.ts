@@ -3,8 +3,7 @@
  * Shared types for command system (used by hooks)
  */
 
-import type { AIConfig, ProviderId } from "@sylphx/code-core";
-import type { Session } from "../stores/app-store.js";
+import type { AIConfig, ProviderId, Session } from "@sylphx/code-core";
 
 /**
  * Option for selection

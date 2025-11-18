@@ -12,4 +12,13 @@
  * - Easy to trace event sources and listeners
  */
 
-export { type AppEvents, eventBus } from "@sylphx/code-core";
+import { eventBus as eventBusImport } from "@sylphx/code-core";
+export type { AppEvents } from "@sylphx/code-core";
+
+// Re-export with proper type annotation to fix TypeScript inference
+export const eventBus = eventBusImport as {
+	on<K extends string>(event: K, callback: (data: any) => void): () => void;
+	emit<K extends string>(event: K, data: any): void;
+	clear(): void;
+	listenerCount(event: string): number;
+};

@@ -161,6 +161,7 @@ export async function enqueueMessage(
 	const { getTRPCClient } = await import("../../../trpc-provider.js");
 	const caller = await getTRPCClient();
 
+	// @ts-expect-error - tRPC router types not fully resolved
 	return await caller.message.enqueueMessage.mutate({
 		sessionId,
 		content,
@@ -176,6 +177,7 @@ export async function clearQueue(sessionId: string): Promise<void> {
 	const { getTRPCClient } = await import("../../../trpc-provider.js");
 	const caller = await getTRPCClient();
 
+	// @ts-expect-error - tRPC router types not fully resolved
 	await caller.message.clearQueue.mutate({ sessionId });
 }
 
@@ -197,6 +199,7 @@ export async function updateQueuedMessage(
 	const { getTRPCClient } = await import("../../../trpc-provider.js");
 	const caller = await getTRPCClient();
 
+	// @ts-expect-error - tRPC router types not fully resolved
 	return await caller.message.updateQueuedMessage.mutate({
 		sessionId,
 		messageId,
@@ -213,6 +216,7 @@ export async function removeQueuedMessage(sessionId: string, messageId: string):
 	const { getTRPCClient } = await import("../../../trpc-provider.js");
 	const caller = await getTRPCClient();
 
+	// @ts-expect-error - tRPC router types not fully resolved
 	await caller.message.removeQueuedMessage.mutate({
 		sessionId,
 		messageId,

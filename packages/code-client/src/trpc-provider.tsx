@@ -12,6 +12,7 @@ import { type InProcessLinkOptions, inProcessLink } from "./trpc-links/index.js"
 /**
  * tRPC Client type (typed with AppRouter)
  */
+// @ts-expect-error - AppRouter type imported as type-only, but needed at runtime
 export type TypedTRPCClient = ReturnType<typeof createTRPCProxyClient<AppRouter>>;
 
 /**
@@ -59,8 +60,11 @@ export function useTRPCClient(): TypedTRPCClient {
  * Helper: Create in-process tRPC client
  * Zero-overhead communication for embedded server
  */
+// @ts-expect-error - AppRouter type imported as type-only
 export function createInProcessClient(options: InProcessLinkOptions<AppRouter>): TypedTRPCClient {
+	// @ts-expect-error - AppRouter type imported as type-only
 	return createTRPCProxyClient<AppRouter>({
+		// @ts-expect-error - AppRouter type imported as type-only
 		links: [inProcessLink(options)],
 		transformer: superjson,
 	});
@@ -74,6 +78,7 @@ export function createHTTPClient(serverUrl: string): TypedTRPCClient {
 	const { httpBatchLink, httpSubscriptionLink, splitLink } = require("@trpc/client");
 	const { EventSource } = require("eventsource");
 
+	// @ts-expect-error - AppRouter type imported as type-only
 	return createTRPCProxyClient<AppRouter>({
 		links: [
 			splitLink({

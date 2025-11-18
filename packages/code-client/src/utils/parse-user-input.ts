@@ -80,7 +80,7 @@ export function parseUserInput(
 	const fileRegex = /@([^\s]+)/g;
 	let match;
 	while ((match = fileRegex.exec(input)) !== null) {
-		const fileName = match[1];
+		const fileName = match[1] || "";
 		const attachment = attachmentMap.get(fileName);
 		tagMatches.push({
 			index: match.index,
