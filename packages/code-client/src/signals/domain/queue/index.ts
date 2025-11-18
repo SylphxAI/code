@@ -10,8 +10,10 @@
  */
 
 import type { QueuedMessage } from "@sylphx/code-core";
-import type { Accessor } from "solid-js";
 import { zen, computed } from "@sylphx/zen";
+
+// Type for accessor function (zen computed returns reactive value)
+type Accessor<T> = () => T;
 
 /**
  * Per-session queue state

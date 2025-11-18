@@ -75,7 +75,7 @@ export function inProcessLink<TRouter extends AnyRouter>(
 				};
 
 	return () => {
-		return ({ op, next }) => {
+		return ({ op }) => {
 			return observable((observer) => {
 				const { type, path, input } = op;
 

@@ -3,7 +3,7 @@
  * Provides React hooks to consume Zen signals with automatic reactivity
  */
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { subscribe } from "@sylphx/zen";
 
 // zen@3.47.0 has a different type system

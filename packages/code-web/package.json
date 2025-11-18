@@ -1,0 +1,43 @@
+{
+	"name": "@sylphx/code-web",
+	"version": "1.0.0",
+	"description": "Sylphx Code Web - Browser-based UI for AI Development Assistant",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
+		"type-check": "tsc --noEmit",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@sylphx/code-client": "workspace:*",
+		"@sylphx/code-core": "workspace:*",
+		"@sylphx/code-server": "workspace:*",
+		"@sylphx/zen": "3.47.0",
+		"@trpc/client": "^11.7.1",
+		"preact": "^10.24.3",
+		"superjson": "^2.2.5"
+	},
+	"devDependencies": {
+		"@preact/preset-vite": "^2.9.5",
+		"@types/node": "^24.9.2",
+		"typescript": "^5.9.3",
+		"vite": "^6.0.11"
+	},
+	"keywords": [
+		"ai",
+		"code-assistant",
+		"web",
+		"preact",
+		"vite",
+		"typescript"
+	],
+	"author": "SylphxAI",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/SylphxAI/code.git",
+		"directory": "packages/code-web"
+	}
+}

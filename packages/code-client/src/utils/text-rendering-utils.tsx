@@ -32,6 +32,7 @@ export function renderTextWithTags(
 	if (text.length === 0) {
 		// If cursor should be shown at position 0 (empty line with cursor)
 		if (cursorPos === 0 && showCursor) {
+			// @ts-expect-error - React JSX used here, but code-web with Preact JSX causes type errors
 			return <Text inverse> </Text>;
 		}
 		return <Text> </Text>;

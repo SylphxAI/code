@@ -36,6 +36,7 @@ export function TRPCProvider({ client, children }: TRPCProviderProps) {
 	// Initialize global client for Zustand stores (cannot use React Context)
 	_initGlobalClient(client);
 
+	// @ts-expect-error - JSX works with both React and Preact runtimes
 	return <TRPCContext.Provider value={client}>{children}</TRPCContext.Provider>;
 }
 
