@@ -64,10 +64,10 @@ export function useCurrentSession() {
 
 				// Only update store and emit events if not streaming
 				// During streaming, optimistic data is authoritative
-				if (!isStreaming()) {
+				if (!isStreaming.value) {
 					// IMPORTANT: Merge with existing optimistic messages (don't overwrite)
 					// System messages may have been added by events after this query started
-					const currentOptimistic = currentSession();
+					const currentOptimistic = currentSession.value;
 
 					// Always merge if we have optimistic data (even if session IDs don't match)
 					// This handles the case where temp-session → real session transition

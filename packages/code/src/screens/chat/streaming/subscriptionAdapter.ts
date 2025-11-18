@@ -292,9 +292,9 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
 				// Add optimistic message to store (works for both existing and new sessions)
 				// IMPORTANT: Use get() to avoid triggering re-renders during subscription setup
-				const currentSessionValue = currentSession();
+				const currentSessionValue = currentSession.value;
 				const _shouldCreateTempSession =
-					!sessionId || !currentSession || currentSession.id !== sessionId;
+					!sessionId || !currentSessionValue || currentSessionValue.id !== sessionId;
 
 				// IMMUTABLE UPDATE: zen signals need immutable updates to trigger re-renders
 				if (sessionId && currentSessionValue?.id === sessionId) {
@@ -386,18 +386,18 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				// RACE CONDITION FIX: Preserve optimistic messages when transitioning session ID
 				// The session-created event will arrive later, but we need to update now
 				// to ensure useEventStream subscribes to the correct session
-				const currentSessionValue = currentSession();
+				const currentSessionValue = currentSession.value;
 				logSession("Before session transition:", {
 					currentId: currentSessionValue?.id,
-					messageCount: currentSession?.messages?.length || 0,
+					messageCount: currentSessionValue?.messages?.length || 0,
 					newId: result.sessionId,
 				});
 
-				if (currentSession && currentSession.id === "temp-session") {
+				if (currentSessionValue && currentSessionValue.id === "temp-session") {
 					// Transition temp-session → real session while preserving messages
 					logSession("Transitioning temp-session to real session, preserving messages");
 					setCurrentSession( {
-						...currentSession,
+						...currentSessionValue,
 						id: result.sessionId,
 					});
 					setCurrentSessionId(result.sessionId);

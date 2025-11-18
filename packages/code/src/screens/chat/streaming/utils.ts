@@ -24,7 +24,7 @@ export function updateActiveMessageContent(
 	messageId: string | null | undefined,
 	updater: (prev: MessagePart[]) => MessagePart[],
 ) {
-	const session = currentSession();
+	const session = currentSession.value;
 
 	if (!session || session.id !== currentSessionId) {
 		logContent("Session mismatch! expected:", currentSessionId, "got:", session?.id);

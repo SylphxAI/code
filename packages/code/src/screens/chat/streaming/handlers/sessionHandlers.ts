@@ -27,7 +27,7 @@ export function handleSessionCreated(
 	context.addLog(`[Session] Created: ${event.sessionId}`);
 
 	// Get current session state to preserve optimistic messages
-	const currentSessionValue = currentSession();
+	const currentSessionValue = currentSession.value;
 
 	// RACE CONDITION FIX: If the session was already transitioned by subscriptionAdapter
 	// (mutation completed before event arrived), just skip - messages already preserved
@@ -77,7 +77,7 @@ export function handleSessionModelUpdated(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSessionValue = currentSession();
+	const currentSessionValue = currentSession.value;
 
 	if (event.sessionId === currentSessionId && currentSessionValue) {
 		setCurrentSession({
@@ -93,7 +93,7 @@ export function handleSessionProviderUpdated(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSessionValue = currentSession();
+	const currentSessionValue = currentSession.value;
 
 	if (event.sessionId === currentSessionId && currentSessionValue) {
 		setCurrentSession({
@@ -169,7 +169,7 @@ export function handleSessionTokensUpdated(
 	_context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSessionValue = currentSession();
+	const currentSessionValue = currentSession.value;
 
 	// Only handle if this is the current session
 	if (event.sessionId !== currentSessionId || !currentSessionValue) {

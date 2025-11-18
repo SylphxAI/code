@@ -82,7 +82,7 @@ export const providerCommand: Command = {
 		const { get } = await import("@sylphx/code-client");
 		const { getTRPCClient } = await import("@sylphx/code-client");
 		const { aiConfig: aiConfigSignal, updateProvider, setAIConfig } = await import("@sylphx/code-client");
-		const aiConfig = aiConfigSignal();
+		const aiConfig = aiConfigSignal.value;
 
 		// Handle command-line configuration (set/get/show)
 		if (action === "configure" && providerId && subaction) {
@@ -211,7 +211,7 @@ export const providerCommand: Command = {
 
 				// Update current session's provider + model (if exists)
 				const { currentSessionId: currentSessionIdSignal, updateSessionProvider } = await import("@sylphx/code-client");
-				const currentSessionId = currentSessionIdSignal();
+				const currentSessionId = currentSessionIdSignal.value;
 				if (currentSessionId && providerDefaultModel) {
 					await updateSessionProvider(currentSessionId, providerId as any, providerDefaultModel);
 				}
@@ -249,7 +249,7 @@ export const providerCommand: Command = {
 						updateSessionProvider,
 					} = await import("@sylphx/code-client");
 					const { getTRPCClient } = await import("@sylphx/code-client");
-					const freshAiConfig = aiConfig();
+					const freshAiConfig = aiConfig.value;
 
 					// Update zen signal state
 					updateProvider(providerId as any, {});
@@ -314,7 +314,7 @@ export const providerCommand: Command = {
 					}
 
 					// Update current session's provider + model (if exists)
-					const currentSessionId = currentSessionIdSignal();
+					const currentSessionId = currentSessionIdSignal.value;
 					if (currentSessionId && providerDefaultModel) {
 						await updateSessionProvider(currentSessionId, providerId as any, providerDefaultModel);
 					}
@@ -365,7 +365,7 @@ export const providerCommand: Command = {
 					// Save non-secrets using regular config save
 					const { get } = await import("@sylphx/code-client");
 					const { aiConfig, setAIConfig } = await import("@sylphx/code-client");
-					const currentConfig = aiConfig();
+					const currentConfig = aiConfig.value;
 
 					const updatedConfig = {
 						...currentConfig!,

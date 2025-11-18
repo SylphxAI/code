@@ -20,7 +20,7 @@ export interface CompletionOption {
  */
 async function _getAIConfig(): Promise<AIConfig | null> {
 	// Already in zen signal? Return cached (fast!)
-	const currentConfig = aiConfig();
+	const currentConfig = aiConfig.value;
 	if (currentConfig) {
 		return currentConfig;
 	}

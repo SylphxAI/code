@@ -23,8 +23,8 @@ export async function getModelCompletions(partial = ""): Promise<CompletionOptio
 		const trpc = getTRPCClient();
 
 		// Get current provider from session or config
-		const currentSessionValue = currentSession();
-		const config = aiConfig();
+		const currentSessionValue = currentSession.value;
+		const config = aiConfig.value;
 		const currentProviderId = currentSessionValue?.provider || config?.defaultProvider;
 
 		if (!currentProviderId) {

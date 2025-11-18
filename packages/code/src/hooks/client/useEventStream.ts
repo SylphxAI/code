@@ -184,7 +184,7 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 							// DO NOT call updateSessionTitle() - that would trigger another API call → event loop!
 							// Just update local signals directly
 							if (event.sessionId === currentSessionId) {
-								const currentSessionValue = currentSession();
+								const currentSessionValue = currentSession.value;
 								if (currentSessionValue && currentSessionValue.id === event.sessionId) {
 									setCurrentSession({
 										...currentSessionValue,

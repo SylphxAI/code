@@ -27,7 +27,7 @@ export function handleUserMessageCreated(
 	_context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSessionValue = currentSession();
+	const currentSessionValue = currentSession.value;
 
 	logMessage("User message created:", event.messageId);
 
@@ -82,7 +82,7 @@ export function handleAssistantMessageCreated(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSessionValue = currentSession();
+	const currentSessionValue = currentSession.value;
 
 	context.streamingMessageIdRef.current = event.messageId;
 	logMessage("Message created:", event.messageId, "session:", currentSessionId);
@@ -131,7 +131,7 @@ export function handleSystemMessageCreated(
 	event: Extract<StreamEvent, { type: "system-message-created" }>,
 	_context: EventHandlerContext,
 ) {
-	const currentSessionValue = currentSession();
+	const currentSessionValue = currentSession.value;
 
 	logMessage("System message created:", event.messageId);
 
@@ -179,7 +179,7 @@ export function handleStepStart(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSessionValue = currentSession();
+	const currentSessionValue = currentSession.value;
 
 	logMessage(
 		"Step started:",
@@ -195,7 +195,7 @@ export function handleStepStart(
 	);
 
 	// Create/update steps array in optimistic message
-	if (currentSession && context.streamingMessageIdRef.current) {
+	if (currentSessionValue && context.streamingMessageIdRef.current) {
 		const updatedMessages = currentSessionValue.messages.map((msg) => {
 			if (msg.id !== context.streamingMessageIdRef.current) return msg;
 

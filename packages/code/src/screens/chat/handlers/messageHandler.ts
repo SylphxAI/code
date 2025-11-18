@@ -344,7 +344,7 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 		}
 
 		// QUEUE LOGIC: If AI is currently streaming, enqueue the message instead of sending
-		const streamingStatus = isStreaming();
+		const streamingStatus = isStreaming.value;
 		if (streamingStatus) {
 			addLog(`[handleSubmit] AI is streaming, enqueueing message: "${userMessage.substring(0, 50)}..."`);
 

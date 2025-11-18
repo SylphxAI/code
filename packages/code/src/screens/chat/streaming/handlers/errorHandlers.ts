@@ -64,7 +64,7 @@ export function handleMessageStatusUpdated(
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
-	const currentSessionValue = currentSession();
+	const currentSessionValue = currentSession.value;
 
 	context.addLog(`[StreamEvent] Message status updated to: ${event.status}`);
 

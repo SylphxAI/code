@@ -37,8 +37,8 @@ export const modelCommand: Command = {
 		// If arg provided, switch directly
 		if (context.args.length > 0) {
 			const modelId = context.args[0];
-			const currentSession = currentSessionSignal();
-			const aiConfig = aiConfigSignal();
+			const currentSession = currentSessionSignal.value;
+			const aiConfig = aiConfigSignal.value;
 			const provider = currentSession?.provider || aiConfig?.defaultProvider;
 
 			if (!provider) {
@@ -87,7 +87,7 @@ export const modelCommand: Command = {
 			await context.saveConfig(newConfig);
 
 			// Update current session's model (preserve history)
-			const currentSessionId = currentSessionIdSignal();
+			const currentSessionId = currentSessionIdSignal.value;
 			if (currentSessionId) {
 				await updateSessionModel(currentSessionId, modelId);
 			}
@@ -97,9 +97,9 @@ export const modelCommand: Command = {
 
 		// No args - show model selection UI
 		// Get current session's provider or selected provider from zen signals
-		const currentSession = currentSessionSignal();
-		const selectedProvider = selectedProviderSignal();
-		const aiConfig = aiConfigSignal();
+		const currentSession = currentSessionSignal.value;
+		const selectedProvider = selectedProviderSignal.value;
+		const aiConfig = aiConfigSignal.value;
 		const currentProviderId =
 			currentSession?.provider || selectedProvider || aiConfig?.defaultProvider;
 
@@ -133,8 +133,8 @@ export const modelCommand: Command = {
 					const { aiConfig, currentSessionId, setAIConfig, updateSessionModel } = await import(
 						"@sylphx/code-client"
 					);
-					const freshAIConfig = aiConfig();
-					const freshCurrentSessionId = currentSessionId();
+					const freshAIConfig = aiConfig.value;
+					const freshCurrentSessionId = currentSessionId.value;
 
 					// Update model and save to provider config
 					const newConfig = {
