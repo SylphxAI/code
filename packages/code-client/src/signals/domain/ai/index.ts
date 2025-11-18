@@ -4,51 +4,58 @@
  */
 
 import type { AIConfig } from "@sylphx/code-core";
-import { createMemo, createSignal } from "solid-js";
-import { useSignal } from "../../react-bridge.js";
+import { zen, computed } from "@sylphx/zen";
+import { useZen } from "../../react-bridge.js";
 
 // Core AI signals
-export const [aiConfig, setAiConfig] = createSignal<AIConfig | null>(null);
-export const [isConfigLoading, setIsConfigLoading] = createSignal(false);
-export const [configError, setConfigError] = createSignal<string | null>(null);
-export const [selectedProvider, setSelectedProvider] = createSignal<string | null>(null);
-export const [selectedModel, setSelectedModel] = createSignal<string | null>(null);
+export const aiConfig = zen<AIConfig | null>(null);
+export const isConfigLoading = zen(false);
+export const configError = zen<string | null>(null);
+export const selectedProvider = zen<string | null>(null);
+export const selectedModel = zen<string | null>(null);
 
 // Computed signals
-export const hasConfig = createMemo(() => aiConfig() !== null);
-export const defaultProvider = createMemo(() => aiConfig()?.defaultProvider || null);
-export const availableProviders = createMemo(() => Object.keys(aiConfig()?.providers || {}));
+export const hasConfig = computed(() => aiConfig.value !== null);
+export const defaultProvider = computed(() => aiConfig.value?.defaultProvider || null);
+export const availableProviders = computed(() => Object.keys(aiConfig.value?.providers || {}));
 
-export const providerModels = createMemo(() => {
-	const config = aiConfig();
-	const providerId = selectedProvider();
+export const providerModels = computed(() => {
+	const config = aiConfig.value;
+	const providerId = selectedProvider.value;
 	if (!config || !providerId) return [];
 	return config.providers?.[providerId]?.models || [];
 });
 
-export const selectedModelConfig = createMemo(() => {
-	const config = aiConfig();
-	const providerId = selectedProvider();
-	const modelId = selectedModel();
+export const selectedModelConfig = computed(() => {
+	const config = aiConfig.value;
+	const providerId = selectedProvider.value;
+	const modelId = selectedModel.value;
 	if (!config || !providerId || !modelId) return null;
 	return config.providers?.[providerId]?.models?.find((m: any) => m.id === modelId) || null;
 });
 
+// Setter functions for backwards compatibility
+export const setAiConfig = (value: AIConfig | null) => { (aiConfig as any).value = value };
+export const setIsConfigLoading = (value: boolean) => { (isConfigLoading as any).value = value };
+export const setConfigError = (value: string | null) => { (configError as any).value = value };
+export const setSelectedProvider = (value: string | null) => { (selectedProvider as any).value = value };
+export const setSelectedModel = (value: string | null) => { (selectedModel as any).value = value };
+
 // Actions
 export const setAIConfig = (config: AIConfig | null) => {
-	setAiConfig(config);
+	(aiConfig as any).value = config;
 
 	// Update selected provider and model when config loads
 	if (config) {
 		if (config.defaultProvider) {
-			setSelectedProvider(config.defaultProvider);
+			(selectedProvider as any).value = config.defaultProvider;
 		}
 
 		// Set selected model from default provider
 		if (config.defaultProvider && config.providers?.[config.defaultProvider]) {
 			const providerConfig = config.providers[config.defaultProvider];
 			if (providerConfig.defaultModel) {
-				setSelectedModel(providerConfig.defaultModel);
+				(selectedModel as any).value = providerConfig.defaultModel;
 			}
 		}
 
@@ -66,10 +73,10 @@ export const setAIConfig = (config: AIConfig | null) => {
 };
 
 export const updateProvider = (providerId: string, data: any) => {
-	const config = aiConfig();
+	const config = aiConfig.value;
 	if (!config) return;
 
-	setAiConfig({
+	(aiConfig as any).value = {
 		...config,
 		providers: {
 			...config.providers,
@@ -78,42 +85,42 @@ export const updateProvider = (providerId: string, data: any) => {
 				...data,
 			},
 		},
-	});
+	};
 };
 
 export const removeProvider = (providerId: string) => {
-	const config = aiConfig();
+	const config = aiConfig.value;
 	if (!config) return;
 
 	const providers = { ...config.providers };
 	delete providers[providerId];
 
-	setAiConfig({
+	(aiConfig as any).value = {
 		...config,
 		providers,
 		defaultProvider: config.defaultProvider === providerId ? undefined : config.defaultProvider,
-	});
+	};
 };
 
 export const selectProvider = (providerId: string | null) => {
-	setSelectedProvider(providerId);
+	(selectedProvider as any).value = providerId;
 	// Reset selected model when provider changes
-	setSelectedModel(null);
+	(selectedModel as any).value = null;
 };
 
 export const selectModel = (modelId: string | null) => {
-	setSelectedModel(modelId);
+	(selectedModel as any).value = modelId;
 };
 
-export const setAIConfigLoading = (loading: boolean) => setIsConfigLoading(loading);
-export const setAIConfigError = (error: string | null) => setConfigError(error);
+export const setAIConfigLoading = (loading: boolean) => { (isConfigLoading as any).value = loading };
+export const setAIConfigError = (error: string | null) => { (configError as any).value = error };
 
 // Hooks for React components
-export const useAIConfig = () => useSignal(aiConfig);
-export const useHasAIConfig = () => useSignal(hasConfig);
-export const useSelectedProvider = () => useSignal(selectedProvider);
-export const useSelectedModel = () => useSignal(selectedModel);
-export const useAvailableProviders = () => useSignal(availableProviders);
-export const useProviderModels = () => useSignal(providerModels);
-export const useSelectedModelConfig = () => useSignal(selectedModelConfig);
-export const useIsConfigLoading = () => useSignal(isConfigLoading);
+export const useAIConfig = () => useZen(aiConfig);
+export const useHasAIConfig = () => useZen(hasConfig);
+export const useSelectedProvider = () => useZen(selectedProvider);
+export const useSelectedModel = () => useZen(selectedModel);
+export const useAvailableProviders = () => useZen(availableProviders);
+export const useProviderModels = () => useZen(providerModels);
+export const useSelectedModelConfig = () => useZen(selectedModelConfig);
+export const useIsConfigLoading = () => useZen(isConfigLoading);

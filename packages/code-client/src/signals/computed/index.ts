@@ -3,41 +3,41 @@
  * Combines signals from different domains for derived state
  */
 
-import { createMemo } from "solid-js";
-import { useSignal } from "../react-bridge.js";
+import { computed } from "@sylphx/zen";
+import { useZen } from "../react-bridge.js";
 import * as ai from "../domain/ai/index.js";
 import * as session from "../domain/session/index.js";
 import * as ui from "../domain/ui/index.js";
 
 // App readiness computed signal
-export const isAppReady = createMemo(() => ai.hasConfig() && session.hasCurrentSession());
+export const isAppReady = computed(() => ai.hasConfig.value && session.hasCurrentSession.value);
 
 // Chat availability computed signal
-export const canStartChat = createMemo(() => {
-	return ai.hasConfig() && session.currentSessionId() !== null && ui.currentScreen() === "chat";
+export const canStartChat = computed(() => {
+	return ai.hasConfig.value && session.currentSessionId.value !== null && ui.currentScreen.value === "chat";
 });
 
 // Active provider configuration
-export const activeProviderConfig = createMemo(() => {
-	const config = ai.aiConfig();
-	const providerId = ai.selectedProvider();
+export const activeProviderConfig = computed(() => {
+	const config = ai.aiConfig.value;
+	const providerId = ai.selectedProvider.value;
 	if (!config || !providerId) return null;
 	return config.providers?.[providerId] || null;
 });
 
 // Current model configuration
-export const currentModelConfig = createMemo(() => {
-	const config = ai.aiConfig();
-	const providerId = ai.selectedProvider();
-	const modelId = ai.selectedModel();
+export const currentModelConfig = computed(() => {
+	const config = ai.aiConfig.value;
+	const providerId = ai.selectedProvider.value;
+	const modelId = ai.selectedModel.value;
 	if (!config || !providerId || !modelId) return null;
 	return config.providers?.[providerId]?.models?.find((m: any) => m.id === modelId) || null;
 });
 
 // Session context for AI requests
-export const sessionContext = createMemo(() => {
-	const currentSession = session.currentSession();
-	const messages = session.messages();
+export const sessionContext = computed(() => {
+	const currentSession = session.currentSession.value;
+	const messages = session.messages.value;
 	return {
 		sessionId: currentSession?.id,
 		messageCount: messages.length,
@@ -46,21 +46,21 @@ export const sessionContext = createMemo(() => {
 });
 
 // UI state combined with loading states
-export const isAnyLoading = createMemo(
-	() => ai.isConfigLoading() || session.sessionsLoading() || ui.isLoading(),
+export const isAnyLoading = computed(
+	() => ai.isConfigLoading.value || session.sessionsLoading.value || ui.isLoading.value,
 );
 
 // Error state aggregation
-export const hasAnyError = createMemo(() => !!(ui.error() || ai.configError()));
+export const hasAnyError = computed(() => !!(ui.error.value || ai.configError.value));
 
-export const firstError = createMemo(() => ui.error() || ai.configError() || null);
+export const firstError = computed(() => ui.error.value || ai.configError.value || null);
 
 // Hooks for React components
-export const useIsAppReady = () => useSignal(isAppReady);
-export const useCanStartChat = () => useSignal(canStartChat);
-export const useActiveProviderConfig = () => useSignal(activeProviderConfig);
-export const useCurrentModelConfig = () => useSignal(currentModelConfig);
-export const useSessionContext = () => useSignal(sessionContext);
-export const useIsAnyLoading = () => useSignal(isAnyLoading);
-export const useHasAnyError = () => useSignal(hasAnyError);
-export const useFirstError = () => useSignal(firstError);
+export const useIsAppReady = () => useZen(isAppReady);
+export const useCanStartChat = () => useZen(canStartChat);
+export const useActiveProviderConfig = () => useZen(activeProviderConfig);
+export const useCurrentModelConfig = () => useZen(currentModelConfig);
+export const useSessionContext = () => useZen(sessionContext);
+export const useIsAnyLoading = () => useZen(isAnyLoading);
+export const useHasAnyError = () => useZen(hasAnyError);
+export const useFirstError = () => useZen(firstError);

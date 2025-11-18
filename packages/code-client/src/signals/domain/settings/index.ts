@@ -3,23 +3,27 @@
  * Manages user settings (agent selection, enabled rules)
  */
 
-import { createSignal } from "solid-js";
-import { useSignal } from "../../react-bridge.js";
+import { zen } from "@sylphx/zen";
+import { useZen } from "../../react-bridge.js";
 import { eventBus } from "../../../lib/event-bus.js";
 import { getTRPCClient } from "../../../trpc-provider.js";
 import * as ai from "../ai/index.js";
 
 // Core settings signals
-export const [selectedAgentId, setSelectedAgentId] = createSignal<string>("coder");
-export const [enabledRuleIds, setEnabledRuleIds] = createSignal<string[]>([]);
+export const selectedAgentId = zen<string>("coder");
+export const enabledRuleIds = zen<string[]>([]);
+
+// Setter functions for backwards compatibility
+export const setSelectedAgentId = (value: string) => { (selectedAgentId as any).value = value };
+export const setEnabledRuleIds = (value: string[]) => { (enabledRuleIds as any).value = value };
 
 // Actions
 export const setSelectedAgent = async (agentId: string) => {
 	// Update client state immediately (optimistic)
-	setSelectedAgentId(agentId);
+	(selectedAgentId as any).value = agentId;
 
 	// Persist to global config (remember last selected agent)
-	const config = ai.aiConfig();
+	const config = ai.aiConfig.value;
 	if (config) {
 		const client = getTRPCClient();
 		await client.config.save.mutate({
@@ -30,16 +34,16 @@ export const setSelectedAgent = async (agentId: string) => {
 		});
 
 		// Update AI config cache
-		ai.setAiConfig({
+		(ai.aiConfig as any).value = {
 			...config,
 			defaultAgentId: agentId,
-		});
+		};
 	}
 };
 
 export const setGlobalEnabledRules = async (ruleIds: string[]) => {
 	// Update client state immediately (optimistic)
-	setEnabledRuleIds(ruleIds);
+	(enabledRuleIds as any).value = ruleIds;
 
 	// Persist to global config (always)
 	const client = getTRPCClient();
@@ -55,7 +59,7 @@ export const setGlobalEnabledRules = async (ruleIds: string[]) => {
  */
 export const setEnabledRuleIdsDeprecated = async (ruleIds: string[], sessionId?: string | null) => {
 	// Update client state immediately (optimistic)
-	setEnabledRuleIds(ruleIds);
+	(enabledRuleIds as any).value = ruleIds;
 
 	// Call server endpoint - SERVER decides where to persist
 	const client = getTRPCClient();
@@ -66,28 +70,28 @@ export const setEnabledRuleIdsDeprecated = async (ruleIds: string[], sessionId?:
 };
 
 // Hooks for React components
-export const useSelectedAgentId = () => useSignal(selectedAgentId);
-export const useEnabledRuleIds = () => useSignal(enabledRuleIds);
+export const useSelectedAgentId = () => useZen(selectedAgentId);
+export const useEnabledRuleIds = () => useZen(enabledRuleIds);
 
 // Setup event listeners
 eventBus.on("session:changed", ({ sessionId }: { sessionId: string | null }) => {
 	// Clear enabled rules when no session
 	if (!sessionId) {
-		setEnabledRuleIds([]);
+		(enabledRuleIds as any).value = [];
 	}
 });
 
 eventBus.on("session:created", ({ enabledRuleIds: ruleIds }: { enabledRuleIds: string[] }) => {
 	// Update settings with new session's rules
-	setEnabledRuleIds(ruleIds);
+	(enabledRuleIds as any).value = ruleIds;
 });
 
 eventBus.on("session:loaded", ({ enabledRuleIds: ruleIds }: { enabledRuleIds: string[] }) => {
 	// Update settings when session loaded from server
-	setEnabledRuleIds(ruleIds);
+	(enabledRuleIds as any).value = ruleIds;
 });
 
 eventBus.on("session:rulesUpdated", ({ enabledRuleIds: ruleIds }: { enabledRuleIds: string[] }) => {
 	// Update settings when current session's rules change
-	setEnabledRuleIds(ruleIds);
+	(enabledRuleIds as any).value = ruleIds;
 });

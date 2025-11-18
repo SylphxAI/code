@@ -3,7 +3,7 @@
  * Handles side effects and cross-domain communication
  */
 
-import { createEffect, onCleanup } from "solid-js";
+import { effect } from "@sylphx/zen";
 import * as ai from "../domain/ai";
 import * as session from "../domain/session";
 import * as ui from "../domain/ui";
@@ -16,54 +16,54 @@ export const initializeEffects = () => {
 	initialized = true;
 
 	// Session domain effects
-	createEffect(() => {
-		const currentSessionValue = session.currentSession();
+	effect(() => {
+		const currentSessionValue = session.currentSession.value;
 		if (currentSessionValue) {
 			emitSessionEvent("session:loaded", { sessionId: currentSessionValue.id });
 		}
 	});
 
-	createEffect(() => {
-		const isStreamingValue = session.isStreaming();
+	effect(() => {
+		const isStreamingValue = session.isStreaming.value;
 		emitUIEvent(isStreamingValue ? "loading:started" : "loading:finished", {
 			context: "streaming",
 		});
 	});
 
 	// AI domain effects
-	createEffect(() => {
-		const config = ai.aiConfig();
+	effect(() => {
+		const config = ai.aiConfig.value;
 		if (config) {
 			emitAIEvent("config:loaded", { config });
 		}
 	});
 
-	createEffect(() => {
-		const providerId = ai.selectedProvider();
+	effect(() => {
+		const providerId = ai.selectedProvider.value;
 		if (providerId) {
 			emitAIEvent("provider:selected", { providerId });
 		}
 	});
 
-	createEffect(() => {
-		const providerId = ai.selectedProvider();
-		const modelId = ai.selectedModel();
+	effect(() => {
+		const providerId = ai.selectedProvider.value;
+		const modelId = ai.selectedModel.value;
 		if (providerId && modelId) {
 			emitAIEvent("model:selected", { providerId, modelId: modelId });
 		}
 	});
 
-	createEffect(() => {
-		const error = ai.configError();
+	effect(() => {
+		const error = ai.configError.value;
 		if (error) {
 			emitUIEvent("error:shown", { error });
 		}
 	});
 
 	// UI domain effects
-	createEffect(() => {
-		const currentScreenValue = ui.currentScreen();
-		const previousScreenValue = ui.previousScreen();
+	effect(() => {
+		const currentScreenValue = ui.currentScreen.value;
+		const previousScreenValue = ui.previousScreen.value;
 		if (previousScreenValue && previousScreenValue !== currentScreenValue) {
 			emitUIEvent("navigation:changed", {
 				from: previousScreenValue,
@@ -73,32 +73,27 @@ export const initializeEffects = () => {
 	});
 
 	// Cross-domain effects
-	createEffect(() => {
-		const config = ai.aiConfig();
+	effect(() => {
+		const config = ai.aiConfig.value;
 		// When AI config loads, set default provider if not already set
-		if (config?.defaultProvider && !ai.selectedProvider()) {
-			ai.setSelectedProvider(config.defaultProvider);
+		if (config?.defaultProvider && !ai.selectedProvider.value) {
+			(ai.selectedProvider as any).value = config.defaultProvider;
 		}
 	});
 
 	// Auto-select session when config loads
-	createEffect(() => {
-		const config = ai.aiConfig();
-		const currentSessionId = session.currentSessionId();
+	effect(() => {
+		const config = ai.aiConfig.value;
+		const currentSessionId = session.currentSessionId.value;
 		if (config && !currentSessionId) {
 			// Auto-create temp session when config is ready
-			session.setCurrentSessionId("temp-session");
+			(session.currentSessionId as any).value = "temp-session";
 		}
 	});
 
 	// Clean global loading state
-	createEffect(() => {
-		const loading = ai.isConfigLoading();
+	effect(() => {
+		const loading = ai.isConfigLoading.value;
 		ui.setLoading?.(loading);
-	});
-
-	// SolidJS cleanup is handled automatically
-	onCleanup(() => {
-		// Effects are automatically disposed
 	});
 };

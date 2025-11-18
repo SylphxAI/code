@@ -3,61 +3,71 @@
  * Manages UI state across the application
  */
 
-import { createMemo, createSignal } from "solid-js";
-import { useSignal } from "../../react-bridge.js";
+import { zen, computed } from "@sylphx/zen";
+import { useZen } from "../../react-bridge.js";
 
 export type Screen = "chat" | "settings" | "provider" | "help";
 
 // Core UI signals
-export const [currentScreen, setCurrentScreen] = createSignal<Screen>("chat");
-export const [previousScreen, setPreviousScreen] = createSignal<Screen | null>(null);
-export const [isLoading, setIsLoading] = createSignal(false);
-export const [error, setError] = createSignal<string | null>(null);
-export const [debugLogs, setDebugLogs] = createSignal<string[]>([]);
+export const currentScreen = zen<Screen>("chat");
+export const previousScreen = zen<Screen | null>(null);
+export const isLoading = zen(false);
+export const error = zen<string | null>(null);
+export const debugLogs = zen<string[]>([]);
 
 // Compacting state (for /compact command)
-export const [isCompacting, setIsCompacting] = createSignal(false);
-export const [compactAbortController, setCompactAbortController] =
-	createSignal<AbortController | null>(null);
+export const isCompacting = zen(false);
+export const compactAbortController = zen<AbortController | null>(null);
 
 // Computed signals
-export const canGoBack = createMemo(
-	() => currentScreen() !== "chat" && previousScreen() !== null,
+export const canGoBack = computed(
+	() => currentScreen.value !== "chat" && previousScreen.value !== null,
 );
 
-export const showNavigation = createMemo(() => ["chat", "settings"].includes(currentScreen()));
+export const showNavigation = computed(() =>
+	["chat", "settings"].includes(currentScreen.value),
+);
 
 // Actions
 export const navigateTo = (screen: Screen) => {
-	const current = currentScreen();
-	setPreviousScreen(current);
-	setCurrentScreen(screen);
+	const current = currentScreen.value;
+	previousScreen.value = current;
+	currentScreen.value = screen;
 };
 
 export const goBack = () => {
-	const previous = previousScreen();
+	const previous = previousScreen.value;
 	if (previous) {
 		navigateTo(previous);
 	}
 };
 
-export const setLoading = (loading: boolean) => setIsLoading(loading);
-export const setUIError = (err: string | null) => setError(err);
+export const setCurrentScreen = (screen: Screen) => {
+	currentScreen.value = screen;
+};
+
+export const setIsLoading = (loading: boolean) => {
+	isLoading.value = loading;
+};
+
+export const setError = (err: string | null) => {
+	error.value = err;
+};
 
 export const setCompacting = (compacting: boolean) => {
-	setIsCompacting(compacting);
+	isCompacting.value = compacting;
 	if (!compacting) {
 		// Clear abort controller when done
-		setCompactAbortController(null);
+		compactAbortController.value = null;
 	}
 };
 
 export const updateCompactAbortController = (controller: AbortController | null) => {
-	setCompactAbortController(controller);
+	compactAbortController.value = controller;
 };
 
 export const abortCompact = () => {
-	const controller = compactAbortController();
+	const controller = compactAbortController.value;
 	if (controller) {
 		controller.abort();
 		setCompacting(false);
@@ -66,7 +76,7 @@ export const abortCompact = () => {
 
 export const addDebugLog = (message: string) => {
 	const timestamp = new Date().toLocaleTimeString();
-	const logs = debugLogs() || [];
+	const logs = debugLogs.value || [];
 	const newLogs = [...logs, `[${timestamp}] ${message}`];
 
 	// Keep only last 500 logs
@@ -75,16 +85,25 @@ export const addDebugLog = (message: string) => {
 		newLogs.splice(0, newLogs.length - MAX_LOGS / 2);
 	}
 
-	setDebugLogs(newLogs);
+	debugLogs.value = newLogs;
 };
 
-export const clearDebugLogs = () => setDebugLogs([]);
+export const clearDebugLogs = () => {
+	debugLogs.value = [];
+};
+
+// Backwards compatibility aliases
+export const setLoading = setIsLoading;
+export const setUIError = setError;
+export const setPreviousScreen = (screen: Screen | null) => {
+	previousScreen.value = screen;
+};
 
 // Hooks for React components
-export const useCurrentScreen = () => useSignal(currentScreen);
-export const useCanGoBack = () => useSignal(canGoBack);
-export const useIsLoading = () => useSignal(isLoading);
-export const useUIError = () => useSignal(error);
-export const useShowNavigation = () => useSignal(showNavigation);
-export const useDebugLogs = () => useSignal(debugLogs);
-export const useIsCompacting = () => useSignal(isCompacting);
+export const useCurrentScreen = () => useZen(currentScreen);
+export const useCanGoBack = () => useZen(canGoBack);
+export const useIsLoading = () => useZen(isLoading);
+export const useUIError = () => useZen(error);
+export const useShowNavigation = () => useZen(showNavigation);
+export const useDebugLogs = () => useZen(debugLogs);
+export const useIsCompacting = () => useZen(isCompacting);

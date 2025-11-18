@@ -4,71 +4,81 @@
  */
 
 import type { ProviderId, Session, SessionMessage } from "@sylphx/code-core";
-import { createMemo, createSignal } from "solid-js";
-import { useSignal } from "../../react-bridge.js";
+import { zen, computed } from "@sylphx/zen";
+import { useZen } from "../../react-bridge.js";
 import { eventBus } from "../../../lib/event-bus.js";
 import { getTRPCClient } from "../../../trpc-provider.js";
 
 // Core session signals
-export const [currentSessionId, setCurrentSessionId] = createSignal<string | null>(null);
-export const [currentSession, setCurrentSession] = createSignal<Session | null>(null);
-export const [isStreaming, setIsStreaming] = createSignal(false);
-export const [streamingMessageId, setStreamingMessageId] = createSignal<string | null>(null);
+export const currentSessionId = zen<string | null>(null);
+export const currentSession = zen<Session | null>(null);
+export const isStreaming = zen(false);
+export const streamingMessageId = zen<string | null>(null);
 
 // Message management
-export const [messages, setMessages] = createSignal<SessionMessage[]>([]);
+export const messages = zen<SessionMessage[]>([]);
 export const messageLimit = 100;
 
 // Session list
-export const [recentSessions, setRecentSessions] = createSignal<Session[]>([]);
-export const [sessionsLoading, setSessionsLoading] = createSignal(false);
+export const recentSessions = zen<Session[]>([]);
+export const sessionsLoading = zen(false);
 
 // Computed signals
-export const hasCurrentSession = createMemo(() => currentSessionId() !== null);
-export const currentSessionTitle = createMemo(() => currentSession()?.title || "New Chat");
-export const messageCount = createMemo(() => messages().length);
-export const lastMessage = createMemo(() => {
-	const msgs = messages();
+export const hasCurrentSession = computed(() => currentSessionId.value !== null);
+export const currentSessionTitle = computed(() => currentSession.value?.title || "New Chat");
+export const messageCount = computed(() => messages.value.length);
+export const lastMessage = computed(() => {
+	const msgs = messages.value;
 	return msgs[msgs.length - 1] || null;
 });
-export const hasMessages = createMemo(() => messages().length > 0);
+export const hasMessages = computed(() => messages.value.length > 0);
+
+// Setter functions for backwards compatibility
+export const setCurrentSessionId = (value: string | null) => { (currentSessionId as any).value = value };
+export const setCurrentSession = (value: Session | null) => { (currentSession as any).value = value };
+export const setIsStreaming = (value: boolean) => { (isStreaming as any).value = value };
+export const setStreamingMessageId = (value: string | null) => { (streamingMessageId as any).value = value };
+export const setMessages = (value: SessionMessage[]) => { (messages as any).value = value };
+export const setRecentSessions = (value: Session[]) => { (recentSessions as any).value = value };
+export const setSessionsLoading = (value: boolean) => { (sessionsLoading as any).value = value };
 
 // Actions
-export const getCurrentSessionId = () => currentSessionId();
+export const getCurrentSessionId = () => currentSessionId.value;
 
 export const updateCurrentSession = (session: Session | null) => {
-	setCurrentSession(session);
+	(currentSession as any).value = session;
 	if (session) {
-		setCurrentSessionId(session.id);
+		(currentSessionId as any).value = session.id;
 	}
 };
 
-export const updateStreamingStatus = (streaming: boolean) => setIsStreaming(streaming);
-export const updateStreamingMessageId = (messageId: string | null) =>
-	setStreamingMessageId(messageId);
+export const updateStreamingStatus = (streaming: boolean) => { (isStreaming as any).value = streaming };
+export const updateStreamingMessageId = (messageId: string | null) => {
+	(streamingMessageId as any).value = messageId;
+};
 
 export const addMessage = (message: SessionMessage) => {
-	const msgs = messages();
-	setMessages([...msgs, message]);
+	const msgs = messages.value;
+	(messages as any).value = [...msgs, message];
 };
 
 export const addMessages = (newMessages: SessionMessage[]) => {
-	const msgs = messages();
+	const msgs = messages.value;
 	const allMessages = [...msgs, ...newMessages];
 
 	// Keep only last N messages
-	setMessages(allMessages.slice(-messageLimit));
+	(messages as any).value = allMessages.slice(-messageLimit);
 };
 
 export const updateMessage = (messageId: string, updates: Partial<SessionMessage>) => {
-	const msgs = messages();
-	setMessages(msgs.map((msg) => (msg.id === messageId ? { ...msg, ...updates } : msg)));
+	const msgs = messages.value;
+	(messages as any).value = msgs.map((msg) => (msg.id === messageId ? { ...msg, ...updates} : msg));
 };
 
-export const clearMessages = () => setMessages([]);
+export const clearMessages = () => { (messages as any).value = [] };
 
-export const updateRecentSessions = (sessions: Session[]) => setRecentSessions(sessions);
-export const updateSessionsLoading = (loading: boolean) => setSessionsLoading(loading);
+export const updateRecentSessions = (sessions: Session[]) => { (recentSessions as any).value = sessions };
+export const updateSessionsLoading = (loading: boolean) => { (sessionsLoading as any).value = loading };
 
 // Session CRUD operations (async, server-side)
 export const createSession = async (
@@ -121,7 +131,7 @@ export const updateSessionTitle = async (sessionId: string, title: string) => {
 	await client.session.updateTitle.mutate({ sessionId, title });
 
 	// Update local state if this is the current session
-	const session = currentSession();
+	const session = currentSession.value;
 	if (session && session.id === sessionId) {
 		updateCurrentSession({
 			...session,
@@ -135,15 +145,15 @@ export const updateSessionRules = async (sessionId: string, enabledRuleIds: stri
 	await client.session.updateRules.mutate({ sessionId, enabledRuleIds });
 
 	// Emit event for other stores to react (if current session)
-	if (currentSessionId() === sessionId) {
+	if (currentSessionId.value === sessionId) {
 		eventBus.emit("session:rulesUpdated", { sessionId, enabledRuleIds });
 	}
 };
 
 export const deleteSession = async (sessionId: string) => {
 	// Clear if it's the current session
-	if (currentSessionId() === sessionId) {
-		setCurrentSessionId(null);
+	if (currentSessionId.value === sessionId) {
+		(currentSessionId as any).value = null;
 	}
 
 	// Delete from database via tRPC
@@ -192,14 +202,14 @@ export const addMessageAsync = async (params: {
 };
 
 // Hooks for React components
-export const useCurrentSessionId = () => useSignal(currentSessionId);
-export const useCurrentSession = () => useSignal(currentSession);
-export const useIsStreaming = () => useSignal(isStreaming);
-export const useMessages = () => useSignal(messages);
-export const useMessageCount = () => useSignal(messageCount);
-export const useLastMessage = () => useSignal(lastMessage);
-export const useHasCurrentSession = () => useSignal(hasCurrentSession);
-export const useCurrentSessionTitle = () => useSignal(currentSessionTitle);
+export const useCurrentSessionId = () => useZen(currentSessionId);
+export const useCurrentSession = () => useZen(currentSession);
+export const useIsStreaming = () => useZen(isStreaming);
+export const useMessages = () => useZen(messages);
+export const useMessageCount = () => useZen(messageCount);
+export const useLastMessage = () => useZen(lastMessage);
+export const useHasCurrentSession = () => useZen(hasCurrentSession);
+export const useCurrentSessionTitle = () => useZen(currentSessionTitle);
 
 // Setup event listeners
 eventBus.on("streaming:started", () => {

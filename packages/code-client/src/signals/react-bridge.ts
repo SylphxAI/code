@@ -1,46 +1,39 @@
 /**
- * React Bridge for SolidJS Signals
- * Provides React hooks to consume SolidJS Accessors
+ * React Bridge for Zen Signals
+ * Provides React hooks to consume Zen signals with automatic reactivity
  */
 
-import { useEffect, useState } from "react";
-import type { Accessor } from "solid-js";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { subscribe } from "@sylphx/zen";
 
-// Use setImmediate for Node.js, requestAnimationFrame for browser
-const scheduleCheck = typeof requestAnimationFrame !== "undefined"
-	? requestAnimationFrame
-	: setImmediate;
+// zen@3.47.0 has a different type system
+// Signals have a .value property (getter/setter)
+type ZenSignal<T> = {
+	value: T;
+};
 
 /**
- * React hook to subscribe to a SolidJS Accessor
- * @param accessor SolidJS signal getter function
+ * React hook to subscribe to a Zen signal
+ * Uses React 18+ useSyncExternalStore for optimal performance
+ * @param signal Zen signal node
  * @returns Current value from the signal
  */
-export function useSignal<T>(accessor: Accessor<T>): T {
-	const [value, setValue] = useState<T>(accessor);
-
-	useEffect(() => {
-		// SolidJS signals don't have built-in subscription mechanism
-		// We poll for changes using scheduleCheck (requestAnimationFrame in browser, setImmediate in Node.js)
-		let isActive = true;
-		let lastValue = accessor();
-
-		const check = () => {
-			if (!isActive) return;
-			const currentValue = accessor();
-			if (currentValue !== lastValue) {
-				lastValue = currentValue;
-				setValue(currentValue);
-			}
-			scheduleCheck(check);
-		};
-
-		check();
-
-		return () => {
-			isActive = false;
-		};
-	}, [accessor]);
-
-	return value;
+export function useZen<T>(signal: ZenSignal<T>): T {
+	return useSyncExternalStore(
+		(callback) => {
+			// Subscribe to signal changes
+			const unsubscribe = subscribe(signal, callback);
+			return unsubscribe;
+		},
+		// Get current value
+		() => signal.value,
+		// Server snapshot (for SSR)
+		() => signal.value,
+	);
 }
+
+/**
+ * Alias for useZen for backwards compatibility
+ * @deprecated Use useZen instead
+ */
+export const useSignal = useZen;
