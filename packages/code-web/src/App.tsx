@@ -6,6 +6,7 @@
 import { TRPCProvider, createHTTPClient } from "@sylphx/code-client";
 import { useEffect, useState } from "preact/hooks";
 import { ChatScreen } from "./screens/ChatScreen";
+import { Header, Sidebar, StatusBar } from "./components/layout";
 
 // ASSUMPTION: HTTP client connecting to local server
 // For web UI, we use HTTP transport instead of in-process
@@ -27,13 +28,14 @@ export function App() {
 		<TRPCProvider client={trpcClient}>
 			{/* @ts-expect-error - TRPCProvider uses React ReactNode but Preact VNode is compatible */}
 			<div class="app-container">
-				<header class="app-header">
-					<h1>SYLPHX CODE</h1>
-					<p>AI Development Assistant</p>
-				</header>
-				<main class="app-main">
-					<ChatScreen />
-				</main>
+				<Header />
+				<div class="app-body">
+					<Sidebar />
+					<main class="app-main">
+						<ChatScreen />
+					</main>
+				</div>
+				<StatusBar />
 			</div>
 		</TRPCProvider>
 	);

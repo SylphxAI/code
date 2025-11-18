@@ -9,68 +9,55 @@ import {
 	isStreaming,
 } from "@sylphx/code-client";
 import { useZen } from "../hooks/useZen";
+import { MessageList, ChatInput } from "../components/chat";
+import styles from "../styles/components/chat/chatscreen.module.css";
 
 export function ChatScreen() {
 	const currentSessionValue = useZen(currentSession);
 	const messagesValue = useZen(messages);
 	const isStreamingValue = useZen(isStreaming);
 
+	const handleSendMessage = async (content: string) => {
+		if (!currentSessionValue) {
+			console.error("No active session");
+			return;
+		}
+
+		try {
+			// TODO: Implement tRPC client for sending messages
+			// await trpc.chat.sendMessage.mutate({
+			//   sessionId: currentSessionValue.id,
+			//   content,
+			//   attachments: [],
+			// });
+			console.log("Send message:", content);
+		} catch (error) {
+			console.error("Failed to send message:", error);
+		}
+	};
+
 	return (
-		<div class="chat-screen">
-			<div class="chat-header">
+		<div class={styles.chatScreen}>
+			<div class={styles.chatHeader}>
 				<h2>Chat</h2>
 				{currentSessionValue ? (
-					<span class="session-info">Session: {currentSessionValue.id}</span>
+					<span class={styles.sessionInfo}>
+						Session: {currentSessionValue.id}
+					</span>
 				) : (
-					<span class="session-info">No active session</span>
+					<span class={styles.sessionInfo}>No active session</span>
 				)}
 			</div>
 
-			<div class="messages-container">
-				{messagesValue.length === 0 ? (
-					<div class="welcome-message">
-						<h3>Welcome to Sylphx Code</h3>
-						<p>Start chatting by typing a message below.</p>
-						<p>Use / for commands, @ for files</p>
-					</div>
-				) : (
-					messagesValue.map((msg) => (
-						<div key={msg.id} class={`message message-${msg.role}`}>
-							<div class="message-header">
-								<strong>{msg.role === "user" ? "You" : "Assistant"}</strong>
-								<span class="message-time">
-									{new Date(msg.timestamp).toLocaleTimeString()}
-								</span>
-							</div>
-							<div class="message-content">
-								{msg.steps.map((step) =>
-									step.parts
-										.filter((part) => part.type === "text")
-										.map((part) => (part.type === "text" ? part.content : ""))
-										.join(""),
-								).join("")}
-							</div>
-						</div>
-					))
-				)}
-				{isStreamingValue && (
-					<div class="streaming-indicator">
-						<span>Assistant is typing...</span>
-					</div>
-				)}
-			</div>
+			<MessageList
+				messages={messagesValue}
+				isStreaming={isStreamingValue}
+			/>
 
-			<div class="input-container">
-				<input
-					type="text"
-					placeholder="Type your message..."
-					class="message-input"
-					disabled={isStreamingValue}
-				/>
-				<button class="send-button" disabled={isStreamingValue}>
-					Send
-				</button>
-			</div>
+			<ChatInput
+				onSend={handleSendMessage}
+				isStreaming={isStreamingValue}
+			/>
 		</div>
 	);
 }

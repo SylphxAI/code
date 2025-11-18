@@ -16,12 +16,20 @@
 		"@sylphx/code-server": "workspace:*",
 		"@sylphx/zen": "3.47.0",
 		"@trpc/client": "^11.7.1",
-		"preact": "^10.24.3",
+		"clsx": "^2.1.1",
+		"date-fns": "^4.1.0",
+		"preact": "npm:preact",
+		"preact-compat": "^3.19.0",
+		"prism-react-renderer": "^2.4.1",
+		"react-markdown": "^10.1.0",
+		"remark-gfm": "^4.0.1",
 		"superjson": "^2.2.5"
 	},
 	"devDependencies": {
 		"@preact/preset-vite": "^2.9.5",
 		"@types/node": "^24.9.2",
+		"autoprefixer": "^10.4.22",
+		"postcss": "^8.5.6",
 		"typescript": "^5.9.3",
 		"vite": "^6.0.11"
 	},

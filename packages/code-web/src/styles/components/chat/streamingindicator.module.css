@@ -1,0 +1,81 @@
+/**
+ * StreamingIndicator Styles
+ */
+
+.container {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 1rem;
+	background: var(--bg-secondary);
+	border: 1px solid var(--border-primary);
+	border-radius: 0.5rem;
+	max-width: 300px;
+	animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.avatar {
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--bg-tertiary);
+	flex-shrink: 0;
+}
+
+.avatarIcon {
+	font-size: 1.25rem;
+}
+
+.content {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+
+.text {
+	font-size: 0.875rem;
+	color: var(--text-secondary);
+}
+
+.dots {
+	display: flex;
+	gap: 0.125rem;
+}
+
+.dot {
+	animation: blink 1.4s infinite;
+	color: var(--text-secondary);
+}
+
+.dot:nth-child(2) {
+	animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+	animation-delay: 0.4s;
+}
+
+@keyframes blink {
+	0%,
+	60%,
+	100% {
+		opacity: 0.3;
+	}
+	30% {
+		opacity: 1;
+	}
+}
