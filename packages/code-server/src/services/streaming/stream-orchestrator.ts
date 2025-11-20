@@ -300,8 +300,10 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 						}
 					},
 					prepareStep: async ({ steps, stepNumber, messages: stepMessages }) => {
+						// Use our manual step counter, not AI SDK's (which resets per streamText call)
+						const actualStepNumber = lastCompletedStepNumber + 1;
 						return await prepareStep(
-							stepNumber,
+							actualStepNumber,
 							assistantMessageId,
 							sessionId,
 							stepMessages,
