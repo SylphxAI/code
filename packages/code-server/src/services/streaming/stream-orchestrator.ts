@@ -443,6 +443,10 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				break;
 			}
 
+			console.log(
+				`[StreamOrchestrator] ✅ Loop exited. Iterations: ${iterationCount}, finalUsage: ${!!finalUsage}, finalFinishReason: ${finalFinishReason}, hasError: ${hasError}`,
+			);
+
 			// Check for max iterations
 			if (iterationCount >= MAX_ITERATIONS) {
 				console.error(`[StreamOrchestrator] Max iterations (${MAX_ITERATIONS}) reached`);
@@ -508,7 +512,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 			);
 
 			// 25. Complete observable
+			console.log("[StreamOrchestrator] 🏁 Completing observable");
 			observer.complete();
+			console.log("[StreamOrchestrator] ✅ Observable completed");
 			} catch (error) {
 				console.error("[StreamOrchestrator] Error in execution:", error);
 				console.error("[StreamOrchestrator] Error type:", error?.constructor?.name);
