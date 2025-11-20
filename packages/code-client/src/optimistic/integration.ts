@@ -26,15 +26,19 @@ import { optimisticManager } from "./manager.js";
 import type { Message, Operation, ServerEvent } from "./types.js";
 
 /**
- * Send user message with optimistic update
+ * Track optimistic user message
+ *
+ * Call this AFTER adding optimistic message to session signals
+ * This tracks the operation for later reconciliation
  *
  * Flow:
- * 1. Check if streaming → determine operation type (add-message vs add-to-queue)
- * 2. Apply optimistic operation
- * 3. Return optimisticId for later confirmation
+ * 1. Check if streaming → determine expected operation (add-message vs add-to-queue)
+ * 2. Track operation in OptimisticManager
+ * 3. Return optimisticId for later confirmation/rollback
  */
-export function sendUserMessageOptimistic(params: {
+export function trackOptimisticMessage(params: {
 	sessionId: string;
+	optimisticId: string;
 	content: string;
 	attachments?: Array<{
 		path: string;
@@ -42,15 +46,14 @@ export function sendUserMessageOptimistic(params: {
 		size: number;
 		mimeType?: string;
 	}>;
-}): string {
-	const { sessionId, content, attachments = [] } = params;
+}): void {
+	const { sessionId, optimisticId, content, attachments = [] } = params;
 
-	// Determine operation type based on streaming state
+	// Determine expected operation type based on streaming state
 	const streaming = isStreaming.value;
 
 	if (streaming) {
-		// Streaming → add to queue
-		const optimisticId = `optimistic-queue-${Date.now()}`;
+		// Streaming → expect server will queue this message
 		const queuedMessage: QueuedMessage = {
 			id: optimisticId,
 			content,
@@ -66,12 +69,9 @@ export function sendUserMessageOptimistic(params: {
 		};
 
 		optimisticManager.apply(sessionId, operation);
-		console.log(`[Optimistic] Added to queue (streaming): ${optimisticId}`);
-
-		return optimisticId;
+		console.log(`[Optimistic] Tracking add-to-queue (streaming): ${optimisticId}`);
 	} else {
-		// Not streaming → add to conversation
-		const optimisticId = `optimistic-message-${Date.now()}`;
+		// Not streaming → expect server will add to messages
 		const message: Message = {
 			id: optimisticId,
 			role: "user",
@@ -87,9 +87,7 @@ export function sendUserMessageOptimistic(params: {
 		};
 
 		optimisticManager.apply(sessionId, operation);
-		console.log(`[Optimistic] Added to messages (idle): ${optimisticId}`);
-
-		return optimisticId;
+		console.log(`[Optimistic] Tracking add-message (idle): ${optimisticId}`);
 	}
 }
 

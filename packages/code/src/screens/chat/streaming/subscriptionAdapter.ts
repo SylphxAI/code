@@ -28,6 +28,7 @@ import {
 	parseUserInput,
 	setCurrentSessionId,
 	setCurrentSession,
+	trackOptimisticMessage,
 } from "@sylphx/code-client";
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
@@ -319,6 +320,20 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 						id: optimisticMessageId,
 						beforeCount,
 						afterCount: beforeCount + 1,
+					});
+
+					// OPTIMISTIC TRACKING: Track this operation for reconciliation
+					// Extract text content for tracking
+					const textContent = content
+						.filter((part) => part.type === "text")
+						.map((part) => part.content)
+						.join("\n");
+
+					trackOptimisticMessage({
+						sessionId,
+						optimisticId: optimisticMessageId,
+						content: textContent,
+						attachments: attachments || [],
 					});
 				} else {
 					// For new sessions or no current session, create temporary session for display

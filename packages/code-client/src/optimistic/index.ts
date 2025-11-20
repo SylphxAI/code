@@ -21,7 +21,7 @@ export type {
 
 // Integration (main API for clients)
 export {
-	sendUserMessageOptimistic,
+	trackOptimisticMessage,
 	confirmOptimistic,
 	rollbackOptimistic,
 	reconcileWithServer,
