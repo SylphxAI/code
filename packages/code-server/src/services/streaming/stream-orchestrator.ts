@@ -408,6 +408,21 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 							console.log(`[StreamOrchestrator] Created queued user message: ${result.messageId}`);
 
+							// Complete the CURRENT assistant message before starting new one
+							// This ensures the first message's streaming state is properly cleared
+							console.log(
+								`[StreamOrchestrator] Completing previous assistant message: ${assistantMessageId}`,
+							);
+							const previousStatus = state.aborted ? "abort" : finalUsage ? "completed" : "error";
+							await updateMessageStatus(
+								assistantMessageId,
+								previousStatus,
+								finalFinishReason,
+								finalUsage,
+								messageRepository,
+								observer,
+							);
+
 							// Create NEW assistant message for the new response
 							// This is a separate conversation turn after queue injection
 							assistantMessageId = await createAssistantMessage(
@@ -420,6 +435,11 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 							// Reset step counter for new assistant message
 							lastCompletedStepNumber = -1;
+
+							// Reset state for new message iteration
+							// Clear finalUsage and finalFinishReason so they'll be populated fresh
+							finalUsage = undefined;
+							finalFinishReason = undefined;
 
 							// Inject queued messages as new user message in history
 							currentMessages.push({
