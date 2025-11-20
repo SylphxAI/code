@@ -168,7 +168,7 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 			{/* Active mode hint - show Ctrl+B to demote */}
 			{!isBackgroundMode && status === "running" && bashId && (
 				<Box marginLeft={2}>
-					<Text dimColor>Ctrl+B to background · Ctrl+P to view all</Text>
+					<Text dimColor>Ctrl+B to background</Text>
 				</Box>
 			)}
 		</Box>
