@@ -376,74 +376,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					cwd,
 				);
 
-				// 25. Auto-send ALL queued messages after EVERY step completion
-				// Not just final completion - send after each step (including tool-calls)
-				// BUT only if completed successfully (not aborted or error)
-				const queuedMessages = await sessionRepository.getQueuedMessages(sessionId);
-
-				if (queuedMessages.length > 0 && finalStatus === "completed") {
-					console.log(
-						`[StreamOrchestrator] Auto-sending ${queuedMessages.length} queued messages`,
-					);
-
-					// Clear the queue (all messages will be sent)
-					await sessionRepository.clearQueue(sessionId);
-
-					// Broadcast queue-cleared event
-					observer.next({
-						type: "queue-cleared",
-						sessionId,
-					});
-
-					// Combine all queued messages into a single message
-					// Just concatenate content directly (no labels needed - multiple text parts allowed)
-					const combinedContent = queuedMessages
-						.map((msg) => msg.content)
-						.filter((content) => content && content.trim()) // Filter out empty messages
-						.join("\n\n");
-
-					// Skip if no valid content after filtering
-					if (!combinedContent.trim()) {
-						observer.complete();
-						return;
-					}
-
-					// Collect all attachments (filter out undefined/null)
-					const allAttachments = queuedMessages
-						.flatMap((msg) => msg.attachments || [])
-						.filter((att) => att && att.relativePath);
-
-					// Parse combined input
-					const { parseUserInput } = await import("@sylphx/code-client");
-					const { parts } = parseUserInput(combinedContent, allAttachments);
-
-					// Trigger new stream with all queued messages combined
-					const queuedStream = streamAIResponse({
-						appContext: opts.appContext,
-						sessionRepository,
-						messageRepository,
-						aiConfig,
-						sessionId,
-						userMessageContent: parts,
-					});
-
-					// Subscribe to queued stream and forward events
-					queuedStream.subscribe({
-						next: (event) => observer.next(event),
-						error: (err) => {
-							console.error("[StreamOrchestrator] Queued stream error:", err);
-							emitError(
-								observer,
-								`Queued messages error: ${err instanceof Error ? err.message : String(err)}`,
-							);
-						},
-					});
-
-					// Return early - don't complete yet, wait for queued stream
-					return;
-				}
-
-				// 26. Complete observable
+				// 25. Complete observable
+				// Note: Queued messages are now handled in prepareStep hook (step-lifecycle.service.ts)
+				// This allows AI SDK to process them as part of the multi-step flow
 				observer.complete();
 			} catch (error) {
 				console.error("[StreamOrchestrator] Error in execution:", error);
