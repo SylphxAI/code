@@ -5,6 +5,7 @@
 
 import { router } from "../trpc.js";
 import { adminRouter } from "./admin.router.js";
+import { bashRouter } from "./bash.router.js";
 import { configRouter } from "./config.router.js";
 import { eventsRouter } from "./events.router.js";
 import { fileRouter } from "./file.router.js";
@@ -24,6 +25,7 @@ export const appRouter = router({
 	admin: adminRouter,
 	events: eventsRouter,
 	file: fileRouter,
+	bash: bashRouter,
 }) satisfies ReturnType<typeof router>;
 
 /**

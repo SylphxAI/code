@@ -366,6 +366,8 @@ export { getMCPManager, MCPManager, resetMCPManager } from "./services/mcp-manag
 export { enrichCapabilities, enrichModelDetails } from "./services/model-details-service.js";
 // Bash manager
 export { bashManager } from "./tools/bash-manager.js";
+export { bashManagerV2, BashManagerV2 } from "./tools/bash-manager-v2.js";
+export type { BashMode, BashOutputChunk, BashProcess, BashStateChange, BashStatus } from "./tools/bash-manager-v2.js";
 // Filesystem tools
 export {
 	editFileTool,

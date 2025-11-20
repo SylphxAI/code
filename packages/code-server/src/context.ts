@@ -12,6 +12,8 @@
 
 import type { Agent, Rule } from "@sylphx/code-core";
 import {
+	bashManagerV2,
+	type BashManagerV2,
 	createStorageOps,
 	DEFAULT_AGENT_ID,
 	getStorageConfigFromEnv,
@@ -24,6 +26,7 @@ import {
 } from "@sylphx/code-core";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { type AppEventStream, initializeEventStream } from "./services/app-event-stream.service.js";
+import { initializeBashEventBridge } from "./services/bash-event.service.js";
 import { EventPersistence } from "./services/event-persistence.service.js";
 
 // ============================================================================
@@ -229,6 +232,7 @@ export interface AppContext {
 	agentManager: AgentManagerService;
 	ruleManager: RuleManagerService;
 	eventStream: AppEventStream;
+	bashManagerV2: BashManagerV2;
 	config: AppConfig;
 }
 
@@ -258,6 +262,7 @@ export function createAppContext(config: AppConfig): AppContext {
 		set eventStream(value: AppEventStream) {
 			eventStream = value;
 		},
+		bashManagerV2,
 		config,
 	};
 }
@@ -275,7 +280,10 @@ export async function initializeAppContext(ctx: AppContext): Promise<void> {
 	const persistence = new EventPersistence(db);
 	(ctx as any).eventStream = initializeEventStream(persistence);
 
-	// 3. Initialize other services
+	// 3. Initialize bash event bridge (connects bashManagerV2 → eventStream)
+	initializeBashEventBridge(ctx);
+
+	// 4. Initialize other services
 	await (ctx.agentManager as any).initialize();
 	await (ctx.ruleManager as any).initialize();
 }
