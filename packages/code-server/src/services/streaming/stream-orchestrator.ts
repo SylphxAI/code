@@ -3,6 +3,7 @@
  * Main streamAIResponse function - coordinates all streaming modules
  */
 
+import { randomUUID } from "node:crypto";
 import type { StreamCallbacks } from "@sylphx/code-core";
 import { buildSystemPrompt, getAISDKTools, getProvider } from "@sylphx/code-core";
 import { type Observable, observable } from "@trpc/server/observable";
@@ -107,7 +108,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				// 3. Validate provider configuration
 				const validationError = validateProvider(aiConfig, session);
 				if (validationError) {
-					const errorMessageId = `error-${Date.now()}`;
+					const errorMessageId = randomUUID();
 					emitSystemMessageCreated(observer, errorMessageId, validationError.message);
 					observer.complete();
 					return;

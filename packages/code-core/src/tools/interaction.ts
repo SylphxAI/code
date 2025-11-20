@@ -3,6 +3,7 @@
  * Tools for the AI to ask questions and get user input
  */
 
+import { randomUUID } from "node:crypto";
 import { tool } from "ai";
 import { z } from "zod";
 import type { Question, SelectOption } from "../types/interaction.types.js";
@@ -199,7 +200,7 @@ export const askUserSelectionTool = tool({
 
 		// Create a promise that will be resolved when this ask is processed
 		return new Promise<string>((resolve) => {
-			const callId = `ask_${Date.now()}_${Math.random()}`;
+			const callId = randomUUID();
 
 			// Add to queue
 			askQueue.push({

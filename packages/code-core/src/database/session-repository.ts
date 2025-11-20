@@ -22,6 +22,7 @@
  * - Efficient updates: Update specific fields without rewriting entire file
  */
 
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import type { ProviderId } from "../config/ai-config.js";
@@ -65,7 +66,7 @@ export class SessionRepository {
 		enabledRuleIds: string[] = [],
 	): Promise<SessionType> {
 		const now = Date.now();
-		const sessionId = `session-${now}`;
+		const sessionId = randomUUID();
 
 		const newSession: NewSession = {
 			id: sessionId,
