@@ -297,30 +297,46 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				const _shouldCreateTempSession =
 					!sessionId || !currentSessionValue || currentSessionValue.id !== sessionId;
 
+				// OPTIMISTIC UPDATE STRATEGY:
+				// - If NOT streaming → add to messages (will be confirmed by user-message-created event)
+				// - If streaming → DON'T add to messages, server will queue it and emit queue-message-added
+				// This prevents showing message in both places (messages AND queue)
+				const { isStreaming: isStreamingSignal } = await import("@sylphx/code-client");
+				const currentlyStreaming = isStreamingSignal.value;
+
 				// IMMUTABLE UPDATE: zen signals need immutable updates to trigger re-renders
 				if (sessionId && currentSessionValue?.id === sessionId) {
-					// For existing sessions, add to current session
+					// For existing sessions
 					const beforeCount = currentSessionValue.messages.length;
 
-					setCurrentSession({
-						...currentSessionValue,
-						messages: [
-							...currentSessionValue.messages,
-							{
-								id: optimisticMessageId,
-								role: "user",
-								content: messageParts,
-								timestamp: Date.now(),
-								status: "completed",
-							},
-						],
-					});
+					// Only add to messages if NOT streaming
+					if (!currentlyStreaming) {
+						setCurrentSession({
+							...currentSessionValue,
+							messages: [
+								...currentSessionValue.messages,
+								{
+									id: optimisticMessageId,
+									role: "user",
+									content: messageParts,
+									timestamp: Date.now(),
+									status: "completed",
+								},
+							],
+						});
 
-					logSession("Added optimistic message to existing session:", {
-						id: optimisticMessageId,
-						beforeCount,
-						afterCount: beforeCount + 1,
-					});
+						logSession("Added optimistic message to existing session:", {
+							id: optimisticMessageId,
+							beforeCount,
+							afterCount: beforeCount + 1,
+							streaming: currentlyStreaming,
+						});
+					} else {
+						logSession("Skipped adding to messages (streaming, will be queued):", {
+							id: optimisticMessageId,
+							streaming: currentlyStreaming,
+						});
+					}
 
 					// OPTIMISTIC TRACKING: Track this operation for reconciliation
 					// Extract text content for tracking
