@@ -398,6 +398,24 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 							.join("\n\n");
 
 						if (combinedContent.trim()) {
+							// Create user message in database for queued content
+							const queuedUserMessageId = await createUserMessage(
+								sessionRepository.getDatabase(),
+								sessionId,
+								[{ type: "text", content: combinedContent }],
+								[],
+							);
+
+							console.log(`[StreamOrchestrator] Created queued user message: ${queuedUserMessageId}`);
+
+							// Emit user-message-created event so UI shows the message
+							observer.next({
+								type: "user-message-created",
+								sessionId,
+								messageId: queuedUserMessageId,
+								content: combinedContent,
+							});
+
 							// Inject queued messages as new user message in history
 							currentMessages.push({
 								role: "user",
