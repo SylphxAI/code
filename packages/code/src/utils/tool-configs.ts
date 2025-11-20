@@ -16,6 +16,7 @@ import {
 } from "@sylphx/code-core";
 import type { ToolConfig, ToolDisplayProps } from "@sylphx/code-client";
 import { createDefaultToolDisplay } from "../components/DefaultToolDisplay.js";
+import { BashToolDisplay } from "../components/tools/BashToolDisplay.js";
 
 // Re-export types for backward compatibility
 export type { ToolConfig, ToolDisplayProps };
@@ -195,72 +196,8 @@ export const toolConfigs = {
 		},
 	),
 
-	// Bash tool
-	bash: createDefaultToolDisplay(
-		"Bash",
-		(input) => {
-			const command = input?.command ? String(input.command) : "";
-			const cwd = input?.cwd ? String(input.cwd) : "";
-			const runInBackground = input?.run_in_background;
-
-			let display = truncateString(command, 80);
-
-			if (runInBackground) {
-				display += " [background]";
-			}
-
-			if (cwd && cwd !== process.cwd()) {
-				display += ` [in ${getRelativePath(cwd)}]`;
-			}
-
-			return display;
-		},
-		(result) => {
-			// Background mode
-			if (
-				typeof result === "object" &&
-				result !== null &&
-				"mode" in result &&
-				(result as any).mode === "background"
-			) {
-				const { bash_id, message } = result as any;
-				return {
-					lines: [`bash_id: ${bash_id}`],
-					summary: message,
-				};
-			}
-
-			// Foreground mode
-			if (typeof result === "object" && result !== null && "stdout" in result) {
-				const { stdout, stderr, exitCode } = result as any;
-				const output = stderr && exitCode !== 0 ? stderr : stdout;
-				const lines = output ? output.split("\n").filter((line: string) => line.trim()) : [];
-				const lineCount = lines.length;
-
-				// Format with line numbers and separator
-				let formattedLines = lines.map((line, i) => `${(i + 1).toString().padStart(6)} │ ${line}`);
-
-				// Truncate to 20 lines
-				if (lineCount > 20) {
-					formattedLines = [
-						...formattedLines.slice(0, 20),
-						`       ... ${lineCount - 20} more ${pluralize(lineCount - 20, "line")}`,
-					];
-				}
-
-				return {
-					lines: formattedLines,
-					summary: lineCount > 0 ? `Completed (exit: ${exitCode})` : "Command completed",
-				};
-			}
-
-			const lines = resultToLines(result);
-			return {
-				lines,
-				summary: lines.length > 0 ? undefined : "Command completed",
-			};
-		},
-	),
+	// Bash tool - with real-time streaming output
+	bash: BashToolDisplay,
 
 	// Bash output tool
 	"bash-output": createDefaultToolDisplay(
