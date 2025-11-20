@@ -97,6 +97,42 @@ export async function prepareStep(
 					}))
 				: [];
 
+		// 4.5. Check for queued messages and inject them
+		// ARCHITECTURE: Queue injection happens in prepareStep (between steps)
+		// This allows queued messages to be processed regardless of finishReason
+		// Works for both tool-calls and stop finish reasons
+		let queuedUserMessage: any = null;
+		if (stepNumber > 0) { // Only check queue after first step
+			const queuedMessages = await sessionRepository.getQueuedMessages(sessionId);
+			if (queuedMessages.length > 0) {
+				console.log(`[StepLifecycle] 📬 Found ${queuedMessages.length} queued messages, injecting into step ${stepNumber}`);
+
+				// Clear queue
+				await sessionRepository.clearQueue(sessionId);
+
+				// Broadcast queue-cleared event
+				observer.next({
+					type: "queue-cleared",
+					sessionId,
+				});
+
+				// Combine queued messages into user message
+				const combinedContent = queuedMessages
+					.map((msg) => msg.content)
+					.filter((content) => content && content.trim())
+					.join("\n\n");
+
+				if (combinedContent.trim()) {
+					// Create user message to inject
+					queuedUserMessage = {
+						role: "user" as const,
+						content: combinedContent,
+					};
+					console.log(`[StepLifecycle] ✅ Prepared queued messages as user message`);
+				}
+			}
+		}
+
 		// 5. Create step record in database with provider/model
 		// IMPORTANT: Set provider/model at creation time for real-time UI sync
 		const stepId = `${assistantMessageId}-step-${stepNumber}`;
@@ -126,16 +162,18 @@ export async function prepareStep(
 			model: currentSession.model,
 		});
 
-		// 7. Inject system messages if present
-		if (systemMessages.length > 0) {
-			// Get base messages (from last step or initial messages)
-			const baseMessages = steps.length > 0 ? steps[steps.length - 1].messages : messages;
+		// 7. Inject system messages and/or queued messages
+		// Get base messages (from last step or initial messages)
+		const baseMessages = steps.length > 0 ? steps[steps.length - 1].messages : messages;
+		let modifiedMessages = baseMessages;
 
+		// 7a. Inject system messages if present
+		if (systemMessages.length > 0) {
 			// Combine system messages (already wrapped in <system_message> tags)
 			const combinedContent = systemMessages.map((sm) => sm.content).join("\n\n");
 
 			// Append to last message to avoid consecutive user messages
-			const lastMessage = baseMessages[baseMessages.length - 1];
+			const lastMessage = modifiedMessages[modifiedMessages.length - 1];
 			if (lastMessage && lastMessage.role === "user") {
 				// Append system message to last user message
 				const lastContent = lastMessage.content;
@@ -149,23 +187,30 @@ export async function prepareStep(
 						]
 					: [{ type: "text" as const, text: combinedContent }];
 
-				const updatedMessages = [
-					...baseMessages.slice(0, -1),
+				modifiedMessages = [
+					...modifiedMessages.slice(0, -1),
 					{ ...lastMessage, content: updatedContent },
 				];
-
-				return { messages: updatedMessages };
 			} else {
-				// Fallback: add as separate user message (shouldn't happen in practice)
-				const updatedMessages = [
-					...baseMessages,
+				// Fallback: add as separate user message
+				modifiedMessages = [
+					...modifiedMessages,
 					{
 						role: "user" as const,
 						content: [{ type: "text" as const, text: combinedContent }],
 					},
 				];
-				return { messages: updatedMessages };
 			}
+		}
+
+		// 7b. Inject queued user message if present
+		if (queuedUserMessage) {
+			modifiedMessages = [...modifiedMessages, queuedUserMessage];
+		}
+
+		// Return modified messages if any changes were made
+		if (modifiedMessages !== baseMessages) {
+			return { messages: modifiedMessages };
 		}
 
 		return {}; // No modifications needed

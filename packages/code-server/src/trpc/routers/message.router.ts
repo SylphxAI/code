@@ -236,6 +236,37 @@ const StreamEventSchema = z.discriminatedUnion("type", [
 		finishReason: z.string().optional(),
 	}),
 
+	// Queue events
+	z.object({
+		type: z.literal("queue-message-added"),
+		sessionId: z.string(),
+		message: z.object({
+			id: z.string(),
+			content: z.string(),
+			attachments: z.array(FileAttachmentSchema),
+			enqueuedAt: z.number(),
+		}),
+	}),
+	z.object({
+		type: z.literal("queue-message-updated"),
+		sessionId: z.string(),
+		message: z.object({
+			id: z.string(),
+			content: z.string(),
+			attachments: z.array(FileAttachmentSchema),
+			enqueuedAt: z.number(),
+		}),
+	}),
+	z.object({
+		type: z.literal("queue-message-removed"),
+		sessionId: z.string(),
+		messageId: z.string(),
+	}),
+	z.object({
+		type: z.literal("queue-cleared"),
+		sessionId: z.string(),
+	}),
+
 	// Error/Abort
 	z.object({ type: z.literal("error"), error: z.string() }),
 	z.object({ type: z.literal("abort") }),
@@ -490,6 +521,59 @@ export const messageRouter = router({
 
 			// Get or create sessionId for event channel
 			let eventSessionId = input.sessionId || null;
+
+			// QUEUE LOGIC: Check if session is currently streaming
+			// If streaming, enqueue message instead of starting new stream
+			if (eventSessionId) {
+				const isStreaming = activeStreamAbortControllers.has(eventSessionId);
+				if (isStreaming && input.content.length > 0) {
+					// Convert parsed content to string
+					const messageContent = input.content
+						.map((part) => {
+							if (part.type === "text") return part.content;
+							if (part.type === "file") return `@${part.relativePath}`;
+							return "";
+						})
+						.join("");
+
+					// Extract file attachments
+					const attachments = input.content
+						.filter((part) => part.type === "file")
+						.map((part) => {
+							if (part.type === "file") {
+								return {
+									path: "", // Not needed for queued messages
+									relativePath: part.relativePath,
+									size: part.size,
+									mimeType: part.mimeType,
+								};
+							}
+							return null;
+						})
+						.filter((a) => a !== null);
+
+					// Enqueue message
+					const queuedMessage = await ctx.sessionRepository.enqueueMessage(
+						eventSessionId,
+						messageContent,
+						attachments,
+					);
+
+					// Publish queue-message-added event
+					await ctx.appContext.eventStream.publish(`session:${eventSessionId}`, {
+						type: "queue-message-added" as const,
+						sessionId: eventSessionId,
+						message: queuedMessage,
+					});
+
+					// Return success with sessionId (no new stream started)
+					return {
+						success: true,
+						sessionId: eventSessionId,
+						queued: true,
+					};
+				}
+			}
 
 			// Create AbortController for this stream
 			// Will be associated with sessionId once known (for lazy sessions, after session-created event)
