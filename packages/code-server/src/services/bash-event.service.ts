@@ -24,19 +24,25 @@ export function initializeBashEventBridge(appContext: AppContext): void {
 		const channel = `bash:${event.bashId}`;
 
 		// Publish to event stream (persisted + real-time)
-		eventStream.emit(channel, event.type, event);
+		eventStream.publish(channel, event).catch((err) => {
+			console.error("[BashEventBridge] Failed to publish event:", err);
+		});
 	});
 
 	// Listen to active-queued events
 	bashManagerV2.on("active-queued", (data: { bashId: string; command: string; queuePosition: number }) => {
 		const channel = `bash:${data.bashId}`;
 
-		eventStream.emit(channel, "queued", {
-			bashId: data.bashId,
-			type: "queued",
-			queuePosition: data.queuePosition,
-			timestamp: Date.now(),
-		});
+		eventStream
+			.publish(channel, {
+				type: "queued",
+				bashId: data.bashId,
+				queuePosition: data.queuePosition,
+				timestamp: Date.now(),
+			})
+			.catch((err) => {
+				console.error("[BashEventBridge] Failed to publish queued event:", err);
+			});
 	});
 }
 
