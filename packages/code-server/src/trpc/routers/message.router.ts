@@ -526,7 +526,11 @@ export const messageRouter = router({
 			// If streaming, enqueue message instead of starting new stream
 			if (eventSessionId) {
 				const isStreaming = activeStreamAbortControllers.has(eventSessionId);
+				console.log(`[TriggerStream] Session ${eventSessionId} streaming check: ${isStreaming}`);
+
 				if (isStreaming && input.content.length > 0) {
+					console.log(`[TriggerStream] ⏸️  Session is streaming, enqueueing message`);
+
 					// Convert parsed content to string
 					const messageContent = input.content
 						.map((part) => {
@@ -559,6 +563,8 @@ export const messageRouter = router({
 						attachments,
 					);
 
+					console.log(`[TriggerStream] ✅ Message queued: ${queuedMessage.id}`);
+
 					// Publish queue-message-added event
 					await ctx.appContext.eventStream.publish(`session:${eventSessionId}`, {
 						type: "queue-message-added" as const,
@@ -567,12 +573,15 @@ export const messageRouter = router({
 					});
 
 					// Return success with sessionId (no new stream started)
+					console.log(`[TriggerStream] 🔙 Returning early (queued, no stream started)`);
 					return {
 						success: true,
 						sessionId: eventSessionId,
 						queued: true,
 					};
 				}
+
+				console.log(`[TriggerStream] ▶️  Session not streaming, starting new stream`);
 			}
 
 			// Create AbortController for this stream
