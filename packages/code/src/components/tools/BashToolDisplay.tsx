@@ -35,6 +35,9 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 	useEffect(() => {
 		if (result && typeof result === "object" && "bash_id" in result) {
 			setBashId((result as any).bash_id);
+			// Initialize bash status as running (tool just started it)
+			setBashStatus("running");
+			setBashStartTime(Date.now());
 		}
 	}, [result]);
 
@@ -167,13 +170,12 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 				<Box flexDirection="column" marginLeft={2}>
 					{displayLines.map((line, i) => (
 						<Text key={`${i}-${line.slice(0, 20)}`} dimColor>
-							{`${(i + 1).toString().padStart(6)} │ ${line}`}
+							{line}
 						</Text>
 					))}
 					{hasMore && (
 						<Text dimColor>
-							{"       ... "}
-							{outputLines.length - 50} more lines (use Bash Processes screen to view all)
+							... {outputLines.length - 50} more lines (use Bash Processes screen to view all)
 						</Text>
 					)}
 				</Box>
