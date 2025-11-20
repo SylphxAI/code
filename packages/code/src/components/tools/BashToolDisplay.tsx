@@ -167,19 +167,8 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 
 			{/* Active mode hint - show Ctrl+B to demote */}
 			{!isBackgroundMode && status === "running" && bashId && (
-				<Box marginLeft={2} marginTop={1} borderStyle="round" borderColor="gray" paddingX={1}>
-					<Text bold color="cyan">
-						💡 Tip:{" "}
-					</Text>
-					<Text dimColor>Press </Text>
-					<Text bold color="yellow">
-						Ctrl+B
-					</Text>
-					<Text dimColor> to move to background · </Text>
-					<Text bold color="yellow">
-						Ctrl+P
-					</Text>
-					<Text dimColor> to view all processes</Text>
+				<Box marginLeft={2}>
+					<Text dimColor>Ctrl+B to background · Ctrl+P to view all</Text>
 				</Box>
 			)}
 		</Box>
