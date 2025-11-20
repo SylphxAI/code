@@ -7,7 +7,7 @@ import { convertAllMCPToolsToAISDK } from "../registry/mcp-tool-integration.js";
 import { filesystemTools } from "./filesystem.js";
 import { interactionTools } from "./interaction.js";
 import { searchTools } from "./search.js";
-import { shellTools } from "./shell.js";
+import { shellToolsV2 } from "./shell-v2.js";
 import { createTodoTool, type TodoToolContext } from "./todo.js";
 
 /**
@@ -49,7 +49,7 @@ export async function getAISDKTools(options: GetToolsOptions = {}): Promise<Reco
 
 	const baseTools = {
 		...filesystemTools,
-		...shellTools,
+		...shellToolsV2,
 		...searchTools,
 		...(interactive ? interactionTools : {}),
 	};
@@ -80,7 +80,7 @@ export function getToolCategories(options: GetToolsOptions = {}): Record<string,
 
 	const categories: Record<string, string[]> = {
 		filesystem: Object.keys(filesystemTools),
-		shell: Object.keys(shellTools),
+		shell: Object.keys(shellToolsV2),
 		search: Object.keys(searchTools),
 		interaction: Object.keys(interactionTools),
 	};

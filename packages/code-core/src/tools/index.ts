@@ -33,13 +33,22 @@ export {
 } from "./registry.js";
 // Search tools
 export { globTool, grepTool, searchTools } from "./search.js";
-// Shell tools
+// Shell tools (legacy)
 export {
 	bashOutputTool,
 	executeBashTool,
 	killBashTool,
 	shellTools,
 } from "./shell.js";
+// Shell tools V2 (active/background mode)
+export {
+	demoteBashTool,
+	executeBashToolV2,
+	getBashStatusTool,
+	killBashToolV2,
+	listBashTool,
+	shellToolsV2,
+} from "./shell-v2.js";
 export type { TodoToolContext } from "./todo.js";
 // Todo tool
 export { createTodoTool } from "./todo.js";
