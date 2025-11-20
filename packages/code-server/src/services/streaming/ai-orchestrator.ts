@@ -468,25 +468,25 @@ export function createStreamState(): StreamState {
 }
 
 /**
- * Orchestrate AI stream with AI SDK
+ * Orchestrate AI stream with AI SDK - SINGLE STEP
+ *
+ * Manual looping architecture:
+ * - maxSteps: 1 (only ONE step per call)
+ * - Caller loops manually based on finishReason
+ * - prepareStep/onStepFinish still work for each step
  */
 export async function orchestrateAIStream(
 	options: OrchestrateStreamOptions,
 ): Promise<{ fullStream: AsyncIterable<TextStreamPart<any>>; response: Promise<any> }> {
-	// NOTE: prepareStep's continue flag doesn't work reliably in AI SDK 5.x
-	// Instead, we DON'T use continue flag at all
-	// AI SDK will naturally continue on finishReason="tool-calls"
-	// For finishReason="stop", we handle queue in post-stream processing
-	//
-	// This is simpler and more reliable than fighting with AI SDK's stepping logic
-
+	// MANUAL LOOPING: Use maxSteps=1 so we control stepping
+	// Caller will loop based on finishReason and queue state
 	const { fullStream, response } = streamText({
 		model: options.model,
 		messages: options.messages,
 		system: options.systemPrompt,
 		tools: options.tools,
 		...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
-		maxSteps: 100, // Use maxSteps instead of stopWhen for simplicity
+		maxSteps: 1, // ONE step only - caller controls looping
 		onStepFinish: options.onStepFinish,
 		prepareStep: options.prepareStep,
 	});
