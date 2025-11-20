@@ -5,7 +5,7 @@
 
 import type { MessagePart, StreamCallbacks } from "@sylphx/code-core";
 import type { Observer } from "@trpc/server/observable";
-import { type CoreMessage, type LanguageModel, streamText, type TextStreamPart } from "ai";
+import { type CoreMessage, type LanguageModel, stepCountIs, streamText, type TextStreamPart } from "ai";
 import type { AppContext } from "../../context.js";
 import { updateTokensFromDelta } from "../token-tracking.service.js";
 import {
@@ -479,7 +479,7 @@ export async function orchestrateAIStream(
 		system: options.systemPrompt,
 		tools: options.tools,
 		...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
-		maxSteps: 1000, // Reasonable limit for multi-step tool calling
+		stopWhen: stepCountIs(10000),
 		onStepFinish: options.onStepFinish,
 		prepareStep: options.prepareStep,
 	});
