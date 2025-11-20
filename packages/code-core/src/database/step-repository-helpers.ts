@@ -38,15 +38,16 @@ export async function createMessageStep(
 	systemMessages?: SystemMessage[],
 	provider?: string,
 	model?: string,
+	stepId?: string,
 ): Promise<string> {
-	const stepId = `${messageId}-step-${stepIndex}`;
+	const actualStepId = stepId || `${messageId}-step-${stepIndex}`;
 	const now = Date.now();
 
 	await retryDatabase(() =>
 		db.transaction(async (tx) => {
 			// Insert step
 			const newStep: NewMessageStep = {
-				id: stepId,
+				id: actualStepId,
 				messageId,
 				stepIndex,
 				systemMessages:
@@ -67,7 +68,7 @@ export async function createMessageStep(
 		}),
 	);
 
-	return stepId;
+	return actualStepId;
 }
 
 /**

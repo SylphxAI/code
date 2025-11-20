@@ -128,6 +128,7 @@ export async function prepareStep(
 			);
 		} catch (stepError) {
 			console.error("[StepLifecycle] Failed to create step:", stepError);
+			throw stepError; // CRITICAL: Must propagate - can't continue without step record
 		}
 
 		// 6. Emit step-start event for UI
