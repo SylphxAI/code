@@ -408,6 +408,19 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 							console.log(`[StreamOrchestrator] Created queued user message: ${result.messageId}`);
 
+							// Create NEW assistant message for the new response
+							// This is a separate conversation turn after queue injection
+							assistantMessageId = await createAssistantMessage(
+								sessionId,
+								messageRepository,
+								observer,
+							);
+
+							console.log(`[StreamOrchestrator] Created new assistant message: ${assistantMessageId}`);
+
+							// Reset step counter for new assistant message
+							lastCompletedStepNumber = -1;
+
 							// Inject queued messages as new user message in history
 							currentMessages.push({
 								role: "user",
