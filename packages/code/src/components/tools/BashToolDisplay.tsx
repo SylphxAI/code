@@ -12,16 +12,23 @@ import { useElapsedTime } from "../../hooks/client/useElapsedTime.js";
 import Spinner from "../Spinner.js";
 
 export function BashToolDisplay(props: ToolDisplayProps) {
-	const { name, status, duration, startTime, input, result } = props;
+	const { name, status: toolStatus, duration, startTime, input, result } = props;
 	const trpc = useTRPCClient();
 	const [output, setOutput] = useState<string>("");
 	const [bashId, setBashId] = useState<string | null>(null);
+	const [bashStatus, setBashStatus] = useState<string | null>(null);
+	const [bashStartTime, setBashStartTime] = useState<number | null>(null);
+	const [bashDuration, setBashDuration] = useState<number | null>(null);
 
-	// Calculate real-time elapsed time
+	// Use bash process status if available, otherwise fall back to tool status
+	const status = bashStatus || toolStatus;
+	const isRunning = status === "running";
+
+	// Calculate real-time elapsed time based on bash process
 	const { display: durationDisplay } = useElapsedTime({
-		startTime,
-		duration,
-		isRunning: status === "running",
+		startTime: bashStartTime || startTime,
+		duration: bashDuration || duration,
+		isRunning,
 	});
 
 	// Extract bash_id from result (set when tool starts)
@@ -31,10 +38,13 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 		}
 	}, [result]);
 
-	// Subscribe to bash output stream
+	// Subscribe to bash output stream and status changes
 	useEffect(() => {
 		if (!bashId) {
 			setOutput("");
+			setBashStatus(null);
+			setBashStartTime(null);
+			setBashDuration(null);
 			return;
 		}
 
@@ -46,11 +56,24 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 				{ channel, fromCursor: undefined },
 				{
 					onData: (event: any) => {
-						if (event.payload?.type === "output") {
-							const chunk = event.payload.output;
+						const payload = event.payload;
+
+						if (payload?.type === "output") {
+							const chunk = payload.output;
 							setOutput((prev) => prev + chunk.data);
-						} else if (event.payload?.type === "started") {
+						} else if (payload?.type === "started") {
 							setOutput(""); // Clear on start
+							setBashStatus("running");
+							setBashStartTime(payload.timestamp || Date.now());
+						} else if (
+							payload?.type === "completed" ||
+							payload?.type === "failed" ||
+							payload?.type === "killed"
+						) {
+							setBashStatus(payload.type);
+							setBashDuration(Date.now() - (bashStartTime || Date.now()));
+						} else if (payload?.type === "timeout") {
+							setBashStatus("running"); // Still running, just moved to background
 						}
 					},
 					onError: (err: any) => {
@@ -67,12 +90,13 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 				subscription.unsubscribe();
 			}
 		};
-	}, [bashId, trpc]);
+	}, [bashId, trpc, bashStartTime]);
 
 	// Format command display
 	const command = input?.command ? String(input.command) : "";
 	const cwd = input?.cwd ? String(input.cwd) : "";
 	const runInBackground = input?.run_in_background;
+	const timeout = input?.timeout ? Number(input.timeout) : null;
 
 	let commandDisplay = truncateString(command, 80);
 	if (runInBackground) {
@@ -116,6 +140,9 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 				<Text> {commandDisplay}</Text>
 				{durationDisplay && (status === "completed" || status === "running") && (
 					<Text dimColor> {durationDisplay}</Text>
+				)}
+				{!isBackgroundMode && timeout && status === "running" && (
+					<Text dimColor> (timeout: {Math.floor(timeout / 1000)}s)</Text>
 				)}
 			</Box>
 
