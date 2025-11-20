@@ -486,7 +486,6 @@ export async function orchestrateAIStream(
 		system: options.systemPrompt,
 		tools: options.tools,
 		...(options.abortSignal ? { abortSignal: options.abortSignal } : {}),
-		maxSteps: 1, // ONE step only - caller controls looping
 		onStepFinish: options.onStepFinish,
 		prepareStep: options.prepareStep,
 	});
