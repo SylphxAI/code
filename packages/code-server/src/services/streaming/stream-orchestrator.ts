@@ -193,7 +193,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				const needsTitle = needsTitleGeneration(updatedSession, isNewSession, isFirstMessage);
 
 				// 13. Create assistant message in database BEFORE stream
-				const assistantMessageId = await createAssistantMessage(
+				let assistantMessageId = await createAssistantMessage(
 					sessionId,
 					messageRepository,
 					observer,
