@@ -8,6 +8,7 @@
 import { useMCPStatus } from "../hooks/client/useMCPStatus.js";
 import { useModelDetails } from "../hooks/client/useModelDetails.js";
 import { useTotalTokens } from "../hooks/client/useTotalTokens.js";
+import { useBackgroundBashCount } from "../hooks/client/useBackgroundBashCount.js";
 import { useEnabledRuleIds, useSelectedAgentId } from "@sylphx/code-client";
 import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Spacer, Text } from "ink";
@@ -57,6 +58,9 @@ function StatusBarInternal({
 	// Subscribe to MCP status
 	const mcpStatus = useMCPStatus();
 
+	// Subscribe to background bash count
+	const backgroundBashCount = useBackgroundBashCount();
+
 	// Real-time tokens from currentSession signal
 	// Updated live during streaming via session-tokens-updated events
 	const totalTokens = useTotalTokens();
@@ -101,6 +105,7 @@ function StatusBarInternal({
 			`${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`,
 			mcpStatus.total > 0 &&
 				`MCP ${mcpStatus.connected}/${mcpStatus.total}${mcpStatus.connected > 0 ? ` (${mcpStatus.toolCount})` : ""}`,
+			backgroundBashCount > 0 && `${backgroundBashCount} BG bash (Ctrl+P)`,
 		].filter(Boolean);
 
 		if (!loading && contextLength && totalTokens > 0) {
@@ -112,7 +117,7 @@ function StatusBarInternal({
 		}
 
 		return rightParts.join(" · ");
-	}, [enabledRulesCount, mcpStatus, loading, contextLength, totalTokens, usagePercent]);
+	}, [enabledRulesCount, mcpStatus, backgroundBashCount, loading, contextLength, totalTokens, usagePercent]);
 
 	// ALL EARLY RETURNS MUST COME AFTER ALL HOOKS
 	// Early return for missing provider

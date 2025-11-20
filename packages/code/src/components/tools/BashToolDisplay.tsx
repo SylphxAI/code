@@ -3,7 +3,7 @@
  * Shows real-time streaming bash output during tool execution
  */
 
-import { useTRPC } from "@sylphx/code-client";
+import { useTRPCClient } from "@sylphx/code-client";
 import type { ToolDisplayProps } from "@sylphx/code-client";
 import { truncateString, getRelativePath } from "@sylphx/code-core";
 import { Box, Text } from "ink";
@@ -13,7 +13,7 @@ import Spinner from "../Spinner.js";
 
 export function BashToolDisplay(props: ToolDisplayProps) {
 	const { name, status, duration, startTime, input, result } = props;
-	const trpc = useTRPC();
+	const trpc = useTRPCClient();
 	const [output, setOutput] = useState<string>("");
 	const [bashId, setBashId] = useState<string | null>(null);
 
@@ -133,7 +133,7 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 			{/* Running hint */}
 			{status === "running" && bashId && (
 				<Box marginLeft={2}>
-					<Text dimColor>Press Ctrl+B to move to background · View in Bash Processes (Ctrl+P)</Text>
+					<Text dimColor>Ctrl+B to background · Ctrl+P to view all</Text>
 				</Box>
 			)}
 		</Box>
