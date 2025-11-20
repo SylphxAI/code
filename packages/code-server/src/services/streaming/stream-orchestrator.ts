@@ -376,9 +376,82 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					cwd,
 				);
 
-				// 25. Complete observable
-				// Note: Queued messages are now handled in prepareStep hook (step-lifecycle.service.ts)
-				// This allows AI SDK to process them as part of the multi-step flow
+				// 25. Post-stream queue processing
+				// ARCHITECTURE: prepareStep's continue flag doesn't work reliably in AI SDK 5.x
+				// Instead, after stream completes, check queue and manually trigger new stream
+				// This ensures ALL queued messages are sent together in one new stream
+				const queuedMessages = await sessionRepository.getQueuedMessages(sessionId);
+				if (queuedMessages.length > 0) {
+					console.log(
+						`[StreamOrchestrator] 📬 Found ${queuedMessages.length} queued messages after stream completion, triggering new stream`,
+					);
+
+					// Clear queue
+					await sessionRepository.clearQueue(sessionId);
+
+					// Emit queue-cleared event
+					observer.next({
+						type: "queue-cleared",
+						sessionId,
+					});
+
+					// Combine ALL queued messages into ONE user message content
+					const combinedContent = queuedMessages
+						.map((msg) => msg.content)
+						.filter((content) => content && content.trim())
+						.join("\n\n");
+
+					if (combinedContent.trim()) {
+						console.log(
+							`[StreamOrchestrator] ✅ Triggering new stream with combined queued messages (${queuedMessages.length} messages)`,
+						);
+
+						// Create user message with combined content
+						const queuedUserMessageId = await createUserMessage(
+							sessionRepository.getDatabase(),
+							sessionId,
+							[{ type: "text", content: combinedContent }],
+							[],
+						);
+
+						console.log(`[StreamOrchestrator] Created queued user message: ${queuedUserMessageId}`);
+
+						// Emit user-message-created event
+						observer.next({
+							type: "user-message-created",
+							sessionId,
+							messageId: queuedUserMessageId,
+							content: combinedContent,
+						});
+
+						// Recursively trigger new stream with the queued messages
+						// This will process the new user message through the normal streaming flow
+						const recursiveStream = streamAIResponse({
+							...opts,
+							sessionId, // Use existing sessionId
+							content: [], // Empty content - message already created
+							skipUserMessage: true, // Skip creating another user message
+						});
+
+						// Forward all events from recursive stream to this observer
+						recursiveStream.subscribe({
+							next: (event) => observer.next(event),
+							error: (error) => {
+								console.error("[StreamOrchestrator] Recursive stream error:", error);
+								observer.error(error);
+							},
+							complete: () => {
+								console.log("[StreamOrchestrator] Recursive stream completed");
+								observer.complete();
+							},
+						});
+
+						// Exit early - recursive stream will handle completion
+						return;
+					}
+				}
+
+				// 26. Complete observable (no queued messages)
 				observer.complete();
 			} catch (error) {
 				console.error("[StreamOrchestrator] Error in execution:", error);
