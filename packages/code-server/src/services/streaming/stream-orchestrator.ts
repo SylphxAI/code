@@ -256,10 +256,23 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					},
 				};
 
-				// 17. Create AI stream
-				const { fullStream } = await orchestrateAIStream({
+			// 17. Create AI stream with manual agent loop
+			let currentMessages = messages;
+			let finalUsage: any;
+			let finalFinishReason: string | undefined;
+			let hasError = false;
+			let iterationCount = 0;
+			const MAX_ITERATIONS = 100;
+
+			// Manual agent loop - gives us full control over stepping
+			while (iterationCount < MAX_ITERATIONS) {
+				iterationCount++;
+				console.log(`[StreamOrchestrator] 🔄 Loop iteration ${iterationCount}`);
+
+				// 1. Call streamText with maxSteps=1 (single step only)
+				const { fullStream, response } = await orchestrateAIStream({
 					model,
-					messages,
+					messages: currentMessages,
 					systemPrompt,
 					tools,
 					abortSignal,
@@ -303,8 +316,8 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					},
 				});
 
-				// 18. Start title generation immediately (parallel)
-				if (needsTitle) {
+				// 18. Start title generation immediately on first iteration (parallel)
+				if (needsTitle && iterationCount === 1) {
 					generateSessionTitle(
 						opts.appContext,
 						sessionRepository,
@@ -316,8 +329,8 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					});
 				}
 
-				// 19. Process stream and emit events
-				const { finalUsage, finalFinishReason, hasError } = await processAIStream(
+				// 2. Process stream and emit events
+				const stepResult = await processAIStream(
 					fullStream,
 					observer,
 					state,
@@ -325,134 +338,154 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					callbacks,
 				);
 
-				// 20. Check for timeout (if no events were emitted at all)
-				const elapsedMs = Date.now() - streamStartTime;
-				if (!state.hasEmittedAnyEvent && elapsedMs > STREAM_TIMEOUT_MS) {
-					console.error(`[StreamOrchestrator] TIMEOUT after ${elapsedMs}ms with no events emitted`);
-					const timeoutError = `Request to ${provider} (${modelName}) timed out after ${Math.round(elapsedMs / 1000)}s with no response. This may indicate a network issue, authentication problem, or the provider is unreachable.`;
-					state.currentStepParts.push({
-						type: "error",
-						error: timeoutError,
-						status: "completed",
-					});
-					emitError(observer, timeoutError);
+				// Update final results from this step
+				if (stepResult.finalUsage) {
+					finalUsage = stepResult.finalUsage;
+				}
+				if (stepResult.finalFinishReason) {
+					finalFinishReason = stepResult.finalFinishReason;
+				}
+				if (stepResult.hasError) {
+					hasError = true;
 				}
 
-				// 21. Emit error event if no valid response
-				if (!finalUsage && !state.aborted && !hasError) {
-					const errorPart = state.currentStepParts.find((p) => p.type === "error");
-					if (errorPart && errorPart.type === "error") {
-						emitError(observer, errorPart.error);
-					} else {
-						emitError(
-							observer,
-							"API request failed to generate a response. Please check your API credentials and configuration.",
-						);
-					}
-				}
+				// 3. Update message history - get response messages from AI SDK
+				const responseData = await response;
+				const responseMessages = responseData.messages;
 
-				// 22. Update message status
-				const finalStatus = state.aborted ? "abort" : finalUsage ? "completed" : "error";
-				await updateMessageStatus(
-					assistantMessageId,
-					finalStatus,
-					finalFinishReason,
-					finalUsage,
-					messageRepository,
-					observer,
+				// Push response messages to current message history
+				currentMessages = [...currentMessages, ...responseMessages];
+
+				console.log(
+					`[StreamOrchestrator] Step finished. finishReason: ${finalFinishReason}, hasError: ${hasError}, aborted: ${state.aborted}`,
 				);
 
-				// 23. Create abort notification message if needed
-				if (finalStatus === "abort") {
-					await createAbortNotificationMessage(sessionId, aiConfig, messageRepository, observer);
+				// 4. Check finishReason and decide next action
+				if (state.aborted || hasError) {
+					// Exit on abort or error
+					console.log("[StreamOrchestrator] Exiting loop: abort or error");
+					break;
 				}
 
-				// 24. Calculate final token counts
-				await calculateFinalTokens(
-					sessionId,
-					sessionRepository,
-					messageRepository,
-					opts.appContext,
-					cwd,
-				);
+				if (finalFinishReason === "tool-calls") {
+					// Continue loop - AI wants to make more tool calls
+					console.log("[StreamOrchestrator] Continuing loop: tool-calls");
+					continue;
+				}
 
-				// 25. Post-stream queue processing
-				// ARCHITECTURE: prepareStep's continue flag doesn't work reliably in AI SDK 5.x
-				// Instead, after stream completes, check queue and manually trigger new stream
-				// This ensures ALL queued messages are sent together in one new stream
-				const queuedMessages = await sessionRepository.getQueuedMessages(sessionId);
-				if (queuedMessages.length > 0) {
-					console.log(
-						`[StreamOrchestrator] 📬 Found ${queuedMessages.length} queued messages after stream completion, triggering new stream`,
-					);
+				if (finalFinishReason === "stop") {
+					// Check queue for pending messages
+					const queuedMessages = await sessionRepository.getQueuedMessages(sessionId);
 
-					// Clear queue
-					await sessionRepository.clearQueue(sessionId);
-
-					// Emit queue-cleared event
-					observer.next({
-						type: "queue-cleared",
-						sessionId,
-					});
-
-					// Combine ALL queued messages into ONE user message content
-					const combinedContent = queuedMessages
-						.map((msg) => msg.content)
-						.filter((content) => content && content.trim())
-						.join("\n\n");
-
-					if (combinedContent.trim()) {
+					if (queuedMessages.length > 0) {
 						console.log(
-							`[StreamOrchestrator] ✅ Triggering new stream with combined queued messages (${queuedMessages.length} messages)`,
+							`[StreamOrchestrator] 📬 Found ${queuedMessages.length} queued messages, injecting into loop`,
 						);
 
-						// Create user message with combined content
-						const queuedUserMessageId = await createUserMessage(
-							sessionRepository.getDatabase(),
-							sessionId,
-							[{ type: "text", content: combinedContent }],
-							[],
-						);
+						// Clear queue
+						await sessionRepository.clearQueue(sessionId);
 
-						console.log(`[StreamOrchestrator] Created queued user message: ${queuedUserMessageId}`);
-
-						// Emit user-message-created event
+						// Emit queue-cleared event
 						observer.next({
-							type: "user-message-created",
+							type: "queue-cleared",
 							sessionId,
-							messageId: queuedUserMessageId,
-							content: combinedContent,
 						});
 
-						// Recursively trigger new stream with the queued messages
-						// This will process the new user message through the normal streaming flow
-						const recursiveStream = streamAIResponse({
-							...opts,
-							sessionId, // Use existing sessionId
-							content: [], // Empty content - message already created
-							skipUserMessage: true, // Skip creating another user message
-						});
+						// Combine ALL queued messages into ONE user message
+						const combinedContent = queuedMessages
+							.map((msg) => msg.content)
+							.filter((content) => content && content.trim())
+							.join("\n\n");
 
-						// Forward all events from recursive stream to this observer
-						recursiveStream.subscribe({
-							next: (event) => observer.next(event),
-							error: (error) => {
-								console.error("[StreamOrchestrator] Recursive stream error:", error);
-								observer.error(error);
-							},
-							complete: () => {
-								console.log("[StreamOrchestrator] Recursive stream completed");
-								observer.complete();
-							},
-						});
+						if (combinedContent.trim()) {
+							// Inject queued messages as new user message in history
+							currentMessages.push({
+								role: "user",
+								content: combinedContent,
+							});
 
-						// Exit early - recursive stream will handle completion
-						return;
+							// Continue loop with injected messages
+							console.log("[StreamOrchestrator] Continuing loop: queued messages injected");
+							continue;
+						}
 					}
+
+					// No queue, exit loop
+					console.log("[StreamOrchestrator] Exiting loop: stop with no queue");
+					break;
 				}
 
-				// 26. Complete observable (no queued messages)
-				observer.complete();
+				// Unknown finish reason - exit
+				console.log(`[StreamOrchestrator] Exiting loop: unknown finishReason ${finalFinishReason}`);
+				break;
+			}
+
+			// Check for max iterations
+			if (iterationCount >= MAX_ITERATIONS) {
+				console.error(`[StreamOrchestrator] Max iterations (${MAX_ITERATIONS}) reached`);
+				const maxIterError = `Maximum iteration limit (${MAX_ITERATIONS}) reached. This may indicate an infinite loop.`;
+				state.currentStepParts.push({
+					type: "error",
+					error: maxIterError,
+					status: "completed",
+				});
+				emitError(observer, maxIterError);
+				hasError = true;
+			}
+
+			// 20. Check for timeout (if no events were emitted at all)
+			const elapsedMs = Date.now() - streamStartTime;
+			if (!state.hasEmittedAnyEvent && elapsedMs > STREAM_TIMEOUT_MS) {
+				console.error(`[StreamOrchestrator] TIMEOUT after ${elapsedMs}ms with no events emitted`);
+				const timeoutError = `Request to ${provider} (${modelName}) timed out after ${Math.round(elapsedMs / 1000)}s with no response. This may indicate a network issue, authentication problem, or the provider is unreachable.`;
+				state.currentStepParts.push({
+					type: "error",
+					error: timeoutError,
+					status: "completed",
+				});
+				emitError(observer, timeoutError);
+			}
+
+			// 21. Emit error event if no valid response
+			if (!finalUsage && !state.aborted && !hasError) {
+				const errorPart = state.currentStepParts.find((p) => p.type === "error");
+				if (errorPart && errorPart.type === "error") {
+					emitError(observer, errorPart.error);
+				} else {
+					emitError(
+						observer,
+						"API request failed to generate a response. Please check your API credentials and configuration.",
+					);
+				}
+			}
+
+			// 22. Update message status
+			const finalStatus = state.aborted ? "abort" : finalUsage ? "completed" : "error";
+			await updateMessageStatus(
+				assistantMessageId,
+				finalStatus,
+				finalFinishReason,
+				finalUsage,
+				messageRepository,
+				observer,
+			);
+
+			// 23. Create abort notification message if needed
+			if (finalStatus === "abort") {
+				await createAbortNotificationMessage(sessionId, aiConfig, messageRepository, observer);
+			}
+
+			// 24. Calculate final token counts
+			await calculateFinalTokens(
+				sessionId,
+				sessionRepository,
+				messageRepository,
+				opts.appContext,
+				cwd,
+			);
+
+			// 25. Complete observable
+			observer.complete();
 			} catch (error) {
 				console.error("[StreamOrchestrator] Error in execution:", error);
 				console.error("[StreamOrchestrator] Error type:", error?.constructor?.name);
