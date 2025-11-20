@@ -82,6 +82,13 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 		commandDisplay += ` [in ${getRelativePath(cwd)}]`;
 	}
 
+	// Extract mode from result
+	const mode =
+		result && typeof result === "object" && "mode" in result
+			? String((result as any).mode)
+			: "active";
+	const isBackgroundMode = mode === "background";
+
 	// Format output for display
 	const outputLines = output.split("\n").filter((line) => line.trim() !== "");
 	const displayLines = outputLines.slice(0, 50); // Show max 50 lines
@@ -119,8 +126,17 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 				</Box>
 			)}
 
-			{/* Real-time output (show for running, completed, AND failed) */}
-			{displayLines.length > 0 && (
+			{/* Background mode - show summary only, no streaming output */}
+			{isBackgroundMode && status !== "failed" && (
+				<Box marginLeft={2} flexDirection="column">
+					<Text dimColor>
+						Running in background. Use Ctrl+P to view all processes or check bash:{bashId.slice(0, 8)}
+					</Text>
+				</Box>
+			)}
+
+			{/* Active mode - show real-time streaming output */}
+			{!isBackgroundMode && displayLines.length > 0 && (
 				<Box flexDirection="column" marginLeft={2}>
 					{displayLines.map((line, i) => (
 						<Text key={`${i}-${line.slice(0, 20)}`} dimColor>
@@ -137,7 +153,7 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 			)}
 
 			{/* Status messages */}
-			{status === "completed" && displayLines.length === 0 && (
+			{!isBackgroundMode && status === "completed" && displayLines.length === 0 && (
 				<Box marginLeft={2}>
 					<Text dimColor>Command completed (no output)</Text>
 				</Box>
@@ -149,10 +165,21 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 				</Box>
 			)}
 
-			{/* Running hint */}
-			{status === "running" && bashId && (
-				<Box marginLeft={2}>
-					<Text dimColor>Ctrl+B to background · Ctrl+P to view all</Text>
+			{/* Active mode hint - show Ctrl+B to demote */}
+			{!isBackgroundMode && status === "running" && bashId && (
+				<Box marginLeft={2} marginTop={1} borderStyle="round" borderColor="gray" paddingX={1}>
+					<Text bold color="cyan">
+						💡 Tip:{" "}
+					</Text>
+					<Text dimColor>Press </Text>
+					<Text bold color="yellow">
+						Ctrl+B
+					</Text>
+					<Text dimColor> to move to background · </Text>
+					<Text bold color="yellow">
+						Ctrl+P
+					</Text>
+					<Text dimColor> to view all processes</Text>
 				</Box>
 			)}
 		</Box>
