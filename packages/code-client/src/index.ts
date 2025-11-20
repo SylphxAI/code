@@ -49,6 +49,10 @@ export * from "./signals/domain/queue/index.js";
 export * from "./signals/domain/session/index.js";
 export * from "./signals/domain/settings/index.js";
 // ============================================================================
+// Optimistic Updates
+// ============================================================================
+export * from "./optimistic/index.js";
+// ============================================================================
 // Screen Type (for backwards compatibility in component imports)
 // ============================================================================
 export type { Screen } from "./signals/domain/ui/index.js";
