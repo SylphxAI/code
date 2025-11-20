@@ -15,6 +15,7 @@
  * - Event-driven (emits to observer)
  */
 
+import { randomUUID } from "node:crypto";
 import type { MessagePart, MessageRepository, SessionRepository } from "@sylphx/code-core";
 import {
 	checkAllTriggers,
@@ -46,6 +47,7 @@ export async function prepareStep(
 	observer: {
 		next: (event: StreamEvent) => void;
 	},
+	stepIdMap: Map<number, string>, // Track generated step IDs
 ): Promise<{ messages?: any[] } | {}> {
 	try {
 		// 1. Reload session to get latest state
@@ -106,7 +108,12 @@ export async function prepareStep(
 
 		// 5. Create step record in database with provider/model
 		// IMPORTANT: Set provider/model at creation time for real-time UI sync
-		const stepId = `${assistantMessageId}-step-${stepNumber}`;
+		// Use UUID for step ID to avoid collision issues with manual loop
+		const stepId = randomUUID();
+
+		// Store stepId in map for completeStep to use
+		stepIdMap.set(stepNumber, stepId);
+
 		try {
 			await createMessageStep(
 				sessionRepository.getDatabase(),
@@ -117,6 +124,7 @@ export async function prepareStep(
 				systemMessages.length > 0 ? systemMessages : undefined,
 				currentSession.provider, // provider from session
 				currentSession.model, // model from session
+				stepId, // Pass explicit UUID
 			);
 		} catch (stepError) {
 			console.error("[StepLifecycle] Failed to create step:", stepError);
@@ -210,10 +218,15 @@ export async function completeStep(
 	},
 	session: { provider: string; model: string },
 	cwd: string,
+	stepIdMap: Map<number, string>, // Retrieve generated step ID
 ): Promise<number> {
 	const stepStartTime = Date.now();
 	try {
-		const stepId = `${assistantMessageId}-step-${stepNumber}`;
+		// Retrieve stepId from map (generated in prepareStep)
+		const stepId = stepIdMap.get(stepNumber);
+		if (!stepId) {
+			throw new Error(`Step ID not found for step ${stepNumber}`);
+		}
 
 		// Update tool results with AI SDK's wrapped format
 		if (stepResult.toolResults && stepResult.toolResults.length > 0) {

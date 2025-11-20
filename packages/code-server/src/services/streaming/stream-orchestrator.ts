@@ -203,6 +203,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				const state = createStreamState();
 				let lastCompletedStepNumber = -1;
 				const streamStartTime = Date.now();
+				const stepIdMap = new Map<number, string>(); // Track stepNumber → stepId mapping
 
 				// 15. Initialize token tracking
 				const cwd = process.cwd();
@@ -292,6 +293,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 								observer,
 								session,
 								cwd,
+								stepIdMap, // Pass map to retrieve stepId
 							);
 							lastCompletedStepNumber = stepNumber;
 							state.currentStepParts = [];
@@ -314,6 +316,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 							modelName,
 							providerConfig,
 							observer,
+							stepIdMap, // Pass map to track generated stepId
 						);
 					},
 				});
