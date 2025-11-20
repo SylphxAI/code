@@ -56,28 +56,37 @@ All output is streamed in real-time via event channel "bash:{bash_id}"`,
 			),
 	}),
 	execute: async ({ command, cwd, timeout = 120000, run_in_background = false }) => {
-		const mode = run_in_background ? "background" : "active";
+		try {
+			const mode = run_in_background ? "background" : "active";
 
-		// Execute via BashManagerV2
-		const bashId = await bashManagerV2.execute(command, {
-			mode,
-			cwd,
-			timeout: mode === "active" ? timeout : undefined,
-		});
+			// Execute via BashManagerV2
+			const bashId = await bashManagerV2.execute(command, {
+				mode,
+				cwd,
+				timeout: mode === "active" ? timeout : undefined,
+			});
 
-		const proc = bashManagerV2.get(bashId);
+			const proc = bashManagerV2.get(bashId);
+			if (!proc) {
+				throw new Error(`Failed to create bash process with ID ${bashId}`);
+			}
 
-		return {
-			bash_id: bashId,
-			command,
-			mode,
-			status: proc?.status || "running",
-			message:
-				mode === "active"
-					? `Started in active mode. Will auto-convert to background after ${timeout}ms if still running. Subscribe to channel "bash:${bashId}" for real-time output.`
-					: `Started in background. Subscribe to channel "bash:${bashId}" for real-time output.`,
-			subscription_channel: `bash:${bashId}`,
-		};
+			return {
+				bash_id: bashId,
+				command,
+				mode,
+				status: proc.status,
+				message:
+					mode === "active"
+						? `Started in active mode. Will auto-convert to background after ${timeout}ms if still running. Subscribe to channel "bash:${bashId}" for real-time output.`
+						: `Started in background. Subscribe to channel "bash:${bashId}" for real-time output.`,
+				subscription_channel: `bash:${bashId}`,
+			};
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			console.error("[executeBashToolV2] Error:", errorMessage, error);
+			throw new Error(`Failed to execute bash command: ${errorMessage}`);
+		}
 	},
 });
 

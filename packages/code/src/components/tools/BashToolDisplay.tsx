@@ -83,9 +83,15 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 	}
 
 	// Format output for display
-	const outputLines = output.split("\n");
+	const outputLines = output.split("\n").filter((line) => line.trim() !== "");
 	const displayLines = outputLines.slice(0, 50); // Show max 50 lines
 	const hasMore = outputLines.length > 50;
+
+	// Extract error from result if tool failed
+	const errorMessage =
+		status === "failed" && result && typeof result === "object" && "error" in result
+			? String((result as any).error)
+			: null;
 
 	return (
 		<Box flexDirection="column">
@@ -106,8 +112,15 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 				)}
 			</Box>
 
-			{/* Real-time output (while running or completed) */}
-			{(status === "running" || status === "completed") && displayLines.length > 0 && (
+			{/* Error message (if tool failed) */}
+			{status === "failed" && errorMessage && (
+				<Box marginLeft={2} marginTop={1}>
+					<Text color="red">Tool Error: {errorMessage}</Text>
+				</Box>
+			)}
+
+			{/* Real-time output (show for running, completed, AND failed) */}
+			{displayLines.length > 0 && (
 				<Box flexDirection="column" marginLeft={2}>
 					{displayLines.map((line, i) => (
 						<Text key={`${i}-${line.slice(0, 20)}`} dimColor>
@@ -127,6 +140,12 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 			{status === "completed" && displayLines.length === 0 && (
 				<Box marginLeft={2}>
 					<Text dimColor>Command completed (no output)</Text>
+				</Box>
+			)}
+
+			{status === "failed" && displayLines.length === 0 && !bashId && (
+				<Box marginLeft={2}>
+					<Text color="red">Failed to start bash process</Text>
 				</Box>
 			)}
 
