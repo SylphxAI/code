@@ -410,9 +410,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 							// Complete the CURRENT assistant message before starting new one
 							// This ensures the first message's streaming state is properly cleared
-							console.log(
-								`[StreamOrchestrator] Completing previous assistant message: ${assistantMessageId}`,
-							);
 							const previousStatus = state.aborted ? "abort" : finalUsage ? "completed" : "error";
 							await updateMessageStatus(
 								assistantMessageId,
@@ -462,10 +459,6 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				console.log(`[StreamOrchestrator] Exiting loop: unknown finishReason ${finalFinishReason}`);
 				break;
 			}
-
-			console.log(
-				`[StreamOrchestrator] ✅ Loop exited. Iterations: ${iterationCount}, finalUsage: ${!!finalUsage}, finalFinishReason: ${finalFinishReason}, hasError: ${hasError}`,
-			);
 
 			// Check for max iterations
 			if (iterationCount >= MAX_ITERATIONS) {
@@ -532,9 +525,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 			);
 
 			// 25. Complete observable
-			console.log("[StreamOrchestrator] 🏁 Completing observable");
 			observer.complete();
-			console.log("[StreamOrchestrator] ✅ Observable completed");
 			} catch (error) {
 				console.error("[StreamOrchestrator] Error in execution:", error);
 				console.error("[StreamOrchestrator] Error type:", error?.constructor?.name);
