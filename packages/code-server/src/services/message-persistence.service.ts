@@ -72,6 +72,7 @@ export async function createAssistantMessage(
 	});
 
 	// Emit assistant message created event
+	console.log(`[MessagePersistence] 📤 Emitting assistant-message-created: ${assistantMessageId}`);
 	observer.next({
 		type: "assistant-message-created",
 		messageId: assistantMessageId,
@@ -97,6 +98,9 @@ export async function updateMessageStatus(
 		await messageRepository.updateMessageStatus(messageId, status, finishReason);
 
 		// Emit message-status-updated event (unified status change event)
+		console.log(
+			`[MessagePersistence] 📤 Emitting message-status-updated: ${messageId} → ${status}`,
+		);
 		observer.next({
 			type: "message-status-updated",
 			messageId: messageId,
