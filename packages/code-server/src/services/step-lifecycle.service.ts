@@ -101,35 +101,36 @@ export async function prepareStep(
 		// ARCHITECTURE: Queue injection happens in prepareStep (between steps)
 		// This allows queued messages to be processed regardless of finishReason
 		// Works for both tool-calls and stop finish reasons
+		//
+		// CHANGE: Always check queue (not just stepNumber > 0)
+		// This allows queue injection even after first step finishes with "stop"
 		let queuedUserMessage: any = null;
-		if (stepNumber > 0) { // Only check queue after first step
-			const queuedMessages = await sessionRepository.getQueuedMessages(sessionId);
-			if (queuedMessages.length > 0) {
-				console.log(`[StepLifecycle] 📬 Found ${queuedMessages.length} queued messages, injecting into step ${stepNumber}`);
+		const queuedMessages = await sessionRepository.getQueuedMessages(sessionId);
+		if (queuedMessages.length > 0) {
+			console.log(`[StepLifecycle] 📬 Found ${queuedMessages.length} queued messages, injecting into step ${stepNumber}`);
 
-				// Clear queue
-				await sessionRepository.clearQueue(sessionId);
+			// Clear queue
+			await sessionRepository.clearQueue(sessionId);
 
-				// Broadcast queue-cleared event
-				observer.next({
-					type: "queue-cleared",
-					sessionId,
-				});
+			// Broadcast queue-cleared event
+			observer.next({
+				type: "queue-cleared",
+				sessionId,
+			});
 
-				// Combine queued messages into user message
-				const combinedContent = queuedMessages
-					.map((msg) => msg.content)
-					.filter((content) => content && content.trim())
-					.join("\n\n");
+			// Combine ALL queued messages into ONE user message
+			const combinedContent = queuedMessages
+				.map((msg) => msg.content)
+				.filter((content) => content && content.trim())
+				.join("\n\n");
 
-				if (combinedContent.trim()) {
-					// Create user message to inject
-					queuedUserMessage = {
-						role: "user" as const,
-						content: combinedContent,
-					};
-					console.log(`[StepLifecycle] ✅ Prepared queued messages as user message`);
-				}
+			if (combinedContent.trim()) {
+				// Create user message to inject
+				queuedUserMessage = {
+					role: "user" as const,
+					content: combinedContent,
+				};
+				console.log(`[StepLifecycle] ✅ Prepared queued messages as user message (${queuedMessages.length} messages combined)`);
 			}
 		}
 
@@ -208,9 +209,17 @@ export async function prepareStep(
 			modifiedMessages = [...modifiedMessages, queuedUserMessage];
 		}
 
+		// IMPORTANT: Return continue flag based on whether we injected queued messages
+		// If we injected queued messages, force continue to process them
+		// This overrides AI SDK's default behavior (which would stop on finishReason="stop")
+		const hasQueuedMessages = queuedUserMessage !== null;
+
 		// Return modified messages if any changes were made
 		if (modifiedMessages !== baseMessages) {
-			return { messages: modifiedMessages };
+			return {
+				messages: modifiedMessages,
+				continue: hasQueuedMessages, // Force continue if we injected queue
+			};
 		}
 
 		return {}; // No modifications needed

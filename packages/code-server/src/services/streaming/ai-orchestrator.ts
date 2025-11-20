@@ -473,6 +473,18 @@ export function createStreamState(): StreamState {
 export async function orchestrateAIStream(
 	options: OrchestrateStreamOptions,
 ): Promise<{ fullStream: AsyncIterable<TextStreamPart<any>>; response: Promise<any> }> {
+	// MANUAL LOOPING ARCHITECTURE:
+	// Instead of AI SDK's automatic stepping, we manually control the loop
+	// This allows us to inject queued messages AFTER each step completes,
+	// regardless of finishReason (stop or tool-calls)
+	//
+	// Flow:
+	// 1. Stream step N
+	// 2. onStepFinish → check queue
+	// 3. If queue not empty → prepareStep → inject all queued messages → continue to step N+1
+	// 4. If queue empty && finishReason="stop" → done
+	// 5. If finishReason="tool-calls" → continue to step N+1 (AI SDK automatic)
+
 	const { fullStream, response } = streamText({
 		model: options.model,
 		messages: options.messages,
