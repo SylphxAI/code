@@ -9,7 +9,19 @@
  */
 
 import type { MCPServerWithId } from "@sylphx/code-core";
-import { useEffect, useState } from "react";
+import {
+	useMCPManagementStep,
+	useMCPServers,
+	useSelectedMCPServer,
+	useConnectedMCPServers,
+	useMCPToolCounts,
+	setMCPManagementStep as setMCPManagementStepSignal,
+	setMCPServers as setMCPServersSignal,
+	setSelectedMCPServer as setSelectedMCPServerSignal,
+	setConnectedMCPServers as setConnectedMCPServersSignal,
+	setMCPToolCounts as setMCPToolCountsSignal,
+} from "@sylphx/code-client";
+import { useEffect } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
 import { MCPAddForm } from "./MCPAddForm.js";
@@ -19,15 +31,13 @@ interface MCPManagementProps {
 	onComplete?: () => void;
 }
 
-type Step = "list-servers" | "add-server" | "server-details";
-
 export function MCPManagement({ onComplete }: MCPManagementProps) {
 	console.log("[MCPManagement] Component render, onComplete:", !!onComplete);
-	const [step, setStep] = useState<Step>("list-servers");
-	const [servers, setServers] = useState<MCPServerWithId[]>([]);
-	const [selectedServer, setSelectedServer] = useState<MCPServerWithId | null>(null);
-	const [connectedServers, setConnectedServers] = useState<Set<string>>(new Set());
-	const [toolCounts, setToolCounts] = useState<Map<string, number>>(new Map());
+	const step = useMCPManagementStep();
+	const servers = useMCPServers();
+	const selectedServer = useSelectedMCPServer();
+	const connectedServers = useConnectedMCPServers();
+	const toolCounts = useMCPToolCounts();
 
 	// Load servers and connection states
 	const loadServers = async () => {
@@ -38,7 +48,7 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 
 		if (result.success) {
 			console.log("[MCPManagement] Setting servers:", result.data.length);
-			setServers(result.data);
+			setMCPServersSignal(result.data);
 
 			// Get connection states and tool counts
 			const mcpManager = getMCPManager();
@@ -57,8 +67,8 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 				}
 			}
 
-			setConnectedServers(connected);
-			setToolCounts(counts);
+			setConnectedMCPServersSignal(connected);
+			setMCPToolCountsSignal(counts);
 			console.log(
 				"[MCPManagement] loadServers DONE, servers:",
 				result.data.length,
@@ -108,14 +118,14 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 	// Handle server selection - go directly to details
 	const handleServerSelect = async (value: string) => {
 		if (value === "__add__") {
-			setStep("add-server");
+			setMCPManagementStepSignal("add-server");
 			return;
 		}
 
 		const server = servers.find((s) => s.id === value);
 		if (server) {
-			setSelectedServer(server);
-			setStep("server-details");
+			setSelectedMCPServerSignal(server);
+			setMCPManagementStepSignal("server-details");
 		}
 	};
 
@@ -146,12 +156,12 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 					console.log("[MCPManagement] MCPAddForm onComplete called");
 					await loadServers();
 					console.log("[MCPManagement] Servers reloaded");
-					setStep("list-servers");
+					setMCPManagementStepSignal("list-servers");
 					console.log("[MCPManagement] Step set to list-servers");
 				}}
 				onCancel={() => {
 					console.log("[MCPManagement] MCPAddForm onCancel called");
-					setStep("list-servers");
+					setMCPManagementStepSignal("list-servers");
 				}}
 			/>
 		);
@@ -162,7 +172,7 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 		return (
 			<MCPServerDetails
 				server={selectedServer}
-				onBack={() => setStep("list-servers")}
+				onBack={() => setMCPManagementStepSignal("list-servers")}
 				onConnect={async () => {
 					const { getMCPManager, reloadMCPServerTools } = await import("@sylphx/code-core");
 					const mcpManager = getMCPManager();

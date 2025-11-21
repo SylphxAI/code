@@ -4,11 +4,26 @@
  */
 
 import type { MCPServerWithId, MCPToolInfo } from "@sylphx/code-core";
+import {
+	useThemeColors,
+	useMCPServerDetailsView,
+	useMCPServerTools,
+	useMCPSelectedTools,
+	useMCPServerDetailsLoading,
+	useMCPServerConnected,
+	useMCPServerConnectionInfo,
+	setMCPServerDetailsView as setMCPServerDetailsViewSignal,
+	setMCPServerTools as setMCPServerToolsSignal,
+	setMCPSelectedTool as setMCPSelectedToolSignal,
+	setMCPServerDetailsLoading as setMCPServerDetailsLoadingSignal,
+	setMCPServerConnected as setMCPServerConnectedSignal,
+	setMCPServerConnectionInfo as setMCPServerConnectionInfoSignal,
+} from "@sylphx/code-client";
 import { Box, Text, useInput } from "ink";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { getColors } from "@sylphx/code-client";
 
 interface MCPServerDetailsProps {
 	server: MCPServerWithId;
@@ -20,8 +35,6 @@ interface MCPServerDetailsProps {
 	onRemove?: () => void;
 }
 
-type View = "overview" | "tools-list" | "tool-detail";
-
 export function MCPServerDetails({
 	server,
 	onBack,
@@ -31,17 +44,20 @@ export function MCPServerDetails({
 	onDisable,
 	onRemove,
 }: MCPServerDetailsProps) {
-	const [view, setView] = useState<View>("overview");
-	const [tools, setTools] = useState<MCPToolInfo[]>([]);
-	const [selectedTool, setSelectedTool] = useState<MCPToolInfo | null>(null);
-	const [loading, setLoading] = useState(true);
-	const [isConnected, setIsConnected] = useState(false);
+	const viewMap = useMCPServerDetailsView();
+	const toolsMap = useMCPServerTools();
+	const selectedToolsMap = useMCPSelectedTools();
+	const loadingMap = useMCPServerDetailsLoading();
+	const connectedMap = useMCPServerConnected();
+	const connectionInfoMap = useMCPServerConnectionInfo();
 	const colors = useThemeColors();
-	const [connectionInfo, setConnectionInfo] = useState<{
-		connectedAt?: number;
-		lastActivity?: number;
-		toolCount: number;
-	} | null>(null);
+
+	const view = viewMap[server.id] || "overview";
+	const tools = toolsMap[server.id] || [];
+	const selectedTool = selectedToolsMap[server.id] || null;
+	const loading = loadingMap[server.id] || false;
+	const isConnected = connectedMap[server.id] || false;
+	const connectionInfo = connectionInfoMap[server.id] || null;
 
 	// Load tools and connection info
 	useEffect(() => {
@@ -51,12 +67,12 @@ export function MCPServerDetails({
 
 			// Check connection status
 			const connected = mcpManager.isConnected(server.id);
-			setIsConnected(connected);
+			setMCPServerConnectedSignal(server.id, connected);
 
 			// Get connection state
 			const state = await mcpManager.getServerState(server.id);
 			if (state) {
-				setConnectionInfo({
+				setMCPServerConnectionInfoSignal(server.id, {
 					connectedAt: state.connectedAt,
 					lastActivity: state.lastActivity,
 					toolCount: state.toolCount,
@@ -67,13 +83,14 @@ export function MCPServerDetails({
 			if (connected) {
 				const toolsResult = await mcpManager.getTools(server.id);
 				if (toolsResult.success) {
-					setTools(toolsResult.data);
+					setMCPServerToolsSignal(server.id, toolsResult.data);
 				}
 			}
 
-			setLoading(false);
+			setMCPServerDetailsLoadingSignal(server.id, false);
 		};
 
+		setMCPServerDetailsLoadingSignal(server.id, true);
 		loadDetails();
 	}, [server.id]);
 
@@ -151,7 +168,7 @@ export function MCPServerDetails({
 
 	const handleOverviewAction = async (action: string) => {
 		if (action === "view-tools") {
-			setView("tools-list");
+			setMCPServerDetailsViewSignal(server.id, "tools-list");
 		} else if (action === "connect" && onConnect) {
 			await onConnect();
 		} else if (action === "disconnect" && onDisconnect) {
@@ -163,18 +180,18 @@ export function MCPServerDetails({
 		} else if (action === "remove" && onRemove) {
 			await onRemove();
 		} else if (action === "refresh") {
-			setLoading(true);
+			setMCPServerDetailsLoadingSignal(server.id, true);
 			// Reload details
 			const { getMCPManager } = await import("@sylphx/code-core");
 			const mcpManager = getMCPManager();
 
 			// Refresh connection status
 			const connected = mcpManager.isConnected(server.id);
-			setIsConnected(connected);
+			setMCPServerConnectedSignal(server.id, connected);
 
 			const state = await mcpManager.getServerState(server.id);
 			if (state) {
-				setConnectionInfo({
+				setMCPServerConnectionInfoSignal(server.id, {
 					connectedAt: state.connectedAt,
 					lastActivity: state.lastActivity,
 					toolCount: state.toolCount,
@@ -184,13 +201,13 @@ export function MCPServerDetails({
 			if (connected) {
 				const toolsResult = await mcpManager.getTools(server.id);
 				if (toolsResult.success) {
-					setTools(toolsResult.data);
+					setMCPServerToolsSignal(server.id, toolsResult.data);
 				}
 			} else {
-				setTools([]);
+				setMCPServerToolsSignal(server.id, []);
 			}
 
-			setLoading(false);
+			setMCPServerDetailsLoadingSignal(server.id, false);
 		}
 	};
 
@@ -204,8 +221,8 @@ export function MCPServerDetails({
 	const handleToolSelect = (toolName: string) => {
 		const tool = tools.find((t) => t.name === toolName);
 		if (tool) {
-			setSelectedTool(tool);
-			setView("tool-detail");
+			setMCPSelectedToolSignal(server.id, tool);
+			setMCPServerDetailsViewSignal(server.id, "tool-detail");
 		}
 	};
 
@@ -224,7 +241,7 @@ export function MCPServerDetails({
 					subtitle="Select a tool to view details • ESC: Back to overview"
 					placeholder="Select tool..."
 					onSelect={handleToolSelect}
-					onCancel={() => setView("overview")}
+					onCancel={() => setMCPServerDetailsViewSignal(server.id, "overview")}
 					showSearch={tools.length > 10}
 				/>
 			</Box>
@@ -236,7 +253,7 @@ export function MCPServerDetails({
 		// Handle ESC key to go back
 		useInput((_input, key) => {
 			if (key.escape) {
-				setView("tools-list");
+				setMCPServerDetailsViewSignal(server.id, "tools-list");
 			}
 		});
 

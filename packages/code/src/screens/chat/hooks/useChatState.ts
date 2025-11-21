@@ -10,7 +10,15 @@ import { useCurrentSession } from "../../../hooks/client/useCurrentSession.js";
 import { useFileAttachments } from "../../../hooks/client/useFileAttachments.js";
 import { useProjectFiles } from "../../../hooks/client/useProjectFiles.js";
 import { useTokenCalculation } from "../../../hooks/client/useTokenCalculation.js";
-import { addDebugLog, useSelectedModel, useSelectedProvider } from "@sylphx/code-client";
+import {
+	addDebugLog,
+	useSelectedModel,
+	useSelectedProvider,
+	useHideMessageTitles,
+	useHideMessageUsage,
+	setHideMessageTitles as setHideMessageTitlesSignal,
+	setHideMessageUsage as setHideMessageUsageSignal,
+} from "@sylphx/code-client";
 import type { FileAttachment } from "@sylphx/code-core";
 import { loadSettings } from "@sylphx/code-core";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -53,18 +61,20 @@ export function useChatState(_props: ChatProps) {
 	const [selectedFileIndex, setSelectedFileIndex] = useState(0);
 	const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
 	const [showEscHint, setShowEscHint] = useState(false);
-	const [hideMessageTitles, setHideMessageTitles] = useState(true); // default: hide
-	const [hideMessageUsage, setHideMessageUsage] = useState(true); // default: hide
+
+	// Display settings from signals
+	const hideMessageTitles = useHideMessageTitles();
+	const hideMessageUsage = useHideMessageUsage();
 
 	// Load display settings on mount
 	useEffect(() => {
 		loadSettings().then((result) => {
 			if (result.success) {
 				if (result.data.hideMessageTitles !== undefined) {
-					setHideMessageTitles(result.data.hideMessageTitles);
+					setHideMessageTitlesSignal(result.data.hideMessageTitles);
 				}
 				if (result.data.hideMessageUsage !== undefined) {
-					setHideMessageUsage(result.data.hideMessageUsage);
+					setHideMessageUsageSignal(result.data.hideMessageUsage);
 				}
 			}
 		});
