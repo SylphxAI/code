@@ -209,7 +209,7 @@ export function handleToolResult(
 	// Refetch session if updateTodos tool completed (todos were updated in database)
 	if (event.toolName === "updateTodos" && currentSessionId) {
 		console.log("[handleToolResult] updateTodos tool completed - triggering session refetch");
-		import("../../../utils/refetch-session.js").then(({ refetchCurrentSession }) => {
+		import("../../../../utils/refetch-session.js").then(({ refetchCurrentSession }) => {
 			refetchCurrentSession(currentSessionId).catch((err) => {
 				console.error("[handleToolResult] Failed to refetch session after updateTodos:", err);
 			});
