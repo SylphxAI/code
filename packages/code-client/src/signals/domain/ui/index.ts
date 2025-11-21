@@ -107,3 +107,8 @@ export const useUIError = () => useZen(error);
 export const useShowNavigation = () => useZen(showNavigation);
 export const useDebugLogs = () => useZen(debugLogs);
 export const useIsCompacting = () => useZen(isCompacting);
+
+// Sub-domain exports
+export * from "./command.js";
+export * from "./input.js";
+export * from "./selection.js";

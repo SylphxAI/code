@@ -1,10 +1,30 @@
 /**
  * Selection State Hook
- * Manages multi-selection, pending input, and filter state for command interactions
+ * Manages multi-selection, pending input, and filter state using Zen signals
  */
 
-import { useRef, useState } from "react";
-import type { WaitForInputOptions } from "../../../commands/types.js";
+import {
+	usePendingInput,
+	setPendingInput as setPendingInputSignal,
+	useSelectionFilter,
+	setSelectionFilter as setSelectionFilterSignal,
+	useIsFilterMode,
+	setIsFilterMode as setIsFilterModeSignal,
+	useMultiSelectionPage,
+	setMultiSelectionPage as setMultiSelectionPageSignal,
+	useMultiSelectionAnswers,
+	setMultiSelectionAnswers as setMultiSelectionAnswersSignal,
+	useMultiSelectChoices,
+	setMultiSelectChoices as setMultiSelectChoicesSignal,
+	useFreeTextInput,
+	setFreeTextInput as setFreeTextInputSignal,
+	useIsFreeTextMode,
+	setIsFreeTextMode as setIsFreeTextModeSignal,
+	useAskQueueLength,
+	setAskQueueLength as setAskQueueLengthSignal,
+	type WaitForInputOptions,
+} from "@sylphx/code-client";
+import { useRef } from "react";
 
 export interface SelectionState {
 	pendingInput: WaitForInputOptions | null;
@@ -35,42 +55,42 @@ export interface SelectionState {
 }
 
 export function useSelectionState(): SelectionState {
-	const [pendingInput, setPendingInput] = useState<WaitForInputOptions | null>(null);
+	const pendingInput = usePendingInput();
+	const selectionFilter = useSelectionFilter();
+	const isFilterMode = useIsFilterMode();
+	const multiSelectionPage = useMultiSelectionPage();
+	const multiSelectionAnswers = useMultiSelectionAnswers();
+	const multiSelectChoices = useMultiSelectChoices();
+	const freeTextInput = useFreeTextInput();
+	const isFreeTextMode = useIsFreeTextMode();
+	const askQueueLength = useAskQueueLength();
+
+	// Refs are not migrated to signals (they're React-specific and don't need reactivity)
 	const inputResolver = useRef<
 		((value: string | Record<string, string | string[]>) => void) | null
 	>(null);
 	const askToolContextRef = useRef<{ sessionId: string; toolCallId: string } | null>(null);
-	const [selectionFilter, setSelectionFilter] = useState("");
-	const [isFilterMode, setIsFilterMode] = useState(false);
-	const [multiSelectionPage, setMultiSelectionPage] = useState(0);
-	const [multiSelectionAnswers, setMultiSelectionAnswers] = useState<
-		Record<string, string | string[]>
-	>({});
-	const [multiSelectChoices, setMultiSelectChoices] = useState<Set<string>>(new Set());
-	const [freeTextInput, setFreeTextInput] = useState("");
-	const [isFreeTextMode, setIsFreeTextMode] = useState(false);
-	const [askQueueLength, setAskQueueLength] = useState(0);
 
 	return {
 		pendingInput,
-		setPendingInput,
+		setPendingInput: setPendingInputSignal,
 		inputResolver,
 		askToolContextRef,
 		selectionFilter,
-		setSelectionFilter,
+		setSelectionFilter: setSelectionFilterSignal,
 		isFilterMode,
-		setIsFilterMode,
+		setIsFilterMode: setIsFilterModeSignal,
 		multiSelectionPage,
-		setMultiSelectionPage,
+		setMultiSelectionPage: setMultiSelectionPageSignal,
 		multiSelectionAnswers,
-		setMultiSelectionAnswers,
+		setMultiSelectionAnswers: setMultiSelectionAnswersSignal,
 		multiSelectChoices,
-		setMultiSelectChoices,
+		setMultiSelectChoices: setMultiSelectChoicesSignal,
 		freeTextInput,
-		setFreeTextInput,
+		setFreeTextInput: setFreeTextInputSignal,
 		isFreeTextMode,
-		setIsFreeTextMode,
+		setIsFreeTextMode: setIsFreeTextModeSignal,
 		askQueueLength,
-		setAskQueueLength,
+		setAskQueueLength: setAskQueueLengthSignal,
 	};
 }

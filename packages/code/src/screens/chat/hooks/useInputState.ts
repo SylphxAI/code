@@ -1,19 +1,28 @@
 /**
  * Input State Hook
- * Manages input field state including message history
+ * Manages input field state using Zen signals
  */
 
-import { getTRPCClient } from "@sylphx/code-client";
+import {
+	getTRPCClient,
+	useInput,
+	setInput as setInputSignal,
+	useCursor,
+	setCursor as setCursorSignal,
+	useNormalizedCursor,
+	useMessageHistory,
+	setMessageHistory as setMessageHistorySignal,
+	useHistoryIndex,
+	setHistoryIndex as setHistoryIndexSignal,
+	useTempInput,
+	setTempInput as setTempInputSignal,
+	type MessageHistoryEntry,
+} from "@sylphx/code-client";
 import type { FileAttachment } from "@sylphx/code-core";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 
-/**
- * Message history entry with text and attachments
- */
-export interface MessageHistoryEntry {
-	text: string;
-	attachments: FileAttachment[];
-}
+// Re-export type for backwards compatibility
+export type { MessageHistoryEntry };
 
 export interface InputState {
 	input: string;
@@ -32,11 +41,12 @@ export interface InputState {
 }
 
 export function useInputState(): InputState {
-	const [input, setInput] = useState("");
-	const [cursor, setCursor] = useState(0);
-	const [messageHistory, setMessageHistory] = useState<MessageHistoryEntry[]>([]);
-	const [historyIndex, setHistoryIndex] = useState(-1);
-	const [tempInput, setTempInput] = useState("");
+	const input = useInput();
+	const cursor = useCursor();
+	const normalizedCursor = useNormalizedCursor();
+	const messageHistory = useMessageHistory();
+	const historyIndex = useHistoryIndex();
+	const tempInput = useTempInput();
 
 	// Load message history via tRPC on mount (backend handles database access)
 	useEffect(() => {
@@ -72,7 +82,7 @@ export function useInputState(): InputState {
 				);
 
 				// Reverse to get oldest-first order (for bash-like navigation)
-				setMessageHistory(entries.reverse());
+				setMessageHistorySignal(entries.reverse());
 			} catch (error) {
 				console.error("Failed to load message history:", error);
 			}
@@ -80,22 +90,28 @@ export function useInputState(): InputState {
 		loadHistory();
 	}, []); // Only load once on mount
 
-	const normalizedCursor = useMemo(
-		() => Math.max(0, Math.min(cursor, input.length)),
-		[cursor, input.length],
-	);
+	// Wrapper for setMessageHistory to support functional updates
+	const setMessageHistory = (
+		value: MessageHistoryEntry[] | ((prev: MessageHistoryEntry[]) => MessageHistoryEntry[]),
+	) => {
+		if (typeof value === "function") {
+			setMessageHistorySignal(value(messageHistory));
+		} else {
+			setMessageHistorySignal(value);
+		}
+	};
 
 	return {
 		input,
-		setInput,
+		setInput: setInputSignal,
 		cursor,
-		setCursor,
+		setCursor: setCursorSignal,
 		normalizedCursor,
 		messageHistory,
 		setMessageHistory,
 		historyIndex,
-		setHistoryIndex,
+		setHistoryIndex: setHistoryIndexSignal,
 		tempInput,
-		setTempInput,
+		setTempInput: setTempInputSignal,
 	};
 }

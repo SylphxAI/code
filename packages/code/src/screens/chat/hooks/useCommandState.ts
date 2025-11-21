@@ -1,11 +1,34 @@
 /**
  * Command State Hook
- * Manages command menu, pending commands, selection state, and custom input components
+ * Manages command menu, pending commands, selection state, and custom input components using Zen signals
  */
 
+import {
+	useCtrlPressed,
+	setCtrlPressed as setCtrlPressedSignal,
+	useShowCommandMenu,
+	setShowCommandMenu as setShowCommandMenuSignal,
+	useSelectedCommandIndex,
+	setSelectedCommandIndex as setSelectedCommandIndexSignal,
+	usePendingCommand,
+	setPendingCommand as setPendingCommandSignal,
+	useShowEscHint,
+	setShowEscHint as setShowEscHintSignal,
+	useSelectedFileIndex,
+	setSelectedFileIndex as setSelectedFileIndexSignal,
+	useCachedOptions,
+	setCachedOptions as setCachedOptionsSignal,
+	useCurrentlyLoading,
+	setCurrentlyLoading as setCurrentlyLoadingSignal,
+	useLoadError,
+	setLoadError as setLoadErrorSignal,
+	useInputComponent,
+	useInputComponentTitle,
+	setInputComponent as setInputComponentSignal,
+	type Command,
+} from "@sylphx/code-client";
 import type { ReactNode } from "react";
-import { useRef, useState } from "react";
-import type { Command } from "../../../commands/types.js";
+import { useRef } from "react";
 
 export interface CommandState {
 	ctrlPressed: boolean;
@@ -22,8 +45,8 @@ export interface CommandState {
 	setShowEscHint: (show: boolean) => void;
 	selectedFileIndex: number;
 	setSelectedFileIndex: (index: number) => void;
-	cachedOptions: Map<string, Array<{ id: string; name: string }>>;
-	setCachedOptions: (options: Map<string, Array<{ id: string; name: string }>>) => void;
+	cachedOptions: Map<string, Array<{ id: string; name: string; label: string; value?: string }>>;
+	setCachedOptions: (options: Map<string, Array<{ id: string; name: string; label: string; value?: string }>>) => void;
 	currentlyLoading: string | null;
 	setCurrentlyLoading: (loading: string | null) => void;
 	loadError: string | null;
@@ -35,55 +58,47 @@ export interface CommandState {
 }
 
 export function useCommandState(): CommandState {
-	const [ctrlPressed, setCtrlPressed] = useState(false);
-	const [showCommandMenu, setShowCommandMenu] = useState(false);
-	const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
-	const [pendingCommand, setPendingCommand] = useState<{
-		command: Command;
-		currentInput: string;
-	} | null>(null);
+	const ctrlPressed = useCtrlPressed();
+	const showCommandMenu = useShowCommandMenu();
+	const selectedCommandIndex = useSelectedCommandIndex();
+	const pendingCommand = usePendingCommand();
+	const showEscHint = useShowEscHint();
+	const selectedFileIndex = useSelectedFileIndex();
+	const cachedOptions = useCachedOptions();
+	const currentlyLoading = useCurrentlyLoading();
+	const loadError = useLoadError();
+	const inputComponent = useInputComponent();
+	const inputComponentTitle = useInputComponentTitle();
+
+	// Refs are not migrated to signals (they're React-specific and don't need reactivity)
 	const skipNextSubmit = useRef(false);
 	const lastEscapeTime = useRef<number>(0);
-	const [showEscHint, setShowEscHint] = useState(false);
-	const [selectedFileIndex, setSelectedFileIndex] = useState(0);
-	const [cachedOptions, setCachedOptions] = useState<
-		Map<string, Array<{ id: string; name: string }>>
-	>(new Map());
-	const [currentlyLoading, setCurrentlyLoading] = useState<string | null>(null);
-	const [loadError, setLoadError] = useState<string | null>(null);
 	const commandSessionRef = useRef<string | null>(null);
-	const [inputComponent, setInputComponent] = useState<ReactNode | null>(null);
-	const [inputComponentTitle, setInputComponentTitle] = useState<string | null>(null);
-
-	const handleSetInputComponent = (component: ReactNode | null, title?: string) => {
-		setInputComponent(component);
-		setInputComponentTitle(title || null);
-	};
 
 	return {
 		ctrlPressed,
-		setCtrlPressed,
+		setCtrlPressed: setCtrlPressedSignal,
 		showCommandMenu,
-		setShowCommandMenu,
+		setShowCommandMenu: setShowCommandMenuSignal,
 		selectedCommandIndex,
-		setSelectedCommandIndex,
+		setSelectedCommandIndex: setSelectedCommandIndexSignal,
 		pendingCommand,
-		setPendingCommand,
+		setPendingCommand: setPendingCommandSignal,
 		skipNextSubmit,
 		lastEscapeTime,
 		showEscHint,
-		setShowEscHint,
+		setShowEscHint: setShowEscHintSignal,
 		selectedFileIndex,
-		setSelectedFileIndex,
+		setSelectedFileIndex: setSelectedFileIndexSignal,
 		cachedOptions,
-		setCachedOptions,
+		setCachedOptions: setCachedOptionsSignal,
 		currentlyLoading,
-		setCurrentlyLoading,
+		setCurrentlyLoading: setCurrentlyLoadingSignal,
 		loadError,
-		setLoadError,
+		setLoadError: setLoadErrorSignal,
 		commandSessionRef,
 		inputComponent,
-		setInputComponent: handleSetInputComponent,
+		setInputComponent: setInputComponentSignal,
 		inputComponentTitle,
 	};
 }
