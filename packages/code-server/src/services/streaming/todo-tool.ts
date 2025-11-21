@@ -38,7 +38,7 @@ export function createServerTodoTool(
 	// Construct TodoToolContext from repositories
 	const todoContext: TodoToolContext = {
 		getCurrentSession: async () => {
-			const session = await sessionRepository.get(sessionId);
+			const session = await sessionRepository.getSessionById(sessionId);
 			if (!session) {
 				return null;
 			}
