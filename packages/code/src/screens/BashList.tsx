@@ -3,24 +3,21 @@
  * Shows all bash processes, press K to kill, Enter to view details
  */
 
-import { useThemeColors, useTRPCClient } from "@sylphx/code-client";
+import {
+	useThemeColors,
+	useTRPCClient,
+	useBashProcesses,
+	useBashProcessesLoading,
+	setBashProcesses as setBashProcessesSignal,
+	setBashProcessesLoading as setBashProcessesLoadingSignal,
+	type BashProcess,
+} from "@sylphx/code-client";
 import { Box, Text } from "ink";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import Spinner from "../components/Spinner.js";
 import { SelectionOptionsList } from "../components/selection/SelectionOptionsList.js";
 import { useSelection, type SelectionOption } from "../hooks/useSelection.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
-
-interface BashProcess {
-	id: string;
-	command: string;
-	mode: "active" | "background";
-	status: "running" | "completed" | "failed" | "killed" | "timeout";
-	isActive: boolean;
-	duration: number;
-	exitCode: number | null;
-	cwd: string;
-}
+import { getColors } from "@sylphx/code-client";
 
 interface BashListProps {
 	onClose: () => void;
@@ -56,20 +53,21 @@ function getStatusColor(status: string): "green" | "red" | "yellow" | "blue" | "
 export default function BashList({ onClose, onSelectBash }: BashListProps) {
 	const trpc = useTRPCClient();
 	const colors = useThemeColors();
-	const [processes, setProcesses] = useState<BashProcess[]>([]);
-	const [loading, setLoading] = useState(true);
+	const processes = useBashProcesses();
+	const loading = useBashProcessesLoading();
 	const subscriptionRef = useRef<any>(null);
 
 	// Load bash list - event-driven
 	useEffect(() => {
 		const loadProcesses = async () => {
 			try {
+				setBashProcessesLoadingSignal(true);
 				const result = await trpc.bash.list.query();
-				setProcesses(result);
-				setLoading(false);
+				setBashProcessesSignal(result);
+				setBashProcessesLoadingSignal(false);
 			} catch (error) {
 				console.error("[BashList] Failed to load processes:", error);
-				setLoading(false);
+				setBashProcessesLoadingSignal(false);
 			}
 		};
 

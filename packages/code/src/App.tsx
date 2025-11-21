@@ -5,9 +5,21 @@
 
 import { useAIConfigActions } from "./hooks/client/useAIConfig.js";
 import { useSessionPersistence } from "./hooks/client/useSessionPersistence.js";
-import { useThemeColors, setError, setCurrentScreen, useCurrentScreen, useIsLoading, useUIError, useTRPCClient } from "@sylphx/code-client";
+import {
+	useThemeColors,
+	setError,
+	setCurrentScreen,
+	useCurrentScreen,
+	useIsLoading,
+	useUIError,
+	useTRPCClient,
+	useCommandPaletteCommand,
+	setCommandPaletteCommand as setCommandPaletteCommandSignal,
+	useSelectedBashId,
+	setSelectedBashId as setSelectedBashIdSignal,
+} from "@sylphx/code-client";
 import { Box, Text, useInput } from "ink";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { getColors } from "@sylphx/code-client";
 import Chat from "./screens/Chat.js";
 import CommandPalette from "./screens/CommandPalette.js";
@@ -22,8 +34,8 @@ function AppContent() {
 	const isLoading = useIsLoading();
 	const error = useUIError();
 	const trpc = useTRPCClient();
-	const [commandPaletteCommand, setCommandPaletteCommand] = useState<string | null>(null);
-	const [selectedBashId, setSelectedBashId] = useState<string | null>(null);
+	const commandPaletteCommand = useCommandPaletteCommand();
+	const selectedBashId = useSelectedBashId();
 
 	// Load AI config on mount
 	const { loadConfig } = useAIConfigActions();
@@ -62,7 +74,7 @@ function AppContent() {
 
 	// Handle command palette commands
 	const handleCommand = (command: string) => {
-		setCommandPaletteCommand(command);
+		setCommandPaletteCommandSignal(command);
 	};
 
 	// Load AI config via tRPC (server handles all file operations)
@@ -95,7 +107,7 @@ function AppContent() {
 			<BashList
 				onClose={() => setCurrentScreen("chat")}
 				onSelectBash={(bashId) => {
-					setSelectedBashId(bashId);
+					setSelectedBashIdSignal(bashId);
 					setCurrentScreen("bash-detail");
 				}}
 			/>
@@ -107,7 +119,7 @@ function AppContent() {
 			<BashDetail
 				bashId={selectedBashId}
 				onClose={() => {
-					setSelectedBashId(null);
+					setSelectedBashIdSignal(null);
 					setCurrentScreen("bash-list");
 				}}
 			/>

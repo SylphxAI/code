@@ -3,11 +3,20 @@
  * Full-screen view of a single bash process with streaming output
  */
 
-import { useThemeColors, useTRPCClient } from "@sylphx/code-client";
+import {
+	useThemeColors,
+	useTRPCClient,
+	useBashProcessDetails,
+	useBashProcessOutputs,
+	useBashProcessDetailsLoading,
+	setBashProcessDetail as setBashProcessDetailSignal,
+	setBashProcessOutput as setBashProcessOutputSignal,
+	setBashProcessDetailLoading as setBashProcessDetailLoadingSignal,
+} from "@sylphx/code-client";
 import { Box, Text, useInput } from "ink";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Spinner from "../components/Spinner.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { getColors } from "@sylphx/code-client";
 
 interface BashDetailProps {
 	bashId: string;
@@ -17,20 +26,25 @@ interface BashDetailProps {
 export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 	const trpc = useTRPCClient();
 	const colors = useThemeColors();
-	const [output, setOutput] = useState<string>("");
-	const [process, setProcess] = useState<any>(null);
-	const [loading, setLoading] = useState(true);
+	const processDetails = useBashProcessDetails();
+	const processOutputs = useBashProcessOutputs();
+	const processLoading = useBashProcessDetailsLoading();
+
+	const output = processOutputs[bashId] || "";
+	const process = processDetails[bashId] || null;
+	const loading = processLoading[bashId] || false;
 
 	// Load process info
 	useEffect(() => {
 		const loadProcess = async () => {
 			try {
+				setBashProcessDetailLoadingSignal(bashId, true);
 				const result = await trpc.bash.get.query({ bashId });
-				setProcess(result);
-				setLoading(false);
+				setBashProcessDetailSignal(bashId, result);
+				setBashProcessDetailLoadingSignal(bashId, false);
 			} catch (error) {
 				console.error("[BashDetail] Failed to load process:", error);
-				setLoading(false);
+				setBashProcessDetailLoadingSignal(bashId, false);
 			}
 		};
 
@@ -49,14 +63,14 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 					onData: (event: any) => {
 						if (event.payload?.type === "output") {
 							const chunk = event.payload.output;
-							setOutput((prev) => prev + chunk.data);
+							setBashProcessOutputSignal(bashId, (prev) => prev + chunk.data);
 						} else if (event.payload?.type === "started") {
-							setOutput(""); // Clear on restart
+							setBashProcessOutputSignal(bashId, ""); // Clear on restart
 						} else if (event.payload?.type === "completed" || event.payload?.type === "failed") {
 							// Reload process info to get final status
 							trpc.bash.get
 								.query({ bashId })
-								.then((result) => setProcess(result))
+								.then((result) => setBashProcessDetailSignal(bashId, result))
 								.catch(console.error);
 						}
 					},
@@ -92,7 +106,7 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 						// Reload process info
 						return trpc.bash.get.query({ bashId });
 					})
-					.then((result) => setProcess(result))
+					.then((result) => setBashProcessDetailSignal(bashId, result))
 					.catch((error) => console.error("[BashDetail] Failed to kill:", error));
 				return;
 			}

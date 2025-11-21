@@ -6,7 +6,7 @@
 import { zen, computed } from "@sylphx/zen";
 import { useZen } from "../../react-bridge.js";
 
-export type Screen = "chat" | "settings" | "provider" | "help";
+export type Screen = "chat" | "settings" | "provider" | "help" | "bash-list" | "bash-detail" | "command-palette" | "logs" | "model-selection";
 
 // Core UI signals
 export const currentScreen = zen<Screen>("chat");
@@ -14,6 +14,10 @@ export const previousScreen = zen<Screen | null>(null);
 export const isLoading = zen(false);
 export const error = zen<string | null>(null);
 export const debugLogs = zen<string[]>([]);
+
+// App routing state signals
+export const commandPaletteCommand = zen<string | null>(null);
+export const selectedBashId = zen<string | null>(null);
 
 // Compacting state (for /compact command)
 export const isCompacting = zen(false);
@@ -92,6 +96,14 @@ export const clearDebugLogs = () => {
 	(debugLogs as any).value = [];
 };
 
+export const setCommandPaletteCommand = (command: string | null) => {
+	(commandPaletteCommand as any).value = command;
+};
+
+export const setSelectedBashId = (bashId: string | null) => {
+	(selectedBashId as any).value = bashId;
+};
+
 // Backwards compatibility aliases
 export const setLoading = setIsLoading;
 export const setUIError = setError;
@@ -107,6 +119,8 @@ export const useUIError = () => useZen(error);
 export const useShowNavigation = () => useZen(showNavigation);
 export const useDebugLogs = () => useZen(debugLogs);
 export const useIsCompacting = () => useZen(isCompacting);
+export const useCommandPaletteCommand = () => useZen(commandPaletteCommand);
+export const useSelectedBashId = () => useZen(selectedBashId);
 
 // Sub-domain exports
 export * from "./command.js";
