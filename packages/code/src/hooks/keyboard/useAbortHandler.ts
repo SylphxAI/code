@@ -1,11 +1,12 @@
 /**
  * Abort Handler Hook
- * Handles ESC key to abort streaming AI response and compact operations
+ * Handles ESC key to abort streaming AI response
  *
- * Single Responsibility: Abort control during streaming and compacting
+ * Single Responsibility: Abort control during streaming
+ *
+ * Note: Compact operations abort removed (feature not yet implemented)
  */
 
-import { isCompacting, abortCompact } from "@sylphx/code-client";
 import { useInput } from "ink";
 import type React from "react";
 
@@ -16,8 +17,7 @@ export interface UseAbortHandlerOptions {
 }
 
 /**
- * Handles abort control during AI streaming and compact operations
- * - ESC while compacting → abort compact operation (highest priority)
+ * Handles abort control during AI streaming
  * - ESC while streaming → abort current AI response
  * - Takes priority over other ESC actions
  */
@@ -28,14 +28,6 @@ export function useAbortHandler(options: UseAbortHandlerOptions) {
 		(_char, key) => {
 			if (!key.escape) {
 				return false;
-			}
-
-			// Check if compacting (highest priority)
-			const isCompactingValue = isCompacting();
-			if (isCompactingValue) {
-				addLog("[abort] Cancelling session compaction...");
-				abortCompact();
-				return true; // Consumed
 			}
 
 			// ESC to abort streaming AI response
