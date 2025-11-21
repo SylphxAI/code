@@ -6,7 +6,7 @@
 
 import { Box, Text } from "ink";
 import type { ReactNode } from "react";
-import { getColors } from "../../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface InputContentLayoutProps {
 	// Optional subtitle/description text below the header
@@ -36,7 +36,7 @@ interface InputContentLayoutProps {
  * ```
  */
 export function InputContentLayout({ subtitle, helpText, children }: InputContentLayoutProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 	return (
 		<Box flexDirection="column" paddingLeft={2}>
 			{/* Subtitle */}

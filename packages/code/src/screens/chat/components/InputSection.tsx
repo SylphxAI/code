@@ -3,12 +3,12 @@
  * Handles all input modes: selection, pending command, and normal input
  */
 
-import { getTRPCClient, setCurrentScreen } from "@sylphx/code-client";
+import { useThemeColors, getTRPCClient, setCurrentScreen } from "@sylphx/code-client";
 import type { FileAttachment } from "@sylphx/code-core";
 import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import { indicators } from "../../../utils/colors.js";
-import { getColors } from "../../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 import { useEffect, useRef } from "react";
 import type { Command, WaitForInputOptions } from "../../../commands/types.js";
 import { CommandAutocomplete } from "../../../components/CommandAutocomplete.js";
@@ -193,7 +193,7 @@ export function InputSection({
 	// Get terminal width for separator line
 	const termWidth = process.stdout.columns || 80;
 	const separatorLine = "─".repeat(termWidth);
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	return (
 		<Box flexDirection="column" flexShrink={0}>

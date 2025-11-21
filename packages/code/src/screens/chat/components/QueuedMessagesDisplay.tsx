@@ -5,14 +5,14 @@
 
 import { Box, Text } from "ink";
 import type { QueuedMessage } from "@sylphx/code-core";
-import { getColors } from "../../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface QueuedMessagesDisplayProps {
 	queuedMessages: QueuedMessage[];
 }
 
 export function QueuedMessagesDisplay({ queuedMessages }: QueuedMessagesDisplayProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 	if (queuedMessages.length === 0) {
 		return null;
 	}

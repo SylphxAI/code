@@ -8,7 +8,7 @@
  * - No duplicated filter/selection logic
  */
 
-import { useTRPCClient } from "@sylphx/code-client";
+import { useThemeColors, useTRPCClient } from "@sylphx/code-client";
 import type { ConfigField } from "@sylphx/code-core";
 import { Box, Text, useInput } from "ink";
 import { useEffect, useState } from "react";
@@ -16,7 +16,7 @@ import { InlineSelection } from "../../../components/selection/index.js";
 import TextInputWithHint from "../../../components/TextInputWithHint.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
 import { InputContentLayout } from "./InputContentLayout.js";
-import { getColors } from "../../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface ProviderManagementProps {
 	initialAction?: "use" | "configure";
@@ -37,7 +37,7 @@ export function ProviderManagement({
 	onSelectProvider,
 	onConfigureProvider,
 }: ProviderManagementProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 	const trpc = useTRPCClient();
 
 	// If initialProviderId is provided, skip to the appropriate step

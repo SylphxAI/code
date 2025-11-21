@@ -6,7 +6,7 @@
 import { calculateScrollViewport } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import type { SelectionOption } from "../../hooks/useSelection.js";
-import { getColors } from "../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface SelectionOptionsListProps {
 	options: SelectionOption[];
@@ -25,7 +25,7 @@ export function SelectionOptionsList({
 	emptyMessage = "No options available",
 	maxVisible = 5,
 }: SelectionOptionsListProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 	if (options.length === 0) {
 		return (
 			<Box>

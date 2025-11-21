@@ -4,8 +4,8 @@
  */
 
 import { Box, Text } from "ink";
+import { useThemeColors } from "@sylphx/code-client";
 import Spinner from "./Spinner.js";
-import { getColors } from "../utils/theme/index.js";
 
 interface FileAutocompleteProps {
 	files: Array<{ path: string; relativePath: string; size: number }>;
@@ -18,7 +18,7 @@ export function FileAutocomplete({
 	selectedFileIndex,
 	filesLoading,
 }: FileAutocompleteProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	if (filesLoading) {
 		return (

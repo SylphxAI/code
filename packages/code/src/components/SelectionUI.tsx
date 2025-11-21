@@ -4,9 +4,9 @@
  */
 
 import { calculateScrollViewport } from "@sylphx/code-core";
+import { useThemeColors } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import type { WaitForInputOptions } from "../commands/types.js";
-import { getColors } from "../utils/theme/index.js";
 
 interface SelectionUIProps {
 	pendingInput: WaitForInputOptions;
@@ -33,7 +33,7 @@ export function SelectionUI({
 	selectedCommandIndex,
 	askQueueLength,
 }: SelectionUIProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	if (pendingInput.type !== "selection") {
 		return null;

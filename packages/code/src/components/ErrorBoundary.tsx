@@ -5,7 +5,7 @@
 
 import { Box, Text } from "ink";
 import React from "react";
-import { getColors } from "../utils/theme/index.js";
+import { getColors } from "@sylphx/code-client";
 
 interface ErrorBoundaryProps {
 	children: React.ReactNode;

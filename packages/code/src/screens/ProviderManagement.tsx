@@ -5,14 +5,14 @@
 
 import { useAIConfig, useAIConfigActions } from "../hooks/client/useAIConfig.js";
 import { useKeyboard } from "../hooks/client/useKeyboard.js";
-import { navigateTo, removeProvider, updateProvider } from "@sylphx/code-client";
+import { useThemeColors, navigateTo, removeProvider, updateProvider } from "@sylphx/code-client";
 import { AI_PROVIDERS, type ProviderId } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
 import TextInput from "ink-text-input";
 import { useState } from "react";
 import ProviderCard from "../components/ProviderCard.js";
-import { getColors } from "../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 type Mode = "menu" | "add" | "remove" | "view";
 
@@ -22,7 +22,7 @@ interface MenuItem {
 }
 
 export default function ProviderManagement() {
-	const colors = getColors();
+	const colors = useThemeColors();
 	const [mode, setMode] = useState<Mode>("menu");
 	const [selectedProvider, setSelectedProvider] = useState<ProviderId | null>(null);
 	const [apiKeyInput, setApiKeyInput] = useState("");

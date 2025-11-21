@@ -4,8 +4,8 @@
  */
 
 import { AI_PROVIDERS, type ProviderId } from "@sylphx/code-core";
+import { useThemeColors } from "@sylphx/code-client";
 import { Box, Text } from "ink";
-import { getColors } from "../utils/theme/index.js";
 
 interface ProviderCardProps {
 	providerId: ProviderId;
@@ -21,7 +21,7 @@ export default function ProviderCard({
 	isDefault = false,
 }: ProviderCardProps) {
 	const provider = AI_PROVIDERS[providerId];
-	const themeColors = getColors();
+	const themeColors = useThemeColors();
 
 	const colors: Record<ProviderId, string> = {
 		anthropic: "#00D9FF",

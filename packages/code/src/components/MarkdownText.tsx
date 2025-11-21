@@ -15,7 +15,7 @@
 import Markdown from "@jescalan/ink-markdown";
 import { Box, Text } from "ink";
 import React from "react";
-import { getColors } from "../utils/theme/index.js";
+import { useThemeColors } from "@sylphx/code-client";
 
 interface MarkdownTextProps {
 	children: string;
@@ -101,6 +101,7 @@ const MarkdownText = React.memo(function MarkdownText({
 }: MarkdownTextProps) {
 	// Generate a stable but unique prefix for this component instance (must be before any returns)
 	const instanceId = React.useId();
+	const colors = useThemeColors();
 
 	// Guard against undefined children
 	if (!children || typeof children !== "string") {
@@ -134,7 +135,7 @@ const MarkdownText = React.memo(function MarkdownText({
 					return (
 						<Box key={key}>
 							{prefix && <Text color={prefixColor}>{prefix}</Text>}
-							<Text color={getColors().textDim}>{"─".repeat(48)}</Text>
+							<Text color={colors.textDim}>{"─".repeat(48)}</Text>
 						</Box>
 					);
 				}

@@ -7,11 +7,11 @@ import type { ToolDisplayProps } from "@sylphx/code-client";
 import { useElapsedTime } from "../../hooks/client/useElapsedTime.js";
 import { Text } from "ink";
 import { BaseToolDisplay } from "../BaseToolDisplay.js";
-import { getColors } from "../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 export function AskToolDisplay(props: ToolDisplayProps) {
 	const { status, duration, startTime, input, result, error } = props;
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	// Calculate real-time elapsed time for running tools
 	const { display: durationDisplay } = useElapsedTime({

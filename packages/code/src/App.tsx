@@ -5,10 +5,10 @@
 
 import { useAIConfigActions } from "./hooks/client/useAIConfig.js";
 import { useSessionPersistence } from "./hooks/client/useSessionPersistence.js";
-import { setError, setCurrentScreen, useCurrentScreen, useIsLoading, useUIError, useTRPCClient } from "@sylphx/code-client";
+import { useThemeColors, setError, setCurrentScreen, useCurrentScreen, useIsLoading, useUIError, useTRPCClient } from "@sylphx/code-client";
 import { Box, Text, useInput } from "ink";
 import { useEffect, useState } from "react";
-import { getColors } from "./utils/theme/index.js";
+import { getColors } from "@sylphx/code-client";
 import Chat from "./screens/Chat.js";
 import CommandPalette from "./screens/CommandPalette.js";
 import Logs from "./screens/Logs.js";
@@ -114,7 +114,7 @@ function AppContent() {
 		);
 	}
 
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	// Other screens use app layout with padding
 	return (

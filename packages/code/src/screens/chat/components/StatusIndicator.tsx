@@ -8,12 +8,12 @@
  * - Multi-client sync: All clients show same data
  */
 
-import { useIsCompacting } from "@sylphx/code-client";
+import { useThemeColors, useIsCompacting } from "@sylphx/code-client";
 import type { MessagePart } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import Spinner from "../../../components/Spinner.js";
 import { useElapsedTime } from "../../../hooks/client/useElapsedTime.js";
-import { getColors } from "../../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface StatusIndicatorProps {
 	isStreaming: boolean;
@@ -36,7 +36,7 @@ export function StatusIndicator({
 		isRunning: isStreaming,
 	});
 
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	// Compacting takes priority over streaming
 	if (isCompacting) {

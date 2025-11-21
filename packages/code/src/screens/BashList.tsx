@@ -3,13 +3,13 @@
  * Shows all bash processes, press K to kill, Enter to view details
  */
 
-import { useTRPCClient } from "@sylphx/code-client";
+import { useThemeColors, useTRPCClient } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Spinner from "../components/Spinner.js";
 import { SelectionOptionsList } from "../components/selection/SelectionOptionsList.js";
 import { useSelection, type SelectionOption } from "../hooks/useSelection.js";
-import { getColors } from "../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface BashProcess {
 	id: string;
@@ -55,7 +55,7 @@ function getStatusColor(status: string): "green" | "red" | "yellow" | "blue" | "
 
 export default function BashList({ onClose, onSelectBash }: BashListProps) {
 	const trpc = useTRPCClient();
-	const colors = getColors();
+	const colors = useThemeColors();
 	const [processes, setProcesses] = useState<BashProcess[]>([]);
 	const [loading, setLoading] = useState(true);
 	const subscriptionRef = useRef<any>(null);

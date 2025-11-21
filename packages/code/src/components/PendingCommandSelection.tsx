@@ -4,10 +4,10 @@
  */
 
 import { calculateScrollViewport } from "@sylphx/code-core";
+import { useThemeColors } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import type { Command } from "../commands/types.js";
 import Spinner from "./Spinner.js";
-import { getColors } from "../utils/theme/index.js";
 
 interface PendingCommandSelectionProps {
 	pendingCommand: { command: Command; currentInput: string };
@@ -26,7 +26,7 @@ export function PendingCommandSelection({
 	selectedCommandIndex,
 	onSelect,
 }: PendingCommandSelectionProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	return (
 		<Box flexDirection="column">

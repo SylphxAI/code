@@ -3,11 +3,11 @@
  * Full-screen view of a single bash process with streaming output
  */
 
-import { useTRPCClient } from "@sylphx/code-client";
+import { useThemeColors, useTRPCClient } from "@sylphx/code-client";
 import { Box, Text, useInput } from "ink";
 import { useEffect, useState } from "react";
 import Spinner from "../components/Spinner.js";
-import { getColors } from "../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface BashDetailProps {
 	bashId: string;
@@ -16,7 +16,7 @@ interface BashDetailProps {
 
 export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 	const trpc = useTRPCClient();
-	const colors = getColors();
+	const colors = useThemeColors();
 	const [output, setOutput] = useState<string>("");
 	const [process, setProcess] = useState<any>(null);
 	const [loading, setLoading] = useState(true);

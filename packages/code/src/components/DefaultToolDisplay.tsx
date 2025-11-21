@@ -11,7 +11,7 @@ import dJSON from "dirty-json";
 import { Text } from "ink";
 import type React from "react";
 import { BaseToolDisplay } from "./BaseToolDisplay.js";
-import { getColors } from "../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 /**
  * Parse partial/dirty JSON into an object with best-effort parsing
@@ -49,7 +49,7 @@ export function createDefaultToolDisplay(
 ): React.FC<ToolDisplayProps> {
 	return function DefaultToolDisplay(props: ToolDisplayProps) {
 		const { status, duration, input, result, error, startTime } = props;
-		const colors = getColors();
+		const colors = useThemeColors();
 
 		// Calculate real-time elapsed time for running tools
 		const { display: durationDisplay } = useElapsedTime({

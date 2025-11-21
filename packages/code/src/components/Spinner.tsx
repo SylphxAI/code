@@ -5,7 +5,7 @@
 
 import { Text } from "ink";
 import { useEffect, useState } from "react";
-import { getColors } from "../utils/theme/index.js";
+import { useThemeColors } from "@sylphx/code-client";
 
 const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
@@ -16,7 +16,7 @@ interface SpinnerProps {
 
 export default function Spinner({ label, color }: SpinnerProps) {
 	const [frame, setFrame] = useState(0);
-	const colors = getColors();
+	const colors = useThemeColors();
 	const spinnerColor = color || colors.success;
 
 	useEffect(() => {

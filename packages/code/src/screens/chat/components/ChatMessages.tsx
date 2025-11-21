@@ -6,11 +6,11 @@
  */
 
 import type { SessionMessage } from "@sylphx/code-core";
+import { useThemeColors } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import React from "react";
 import { MessageList } from "../../../components/MessageList.js";
 import { indicators } from "../../../utils/colors.js";
-import { useColors } from "../../../utils/theme/index.js";
 
 interface ChatMessagesProps {
 	hasSession: boolean;
@@ -27,7 +27,7 @@ function ChatMessagesInternal({
 	hideMessageTitles = true,
 	hideMessageUsage = true,
 }: ChatMessagesProps) {
-	const colors = useColors();
+	const colors = useThemeColors();
 
 	if (!hasSession) {
 		return (

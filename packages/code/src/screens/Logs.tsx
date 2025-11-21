@@ -3,13 +3,13 @@
  * View debug logs for troubleshooting
  */
 
-import { clearDebugLogs, navigateTo, useDebugLogs } from "@sylphx/code-client";
+import { useThemeColors, clearDebugLogs, navigateTo, useDebugLogs } from "@sylphx/code-client";
 import { Box, Text, useInput } from "ink";
-import { getColors } from "../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 export default function Logs() {
 	const debugLogs = useDebugLogs();
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	// Keyboard shortcuts
 	useInput((input, key) => {

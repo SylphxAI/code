@@ -8,7 +8,7 @@ import { DEFAULT_TOOL_DISPLAY_SETTINGS } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
 import { useState } from "react";
-import { getColors } from "../../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface SettingsManagementProps {
 	aiConfig: AIConfig | null;
@@ -27,7 +27,7 @@ interface ToolDisplayItem {
 }
 
 export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsManagementProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 	const [view, setView] = useState<View>("main");
 	const [toolDisplaySettings, setToolDisplaySettings] = useState<Record<string, boolean>>(
 		aiConfig?.toolDisplaySettings || {},

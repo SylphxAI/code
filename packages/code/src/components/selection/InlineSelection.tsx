@@ -9,7 +9,7 @@ import { type SelectionOption, useSelection } from "../../hooks/useSelection.js"
 import { InputContentLayout } from "../../screens/chat/components/InputContentLayout.js";
 import { SelectionFilterInput } from "./SelectionFilterInput.js";
 import { SelectionOptionsList } from "./SelectionOptionsList.js";
-import { getColors } from "../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface InlineSelectionProps {
 	options: SelectionOption[];
@@ -43,7 +43,7 @@ export function InlineSelection({
 	onSelect,
 	onCancel,
 }: InlineSelectionProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 	const selection = useSelection({
 		options,
 		multiSelect,

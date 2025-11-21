@@ -5,7 +5,7 @@
 
 import { Box, Text } from "ink";
 import TextInput from "ink-text-input";
-import { getColors } from "../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface SelectionFilterInputProps {
 	value: string;
@@ -22,7 +22,7 @@ export function SelectionFilterInput({
 	onSubmit,
 	onEscape,
 }: SelectionFilterInputProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 	return (
 		<Box marginBottom={1}>
 			<Text color={colors.textDim}>Filter: </Text>

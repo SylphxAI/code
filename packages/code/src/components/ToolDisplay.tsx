@@ -9,7 +9,7 @@ import { getToolComponent } from "../utils/tool-configs.js";
 import { Text } from "ink";
 import React from "react";
 import { BaseToolDisplay } from "./BaseToolDisplay.js";
-import { getColors } from "../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 /**
  * Fallback display for unregistered tools (e.g., MCP tools)
@@ -17,7 +17,7 @@ import { getColors } from "../utils/theme/index.js";
  */
 function FallbackToolDisplay(props: ToolDisplayProps) {
 	const { name, status, duration, startTime, input, result, error, showDetails = true } = props;
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	// Calculate real-time elapsed time for running tools
 	const { display: durationDisplay } = useElapsedTime({

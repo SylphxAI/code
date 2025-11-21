@@ -8,13 +8,12 @@
  * - Optimized key handlers to return early when possible
  */
 
-import { renderTextWithTags } from "@sylphx/code-client";
+import { renderTextWithTags, useThemeColors } from "@sylphx/code-client";
 import { Box, Text, useInput, useStdout } from "ink";
 import React, { useCallback, useRef } from "react";
 import * as Cursor from "../utils/cursor-ops.js";
 import * as TextOps from "../utils/text-ops.js";
 import * as Wrapping from "../utils/wrapping-ops.js";
-import { getColors } from "../utils/theme/index.js";
 
 export interface ControlledTextInputProps {
 	value: string;
@@ -59,6 +58,9 @@ function ControlledTextInput({
 	onCtrlB,
 	onCtrlP,
 }: ControlledTextInputProps) {
+	// Theme colors
+	const colors = useThemeColors();
+
 	// Kill buffer for Ctrl+K, Ctrl+U, Ctrl+W → Ctrl+Y
 	const killBufferRef = useRef("");
 
@@ -404,7 +406,7 @@ function ControlledTextInput({
 		return (
 			<Box>
 				{showCursor && <Text inverse> </Text>}
-				<Text color={getColors().textDim}>{placeholder}</Text>
+				<Text color={colors.textDim}>{placeholder}</Text>
 			</Box>
 		);
 	}
@@ -496,7 +498,7 @@ function ControlledTextInput({
 		<Box flexDirection="column">
 			{startLine > 0 && (
 				<Box>
-					<Text color={getColors().textDim}>... ({startLine} more lines above)</Text>
+					<Text color={colors.textDim}>... ({startLine} more lines above)</Text>
 				</Box>
 			)}
 			{visibleLines.map((physicalLine, idx) => {
@@ -520,7 +522,7 @@ function ControlledTextInput({
 			})}
 			{endLine < totalPhysicalLines && (
 				<Box>
-					<Text color={getColors().textDim}>... ({totalPhysicalLines - endLine} more lines below)</Text>
+					<Text color={colors.textDim}>... ({totalPhysicalLines - endLine} more lines below)</Text>
 				</Box>
 			)}
 		</Box>

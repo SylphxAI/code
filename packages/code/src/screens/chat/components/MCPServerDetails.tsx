@@ -8,7 +8,7 @@ import { Box, Text, useInput } from "ink";
 import { useEffect, useState } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
-import { getColors } from "../../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface MCPServerDetailsProps {
 	server: MCPServerWithId;
@@ -36,7 +36,7 @@ export function MCPServerDetails({
 	const [selectedTool, setSelectedTool] = useState<MCPToolInfo | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [isConnected, setIsConnected] = useState(false);
-	const colors = getColors();
+	const colors = useThemeColors();
 	const [connectionInfo, setConnectionInfo] = useState<{
 		connectedAt?: number;
 		lastActivity?: number;

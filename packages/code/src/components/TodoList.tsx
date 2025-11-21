@@ -6,17 +6,16 @@
  */
 
 import { useCurrentSession } from "../hooks/client/useCurrentSession.js";
-import { getTodoColor, getTodoDisplayText, getTodoIcon, isTodoBold, isTodoDimmed, isTodoStrikethrough } from "@sylphx/code-client";
+import { getTodoColor, getTodoDisplayText, getTodoIcon, isTodoBold, isTodoDimmed, isTodoStrikethrough, useThemeColors } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import React, { useMemo } from "react";
-import { getColors } from "../utils/theme/index.js";
 
 const MAX_VISIBLE_LINES = 5;
 
 function TodoListInternal() {
 	// Get current session's todos (tRPC: cached in store)
 	const { currentSession } = useCurrentSession();
-	const colors = getColors();
+	const colors = useThemeColors();
 	const todos = currentSession?.todos || [];
 
 	// Calculate progress

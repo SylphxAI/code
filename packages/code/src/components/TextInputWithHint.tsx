@@ -7,8 +7,8 @@
 
 import { Box, Text } from "ink";
 import React, { useCallback, useState } from "react";
+import { useThemeColors } from "@sylphx/code-client";
 import ControlledTextInput from "./ControlledTextInput.js";
-import { getColors } from "../utils/theme/index.js";
 
 interface TextInputWithHintProps {
 	value: string;
@@ -89,7 +89,7 @@ function TextInputWithHint({
 		[onSubmit],
 	);
 
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	return (
 		<Box>

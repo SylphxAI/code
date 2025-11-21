@@ -7,17 +7,17 @@
  */
 
 import type { SessionMessage } from "@sylphx/code-core";
+import { useThemeColors } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import React, { useState, useEffect } from "react";
 import MarkdownText from "./MarkdownText.js";
 import { MessagePart } from "./MessagePart.js";
 import { indicators } from "../utils/colors.js";
-import { getColors } from "../utils/theme/index.js";
 
 // Animated indicator that pulses between ◆ and ◇
 function AnimatedIndicator() {
 	const [frame, setFrame] = useState(0);
-	const colors = getColors();
+	const colors = useThemeColors();
 	useEffect(() => {
 		const timer = setInterval(() => {
 			setFrame((prev) => (prev + 1) % 2);
@@ -36,7 +36,7 @@ interface MessageListProps {
 
 // Memoized message header component to prevent re-renders
 const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	if (msg.role === "user") {
 		return <Text color={colors.primary}>{indicators.user} YOU</Text>;
@@ -102,7 +102,7 @@ export function MessageList({
 	hideMessageTitles = true,
 	hideMessageUsage = true,
 }: MessageListProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	return (
 		<>

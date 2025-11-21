@@ -4,7 +4,7 @@
  */
 
 import { Box, Text, useInput } from "ink";
-import { getColors } from "../../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface ContextDisplayProps {
 	output: string;
@@ -149,7 +149,7 @@ function parseContextOutput(output: string): ParsedContextData | null {
 }
 
 export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	// Handle ESC key to close (capture all input to prevent parent handlers)
 	useInput(

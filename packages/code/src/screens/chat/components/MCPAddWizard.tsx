@@ -10,7 +10,7 @@ import { InlineSelection } from "../../../components/selection/index.js";
 import TextInputWithHint from "../../../components/TextInputWithHint.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
 import { InputContentLayout } from "./InputContentLayout.js";
-import { getColors } from "../../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface MCPAddWizardProps {
 	onComplete: () => void;
@@ -28,7 +28,7 @@ type Step =
 
 export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 	const [step, setStep] = useState<Step>("input-id");
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	// Form state
 	const [serverId, setServerId] = useState("");

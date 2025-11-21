@@ -4,7 +4,7 @@
  */
 
 import { Box, Text } from "ink";
-import { getColors } from "../../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface ChatHeaderProps {
 	currentSessionTitle?: string;
@@ -22,7 +22,7 @@ export function ChatHeader({
 		? streamingTitle || currentSessionTitle
 		: currentSessionTitle;
 
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	return (
 		<Box paddingX={1} paddingY={1}>

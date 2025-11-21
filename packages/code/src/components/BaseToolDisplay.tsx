@@ -11,7 +11,7 @@
 import type React from "react";
 import { Box, Text } from "ink";
 import Spinner from "./Spinner.js";
-import { getColors } from "../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 export interface BaseToolDisplayProps {
 	// Header props
@@ -30,7 +30,7 @@ export interface BaseToolDisplayProps {
  * Status indicator component (spinner or checkmark)
  */
 function StatusIndicator({ status }: { status: "running" | "completed" | "failed" }) {
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	if (status === "running") {
 		return (
@@ -57,7 +57,7 @@ export function BaseToolDisplay({
 	summary,
 	details,
 }: BaseToolDisplayProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	return (
 		<Box flexDirection="column">

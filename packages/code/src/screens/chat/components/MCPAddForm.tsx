@@ -10,7 +10,7 @@ import { InlineSelection } from "../../../components/selection/index.js";
 import TextInputWithHint from "../../../components/TextInputWithHint.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
 import { InputContentLayout } from "./InputContentLayout.js";
-import { getColors } from "../../../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface MCPAddFormProps {
 	onComplete: () => void;
@@ -20,7 +20,7 @@ interface MCPAddFormProps {
 type Field = "id" | "transport" | "url" | "command" | "args" | "name" | "description";
 
 export function MCPAddForm({ onComplete, onCancel }: MCPAddFormProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 	const [currentField, setCurrentField] = useState<Field>("id");
 
 	// Form state

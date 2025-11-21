@@ -9,12 +9,11 @@ import { useMCPStatus } from "../hooks/client/useMCPStatus.js";
 import { useModelDetails } from "../hooks/client/useModelDetails.js";
 import { useTotalTokens } from "../hooks/client/useTotalTokens.js";
 import { useBackgroundBashCount } from "../hooks/client/useBackgroundBashCount.js";
-import { useEnabledRuleIds, useSelectedAgentId } from "@sylphx/code-client";
+import { useEnabledRuleIds, useSelectedAgentId, useThemeColors } from "@sylphx/code-client";
 import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Spacer, Text } from "ink";
 import { useMemo } from "react";
 import { getAgentById } from "../embedded-context.js";
-import { getColors } from "../utils/theme/index.js";
 
 interface StatusBarProps {
 	provider: string | null;
@@ -121,7 +120,7 @@ function StatusBarInternal({
 	}, [enabledRulesCount, mcpStatus, backgroundBashCount, loading, contextLength, totalTokens, usagePercent]);
 
 	// Get theme colors
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	// ALL EARLY RETURNS MUST COME AFTER ALL HOOKS
 	// Early return for missing provider

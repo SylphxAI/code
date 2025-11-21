@@ -6,13 +6,13 @@
 import { useAIConfig, useAIConfigActions } from "../hooks/client/useAIConfig.js";
 import { useModels } from "../hooks/client/useModels.js";
 import { useProviders } from "../hooks/client/useProviders.js";
-import { navigateTo, setError, setSelectedModel, setSelectedProvider, updateProvider, useSelectedModel, useSelectedProvider } from "@sylphx/code-client";
+import { useThemeColors, navigateTo, setError, setSelectedModel, setSelectedProvider, updateProvider, useSelectedModel, useSelectedProvider } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
 import TextInput from "ink-text-input";
 import { useEffect, useState } from "react";
 import Spinner from "../components/Spinner.js";
-import { getColors } from "../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 type Mode = "provider" | "model" | "search";
 
@@ -33,7 +33,7 @@ interface MenuItem {
 export default function ModelSelection() {
 	const [mode, setMode] = useState<Mode>("provider");
 	const [searchQuery, setSearchQuery] = useState("");
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	const aiConfig = useAIConfig();
 	const selectedProvider = useSelectedProvider();

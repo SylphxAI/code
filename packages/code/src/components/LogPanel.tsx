@@ -4,7 +4,7 @@
  */
 
 import { Box, Text } from "ink";
-import { getColors } from "../utils/theme/index.js";
+import { useThemeColors } from "@sylphx/code-client";
 
 interface LogPanelProps {
 	logs: string[];
@@ -13,7 +13,7 @@ interface LogPanelProps {
 
 export default function LogPanel({ logs, maxLines = 10 }: LogPanelProps) {
 	const displayLogs = logs.slice(-maxLines);
-	const colors = getColors();
+	const colors = useThemeColors();
 
 	return (
 		<Box flexDirection="column" borderStyle="single" borderColor={colors.textDim} paddingX={1}>

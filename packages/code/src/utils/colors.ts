@@ -5,7 +5,7 @@
  * MIGRATION: This file is deprecated. Import from utils/theme instead.
  */
 
-import { getColors, isDarkTheme } from "./theme/index.js";
+import { getColors, isDarkTheme } from "@sylphx/code-client";
 
 /**
  * Detect if terminal is using a light theme

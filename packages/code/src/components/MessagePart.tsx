@@ -11,13 +11,13 @@ import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { useElapsedTime } from "../hooks/client/useElapsedTime.js";
+import { useThemeColors } from "@sylphx/code-client";
 import type { MessagePart as MessagePartType } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import React, { useEffect, useMemo } from "react";
 import MarkdownText from "./MarkdownText.js";
 import Spinner from "./Spinner.js";
 import { ToolPart } from "./ToolPart.js";
-import { getColors } from "../utils/theme/index.js";
 
 interface MessagePartProps {
 	part: MessagePartType | StreamingPart;
@@ -54,7 +54,7 @@ type StreamingPart =
 	| { type: "error"; error: string; status: "completed" };
 
 function MessagePartInternal({ part, compact = false, isFirst = false }: MessagePartProps) {
-	const colors = getColors();
+	const colors = useThemeColors();
 	const marginLeft = compact ? 0 : 3;
 	const marginTop = isFirst ? 0 : 1;
 

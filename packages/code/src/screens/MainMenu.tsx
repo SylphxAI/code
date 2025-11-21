@@ -4,10 +4,10 @@
  */
 
 import { useAIConfig } from "../hooks/client/useAIConfig.js";
-import { navigateTo } from "@sylphx/code-client";
+import { useThemeColors, navigateTo } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
-import { getColors } from "../utils/theme/index.js";
+import { useThemeColors, getColors } from "@sylphx/code-client";
 
 interface MenuItem {
 	label: string;
@@ -15,7 +15,7 @@ interface MenuItem {
 }
 
 export default function MainMenu() {
-	const colors = getColors();
+	const colors = useThemeColors();
 	const aiConfig = useAIConfig();
 
 	const configuredCount = Object.keys(aiConfig?.providers || {}).length;
