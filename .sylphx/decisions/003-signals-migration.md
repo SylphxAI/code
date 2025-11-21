@@ -1,6 +1,6 @@
 # 003. Migrate to Preact Signals (Zen) for State Management
 
-**Status:** 🚧 In Progress (Phase 2 Complete)
+**Status:** ✅ Complete (All Core Phases Done)
 **Date:** 2025-01-15
 **Updated:** 2025-01-15
 
@@ -55,8 +55,14 @@ No useState/useReducer for state (only for derived/transient UI)
 - [x] Maintained backwards compatibility (functional update wrappers)
 - [x] Kept refs as React refs (no reactivity needed)
 
-### Phase 3: Streaming State (Pending)
-- [ ] Streaming state (`useStreamingState`)
+### Phase 3: Streaming & Queue State (✅ Complete)
+- [x] Created streaming domain signals structure
+  - `domain/ui/streaming.ts` - Streaming flags, title, timing (renamed to useIsStreamingUI to avoid conflict)
+  - `domain/ui/queue.ts` - Queue browsing navigation state
+- [x] Migrated useStreamingState to Zen signals (5 useState eliminated)
+- [x] Migrated useQueueBrowsingState to Zen signals (3 useState eliminated)
+- [x] Resolved naming conflicts with session domain
+- [x] Maintained backwards compatibility
 
 ### Phase 3: Component State
 - [ ] Transient UI (loading, hover, focus) → keep useState
@@ -136,7 +142,10 @@ code/
 - [x] Command state (10 useState eliminated)
 - [x] Input state (6 useState eliminated)
 - [x] Selection state (9 useState eliminated)
-- [ ] Streaming state (6 useState remaining)
+- [x] Streaming state (5 useState eliminated)
+- [x] Queue browsing state (3 useState eliminated)
+
+**Total useState eliminated: 33 across 5 hooks**
 
 **Component (Priority 3)**
 - [ ] File attachments
