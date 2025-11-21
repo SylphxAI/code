@@ -141,14 +141,24 @@ interface SessionStatus {
 - Fast LLM (Haiku) analyzes context (tools used, files modified, etc.)
 - Generates precise status: "Analyzing authentication flow in 3 files..."
 
-### Event Flow
+### Event Flow (Pub-Sub Pattern)
 ```
-Activity starts → Server determines status text → Emit session-status-updated
-                                                          ↓
-                                      Client updates session.status signal
-                                                          ↓
-                                      UI components re-render (StatusIndicator, SessionList)
+Tool Execution / Token Updates / Todo Changes (Publishers)
+                    ↓
+        Emit tool-call, tool-result, session-tokens-updated (Raw Events)
+                    ↓
+        Session Status Manager (Subscriber)
+          - Listens to relevant events
+          - Maintains internal state (currentTool, startTime, tokenUsage)
+          - Determines status text via determineStatusText()
+          - Emits session-status-updated when state changes
+                    ↓
+        Client updates session.status signal
+                    ↓
+        UI components re-render (StatusIndicator, SessionList)
 ```
+
+**Why Pub-Sub**: Separation of concerns. Tool execution logic doesn't know about session status. Status manager reacts to events and maintains its own state.
 
 ### Display Locations
 
@@ -165,10 +175,32 @@ Activity starts → Server determines status text → Emit session-status-update
 ```
 
 ### Integration Points
-- **Token Tracking**: `session-status-updated` includes real-time token counts
-- **Todo System**: Reads `session.todos` to find in_progress task
-- **Tool Execution**: Tool name determines fallback status text
-- **Duration Tracking**: Server tracks elapsed time since activity start
+- **Token Tracking**: Session Status Manager subscribes to `session-tokens-updated` events
+- **Todo System**: Manager receives initial todos, updates when todos change
+- **Tool Execution**: Manager subscribes to `tool-call` and `tool-result` events
+- **Duration Tracking**: Manager tracks elapsed time since streaming started
+
+### Implementation: Session Status Manager
+**Module**: `packages/code-server/src/services/streaming/session-status-manager.ts`
+
+**Responsibility**: React to events and emit session-status-updated
+
+**Lifecycle**:
+```typescript
+// 1. Create manager at streaming start
+const statusManager = createSessionStatusManager(observer, sessionId, session.todos);
+
+// 2. Manager subscribes to events internally
+// 3. Manager emits session-status-updated automatically
+// 4. Cleanup at streaming end
+statusManager.cleanup();
+```
+
+**Event Subscriptions**:
+- `tool-call` → Update currentTool, emit status
+- `tool-result` / `tool-error` → Clear currentTool, emit status
+- `session-tokens-updated` → Update tokenUsage, emit status
+- Todo changes → Update todos, recalculate statusText, emit status
 
 ## Key Design Patterns
 
