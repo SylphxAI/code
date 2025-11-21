@@ -8,6 +8,13 @@
       "type": "http",
       "url": "https://mcp.grep.app"
     },
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ]
+    },
     "coderag": {
       "type": "stdio",
       "command": "npx",

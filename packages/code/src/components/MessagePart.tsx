@@ -17,6 +17,7 @@ import React, { useEffect, useMemo } from "react";
 import MarkdownText from "./MarkdownText.js";
 import Spinner from "./Spinner.js";
 import { ToolPart } from "./ToolPart.js";
+import { getColors } from "../utils/theme/index.js";
 
 interface MessagePartProps {
 	part: MessagePartType | StreamingPart;
@@ -53,6 +54,7 @@ type StreamingPart =
 	| { type: "error"; error: string; status: "completed" };
 
 function MessagePartInternal({ part, compact = false, isFirst = false }: MessagePartProps) {
+	const colors = getColors();
 	const marginLeft = compact ? 0 : 3;
 	const marginTop = isFirst ? 0 : 1;
 
@@ -82,8 +84,8 @@ function MessagePartInternal({ part, compact = false, isFirst = false }: Message
 			return (
 				<Box flexDirection="column" marginLeft={marginLeft} marginTop={marginTop}>
 					<Box>
-						<Spinner color="yellow" />
-						<Text dimColor> Thinking... {durationDisplay}</Text>
+						<Spinner color={colors.warning} />
+						<Text color={colors.textDim}> Thinking... {durationDisplay}</Text>
 					</Box>
 				</Box>
 			);
@@ -93,7 +95,7 @@ function MessagePartInternal({ part, compact = false, isFirst = false }: Message
 			return (
 				<Box flexDirection="column" marginLeft={marginLeft} marginTop={marginTop}>
 					<Box>
-						<Text dimColor>Thought {durationDisplay}</Text>
+						<Text color={colors.textDim}>Thought {durationDisplay}</Text>
 					</Box>
 				</Box>
 			);
@@ -103,7 +105,7 @@ function MessagePartInternal({ part, compact = false, isFirst = false }: Message
 	if (part.type === "error") {
 		return (
 			<Box marginLeft={marginLeft} marginTop={marginTop}>
-				<Text color="red">{part.error}</Text>
+				<Text color={colors.error}>{part.error}</Text>
 			</Box>
 		);
 	}
@@ -144,8 +146,8 @@ function MessagePartInternal({ part, compact = false, isFirst = false }: Message
 			if (!tempPath) {
 				return (
 					<Box flexDirection="column" marginLeft={marginLeft} marginTop={marginTop}>
-						<Text dimColor>Image ({part.mediaType}):</Text>
-						<Text color="red">Failed to save image</Text>
+						<Text color={colors.textDim}>Image ({part.mediaType}):</Text>
+						<Text color={colors.error}>Failed to save image</Text>
 					</Box>
 				);
 			}
@@ -154,19 +156,19 @@ function MessagePartInternal({ part, compact = false, isFirst = false }: Message
 
 			return (
 				<Box flexDirection="column" marginLeft={marginLeft} marginTop={marginTop}>
-					<Text dimColor>
+					<Text color={colors.textDim}>
 						Image ({part.mediaType}) - {fileSize}KB
 					</Text>
-					<Text color="green">✓ Opened in system viewer</Text>
-					<Text dimColor>Saved to: {tempPath}</Text>
+					<Text color={colors.success}>✓ Opened in system viewer</Text>
+					<Text color={colors.textDim}>Saved to: {tempPath}</Text>
 				</Box>
 			);
 		} else {
 			// Render non-image file info
 			return (
 				<Box flexDirection="column" marginLeft={marginLeft} marginTop={marginTop}>
-					<Text dimColor>File: {part.mediaType}</Text>
-					<Text dimColor>Size: {Math.round(part.base64.length * 0.75)} bytes</Text>
+					<Text color={colors.textDim}>File: {part.mediaType}</Text>
+					<Text color={colors.textDim}>Size: {Math.round(part.base64.length * 0.75)} bytes</Text>
 				</Box>
 			);
 		}
@@ -199,7 +201,7 @@ function MessagePartInternal({ part, compact = false, isFirst = false }: Message
 
 		return (
 			<Box marginLeft={compact ? 0 : 2} marginTop={marginTop}>
-				<Text dimColor>System: {humanizedType}</Text>
+				<Text color={colors.textDim}>System: {humanizedType}</Text>
 			</Box>
 		);
 	}

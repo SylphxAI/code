@@ -8,6 +8,7 @@ import { Box, Text, useInput } from "ink";
 import { useEffect, useState } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
+import { getColors } from "../../../utils/theme/index.js";
 
 interface MCPServerDetailsProps {
 	server: MCPServerWithId;
@@ -35,6 +36,7 @@ export function MCPServerDetails({
 	const [selectedTool, setSelectedTool] = useState<MCPToolInfo | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [isConnected, setIsConnected] = useState(false);
+	const colors = getColors();
 	const [connectionInfo, setConnectionInfo] = useState<{
 		connectedAt?: number;
 		lastActivity?: number;
@@ -212,7 +214,7 @@ export function MCPServerDetails({
 		return (
 			<Box flexDirection="column" paddingX={2}>
 				<Box marginBottom={1}>
-					<Text bold color="cyan">
+					<Text bold color={colors.primary}>
 						▌ {server.name || server.id} - Tools ({tools.length})
 					</Text>
 				</Box>
@@ -241,7 +243,7 @@ export function MCPServerDetails({
 		return (
 			<Box flexDirection="column" paddingX={2}>
 				<Box marginBottom={1}>
-					<Text bold color="cyan">
+					<Text bold color={colors.primary}>
 						▌ {selectedTool.name}
 					</Text>
 				</Box>
@@ -260,13 +262,13 @@ export function MCPServerDetails({
 						<Box flexDirection="column" marginTop={1}>
 							<Text bold>Input Schema:</Text>
 							<Box paddingLeft={2}>
-								<Text dimColor>{JSON.stringify(selectedTool.inputSchema, null, 2)}</Text>
+								<Text color={colors.textDim}>{JSON.stringify(selectedTool.inputSchema, null, 2)}</Text>
 							</Box>
 						</Box>
 					)}
 
 					<Box marginTop={2}>
-						<Text dimColor>Press ESC to go back to tools list</Text>
+						<Text color={colors.textDim}>Press ESC to go back to tools list</Text>
 					</Box>
 				</Box>
 			</Box>
@@ -277,14 +279,14 @@ export function MCPServerDetails({
 	return (
 		<Box flexDirection="column" paddingX={2}>
 			<Box marginBottom={1}>
-				<Text bold color="cyan">
+				<Text bold color={colors.primary}>
 					▌ {server.name || server.id} - Details
 				</Text>
 			</Box>
 
 			{loading ? (
 				<Box>
-					<Text dimColor>Loading server details...</Text>
+					<Text color={colors.textDim}>Loading server details...</Text>
 				</Box>
 			) : (
 				<Box flexDirection="column" gap={1}>

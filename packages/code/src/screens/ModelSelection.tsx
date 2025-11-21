@@ -12,6 +12,7 @@ import SelectInput from "ink-select-input";
 import TextInput from "ink-text-input";
 import { useEffect, useState } from "react";
 import Spinner from "../components/Spinner.js";
+import { getColors } from "../utils/theme/index.js";
 
 type Mode = "provider" | "model" | "search";
 
@@ -32,6 +33,7 @@ interface MenuItem {
 export default function ModelSelection() {
 	const [mode, setMode] = useState<Mode>("provider");
 	const [searchQuery, setSearchQuery] = useState("");
+	const colors = getColors();
 
 	const aiConfig = useAIConfig();
 	const selectedProvider = useSelectedProvider();
@@ -104,21 +106,21 @@ export default function ModelSelection() {
 			return (
 				<Box flexDirection="column">
 					<Box marginBottom={1}>
-						<Text bold color="cyan">
+						<Text bold color={colors.primary}>
 							Model Selection
 						</Text>
 					</Box>
 
 					<Box marginBottom={1}>
-						<Text color="yellow">⚠️ No providers configured</Text>
+						<Text color={colors.warning}>⚠️ No providers configured</Text>
 					</Box>
 
 					<Box>
-						<Text dimColor>Please configure providers first</Text>
+						<Text color={colors.textDim}>Please configure providers first</Text>
 					</Box>
 
 					<Box marginTop={1}>
-						<Text dimColor>Press Esc to go back</Text>
+						<Text color={colors.textDim}>Press Esc to go back</Text>
 					</Box>
 				</Box>
 			);
@@ -144,7 +146,7 @@ export default function ModelSelection() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="cyan">▌ SELECT PROVIDER</Text>
+					<Text color={colors.primary}>▌ SELECT PROVIDER</Text>
 				</Box>
 
 				<Box flexGrow={1} paddingY={1}>
@@ -152,7 +154,7 @@ export default function ModelSelection() {
 				</Box>
 
 				<Box flexShrink={0} paddingTop={1}>
-					<Text dimColor>↑↓ Navigate · Enter Select · Esc Back</Text>
+					<Text color={colors.textDim}>↑↓ Navigate · Enter Select · Esc Back</Text>
 				</Box>
 			</Box>
 		);
@@ -163,8 +165,8 @@ export default function ModelSelection() {
 		if (isLoadingModels) {
 			return (
 				<Box>
-					<Spinner color="yellow" />
-					<Text dimColor> Loading models from {selectedProvider}...</Text>
+					<Spinner color={colors.warning} />
+					<Text color={colors.textDim}> Loading models from {selectedProvider}...</Text>
 				</Box>
 			);
 		}
@@ -229,8 +231,8 @@ export default function ModelSelection() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="cyan">▌ SELECT MODEL</Text>
-					<Text dimColor>
+					<Text color={colors.primary}>▌ SELECT MODEL</Text>
+					<Text color={colors.textDim}>
 						{" "}
 						· {selectedProvider && (aiProviders[selectedProvider]?.name || selectedProvider)}
 					</Text>
@@ -239,7 +241,7 @@ export default function ModelSelection() {
 				{/* Search input */}
 				<Box flexShrink={0} paddingY={1} flexDirection="column">
 					<Box marginBottom={1}>
-						<Text dimColor>Search</Text>
+						<Text color={colors.textDim}>Search</Text>
 					</Box>
 					<TextInput
 						value={searchQuery}
@@ -253,13 +255,13 @@ export default function ModelSelection() {
 				<Box flexGrow={1} paddingY={1} flexDirection="column">
 					{filteredModels.length === 0 ? (
 						<Box>
-							<Text color="yellow">▌</Text>
-							<Text dimColor> No models found</Text>
+							<Text color={colors.warning}>▌</Text>
+							<Text color={colors.textDim}> No models found</Text>
 						</Box>
 					) : (
 						<>
 							<Box marginBottom={1}>
-								<Text dimColor>
+								<Text color={colors.textDim}>
 									Showing {Math.min(filteredModels.length, 20)} of {models.length} models
 								</Text>
 							</Box>
@@ -270,10 +272,10 @@ export default function ModelSelection() {
 
 				<Box flexShrink={0} paddingTop={1} flexDirection="column">
 					<Box marginBottom={1}>
-						<Text dimColor>👁️=Vision 📎=Files 🎨=Image Gen 🔧=Tools 🧠=Reasoning</Text>
+						<Text color={colors.textDim}>👁️=Vision 📎=Files 🎨=Image Gen 🔧=Tools 🧠=Reasoning</Text>
 					</Box>
 					<Box>
-						<Text dimColor>↑↓ Navigate · Type Search · Enter Select · Esc Cancel</Text>
+						<Text color={colors.textDim}>↑↓ Navigate · Type Search · Enter Select · Esc Cancel</Text>
 					</Box>
 				</Box>
 			</Box>

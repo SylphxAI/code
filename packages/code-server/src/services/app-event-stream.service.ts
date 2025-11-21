@@ -15,6 +15,20 @@ import { Observable, ReplaySubject } from "rxjs";
 import type { EventCursor, EventPersistence, StoredEvent } from "./event-persistence.service.js";
 
 /**
+ * Compare two event cursors
+ * @returns -1 if a < b, 0 if a === b, 1 if a > b
+ */
+function compareCursors(a: EventCursor, b: EventCursor): number {
+	if (a.timestamp !== b.timestamp) {
+		return a.timestamp < b.timestamp ? -1 : 1;
+	}
+	if (a.sequence !== b.sequence) {
+		return a.sequence < b.sequence ? -1 : 1;
+	}
+	return 0;
+}
+
+/**
  * App Event Stream
  * Provides pub/sub with history and pattern matching
  */
@@ -99,21 +113,68 @@ export class AppEventStream {
 	 */
 	subscribe(channel: string, fromCursor?: EventCursor): Observable<StoredEvent> {
 		return new Observable((observer) => {
-			// 1. Replay from persistence if cursor provided
-			if (this.persistence && fromCursor) {
-				this.persistence
-					.readFrom(channel, fromCursor, 100)
-					.then((events) => {
-						events.forEach((event) => observer.next(event));
-					})
-					.catch((err) => {
-						console.error("[AppEventStream] Replay error:", err);
-					});
+			const subject = this.getOrCreateSubject(channel);
+
+			// If no persistence or no cursor, just subscribe to live stream
+			if (!this.persistence || !fromCursor) {
+				const subscription = subject.subscribe(observer);
+				return () => subscription.unsubscribe();
 			}
 
-			// 2. Subscribe to in-memory stream
-			const subject = this.getOrCreateSubject(channel);
-			const subscription = subject.subscribe(observer);
+			// Track events received from ReplaySubject while persistence is loading
+			const bufferedEvents: StoredEvent[] = [];
+			let persistenceComplete = false;
+			let lastReplayedCursor: EventCursor | null = null;
+
+			// 1. Subscribe to in-memory stream FIRST (to not miss any events)
+			const subscription = subject.subscribe({
+				next: (event) => {
+					if (!persistenceComplete) {
+						// Buffer events while persistence is loading
+						bufferedEvents.push(event);
+					} else {
+						// Persistence done - only emit if event is AFTER last replayed cursor
+						if (!lastReplayedCursor || compareCursors(event.cursor, lastReplayedCursor) > 0) {
+							observer.next(event);
+						}
+					}
+				},
+				error: (err) => observer.error(err),
+				complete: () => observer.complete(),
+			});
+
+			// 2. Replay from persistence (async)
+			this.persistence
+				.readFrom(channel, fromCursor, 100)
+				.then((events) => {
+					// Emit all historical events
+					events.forEach((event) => observer.next(event));
+
+					// Track last replayed cursor
+					if (events.length > 0) {
+						lastReplayedCursor = events[events.length - 1].cursor;
+					}
+
+					// Mark persistence as complete
+					persistenceComplete = true;
+
+					// Emit buffered events that are AFTER last replayed cursor
+					bufferedEvents.forEach((event) => {
+						if (!lastReplayedCursor || compareCursors(event.cursor, lastReplayedCursor) > 0) {
+							observer.next(event);
+						}
+					});
+
+					// Clear buffer
+					bufferedEvents.length = 0;
+				})
+				.catch((err) => {
+					console.error("[AppEventStream] Replay error:", err);
+					// Mark as complete anyway to let buffered events flow through
+					persistenceComplete = true;
+					bufferedEvents.forEach((event) => observer.next(event));
+					bufferedEvents.length = 0;
+				});
 
 			// Cleanup
 			return () => subscription.unsubscribe();

@@ -83,6 +83,7 @@ export async function updateTokensFromDelta(
 	try {
 		// Add delta to tracker (optimistic, not persisted)
 		const currentTotal = await tokenTracker.addDelta(deltaText);
+		const outputTokens = tokenTracker.getStreamingDelta();
 
 		// Emit immediate update (optimistic value, not SSOT)
 		// User requirement: "反正有任何異動都要即刻通知client去實時更新"
@@ -91,6 +92,7 @@ export async function updateTokensFromDelta(
 			sessionId,
 			totalTokens: currentTotal,
 			baseContextTokens: baseContextTokens,
+			outputTokens, // Current streaming output tokens for status indicator
 		});
 	} catch (error) {
 		// Non-critical - don't interrupt streaming

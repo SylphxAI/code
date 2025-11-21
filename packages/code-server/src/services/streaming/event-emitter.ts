@@ -146,8 +146,9 @@ export function emitToolCall(
 	toolCallId: string,
 	toolName: string,
 	input: any,
+	startTime: number,
 ): void {
-	observer.next({ type: "tool-call", toolCallId, toolName, input });
+	observer.next({ type: "tool-call", toolCallId, toolName, input, startTime });
 }
 
 /**
@@ -156,8 +157,9 @@ export function emitToolCall(
 export function emitToolInputStart(
 	observer: Observer<StreamEvent, unknown>,
 	toolCallId: string,
+	startTime: number,
 ): void {
-	observer.next({ type: "tool-input-start", toolCallId });
+	observer.next({ type: "tool-input-start", toolCallId, startTime });
 }
 
 /**

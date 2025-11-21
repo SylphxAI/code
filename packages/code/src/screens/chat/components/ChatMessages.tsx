@@ -10,6 +10,7 @@ import { Box, Text } from "ink";
 import React from "react";
 import { MessageList } from "../../../components/MessageList.js";
 import { indicators } from "../../../utils/colors.js";
+import { useColors } from "../../../utils/theme/index.js";
 
 interface ChatMessagesProps {
 	hasSession: boolean;
@@ -26,26 +27,28 @@ function ChatMessagesInternal({
 	hideMessageTitles = true,
 	hideMessageUsage = true,
 }: ChatMessagesProps) {
+	const colors = useColors();
+
 	if (!hasSession) {
 		return (
 			<Box paddingY={1} flexDirection="column" paddingX={1}>
 				<Box paddingBottom={1}>
-					<Text color="green">{indicators.assistant} </Text>
+					<Text color={colors.success}>{indicators.assistant} </Text>
 					<Text bold>WELCOME</Text>
 				</Box>
 				<Box paddingBottom={1} marginLeft={3}>
-					<Text dimColor>Start chatting by typing a message below.</Text>
+					<Text color={colors.textDim}>Start chatting by typing a message below.</Text>
 				</Box>
 				<Box paddingBottom={1} marginLeft={3}>
-					<Text dimColor>Useful commands:</Text>
+					<Text color={colors.textDim}>Useful commands:</Text>
 				</Box>
 				<Box paddingLeft={2} paddingBottom={1} marginLeft={3}>
-					<Text color="cyan">/provider</Text>
-					<Text dimColor> - Manage AI providers</Text>
+					<Text color={colors.primary}>/provider</Text>
+					<Text color={colors.textDim}> - Manage AI providers</Text>
 				</Box>
 				<Box paddingLeft={2} paddingBottom={1} marginLeft={3}>
-					<Text color="cyan">/help</Text>
-					<Text dimColor> - Show all available commands</Text>
+					<Text color={colors.primary}>/help</Text>
+					<Text color={colors.textDim}> - Show all available commands</Text>
 				</Box>
 			</Box>
 		);
@@ -63,13 +66,5 @@ function ChatMessagesInternal({
 	);
 }
 
-// Memoize component to prevent re-renders when props haven't changed
-export const ChatMessages = React.memo(ChatMessagesInternal, (prevProps, nextProps) => {
-	return (
-		prevProps.hasSession === nextProps.hasSession &&
-		prevProps.messages === nextProps.messages &&
-		prevProps.attachmentTokens === nextProps.attachmentTokens &&
-		prevProps.hideMessageTitles === nextProps.hideMessageTitles &&
-		prevProps.hideMessageUsage === nextProps.hideMessageUsage
-	);
-});
+// Export without memo - useColors hook handles reactivity for theme changes
+export const ChatMessages = ChatMessagesInternal;

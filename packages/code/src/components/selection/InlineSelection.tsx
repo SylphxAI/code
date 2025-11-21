@@ -9,6 +9,7 @@ import { type SelectionOption, useSelection } from "../../hooks/useSelection.js"
 import { InputContentLayout } from "../../screens/chat/components/InputContentLayout.js";
 import { SelectionFilterInput } from "./SelectionFilterInput.js";
 import { SelectionOptionsList } from "./SelectionOptionsList.js";
+import { getColors } from "../../utils/theme/index.js";
 
 interface InlineSelectionProps {
 	options: SelectionOption[];
@@ -42,6 +43,7 @@ export function InlineSelection({
 	onSelect,
 	onCancel,
 }: InlineSelectionProps) {
+	const colors = getColors();
 	const selection = useSelection({
 		options,
 		multiSelect,
@@ -84,9 +86,9 @@ export function InlineSelection({
 			) : selection.filterQuery ? (
 				// Filter applied (read-only display)
 				<Box marginBottom={1}>
-					<Text dimColor>Filter: </Text>
-					<Text color="cyan">{selection.filterQuery}</Text>
-					<Text dimColor> (press / to edit, Esc to clear)</Text>
+					<Text color={colors.textDim}>Filter: </Text>
+					<Text color={colors.primary}>{selection.filterQuery}</Text>
+					<Text color={colors.textDim}> (press / to edit, Esc to clear)</Text>
 				</Box>
 			) : null}
 

@@ -11,7 +11,6 @@ import { updateTokensFromDelta } from "../token-tracking.service.js";
 import {
 	emitError,
 	emitFile,
-	emitToolCall,
 	emitToolError,
 	emitToolInputDelta,
 	emitToolInputEnd,
@@ -200,52 +199,59 @@ export async function processAIStream(
 					if (existingToolPart && existingToolPart.type === "tool") {
 						existingToolPart.name = chunk.toolName;
 					} else {
+						const toolStartTime = Date.now();
 						state.currentStepParts.push({
 							type: "tool",
 							toolId: chunk.toolCallId,
 							name: chunk.toolName,
 							status: "active",
 							input: "input" in chunk ? chunk.input : undefined,
+							startTime: toolStartTime,
 						});
 
 						state.activeTools.set(chunk.toolCallId, {
 							name: chunk.toolName,
-							startTime: Date.now(),
+							startTime: toolStartTime,
 							input: "input" in chunk ? chunk.input : undefined,
 						});
 					}
 
 					state.hasEmittedAnyEvent = true;
-					emitToolCall(
-						observer,
-						chunk.toolCallId,
-						chunk.toolName,
-						"input" in chunk ? chunk.input : undefined,
+					// Get startTime from either existing tool part or the newly created one
+					const tool = state.currentStepParts.find(
+						(p) => p.type === "tool" && p.toolId === chunk.toolCallId,
 					);
+					const startTimeToEmit = tool && tool.type === "tool" && tool.startTime
+						? tool.startTime
+						: Date.now();
+					// NOTE: Only use callback - emitToolCall() is called in callback
 					callbacks.onToolCall?.(
 						chunk.toolCallId,
 						chunk.toolName,
 						"input" in chunk ? chunk.input : undefined,
+						startTimeToEmit,
 					);
 					break;
 				}
 
 				case "tool-input-start": {
+					const toolStartTime = Date.now();
 					state.currentStepParts.push({
 						type: "tool",
 						toolId: chunk.id,
 						name: chunk.toolName,
 						status: "active",
 						input: "",
+						startTime: toolStartTime,
 					});
 
 					state.activeTools.set(chunk.id, {
 						name: chunk.toolName,
-						startTime: Date.now(),
+						startTime: toolStartTime,
 						input: "",
 					});
 
-					emitToolInputStart(observer, chunk.id);
+					emitToolInputStart(observer, chunk.id, toolStartTime);
 					break;
 				}
 

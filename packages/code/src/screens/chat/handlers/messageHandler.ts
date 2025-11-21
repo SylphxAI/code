@@ -290,14 +290,14 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 					`[executeCommand] Result type: ${typeof result}, value: ${result ? String(result).substring(0, 100) : "null/undefined"}`,
 				);
 
-				// If command returns a result string, add it to conversation
-				if (result && typeof result === "string") {
+				// If command returns a result string, add it to conversation (unless silent)
+				if (result && typeof result === "string" && !command.silent) {
 					await addMessage({
 						sessionId: commandSessionRef.current,
 						role: "assistant",
 						content: result,
 					});
-				} else if (result !== undefined) {
+				} else if (result !== undefined && !command.silent) {
 					// Command returned something but not a string
 					addLog(`[executeCommand] WARNING: Command returned non-string result: ${typeof result}`);
 				}

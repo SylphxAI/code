@@ -25,6 +25,21 @@ export interface EventHandlerContext {
 		sessionId: string;
 		toolCallId: string;
 	} | null>; // For server-side ask tool
+	/**
+	 * Track current step index for content events
+	 * Set by step-start, cleared by step-complete
+	 * Used to skip content events during replay when step already exists
+	 */
+	currentStepIndexRef: React.MutableRefObject<number | null>;
+	/**
+	 * Track if current step was skipped (already exists)
+	 * Content events should be skipped until step-complete
+	 */
+	skipContentForStepRef: React.MutableRefObject<boolean>;
+	/** Set streaming start time for duration display */
+	setStreamingStartTime: (time: number | null) => void;
+	/** Set cumulative output tokens during streaming */
+	setStreamingOutputTokens: (tokens: number | ((prev: number) => number)) => void;
 }
 
 /**

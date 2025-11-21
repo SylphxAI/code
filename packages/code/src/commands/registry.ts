@@ -19,6 +19,7 @@ import rulesCommand from "./definitions/rules.command.js";
 import sessionsCommand from "./definitions/sessions.command.js";
 import settingsCommand from "./definitions/settings.command.js";
 import surveyCommand from "./definitions/survey.command.js";
+import themeCommand from "./definitions/theme.command.js";
 import type { Command } from "./types.js";
 
 /**
@@ -27,6 +28,7 @@ import type { Command } from "./types.js";
 export const commands: Command[] = [
 	providerCommand,
 	modelCommand,
+	themeCommand,
 	agentCommand,
 	rulesCommand,
 	settingsCommand,

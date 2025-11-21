@@ -69,7 +69,7 @@ export function trackOptimisticMessage(params: {
 		};
 
 		optimisticManager.apply(sessionId, operation);
-		console.log(`[Optimistic] Tracking add-to-queue (streaming): ${optimisticId}`);
+		// console.log(`[Optimistic] Tracking add-to-queue (streaming): ${optimisticId}`);
 	} else {
 		// Not streaming → expect server will add to messages
 		const message: Message = {
@@ -87,7 +87,7 @@ export function trackOptimisticMessage(params: {
 		};
 
 		optimisticManager.apply(sessionId, operation);
-		console.log(`[Optimistic] Tracking add-message (idle): ${optimisticId}`);
+		// console.log(`[Optimistic] Tracking add-message (idle): ${optimisticId}`);
 	}
 }
 
@@ -102,7 +102,7 @@ export function confirmOptimistic(
 	serverData?: any,
 ): void {
 	optimisticManager.confirm(sessionId, optimisticId, serverData);
-	console.log(`[Optimistic] Confirmed: ${optimisticId}`);
+	// console.log(`[Optimistic] Confirmed: ${optimisticId}`);
 }
 
 /**
@@ -112,7 +112,7 @@ export function confirmOptimistic(
  */
 export function rollbackOptimistic(sessionId: string, optimisticId: string): void {
 	optimisticManager.rollback(sessionId, optimisticId);
-	console.log(`[Optimistic] Rolled back: ${optimisticId}`);
+	// console.log(`[Optimistic] Rolled back: ${optimisticId}`);
 }
 
 /**
@@ -258,5 +258,5 @@ export function handleMessageStatusUpdatedWithOptimistic(event: {
 export function initOptimisticUpdates() {
 	// Event handlers are already wired up in streamEventHandlers.ts
 	// This function is reserved for future initialization logic
-	console.log("[Optimistic] Initialized optimistic update system");
+	// console.log("[Optimistic] Initialized optimistic update system");
 }

@@ -5,9 +5,11 @@
 
 import { clearDebugLogs, navigateTo, useDebugLogs } from "@sylphx/code-client";
 import { Box, Text, useInput } from "ink";
+import { getColors } from "../utils/theme/index.js";
 
 export default function Logs() {
 	const debugLogs = useDebugLogs();
+	const colors = getColors();
 
 	// Keyboard shortcuts
 	useInput((input, key) => {
@@ -25,19 +27,19 @@ export default function Logs() {
 		<Box flexDirection="column" flexGrow={1}>
 			{/* Header */}
 			<Box flexShrink={0} paddingBottom={1}>
-				<Text color="cyan">▌ DEBUG LOGS</Text>
-				<Text dimColor> · {debugLogs.length} entries</Text>
+				<Text color={colors.primary}>▌ DEBUG LOGS</Text>
+				<Text color={colors.textDim}> · {debugLogs.length} entries</Text>
 			</Box>
 
 			{/* Log list */}
 			<Box flexGrow={1} flexDirection="column" paddingY={1}>
 				{debugLogs.length === 0 ? (
 					<Box>
-						<Text dimColor>No logs yet...</Text>
+						<Text color={colors.textDim}>No logs yet...</Text>
 					</Box>
 				) : (
 					debugLogs.slice(-100).map((log, idx) => (
-						<Text key={idx} dimColor>
+						<Text key={idx} color={colors.textDim}>
 							{log}
 						</Text>
 					))
@@ -46,7 +48,7 @@ export default function Logs() {
 
 			{/* Footer */}
 			<Box flexShrink={0} paddingTop={1}>
-				<Text dimColor>Esc Back · C Clear logs</Text>
+				<Text color={colors.textDim}>Esc Back · C Clear logs</Text>
 			</Box>
 		</Box>
 	);

@@ -7,6 +7,7 @@ import { useTRPCClient } from "@sylphx/code-client";
 import { Box, Text, useInput } from "ink";
 import { useEffect, useState } from "react";
 import Spinner from "../components/Spinner.js";
+import { getColors } from "../utils/theme/index.js";
 
 interface BashDetailProps {
 	bashId: string;
@@ -15,10 +16,10 @@ interface BashDetailProps {
 
 export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 	const trpc = useTRPCClient();
+	const colors = getColors();
 	const [output, setOutput] = useState<string>("");
 	const [process, setProcess] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
-	const [scrollOffset, setScrollOffset] = useState(0);
 
 	// Load process info
 	useEffect(() => {
@@ -83,47 +84,6 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 				return;
 			}
 
-			const outputLines = output.split("\n");
-
-			// Scroll up
-			if (key.upArrow || input === "k") {
-				setScrollOffset((prev) => Math.max(0, prev - 1));
-				return;
-			}
-
-			// Scroll down
-			if (key.downArrow || input === "j") {
-				const maxOffset = Math.max(0, outputLines.length - 30); // Show 30 lines at a time
-				setScrollOffset((prev) => Math.min(maxOffset, prev + 1));
-				return;
-			}
-
-			// Page up
-			if (key.pageUp) {
-				setScrollOffset((prev) => Math.max(0, prev - 30));
-				return;
-			}
-
-			// Page down
-			if (key.pageDown) {
-				const maxOffset = Math.max(0, outputLines.length - 30);
-				setScrollOffset((prev) => Math.min(maxOffset, prev + 30));
-				return;
-			}
-
-			// Home - scroll to top
-			if (input === "g") {
-				setScrollOffset(0);
-				return;
-			}
-
-			// End - scroll to bottom
-			if (input === "G") {
-				const maxOffset = Math.max(0, outputLines.length - 30);
-				setScrollOffset(maxOffset);
-				return;
-			}
-
 			// Kill bash
 			if (input === "K") {
 				trpc.bash.kill
@@ -134,21 +94,6 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 					})
 					.then((result) => setProcess(result))
 					.catch((error) => console.error("[BashDetail] Failed to kill:", error));
-				return;
-			}
-
-			// Demote to background
-			if (input === "B") {
-				if (process?.isActive) {
-					trpc.bash.demote
-						.mutate({ bashId })
-						.then(() => {
-							// Reload process info
-							return trpc.bash.get.query({ bashId });
-						})
-						.then((result) => setProcess(result))
-						.catch((error) => console.error("[BashDetail] Failed to demote:", error));
-				}
 				return;
 			}
 
@@ -179,18 +124,18 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 		return `${hours}h ${minutes % 60}m`;
 	};
 
-	const getStatusColor = (status: string): "green" | "red" | "yellow" | "blue" | "gray" => {
+	const getStatusColor = (status: string): string => {
 		switch (status) {
 			case "running":
-				return "green";
+				return colors.success;
 			case "failed":
-				return "red";
+				return colors.error;
 			case "killed":
-				return "yellow";
+				return colors.warning;
 			case "completed":
-				return "blue";
+				return colors.secondary;
 			default:
-				return "gray";
+				return colors.textDim;
 		}
 	};
 
@@ -208,25 +153,24 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 	if (!process) {
 		return (
 			<Box flexDirection="column" width="100%" height="100%" padding={1}>
-				<Text color="red">Bash process not found</Text>
+				<Text color={colors.error}>Bash process not found</Text>
 				<Box marginTop={1}>
-					<Text dimColor>Press ESC or q to close</Text>
+					<Text color={colors.textDim}>Press ESC or q to close</Text>
 				</Box>
 			</Box>
 		);
 	}
 
 	const outputLines = output.split("\n");
-	const visibleLines = outputLines.slice(scrollOffset, scrollOffset + 30);
 
 	return (
-		<Box flexDirection="column" width="100%" height="100%" padding={1}>
+		<Box flexDirection="column" width="100%" padding={1}>
 			{/* Header */}
 			<Box marginBottom={1}>
-				<Text bold color="cyan">
+				<Text bold color={colors.primary}>
 					Bash Process Details
 				</Text>
-				<Text dimColor> │ {bashId.slice(0, 8)}</Text>
+				<Text color={colors.textDim}> │ {bashId.slice(0, 8)}</Text>
 			</Box>
 
 			{/* Process Info */}
@@ -239,12 +183,12 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 					<Text bold>Status: </Text>
 					<Text color={getStatusColor(process.status)}>{process.status.toUpperCase()}</Text>
 					{process.isActive && (
-						<Text color="blue" bold>
+						<Text color={colors.secondary} bold>
 							{" "}
 							[ACTIVE]
 						</Text>
 					)}
-					{process.mode === "background" && !process.isActive && <Text dimColor> [BACKGROUND]</Text>}
+					{process.mode === "background" && !process.isActive && <Text color={colors.textDim}> [BACKGROUND]</Text>}
 				</Box>
 				<Box>
 					<Text bold>Duration: </Text>
@@ -258,46 +202,38 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 				</Box>
 				<Box>
 					<Text bold>CWD: </Text>
-					<Text dimColor>{process.cwd}</Text>
+					<Text color={colors.textDim}>{process.cwd}</Text>
 				</Box>
 			</Box>
 
 			{/* Controls */}
 			<Box marginBottom={1}>
-				<Text dimColor>
-					↑↓/jk Scroll • PgUp/PgDn Page • g/G Top/Bottom • K Kill
-					{process.isActive && " • B Demote"}
+				<Text color={colors.textDim}>
+					K Kill
 					{!process.isActive && process.status === "running" && " • A Promote"} • ESC/q Close
 				</Text>
 			</Box>
 
-			{/* Output */}
-			<Box flexDirection="column" flexGrow={1} borderStyle="single" borderColor="gray">
-				{visibleLines.length === 0 ? (
-					<Box padding={1}>
-						<Text dimColor>No output yet...</Text>
-					</Box>
-				) : (
-					visibleLines.map((line, i) => {
-						const lineNum = scrollOffset + i + 1;
-						return (
-							<Text key={`${lineNum}-${line.slice(0, 20)}`} dimColor>
-								{`${lineNum.toString().padStart(6)} │ ${line}`}
-							</Text>
-						);
-					})
-				)}
+			{/* Output - Full scrollable view */}
+			<Box marginBottom={1}>
+				<Text color={colors.textDim}>─────────────────────────────────────────────────────────────</Text>
 			</Box>
 
-			{/* Scroll Indicator */}
-			{outputLines.length > 30 && (
-				<Box marginTop={1}>
-					<Text dimColor>
-						Lines {scrollOffset + 1}-{Math.min(scrollOffset + 30, outputLines.length)} of{" "}
-						{outputLines.length}
-					</Text>
+			{outputLines.length === 0 ? (
+				<Box>
+					<Text color={colors.textDim}>No output yet...</Text>
+				</Box>
+			) : (
+				<Box flexDirection="column">
+					{outputLines.map((line, i) => (
+						<Text key={`line-${i}`}>{line}</Text>
+					))}
 				</Box>
 			)}
+
+			<Box marginTop={1}>
+				<Text color={colors.textDim}>─────────────────────────────────────────────────────────────</Text>
+			</Box>
 		</Box>
 	);
 }

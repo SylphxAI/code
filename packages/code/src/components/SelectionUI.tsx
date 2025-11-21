@@ -6,6 +6,7 @@
 import { calculateScrollViewport } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import type { WaitForInputOptions } from "../commands/types.js";
+import { getColors } from "../utils/theme/index.js";
 
 interface SelectionUIProps {
 	pendingInput: WaitForInputOptions;
@@ -32,6 +33,8 @@ export function SelectionUI({
 	selectedCommandIndex,
 	askQueueLength,
 }: SelectionUIProps) {
+	const colors = getColors();
+
 	if (pendingInput.type !== "selection") {
 		return null;
 	}
@@ -49,25 +52,25 @@ export function SelectionUI({
 		<Box flexDirection="column">
 			{pendingInput.prompt && (
 				<Box marginBottom={1}>
-					<Text dimColor>{pendingInput.prompt}</Text>
+					<Text color={colors.textDim}>{pendingInput.prompt}</Text>
 				</Box>
 			)}
 
 			{/* Queue status */}
 			{askQueueLength > 0 && (
 				<Box marginBottom={1}>
-					<Text color="yellow">[+{askQueueLength} pending]</Text>
+					<Text color={colors.warning}>[+{askQueueLength} pending]</Text>
 				</Box>
 			)}
 
 			{/* Progress header (only for multi-question) */}
 			{!isSingleQuestion && (
 				<Box marginBottom={1}>
-					<Text color="cyan">Progress: </Text>
-					<Text color="green" bold>
+					<Text color={colors.primary}>Progress: </Text>
+					<Text color={colors.success} bold>
 						{answeredCount}/{totalQuestions}
 					</Text>
-					<Text dimColor> completed</Text>
+					<Text color={colors.textDim}> completed</Text>
 				</Box>
 			)}
 
@@ -83,11 +86,11 @@ export function SelectionUI({
 					<Box key={q.id} marginBottom={1} flexDirection="column">
 						{/* Question header */}
 						<Box>
-							{!isSingleQuestion && <Text color="cyan">Q{qIdx + 1}. </Text>}
-							<Text bold={isCurrentQuestion} color={isCurrentQuestion ? "#00D9FF" : "gray"}>
+							{!isSingleQuestion && <Text color={colors.primary}>Q{qIdx + 1}. </Text>}
+							<Text bold={isCurrentQuestion} color={isCurrentQuestion ? colors.primary : colors.textDim}>
 								{q.question}
 							</Text>
-							{isCurrentQuestion && !isSingleQuestion && <Text color="green"> ← </Text>}
+							{isCurrentQuestion && !isSingleQuestion && <Text color={colors.success}> ← </Text>}
 						</Box>
 
 						{/* Answer or expanded options */}
@@ -97,28 +100,28 @@ export function SelectionUI({
 								{/* Free Text Input */}
 								{isFreeTextMode ? (
 									<Box marginBottom={1}>
-										<Text dimColor>✏️ </Text>
-										<Text color="green">{freeTextInput}</Text>
-										<Text color="green">▊</Text>
-										<Text dimColor> (Enter to submit, Esc to cancel)</Text>
+										<Text color={colors.textDim}>✏️ </Text>
+										<Text color={colors.success}>{freeTextInput}</Text>
+										<Text color={colors.success}>▊</Text>
+										<Text color={colors.textDim}> (Enter to submit, Esc to cancel)</Text>
 									</Box>
 								) : (
 									/* Filter */
 									<Box marginBottom={1}>
-										<Text dimColor>🔍 </Text>
+										<Text color={colors.textDim}>🔍 </Text>
 										{isFilterMode ? (
 											<>
-												<Text color="green">{selectionFilter}</Text>
-												<Text color="green">▊</Text>
-												<Text dimColor> (Esc to exit, type to continue)</Text>
+												<Text color={colors.success}>{selectionFilter}</Text>
+												<Text color={colors.success}>▊</Text>
+												<Text color={colors.textDim}> (Esc to exit, type to continue)</Text>
 											</>
 										) : selectionFilter ? (
 											<>
-												<Text color="cyan">{selectionFilter}</Text>
-												<Text dimColor> (/ to edit, Esc to clear)</Text>
+												<Text color={colors.primary}>{selectionFilter}</Text>
+												<Text color={colors.textDim}> (/ to edit, Esc to clear)</Text>
 											</>
 										) : (
-											<Text dimColor>(press / to filter)</Text>
+											<Text color={colors.textDim}>(press / to filter)</Text>
 										)}
 									</Box>
 								)}
@@ -130,8 +133,8 @@ export function SelectionUI({
 										if (!q.options || !Array.isArray(q.options)) {
 											return (
 												<Box>
-													<Text color="red">⚠ Error: No options available for this question</Text>
-													<Text dimColor>Question data: {JSON.stringify(q)}</Text>
+													<Text color={colors.error}>⚠ Error: No options available for this question</Text>
+													<Text color={colors.textDim}>Question data: {JSON.stringify(q)}</Text>
 												</Box>
 											);
 										}
@@ -143,7 +146,7 @@ export function SelectionUI({
 										);
 
 										if (filteredOptions.length === 0) {
-											return <Text color="yellow">⚠ No matches found</Text>;
+											return <Text color={colors.warning}>⚠ No matches found</Text>;
 										}
 
 										// Calculate scroll window to keep selected item visible
@@ -153,7 +156,7 @@ export function SelectionUI({
 											<>
 												{viewport.hasItemsAbove && (
 													<Box marginBottom={1}>
-														<Text dimColor>... {viewport.itemsAboveCount} more above</Text>
+														<Text color={colors.textDim}>... {viewport.itemsAboveCount} more above</Text>
 													</Box>
 												)}
 												{viewport.visibleItems.map((option, idx) => {
@@ -166,7 +169,7 @@ export function SelectionUI({
 													return (
 														<Box key={option.value || option.label} paddingY={0}>
 															<Text
-																color={absoluteIdx === selectedCommandIndex ? "#00FF88" : "gray"}
+																color={absoluteIdx === selectedCommandIndex ? colors.success : colors.textDim}
 																bold={absoluteIdx === selectedCommandIndex}
 															>
 																{cursor}
@@ -178,7 +181,7 @@ export function SelectionUI({
 												})}
 												{viewport.hasItemsBelow && (
 													<Box marginTop={1}>
-														<Text dimColor>... {viewport.itemsBelowCount} more below</Text>
+														<Text color={colors.textDim}>... {viewport.itemsBelowCount} more below</Text>
 													</Box>
 												)}
 											</>
@@ -190,13 +193,13 @@ export function SelectionUI({
 							<Box marginLeft={4}>
 								{answer ? (
 									<>
-										<Text color="green">✓ </Text>
-										<Text color="green">
+										<Text color={colors.success}>✓ </Text>
+										<Text color={colors.success}>
 											{Array.isArray(answer) ? answer.join(", ") : answerOption?.label || answer}
 										</Text>
 									</>
 								) : (
-									<Text dimColor>(not answered yet)</Text>
+									<Text color={colors.textDim}>(not answered yet)</Text>
 								)}
 							</Box>
 						)}
@@ -209,51 +212,51 @@ export function SelectionUI({
 				<Box>
 					{!isSingleQuestion && !isFilterMode && (
 						<>
-							<Text dimColor>Tab: </Text>
-							<Text color="cyan">Next</Text>
-							<Text dimColor> · Shift+Tab: </Text>
-							<Text color="cyan">Previous</Text>
-							<Text dimColor> · </Text>
+							<Text color={colors.textDim}>Tab: </Text>
+							<Text color={colors.primary}>Next</Text>
+							<Text color={colors.textDim}> · Shift+Tab: </Text>
+							<Text color={colors.primary}>Previous</Text>
+							<Text color={colors.textDim}> · </Text>
 						</>
 					)}
-					<Text dimColor>↑↓: </Text>
-					<Text color="cyan">Navigate</Text>
+					<Text color={colors.textDim}>↑↓: </Text>
+					<Text color={colors.primary}>Navigate</Text>
 					{!isFilterMode && questions[multiSelectionPage]?.multiSelect ? (
 						<>
-							<Text dimColor> · Space: </Text>
-							<Text color="green">Toggle</Text>
-							<Text dimColor> · Enter: </Text>
-							<Text color={multiSelectChoices.size > 0 ? "#00FF88" : "gray"}>
+							<Text color={colors.textDim}> · Space: </Text>
+							<Text color={colors.success}>Toggle</Text>
+							<Text color={colors.textDim}> · Enter: </Text>
+							<Text color={multiSelectChoices.size > 0 ? colors.success : colors.textDim}>
 								Confirm
 								{multiSelectChoices.size === 0 && " (select at least one)"}
 							</Text>
-							<Text dimColor> · /: </Text>
-							<Text color="cyan">Filter</Text>
+							<Text color={colors.textDim}> · /: </Text>
+							<Text color={colors.primary}>Filter</Text>
 						</>
 					) : isFilterMode ? (
 						<>
-							<Text dimColor> · Enter: </Text>
-							<Text color="green">Select</Text>
+							<Text color={colors.textDim}> · Enter: </Text>
+							<Text color={colors.success}>Select</Text>
 						</>
 					) : (
 						<>
-							<Text dimColor> · Enter: </Text>
-							<Text color="green">Select</Text>
-							<Text dimColor> · /: </Text>
-							<Text color="cyan">Filter</Text>
+							<Text color={colors.textDim}> · Enter: </Text>
+							<Text color={colors.success}>Select</Text>
+							<Text color={colors.textDim}> · /: </Text>
+							<Text color={colors.primary}>Filter</Text>
 						</>
 					)}
 					{!isSingleQuestion && !isFilterMode && (
 						<>
-							<Text dimColor> · </Text>
-							<Text dimColor>Ctrl+Enter: </Text>
-							<Text color={allAnswered ? "#00FF88" : "gray"}>
+							<Text color={colors.textDim}> · </Text>
+							<Text color={colors.textDim}>Ctrl+Enter: </Text>
+							<Text color={allAnswered ? colors.success : colors.textDim}>
 								Submit{!allAnswered && " (answer all first)"}
 							</Text>
 						</>
 					)}
-					<Text dimColor> · Esc: </Text>
-					<Text color="red">
+					<Text color={colors.textDim}> · Esc: </Text>
+					<Text color={colors.error}>
 						{isFilterMode ? "Exit filter" : selectionFilter ? "Clear filter" : "Cancel"}
 					</Text>
 				</Box>

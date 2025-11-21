@@ -16,6 +16,7 @@ import { InlineSelection } from "../../../components/selection/index.js";
 import TextInputWithHint from "../../../components/TextInputWithHint.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
 import { InputContentLayout } from "./InputContentLayout.js";
+import { getColors } from "../../../utils/theme/index.js";
 
 interface ProviderManagementProps {
 	initialAction?: "use" | "configure";
@@ -36,6 +37,7 @@ export function ProviderManagement({
 	onSelectProvider,
 	onConfigureProvider,
 }: ProviderManagementProps) {
+	const colors = getColors();
 	const trpc = useTRPCClient();
 
 	// If initialProviderId is provided, skip to the appropriate step
@@ -315,7 +317,7 @@ export function ProviderManagement({
 			return (
 				<InputContentLayout subtitle={`${providerName} is ready to use`} helpText="Esc: Back">
 					<Box>
-						<Text dimColor>No configuration required for this provider.</Text>
+						<Text color={colors.textDim}>No configuration required for this provider.</Text>
 					</Box>
 				</InputContentLayout>
 			);
@@ -340,22 +342,22 @@ export function ProviderManagement({
 						return (
 							<Box key={field.key} flexDirection="column" marginBottom={1}>
 								<Box>
-									<Text color={isSelected ? "cyan" : "white"} bold={isSelected}>
+									<Text color={isSelected ? colors.primary : colors.text} bold={isSelected}>
 										{isSelected ? "> " : "  "}
 										{field.label}
-										{field.required && <Text color="red"> *</Text>}
+										{field.required && <Text color={colors.error}> *</Text>}
 									</Text>
 								</Box>
 
 								{field.description && (
 									<Box marginLeft={2}>
-										<Text dimColor>{field.description}</Text>
+										<Text color={colors.textDim}>{field.description}</Text>
 									</Box>
 								)}
 
 								<Box marginLeft={2}>
 									{field.type === "boolean" ? (
-										<Text color={isSelected ? "cyan" : "gray"}>
+										<Text color={isSelected ? colors.primary : colors.textDim}>
 											[{value ? "X" : " "}] {value ? "Enabled" : "Disabled"}
 										</Text>
 									) : field.secret ? (
@@ -379,7 +381,7 @@ export function ProviderManagement({
 												maxLines={1}
 											/>
 										) : (
-											<Text color={isSelected ? "cyan" : value ? "green" : "gray"}>
+											<Text color={isSelected ? colors.primary : value ? colors.success : colors.textDim}>
 												{value
 													? "••••••••••••••• (press Enter to replace)"
 													: isProviderConfigured
@@ -406,7 +408,7 @@ export function ProviderManagement({
 											maxLines={1}
 										/>
 									) : (
-										<Text color={isEmpty ? "gray" : isSelected ? "cyan" : "white"}>
+										<Text color={isEmpty ? colors.textDim : isSelected ? colors.primary : colors.text}>
 											{value
 												? String(value).length > 50
 													? `${String(value).substring(0, 47)}...`
@@ -422,7 +424,7 @@ export function ProviderManagement({
 
 				{/* Save Button */}
 				<Box marginBottom={1}>
-					<Text bold color={currentFieldIndex === configSchema.length ? "green" : "white"}>
+					<Text bold color={currentFieldIndex === configSchema.length ? colors.success : colors.text}>
 						{currentFieldIndex === configSchema.length ? "> " : "  "}
 						Save Configuration
 					</Text>

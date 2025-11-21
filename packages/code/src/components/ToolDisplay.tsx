@@ -6,9 +6,10 @@
 import { useElapsedTime } from "../hooks/client/useElapsedTime.js";
 import type { ToolDisplayProps } from "@sylphx/code-client";
 import { getToolComponent } from "../utils/tool-configs.js";
-import { Box, Text } from "ink";
+import { Text } from "ink";
 import React from "react";
-import Spinner from "./Spinner.js";
+import { BaseToolDisplay } from "./BaseToolDisplay.js";
+import { getColors } from "../utils/theme/index.js";
 
 /**
  * Fallback display for unregistered tools (e.g., MCP tools)
@@ -16,6 +17,7 @@ import Spinner from "./Spinner.js";
  */
 function FallbackToolDisplay(props: ToolDisplayProps) {
 	const { name, status, duration, startTime, input, result, error, showDetails = true } = props;
+	const colors = getColors();
 
 	// Calculate real-time elapsed time for running tools
 	const { display: durationDisplay } = useElapsedTime({
@@ -67,58 +69,41 @@ function FallbackToolDisplay(props: ToolDisplayProps) {
 	// Always show details for errors
 	const shouldShowDetails = status === "failed" || showDetails;
 
+	// Prepare summary content
+	const summary = (() => {
+		if (status === "failed" && error) {
+			return <Text color={colors.error}>{error}</Text>;
+		}
+		if (status === "completed" && formattedResult.summary) {
+			return <Text color={colors.textDim}>{formattedResult.summary}</Text>;
+		}
+		return undefined;
+	})();
+
+	// Prepare details content
+	const details =
+		status === "completed" && shouldShowDetails && formattedResult.lines.length > 0 ? (
+			<>
+				{formattedResult.lines.slice(0, 20).map((line, i) => (
+					<Text key={`${i}-${line.slice(0, 30)}`} color={colors.textDim}>
+						{line}
+					</Text>
+				))}
+				{formattedResult.lines.length > 20 && (
+					<Text color={colors.textDim}>... {formattedResult.lines.length - 20} more lines</Text>
+				)}
+			</>
+		) : undefined;
+
 	return (
-		<Box flexDirection="column">
-			{/* Tool header */}
-			<Box>
-				{status === "running" && (
-					<>
-						<Spinner color="yellow" />
-						<Text> </Text>
-					</>
-				)}
-				{status === "completed" && <Text color="green">✓ </Text>}
-				{status === "failed" && <Text color="red">✗ </Text>}
-				<Text bold>{name}</Text>
-				{formattedInput && (
-					<>
-						<Text> </Text>
-						<Text>{formattedInput}</Text>
-					</>
-				)}
-				{durationDisplay && (status === "completed" || status === "running") && (
-					<Text dimColor> {durationDisplay}</Text>
-				)}
-			</Box>
-
-			{/* Results */}
-			{status === "completed" && (
-				<Box flexDirection="column" marginLeft={2}>
-					{/* Summary */}
-					{formattedResult.summary && <Text dimColor>{formattedResult.summary}</Text>}
-					{/* Details (smart auto-collapse) */}
-					{shouldShowDetails && formattedResult.lines.length > 0 && (
-						<Box flexDirection="column" marginTop={formattedResult.summary ? 1 : 0}>
-							{formattedResult.lines.slice(0, 20).map((line, i) => (
-								<Text key={`${i}-${line.slice(0, 30)}`} dimColor>
-									{line}
-								</Text>
-							))}
-							{formattedResult.lines.length > 20 && (
-								<Text dimColor>... {formattedResult.lines.length - 20} more lines</Text>
-							)}
-						</Box>
-					)}
-				</Box>
-			)}
-
-			{/* Errors */}
-			{status === "failed" && error && (
-				<Box marginLeft={2}>
-					<Text color="red">{error}</Text>
-				</Box>
-			)}
-		</Box>
+		<BaseToolDisplay
+			status={status}
+			toolName={name}
+			args={formattedInput}
+			duration={durationDisplay}
+			summary={summary}
+			details={details}
+		/>
 	);
 }
 

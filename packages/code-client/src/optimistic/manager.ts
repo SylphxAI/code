@@ -50,7 +50,7 @@ export class OptimisticManager {
 		};
 
 		state.pending.push(pending);
-		console.log(`[Optimistic] Applied ${op.type} (${optimisticId})`);
+		// console.log(`[Optimistic] Applied ${op.type} (${optimisticId})`);
 
 		return optimisticId;
 	}
@@ -78,7 +78,7 @@ export class OptimisticManager {
 			this.updateServerState(state, pending.operation, serverData);
 		}
 
-		console.log(`[Optimistic] Confirmed ${pending.operation.type} (${optimisticId})`);
+		// console.log(`[Optimistic] Confirmed ${pending.operation.type} (${optimisticId})`);
 	}
 
 	/**
@@ -103,7 +103,7 @@ export class OptimisticManager {
 		state.serverMessages = newState.serverMessages;
 		state.serverQueue = newState.serverQueue;
 
-		console.log(`[Optimistic] Rolled back ${pending.operation.type} (${optimisticId})`);
+		// console.log(`[Optimistic] Rolled back ${pending.operation.type} (${optimisticId})`);
 	}
 
 	/**
@@ -168,7 +168,7 @@ export class OptimisticManager {
 					this.apply(sessionId, corrected);
 					this.confirm(sessionId, event.message.id, event.message);
 
-					console.log(`[Optimistic] Self-healed: moved message to queue`);
+					// console.log(`[Optimistic] Self-healed: moved message to queue`);
 				}
 				break;
 			}

@@ -5,6 +5,7 @@
 
 import { AI_PROVIDERS, type ProviderId } from "@sylphx/code-core";
 import { Box, Text } from "ink";
+import { getColors } from "../utils/theme/index.js";
 
 interface ProviderCardProps {
 	providerId: ProviderId;
@@ -20,6 +21,7 @@ export default function ProviderCard({
 	isDefault = false,
 }: ProviderCardProps) {
 	const provider = AI_PROVIDERS[providerId];
+	const themeColors = getColors();
 
 	const colors: Record<ProviderId, string> = {
 		anthropic: "#00D9FF",
@@ -39,8 +41,8 @@ export default function ProviderCard({
 				<Text color={color}>▌ {provider.name.toUpperCase()}</Text>
 				{isDefault && (
 					<>
-						<Text dimColor> · </Text>
-						<Text color="yellow">DEFAULT</Text>
+						<Text color={themeColors.textDim}> · </Text>
+						<Text color={themeColors.warning}>DEFAULT</Text>
 					</>
 				)}
 			</Box>
@@ -50,19 +52,19 @@ export default function ProviderCard({
 				{/* Claude Code doesn't need API key, it uses CLI auth */}
 				{providerId === "claude-code" ? (
 					<>
-						<Text color="green">✓</Text>
-						<Text dimColor> CLI Auth</Text>
+						<Text color={themeColors.success}>✓</Text>
+						<Text color={themeColors.textDim}> CLI Auth</Text>
 					</>
 				) : apiKey ? (
-					<Text color="green">✓</Text>
+					<Text color={themeColors.success}>✓</Text>
 				) : (
-					<Text color="red">✗</Text>
+					<Text color={themeColors.error}>✗</Text>
 				)}
-				<Text dimColor> │ </Text>
+				<Text color={themeColors.textDim}> │ </Text>
 				{defaultModel && (
 					<>
-						<Text color="white">{defaultModel}</Text>
-						<Text dimColor> │ </Text>
+						<Text color={themeColors.text}>{defaultModel}</Text>
+						<Text color={themeColors.textDim}> │ </Text>
 					</>
 				)}
 				<Text color={color}>

@@ -38,6 +38,8 @@ export function useChatEffects(state: ChatState) {
 			setIsStreaming: state.streamingState.setIsStreaming,
 			setIsTitleStreaming: state.streamingState.setIsTitleStreaming,
 			setStreamingTitle: state.streamingState.setStreamingTitle,
+			setStreamingStartTime: state.streamingState.setStreamingStartTime,
+			setStreamingOutputTokens: state.streamingState.setStreamingOutputTokens,
 		}),
 		[
 			state.aiConfig,
@@ -50,6 +52,8 @@ export function useChatEffects(state: ChatState) {
 			state.streamingState.setIsStreaming,
 			state.streamingState.setIsTitleStreaming,
 			state.streamingState.setStreamingTitle,
+			state.streamingState.setStreamingStartTime,
+			state.streamingState.setStreamingOutputTokens,
 		],
 	);
 
@@ -115,6 +119,10 @@ export function useChatEffects(state: ChatState) {
 		notificationSettings: DEFAULT_NOTIFICATION_SETTINGS,
 		setPendingInput: state.selectionState.setPendingInput,
 		askToolContextRef: state.selectionState.askToolContextRef,
+		currentStepIndexRef: state.streamingState.currentStepIndexRef,
+		skipContentForStepRef: state.streamingState.skipContentForStepRef,
+		setStreamingStartTime: state.streamingState.setStreamingStartTime,
+		setStreamingOutputTokens: state.streamingState.setStreamingOutputTokens,
 	});
 
 	// Event stream for multi-client sync
@@ -203,14 +211,15 @@ export function useChatEffects(state: ChatState) {
 		state.streamingState.setIsStreaming(!!activeMessage);
 	}, [state.currentSession, state.streamingState.setIsStreaming]);
 
-	// Reset selected indices when filtered lists change
+	// Reset selected command index when filtered commands change
 	useEffect(() => {
 		state.setSelectedCommandIndex(0);
-	}, [state.setSelectedCommandIndex]);
+	}, [filteredCommands.length, state.setSelectedCommandIndex]);
 
+	// Reset selected file index when filtered files change
 	useEffect(() => {
 		state.setSelectedFileIndex(0);
-	}, [state.setSelectedFileIndex]);
+	}, [filteredFileInfo.files.length, state.setSelectedFileIndex]);
 
 	// Register user input handler for ask tool on mount, clear on unmount
 	useEffect(() => {

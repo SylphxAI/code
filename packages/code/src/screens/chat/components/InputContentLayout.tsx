@@ -6,6 +6,7 @@
 
 import { Box, Text } from "ink";
 import type { ReactNode } from "react";
+import { getColors } from "../../../utils/theme/index.js";
 
 interface InputContentLayoutProps {
 	// Optional subtitle/description text below the header
@@ -35,12 +36,13 @@ interface InputContentLayoutProps {
  * ```
  */
 export function InputContentLayout({ subtitle, helpText, children }: InputContentLayoutProps) {
+	const colors = getColors();
 	return (
 		<Box flexDirection="column" paddingLeft={2}>
 			{/* Subtitle */}
 			{subtitle && (
 				<Box marginBottom={1}>
-					<Text dimColor>{subtitle}</Text>
+					<Text color={colors.textDim}>{subtitle}</Text>
 				</Box>
 			)}
 
@@ -49,7 +51,7 @@ export function InputContentLayout({ subtitle, helpText, children }: InputConten
 
 			{/* Help */}
 			<Box marginTop={1}>
-				<Text dimColor>{helpText}</Text>
+				<Text color={colors.textDim}>{helpText}</Text>
 			</Box>
 		</Box>
 	);

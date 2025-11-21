@@ -6,6 +6,7 @@
 import { calculateScrollViewport } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import type { SelectionOption } from "../../hooks/useSelection.js";
+import { getColors } from "../../utils/theme/index.js";
 
 interface SelectionOptionsListProps {
 	options: SelectionOption[];
@@ -24,10 +25,11 @@ export function SelectionOptionsList({
 	emptyMessage = "No options available",
 	maxVisible = 5,
 }: SelectionOptionsListProps) {
+	const colors = getColors();
 	if (options.length === 0) {
 		return (
 			<Box>
-				<Text dimColor>{emptyMessage}</Text>
+				<Text color={colors.textDim}>{emptyMessage}</Text>
 			</Box>
 		);
 	}
@@ -40,7 +42,7 @@ export function SelectionOptionsList({
 			{/* Items above indicator */}
 			{viewport.hasItemsAbove && (
 				<Box marginBottom={1}>
-					<Text dimColor>↑ {viewport.itemsAboveCount} more above</Text>
+					<Text color={colors.textDim}>↑ {viewport.itemsAboveCount} more above</Text>
 				</Box>
 			)}
 
@@ -60,14 +62,14 @@ export function SelectionOptionsList({
 						marginBottom={idx < viewport.visibleItems.length - 1 ? 1 : 0}
 					>
 						<Box>
-							<Text color={isSelected ? "cyan" : "white"} bold={isSelected}>
+							<Text color={isSelected ? colors.primary : colors.text} bold={isSelected}>
 								{symbol} {option.label}
 							</Text>
 							{option.badge && <Text color={option.badge.color}> {option.badge.text}</Text>}
 						</Box>
 						{option.description && (
 							<Box marginLeft={2}>
-								<Text dimColor>{option.description}</Text>
+								<Text color={colors.textDim}>{option.description}</Text>
 							</Box>
 						)}
 					</Box>
@@ -77,7 +79,7 @@ export function SelectionOptionsList({
 			{/* Items below indicator */}
 			{viewport.hasItemsBelow && (
 				<Box marginTop={1}>
-					<Text dimColor>↓ {viewport.itemsBelowCount} more below</Text>
+					<Text color={colors.textDim}>↓ {viewport.itemsBelowCount} more below</Text>
 				</Box>
 			)}
 		</Box>

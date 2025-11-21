@@ -16,7 +16,7 @@ export interface StreamCallbacks {
 	onReasoningStart?: () => void;
 	onReasoningDelta?: (text: string) => void;
 	onReasoningEnd?: (duration: number) => void;
-	onToolCall?: (toolCallId: string, toolName: string, input: unknown) => void;
+	onToolCall?: (toolCallId: string, toolName: string, input: unknown, startTime: number) => void;
 	onToolInputStart?: (toolCallId: string, toolName: string) => void;
 	onToolInputDelta?: (toolCallId: string, toolName: string, inputTextDelta: string) => void;
 	onToolInputEnd?: (toolCallId: string, toolName: string, input: unknown) => void;

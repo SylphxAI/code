@@ -84,11 +84,57 @@ export function handleAssistantMessageCreated(
 	const currentSessionId = getCurrentSessionId();
 	const currentSessionValue = currentSession.value;
 
-	context.streamingMessageIdRef.current = event.messageId;
 	logMessage("Message created:", event.messageId, "session:", currentSessionId);
 
-	// Start streaming UI
-	context.setIsStreaming(true);
+	if (!currentSessionValue || currentSessionValue.id !== currentSessionId) {
+		logMessage("Session mismatch! expected:", currentSessionId, "got:", currentSessionValue?.id);
+		return;
+	}
+
+	// Check if message already exists (prevent duplicates during event replay)
+	const messageExists = currentSessionValue.messages.some((m) => m.id === event.messageId);
+	if (messageExists) {
+		logMessage("Message already exists, skipping:", event.messageId);
+		context.streamingMessageIdRef.current = event.messageId;
+		return;
+	}
+
+	// Check for optimistic assistant message (temp-assistant-*) to reconcile
+	const optimisticIndex = currentSessionValue.messages.findIndex(
+		(m) => m.role === "assistant" && m.id.startsWith("temp-assistant-") && m.status === "active",
+	);
+
+	if (optimisticIndex !== -1) {
+		// RECONCILE: Replace optimistic ID with server's real ID
+		const updatedMessages = currentSessionValue.messages.map((msg, idx) =>
+			idx === optimisticIndex ? { ...msg, id: event.messageId } : msg,
+		);
+
+		setCurrentSession({
+			...currentSessionValue,
+			messages: updatedMessages,
+		});
+
+		context.streamingMessageIdRef.current = event.messageId;
+		logMessage("Reconciled optimistic assistant message with server ID:", event.messageId);
+	} else {
+		// No optimistic message found - add new one (fallback)
+		const newMessage = {
+			id: event.messageId,
+			role: "assistant",
+			content: [],
+			timestamp: Date.now(),
+			status: "active",
+		};
+
+		setCurrentSession({
+			...currentSessionValue,
+			messages: [...currentSessionValue.messages, newMessage],
+		});
+
+		context.streamingMessageIdRef.current = event.messageId;
+		logMessage("Added assistant message (no optimistic), total:", currentSessionValue.messages.length + 1);
+	}
 
 	// Emit streaming:started event for store coordination
 	if (currentSessionId) {
@@ -97,34 +143,6 @@ export function handleAssistantMessageCreated(
 			messageId: event.messageId,
 		});
 	}
-
-	if (!currentSessionValue || currentSessionValue.id !== currentSessionId) {
-		logMessage("Session mismatch! expected:", currentSessionId, "got:", currentSessionValue?.id);
-		return;
-	}
-
-	// Check if message already exists (prevent duplicates)
-	const messageExists = currentSessionValue.messages.some((m) => m.id === event.messageId);
-	if (messageExists) {
-		logMessage("Message already exists, skipping:", event.messageId);
-		return;
-	}
-
-	// Add new assistant message to session
-	const newMessage = {
-		id: event.messageId,
-		role: "assistant",
-		content: [],
-		timestamp: Date.now(),
-		status: "active",
-	};
-
-	setCurrentSession( {
-		...currentSessionValue,
-		messages: [...currentSessionValue.messages, newMessage],
-	});
-
-	logMessage("Added assistant message, total:", currentSessionValue.messages.length + 1);
 }
 
 export function handleSystemMessageCreated(
@@ -194,8 +212,22 @@ export function handleStepStart(
 		event.systemMessages?.length || 0,
 	);
 
+	// Track current step index for content events
+	context.currentStepIndexRef.current = event.stepIndex;
+
 	// Create/update steps array in optimistic message
 	if (currentSessionValue && context.streamingMessageIdRef.current) {
+		const targetMsg = currentSessionValue.messages.find(
+			(m) => m.id === context.streamingMessageIdRef.current,
+		);
+
+		// IDEMPOTENCY: Skip if message is already completed (event replay scenario)
+		if (targetMsg?.status === "completed") {
+			logMessage("Skipping step-start for completed message:", context.streamingMessageIdRef.current);
+			context.skipContentForStepRef.current = true;
+			return;
+		}
+
 		const updatedMessages = currentSessionValue.messages.map((msg) => {
 			if (msg.id !== context.streamingMessageIdRef.current) return msg;
 
@@ -206,6 +238,9 @@ export function handleStepStart(
 			const existingStepIndex = steps.findIndex((s) => s.stepIndex === event.stepIndex);
 
 			if (existingStepIndex === -1) {
+				// New step - don't skip content events
+				context.skipContentForStepRef.current = false;
+
 				// Add new step with provider/model
 				const newStep = {
 					id: event.stepId,
@@ -222,6 +257,9 @@ export function handleStepStart(
 				};
 			}
 
+			// Step already exists - skip content events for this step (replay scenario)
+			logMessage("Step already exists, skipping content for step:", event.stepIndex);
+			context.skipContentForStepRef.current = true;
 			return msg;
 		});
 
@@ -255,7 +293,15 @@ export function handleStepStart(
 
 export function handleStepComplete(
 	event: Extract<StreamEvent, { type: "step-complete" }>,
-	_context: EventHandlerContext,
+	context: EventHandlerContext,
 ) {
 	logMessage("Step completed:", event.stepId, "duration:", event.duration, "ms");
+	// Reset skip flag for next step
+	context.skipContentForStepRef.current = false;
+	context.currentStepIndexRef.current = null;
+
+	// Accumulate output tokens from this step
+	if (event.usage?.completionTokens) {
+		context.setStreamingOutputTokens((prev) => prev + event.usage.completionTokens);
+	}
 }

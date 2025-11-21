@@ -9,12 +9,14 @@ import { useCurrentSession } from "../hooks/client/useCurrentSession.js";
 import { getTodoColor, getTodoDisplayText, getTodoIcon, isTodoBold, isTodoDimmed, isTodoStrikethrough } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import React, { useMemo } from "react";
+import { getColors } from "../utils/theme/index.js";
 
 const MAX_VISIBLE_LINES = 5;
 
 function TodoListInternal() {
 	// Get current session's todos (tRPC: cached in store)
 	const { currentSession } = useCurrentSession();
+	const colors = getColors();
 	const todos = currentSession?.todos || [];
 
 	// Calculate progress
@@ -57,9 +59,9 @@ function TodoListInternal() {
 		<Box flexDirection="column" paddingTop={1}>
 			{/* Header with simple progress */}
 			<Box>
-				<Text color="yellow">▌ TASKS</Text>
-				<Text color="yellow"> · </Text>
-				<Text dimColor>
+				<Text color={colors.warning}>▌ TASKS</Text>
+				<Text color={colors.warning}> · </Text>
+				<Text color={colors.textDim}>
 					{completedCount}/{totalCount}
 				</Text>
 			</Box>
@@ -67,7 +69,7 @@ function TodoListInternal() {
 			{/* Scroll indicator top */}
 			{hasMoreAbove && (
 				<Box marginLeft={2}>
-					<Text dimColor>↑ {scrollOffset} more above</Text>
+					<Text color={colors.textDim}>↑ {scrollOffset} more above</Text>
 				</Box>
 			)}
 
@@ -82,10 +84,10 @@ function TodoListInternal() {
 
 				return (
 					<Box key={`todo-${todo.id}`} marginLeft={2}>
-						<Text color={color} bold={bold} dimColor={dimmed}>
+						<Text color={dimmed ? colors.textDim : color} bold={bold}>
 							{icon}{" "}
 						</Text>
-						<Text color={color} bold={bold} dimColor={dimmed} strikethrough={strikethrough}>
+						<Text color={dimmed ? colors.textDim : color} bold={bold} strikethrough={strikethrough}>
 							{displayText}
 						</Text>
 					</Box>
@@ -95,7 +97,7 @@ function TodoListInternal() {
 			{/* Scroll indicator bottom */}
 			{hasMoreBelow && (
 				<Box marginLeft={2}>
-					<Text dimColor>↓ {sortedTodos.length - scrollOffset - MAX_VISIBLE_LINES} more below</Text>
+					<Text color={colors.textDim}>↓ {sortedTodos.length - scrollOffset - MAX_VISIBLE_LINES} more below</Text>
 				</Box>
 			)}
 		</Box>

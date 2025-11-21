@@ -18,11 +18,14 @@ const logContent = createLogger("subscription:content");
  * - Message has steps[] array, each step has parts[] array
  * - UI renders from msg.steps[].parts (MessageList.tsx line 300-302)
  * - This function updates the LAST (current) step's parts array
+ *
+ * @param skipIfCompleted - If true, skip updates for completed messages (idempotency for event replay)
  */
 export function updateActiveMessageContent(
 	currentSessionId: string | null,
 	messageId: string | null | undefined,
 	updater: (prev: MessagePart[]) => MessagePart[],
+	skipIfCompleted = false,
 ) {
 	const session = currentSession.value;
 
@@ -38,12 +41,20 @@ export function updateActiveMessageContent(
 		: session.messages.find((m) => m.status === "active");
 
 	if (!activeMessage) {
-		logContent(
-			"No active message found! messages:",
-			session.messages.length,
-			"messageId:",
-			messageId,
-		);
+		// Don't spam logs for undefined messageId when no active message (expected during replay)
+		if (messageId) {
+			logContent(
+				"No active message found! messages:",
+				session.messages.length,
+				"messageId:",
+				messageId,
+			);
+		}
+		return;
+	}
+
+	// Skip updates for completed messages during event replay (idempotency)
+	if (skipIfCompleted && activeMessage.status === "completed") {
 		return;
 	}
 

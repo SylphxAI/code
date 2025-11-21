@@ -18,12 +18,24 @@ export interface StreamingState {
 	streamingMessageIdRef: React.MutableRefObject<string | null>;
 	dbWriteTimerRef: React.MutableRefObject<NodeJS.Timeout | null>;
 	pendingDbContentRef: React.MutableRefObject<StreamPart[] | null>;
+	/** Track current step index for replay idempotency */
+	currentStepIndexRef: React.MutableRefObject<number | null>;
+	/** Track if content events should be skipped (step already exists) */
+	skipContentForStepRef: React.MutableRefObject<boolean>;
+	/** Track streaming start time for duration display */
+	streamingStartTime: number | null;
+	setStreamingStartTime: (time: number | null) => void;
+	/** Track cumulative output tokens during streaming */
+	streamingOutputTokens: number;
+	setStreamingOutputTokens: (tokens: number | ((prev: number) => number)) => void;
 }
 
 export function useStreamingState(): StreamingState {
 	const [isStreaming, setIsStreamingState] = useState(false);
 	const [isTitleStreaming, setIsTitleStreaming] = useState(false);
 	const [streamingTitle, setStreamingTitle] = useState("");
+	const [streamingStartTime, setStreamingStartTime] = useState<number | null>(null);
+	const [streamingOutputTokens, setStreamingOutputTokens] = useState(0);
 
 	// Ref to track current streaming state (for stable access across renders)
 	const isStreamingRef = useRef<boolean>(false);
@@ -42,6 +54,10 @@ export function useStreamingState(): StreamingState {
 	const dbWriteTimerRef = useRef<NodeJS.Timeout | null>(null);
 	const pendingDbContentRef = useRef<StreamPart[] | null>(null);
 
+	// Replay idempotency refs
+	const currentStepIndexRef = useRef<number | null>(null);
+	const skipContentForStepRef = useRef<boolean>(false);
+
 	return {
 		isStreaming,
 		setIsStreaming,
@@ -54,5 +70,11 @@ export function useStreamingState(): StreamingState {
 		streamingMessageIdRef,
 		dbWriteTimerRef,
 		pendingDbContentRef,
+		currentStepIndexRef,
+		skipContentForStepRef,
+		streamingStartTime,
+		setStreamingStartTime,
+		streamingOutputTokens,
+		setStreamingOutputTokens,
 	};
 }

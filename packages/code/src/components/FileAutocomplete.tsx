@@ -5,6 +5,7 @@
 
 import { Box, Text } from "ink";
 import Spinner from "./Spinner.js";
+import { getColors } from "../utils/theme/index.js";
 
 interface FileAutocompleteProps {
 	files: Array<{ path: string; relativePath: string; size: number }>;
@@ -17,11 +18,13 @@ export function FileAutocomplete({
 	selectedFileIndex,
 	filesLoading,
 }: FileAutocompleteProps) {
+	const colors = getColors();
+
 	if (filesLoading) {
 		return (
 			<Box marginTop={1}>
-				<Spinner color="yellow" />
-				<Text color="gray"> Loading files...</Text>
+				<Spinner color={colors.warning} />
+				<Text color={colors.textDim}> Loading files...</Text>
 			</Box>
 		);
 	}
@@ -33,12 +36,12 @@ export function FileAutocomplete({
 	return (
 		<Box flexDirection="column" marginTop={1}>
 			<Box marginBottom={1}>
-				<Text dimColor>Files (↑↓ to select, Tab/Enter to attach):</Text>
+				<Text color={colors.textDim}>Files (↑↓ to select, Tab/Enter to attach):</Text>
 			</Box>
 			{files.map((file, idx) => (
 				<Box key={file.path} marginLeft={2}>
 					<Text
-						color={idx === selectedFileIndex ? "#00FF88" : "gray"}
+						color={idx === selectedFileIndex ? colors.success : colors.textDim}
 						bold={idx === selectedFileIndex}
 					>
 						{idx === selectedFileIndex ? "> " : "  "}

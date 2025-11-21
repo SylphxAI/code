@@ -44,6 +44,8 @@ export function handleError(
 
 	// Stop streaming UI indicator on error
 	context.setIsStreaming(false);
+	context.setStreamingStartTime(null);
+	context.setStreamingOutputTokens(0);
 }
 
 /**
@@ -109,5 +111,7 @@ export function handleMessageStatusUpdated(
 		// Clear streaming state
 		context.streamingMessageIdRef.current = null;
 		context.setIsStreaming(false);
+		context.setStreamingStartTime(null);
+		context.setStreamingOutputTokens(0);
 	}
 }

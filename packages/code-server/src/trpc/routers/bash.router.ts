@@ -99,6 +99,8 @@ export const bashRouter = router({
 				exitCode: proc.exitCode,
 				cwd: proc.cwd,
 				duration: (proc.endTime || Date.now()) - proc.startTime,
+				stdout: proc.stdout,
+				stderr: proc.stderr,
 			};
 		}),
 

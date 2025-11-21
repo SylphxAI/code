@@ -8,6 +8,7 @@
 import { Box, Text } from "ink";
 import React, { useCallback, useState } from "react";
 import ControlledTextInput from "./ControlledTextInput.js";
+import { getColors } from "../utils/theme/index.js";
 
 interface TextInputWithHintProps {
 	value: string;
@@ -27,6 +28,8 @@ interface TextInputWithHintProps {
 	onDownArrow?: () => void; // Callback when Down Arrow is pressed (for autocomplete)
 	onEscape?: () => void; // Callback when ESC is pressed (for abort/cancel)
 	onPasteImage?: () => void | Promise<void>; // Callback when Ctrl+V is pressed (for image paste)
+	onCtrlB?: () => void; // Callback when Ctrl+B is pressed (for demote bash)
+	onCtrlP?: () => void; // Callback when Ctrl+P is pressed (for bash list)
 	maxLines?: number; // Maximum lines to display (default: 10, use 1 for single-line)
 }
 
@@ -48,6 +51,8 @@ function TextInputWithHint({
 	onDownArrow,
 	onEscape,
 	onPasteImage,
+	onCtrlB,
+	onCtrlP,
 	maxLines = 10,
 }: TextInputWithHintProps) {
 	// Internal cursor state (used when not controlled from parent)
@@ -84,6 +89,8 @@ function TextInputWithHint({
 		[onSubmit],
 	);
 
+	const colors = getColors();
+
 	return (
 		<Box>
 			<ControlledTextInput
@@ -103,9 +110,11 @@ function TextInputWithHint({
 				onDownArrow={onDownArrow}
 				onEscape={onEscape}
 				onPasteImage={onPasteImage}
+				onCtrlB={onCtrlB}
+				onCtrlP={onCtrlP}
 				maxLines={maxLines}
 			/>
-			{hint && value.length > 0 ? <Text color="gray">{hint}</Text> : null}
+			{hint && value.length > 0 ? <Text color={colors.textDim}>{hint}</Text> : null}
 		</Box>
 	);
 }

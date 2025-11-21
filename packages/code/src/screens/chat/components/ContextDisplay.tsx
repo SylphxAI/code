@@ -4,6 +4,7 @@
  */
 
 import { Box, Text, useInput } from "ink";
+import { getColors } from "../../../utils/theme/index.js";
 
 interface ContextDisplayProps {
 	output: string;
@@ -148,6 +149,8 @@ function parseContextOutput(output: string): ParsedContextData | null {
 }
 
 export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
+	const colors = getColors();
+
 	// Handle ESC key to close (capture all input to prevent parent handlers)
 	useInput(
 		(_input, key) => {
@@ -166,7 +169,7 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 			<Box flexDirection="column" paddingY={1} paddingX={2}>
 				<Text>{output}</Text>
 				<Box paddingTop={2}>
-					<Text color="gray" dimColor>
+					<Text color={colors.textDim}>
 						Press ESC to close
 					</Text>
 				</Box>
@@ -227,7 +230,7 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 			<Box paddingBottom={1}>
 				<Text>Model: </Text>
 				<Text bold>{data.modelName}</Text>
-				<Text dimColor> | Tokenizer: gpt-4 - {data.contextLimit} tokens total</Text>
+				<Text color={colors.textDim}> | Tokenizer: gpt-4 - {data.contextLimit} tokens total</Text>
 			</Box>
 
 			{/* Visual grid - 25x4 */}
@@ -237,30 +240,30 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 						{row.split("").map((block, j) => {
 							if (block === "S")
 								return (
-									<Text key={`${i}-${j}-blue`} color="blue">
+									<Text key={`${i}-${j}-blue`} color={colors.secondary}>
 										█
 									</Text>
 								);
 							if (block === "T")
 								return (
-									<Text key={`${i}-${j}-green`} color="green">
+									<Text key={`${i}-${j}-green`} color={colors.success}>
 										█
 									</Text>
 								);
 							if (block === "M")
 								return (
-									<Text key={`${i}-${j}-yellow`} color="yellow">
+									<Text key={`${i}-${j}-yellow`} color={colors.warning}>
 										█
 									</Text>
 								);
 							if (block === "R")
 								return (
-									<Text key={`${i}-${j}-magenta`} color="magenta">
+									<Text key={`${i}-${j}-magenta`} color={colors.info}>
 										█
 									</Text>
 								);
 							return (
-								<Text key={`${i}-${j}-dim`} dimColor>
+								<Text key={`${i}-${j}-dim`} color={colors.textDim}>
 									░
 								</Text>
 							);
@@ -278,34 +281,34 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 					<Box width={16}>
 						<Text>{data.usedTokens} tokens</Text>
 					</Box>
-					<Text dimColor> {data.usedPercent}%</Text>
+					<Text color={colors.textDim}> {data.usedPercent}%</Text>
 				</Box>
 				<Box flexDirection="row" paddingLeft={2}>
 					<Box width={16}>
-						<Text color="blue">System</Text>
+						<Text color={colors.secondary}>System</Text>
 					</Box>
 					<Box width={16}>
-						<Text color="blue">{data.systemPromptTokens} tokens</Text>
+						<Text color={colors.secondary}>{data.systemPromptTokens} tokens</Text>
 					</Box>
-					<Text dimColor> {data.systemPromptPercent}%</Text>
+					<Text color={colors.textDim}> {data.systemPromptPercent}%</Text>
 				</Box>
 				<Box flexDirection="row" paddingLeft={2}>
 					<Box width={16}>
-						<Text color="green">Tools</Text>
+						<Text color={colors.success}>Tools</Text>
 					</Box>
 					<Box width={16}>
-						<Text color="green">{data.toolsTokens} tokens</Text>
+						<Text color={colors.success}>{data.toolsTokens} tokens</Text>
 					</Box>
-					<Text dimColor> {data.toolsPercent}%</Text>
+					<Text color={colors.textDim}> {data.toolsPercent}%</Text>
 				</Box>
 				<Box flexDirection="row" paddingLeft={2}>
 					<Box width={16}>
-						<Text color="yellow">Messages</Text>
+						<Text color={colors.warning}>Messages</Text>
 					</Box>
 					<Box width={16}>
-						<Text color="yellow">{data.messagesTokens} tokens</Text>
+						<Text color={colors.warning}>{data.messagesTokens} tokens</Text>
 					</Box>
-					<Text dimColor> {data.messagesPercent}%</Text>
+					<Text color={colors.textDim}> {data.messagesPercent}%</Text>
 				</Box>
 			</Box>
 
@@ -318,7 +321,7 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 					<Box width={16}>
 						<Text>{data.freeTokens} tokens</Text>
 					</Box>
-					<Text dimColor> {data.freePercent}%</Text>
+					<Text color={colors.textDim}> {data.freePercent}%</Text>
 				</Box>
 			</Box>
 
@@ -326,12 +329,12 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 			<Box paddingTop={1}>
 				<Box flexDirection="row">
 					<Box width={18}>
-						<Text color="magenta">Reserved</Text>
+						<Text color={colors.info}>Reserved</Text>
 					</Box>
 					<Box width={16}>
-						<Text color="magenta">{data.bufferTokens} tokens</Text>
+						<Text color={colors.info}>{data.bufferTokens} tokens</Text>
 					</Box>
-					<Text dimColor> {data.bufferPercent}%</Text>
+					<Text color={colors.textDim}> {data.bufferPercent}%</Text>
 				</Box>
 			</Box>
 
@@ -339,19 +342,19 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 			{data.tools.length > 0 && (
 				<>
 					<Box paddingTop={2} paddingBottom={1}>
-						<Text dimColor>Tools ({data.toolCount})</Text>
+						<Text color={colors.textDim}>Tools ({data.toolCount})</Text>
 					</Box>
 					{data.tools.slice(0, 6).map((tool, i) => (
 						<Box key={`tool-${tool.name}-${i}`} flexDirection="row" paddingLeft={2}>
 							<Box width={26}>
-								<Text dimColor>{tool.name}</Text>
+								<Text color={colors.textDim}>{tool.name}</Text>
 							</Box>
-							<Text dimColor>{tool.tokens} tokens</Text>
+							<Text color={colors.textDim}>{tool.tokens} tokens</Text>
 						</Box>
 					))}
 					{data.tools.length > 6 && (
 						<Box paddingLeft={2}>
-							<Text dimColor>... {data.tools.length - 6} more</Text>
+							<Text color={colors.textDim}>... {data.tools.length - 6} more</Text>
 						</Box>
 					)}
 				</>
@@ -359,7 +362,7 @@ export function ContextDisplay({ output, onComplete }: ContextDisplayProps) {
 
 			{/* Footer */}
 			<Box paddingTop={2}>
-				<Text color="gray" dimColor>
+				<Text color={colors.textDim}>
 					ESC to close
 				</Text>
 			</Box>

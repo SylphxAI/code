@@ -31,6 +31,8 @@ export interface BashProcess {
 	cwd: string;
 	timeout: number | null; // For active mode only
 	timeoutHandle: NodeJS.Timeout | null;
+	stdout: string; // Buffer for stdout
+	stderr: string; // Buffer for stderr
 }
 
 export interface BashOutputChunk {
@@ -47,6 +49,8 @@ export interface BashStateChange {
 	status?: BashStatus;
 	exitCode?: number | null;
 	output?: BashOutputChunk;
+	command?: string;
+	cwd?: string;
 	timestamp: number;
 }
 
@@ -65,6 +69,7 @@ export class BashManagerV2 extends EventEmitter {
 		resolve: (bashId: string) => void;
 		reject: (error: Error) => void;
 	}> = [];
+	private executionLock: Promise<void> = Promise.resolve();
 
 	constructor() {
 		super();
@@ -89,24 +94,51 @@ export class BashManagerV2 extends EventEmitter {
 		const bashId = randomUUID();
 
 		if (mode === "active") {
-			// Check if active slot available
-			if (this.activeBashId !== null) {
-				// Queue and wait for slot
-				return new Promise((resolve, reject) => {
-					this.activeQueue.push({ id: bashId, command, cwd, timeout, resolve, reject });
-					this.emit("active-queued", { bashId, command, queuePosition: this.activeQueue.length });
-				});
-			}
+			// Use lock to prevent race condition when checking/setting activeBashId
+			return this._executeWithLock(async () => {
+				// Check if active slot available
+				if (this.activeBashId !== null) {
+					// Queue and wait for slot
+					return new Promise<string>((resolve, reject) => {
+						this.activeQueue.push({ id: bashId, command, cwd, timeout, resolve, reject });
+						this.emit("active-queued", { bashId, command, queuePosition: this.activeQueue.length });
+					});
+				}
 
-			// Active slot available - spawn immediately
-			this.activeBashId = bashId;
-			this._spawn(bashId, command, { mode: "active", cwd, timeout });
-			return bashId;
+				// Active slot available - spawn immediately
+				this.activeBashId = bashId;
+				this._spawn(bashId, command, { mode: "active", cwd, timeout });
+				return bashId;
+			});
 		}
 
 		// Background mode - spawn immediately
 		this._spawn(bashId, command, { mode: "background", cwd, timeout: null });
 		return bashId;
+	}
+
+	/**
+	 * Execute function with lock to prevent race conditions
+	 */
+	private async _executeWithLock<T>(fn: () => Promise<T>): Promise<T> {
+		// Wait for previous operation to complete
+		const previousLock = this.executionLock;
+
+		// Create new lock promise
+		let resolveLock: () => void;
+		this.executionLock = new Promise((resolve) => {
+			resolveLock = resolve;
+		});
+
+		try {
+			// Wait for previous lock to release
+			await previousLock;
+			// Execute function
+			return await fn();
+		} finally {
+			// Release lock
+			resolveLock!();
+		}
 	}
 
 	/**
@@ -136,16 +168,20 @@ export class BashManagerV2 extends EventEmitter {
 			cwd,
 			timeout,
 			timeoutHandle: null,
+			stdout: "",
+			stderr: "",
 		};
 
 		this.processes.set(bashId, proc);
 
-		// Emit started event
+		// Emit started event with command and cwd for client matching
 		this.emit("bash:event", {
 			bashId,
 			type: "started",
 			mode,
 			status: "running",
+			command: proc.command,
+			cwd: proc.cwd,
 			timestamp: Date.now(),
 		} as BashStateChange);
 
@@ -158,10 +194,13 @@ export class BashManagerV2 extends EventEmitter {
 
 		// Stream stdout
 		bashProcess.stdout?.on("data", (data: Buffer) => {
+			const dataStr = data.toString();
+			proc.stdout += dataStr;
+
 			const chunk: BashOutputChunk = {
 				bashId,
 				type: "stdout",
-				data: data.toString(),
+				data: dataStr,
 				timestamp: Date.now(),
 			};
 
@@ -175,10 +214,13 @@ export class BashManagerV2 extends EventEmitter {
 
 		// Stream stderr
 		bashProcess.stderr?.on("data", (data: Buffer) => {
+			const dataStr = data.toString();
+			proc.stderr += dataStr;
+
 			const chunk: BashOutputChunk = {
 				bashId,
 				type: "stderr",
-				data: data.toString(),
+				data: dataStr,
 				timestamp: Date.now(),
 			};
 
@@ -310,9 +352,18 @@ export class BashManagerV2 extends EventEmitter {
 	 * Demote active bash → background (Ctrl+B)
 	 */
 	demote(bashId: string): boolean {
+		console.log(`[BashManagerV2] demote: Called for ${bashId.slice(0, 8)}`);
 		const proc = this.processes.get(bashId);
-		if (!proc || proc.mode !== "active") return false;
-		if (this.activeBashId !== bashId) return false;
+		if (!proc || proc.mode !== "active") {
+			console.log(`[BashManagerV2] demote: Failed - proc not found or not active`);
+			return false;
+		}
+		if (this.activeBashId !== bashId) {
+			console.log(`[BashManagerV2] demote: Failed - not the active bash`);
+			return false;
+		}
+
+		console.log(`[BashManagerV2] demote: Converting to background, stdout length: ${proc.stdout.length}`);
 
 		// Convert to background
 		proc.mode = "background";
@@ -328,12 +379,14 @@ export class BashManagerV2 extends EventEmitter {
 		this.activeBashId = null;
 		this._processActiveQueue();
 
+		console.log(`[BashManagerV2] demote: Emitting mode-changed event`);
 		this.emit("bash:event", {
 			bashId,
 			type: "mode-changed",
 			mode: "background",
 			timestamp: Date.now(),
 		} as BashStateChange);
+		console.log(`[BashManagerV2] demote: Event emitted, returning true`);
 
 		return true;
 	}
@@ -421,6 +474,67 @@ export class BashManagerV2 extends EventEmitter {
 		} as BashStateChange);
 
 		return true;
+	}
+
+	/**
+	 * Wait for bash process to complete or be demoted (for active mode)
+	 * Returns result with output and status
+	 */
+	async waitForCompletion(
+		bashId: string,
+	): Promise<{
+		completed: boolean; // true if finished, false if demoted/timeout
+		status: BashStatus;
+		exitCode: number | null;
+		stdout: string;
+		stderr: string;
+		mode: BashMode;
+	}> {
+		console.log(`[BashManagerV2] waitForCompletion: Setting up listener for ${bashId.slice(0, 8)}`);
+		return new Promise((resolve) => {
+			const handler = (event: BashStateChange) => {
+				if (event.bashId !== bashId) return;
+
+				console.log(`[BashManagerV2] waitForCompletion: Received event ${event.type} for ${bashId.slice(0, 8)}`);
+
+				const proc = this.processes.get(bashId);
+				if (!proc) return;
+
+				// Check for completion events
+				if (
+					event.type === "completed" ||
+					event.type === "failed" ||
+					event.type === "killed"
+				) {
+					console.log(`[BashManagerV2] waitForCompletion: Resolving with completed=true for ${bashId.slice(0, 8)}`);
+					this.off("bash:event", handler);
+					resolve({
+						completed: true,
+						status: proc.status,
+						exitCode: proc.exitCode,
+						stdout: proc.stdout,
+						stderr: proc.stderr,
+						mode: proc.mode,
+					});
+				}
+				// Check for demotion events (timeout or manual Ctrl+B)
+				else if (event.type === "timeout" || event.type === "mode-changed") {
+					console.log(`[BashManagerV2] waitForCompletion: Resolving with completed=false (demoted) for ${bashId.slice(0, 8)}, stdout length: ${proc.stdout.length}`);
+					this.off("bash:event", handler);
+					resolve({
+						completed: false,
+						status: proc.status,
+						exitCode: null,
+						stdout: proc.stdout,
+						stderr: proc.stderr,
+						mode: "background",
+					});
+				}
+			};
+
+			this.on("bash:event", handler);
+			console.log(`[BashManagerV2] waitForCompletion: Listener registered for ${bashId.slice(0, 8)}`);
+		});
 	}
 
 	/**

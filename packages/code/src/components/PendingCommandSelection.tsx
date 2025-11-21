@@ -7,6 +7,7 @@ import { calculateScrollViewport } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import type { Command } from "../commands/types.js";
 import Spinner from "./Spinner.js";
+import { getColors } from "../utils/theme/index.js";
 
 interface PendingCommandSelectionProps {
 	pendingCommand: { command: Command; currentInput: string };
@@ -25,29 +26,31 @@ export function PendingCommandSelection({
 	selectedCommandIndex,
 	onSelect,
 }: PendingCommandSelectionProps) {
+	const colors = getColors();
+
 	return (
 		<Box flexDirection="column">
 			<Box marginBottom={1}>
-				<Text dimColor>Select {pendingCommand.command.args?.[0]?.name || "option"}:</Text>
+				<Text color={colors.textDim}>Select {pendingCommand.command.args?.[0]?.name || "option"}:</Text>
 			</Box>
 
 			{/* Loading state */}
 			{currentlyLoading ? (
 				<Box>
-					<Spinner color="yellow" />
-					<Text color="gray"> Loading options...</Text>
+					<Spinner color={colors.warning} />
+					<Text color={colors.textDim}> Loading options...</Text>
 				</Box>
 			) : loadError ? (
 				/* Error state */
 				<Box flexDirection="column">
 					<Box marginBottom={1}>
-						<Text color="red">Failed to load options</Text>
+						<Text color={colors.error}>Failed to load options</Text>
 					</Box>
 					<Box marginBottom={1}>
-						<Text dimColor>{loadError}</Text>
+						<Text color={colors.textDim}>{loadError}</Text>
 					</Box>
 					<Box>
-						<Text dimColor>Press Esc to cancel</Text>
+						<Text color={colors.textDim}>Press Esc to cancel</Text>
 					</Box>
 				</Box>
 			) : (
@@ -61,10 +64,10 @@ export function PendingCommandSelection({
 						return (
 							<Box flexDirection="column">
 								<Box marginBottom={1}>
-									<Text color="yellow">No options available</Text>
+									<Text color={colors.warning}>No options available</Text>
 								</Box>
 								<Box>
-									<Text dimColor>Press Esc to cancel</Text>
+									<Text color={colors.textDim}>Press Esc to cancel</Text>
 								</Box>
 							</Box>
 						);
@@ -77,7 +80,7 @@ export function PendingCommandSelection({
 						<>
 							{viewport.hasItemsAbove && (
 								<Box marginBottom={1}>
-									<Text dimColor>... {viewport.itemsAboveCount} more above</Text>
+									<Text color={colors.textDim}>... {viewport.itemsAboveCount} more above</Text>
 								</Box>
 							)}
 							{viewport.visibleItems.map((option, idx) => {
@@ -89,7 +92,7 @@ export function PendingCommandSelection({
 										onClick={() => onSelect(option)}
 									>
 										<Text
-											color={absoluteIdx === selectedCommandIndex ? "#00FF88" : "gray"}
+											color={absoluteIdx === selectedCommandIndex ? colors.success : colors.textDim}
 											bold={absoluteIdx === selectedCommandIndex}
 										>
 											{absoluteIdx === selectedCommandIndex ? "> " : "  "}
@@ -100,11 +103,11 @@ export function PendingCommandSelection({
 							})}
 							{viewport.hasItemsBelow && (
 								<Box marginTop={1}>
-									<Text dimColor>... {viewport.itemsBelowCount} more below</Text>
+									<Text color={colors.textDim}>... {viewport.itemsBelowCount} more below</Text>
 								</Box>
 							)}
 							<Box marginTop={1}>
-								<Text dimColor>↑↓ Navigate · Enter Select · Esc Cancel</Text>
+								<Text color={colors.textDim}>↑↓ Navigate · Enter Select · Esc Cancel</Text>
 							</Box>
 						</>
 					);

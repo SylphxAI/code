@@ -10,6 +10,7 @@ import { InlineSelection } from "../../../components/selection/index.js";
 import TextInputWithHint from "../../../components/TextInputWithHint.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
 import { InputContentLayout } from "./InputContentLayout.js";
+import { getColors } from "../../../utils/theme/index.js";
 
 interface MCPAddFormProps {
 	onComplete: () => void;
@@ -19,6 +20,7 @@ interface MCPAddFormProps {
 type Field = "id" | "transport" | "url" | "command" | "args" | "name" | "description";
 
 export function MCPAddForm({ onComplete, onCancel }: MCPAddFormProps) {
+	const colors = getColors();
 	const [currentField, setCurrentField] = useState<Field>("id");
 
 	// Form state
@@ -241,7 +243,7 @@ export function MCPAddForm({ onComplete, onCancel }: MCPAddFormProps) {
 				)}
 
 				<Box marginTop={1}>
-					<Text dimColor>Press ESC to cancel</Text>
+					<Text color={colors.textDim}>Press ESC to cancel</Text>
 				</Box>
 			</Box>
 		</InputContentLayout>

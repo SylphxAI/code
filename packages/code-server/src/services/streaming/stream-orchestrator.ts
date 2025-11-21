@@ -242,8 +242,8 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 						emitReasoningDelta(observer, text);
 					},
 					onReasoningEnd: (duration) => emitReasoningEnd(observer, duration),
-					onToolCall: (toolCallId, toolName, input) =>
-						emitToolCall(observer, toolCallId, toolName, input),
+					onToolCall: (toolCallId, toolName, input, startTime) =>
+						emitToolCall(observer, toolCallId, toolName, input, startTime),
 					onToolResult: (toolCallId, toolName, result, duration) =>
 						emitToolResult(observer, toolCallId, toolName, result, duration),
 					onToolError: (toolCallId, toolName, error, duration) =>
@@ -269,7 +269,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 			// Manual agent loop - gives us full control over stepping
 			while (iterationCount < MAX_ITERATIONS) {
 				iterationCount++;
-				console.log(`[StreamOrchestrator] 🔄 Loop iteration ${iterationCount}`);
+				// console.log(`[StreamOrchestrator] 🔄 Loop iteration ${iterationCount}`);
 
 				// 1. Call streamText with maxSteps=1 (single step only)
 				const { fullStream, response } = await orchestrateAIStream({
@@ -362,20 +362,20 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				// Push response messages to current message history
 				currentMessages = [...currentMessages, ...responseMessages];
 
-				console.log(
-					`[StreamOrchestrator] Step finished. finishReason: ${finalFinishReason}, hasError: ${hasError}, aborted: ${state.aborted}`,
-				);
+				// console.log(
+				// 	`[StreamOrchestrator] Step finished. finishReason: ${finalFinishReason}, hasError: ${hasError}, aborted: ${state.aborted}`,
+				// );
 
 				// 4. Check finishReason and decide next action
 				if (state.aborted || hasError) {
 					// Exit on abort or error
-					console.log("[StreamOrchestrator] Exiting loop: abort or error");
+					// console.log("[StreamOrchestrator] Exiting loop: abort or error");
 					break;
 				}
 
 				if (finalFinishReason === "tool-calls") {
 					// Continue loop - AI wants to make more tool calls
-					console.log("[StreamOrchestrator] Continuing loop: tool-calls");
+					// console.log("[StreamOrchestrator] Continuing loop: tool-calls");
 					continue;
 				}
 
@@ -384,9 +384,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					const queuedMessages = await sessionRepository.getQueuedMessages(sessionId);
 
 					if (queuedMessages.length > 0) {
-						console.log(
-							`[StreamOrchestrator] 📬 Found ${queuedMessages.length} queued messages, injecting into loop`,
-						);
+						// console.log(
+						// 	`[StreamOrchestrator] 📬 Found ${queuedMessages.length} queued messages, injecting into loop`,
+						// );
 
 						// Clear queue
 						await sessionRepository.clearQueue(sessionId);
@@ -412,7 +412,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 								observer,
 							);
 
-							console.log(`[StreamOrchestrator] Created queued user message: ${result.messageId}`);
+							// console.log(`[StreamOrchestrator] Created queued user message: ${result.messageId}`);
 
 							// Complete the CURRENT assistant message before starting new one
 							// This ensures the first message's streaming state is properly cleared
@@ -434,7 +434,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 								observer,
 							);
 
-							console.log(`[StreamOrchestrator] Created new assistant message: ${assistantMessageId}`);
+							// console.log(`[StreamOrchestrator] Created new assistant message: ${assistantMessageId}`);
 
 							// Reset step counter for new assistant message
 							lastCompletedStepNumber = -1;
@@ -451,18 +451,18 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 							});
 
 							// Continue loop with injected messages
-							console.log("[StreamOrchestrator] Continuing loop: queued messages injected");
+							// console.log("[StreamOrchestrator] Continuing loop: queued messages injected");
 							continue;
 						}
 					}
 
 					// No queue, exit loop
-					console.log("[StreamOrchestrator] Exiting loop: stop with no queue");
+					// console.log("[StreamOrchestrator] Exiting loop: stop with no queue");
 					break;
 				}
 
 				// Unknown finish reason - exit
-				console.log(`[StreamOrchestrator] Exiting loop: unknown finishReason ${finalFinishReason}`);
+				// console.log(`[StreamOrchestrator] Exiting loop: unknown finishReason ${finalFinishReason}`);
 				break;
 			}
 

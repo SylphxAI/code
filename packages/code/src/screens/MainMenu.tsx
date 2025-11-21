@@ -7,6 +7,7 @@ import { useAIConfig } from "../hooks/client/useAIConfig.js";
 import { navigateTo } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
+import { getColors } from "../utils/theme/index.js";
 
 interface MenuItem {
 	label: string;
@@ -14,6 +15,7 @@ interface MenuItem {
 }
 
 export default function MainMenu() {
+	const colors = getColors();
 	const aiConfig = useAIConfig();
 
 	const configuredCount = Object.keys(aiConfig?.providers || {}).length;
@@ -64,7 +66,7 @@ export default function MainMenu() {
 			<SelectInput items={items} onSelect={handleSelect} />
 
 			<Box marginTop={1}>
-				<Text dimColor>Use ↑↓ arrows to navigate, Enter to select</Text>
+				<Text color={colors.textDim}>Use ↑↓ arrows to navigate, Enter to select</Text>
 			</Box>
 		</Box>
 	);

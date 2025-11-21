@@ -1,14 +1,15 @@
 /**
  * Hook to track background bash count
- * Polls bash list and counts non-active running processes
+ * Event-driven: subscribes to bash:all channel for updates
  */
 
 import { useTRPCClient } from "@sylphx/code-client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 export function useBackgroundBashCount(): number {
 	const trpc = useTRPCClient();
 	const [count, setCount] = useState(0);
+	const subscriptionRef = useRef<any>(null);
 
 	useEffect(() => {
 		const updateCount = async () => {
@@ -27,10 +28,32 @@ export function useBackgroundBashCount(): number {
 		// Initial load
 		updateCount();
 
-		// Poll every 2 seconds
-		const interval = setInterval(updateCount, 2000);
+		// Subscribe to bash:all for event-driven updates
+		try {
+			subscriptionRef.current = trpc.events.subscribe.subscribe(
+				{ channel: "bash:all", fromCursor: undefined },
+				{
+					onData: (event: any) => {
+						const eventType = event.payload?.type;
+						// Update count on events that affect background bash count
+						if (["started", "completed", "failed", "killed", "demoted", "promoted"].includes(eventType)) {
+							updateCount();
+						}
+					},
+					onError: (err: any) => {
+						console.error("[useBackgroundBashCount] Subscription error:", err);
+					},
+				},
+			);
+		} catch (error) {
+			console.error("[useBackgroundBashCount] Failed to subscribe:", error);
+		}
 
-		return () => clearInterval(interval);
+		return () => {
+			if (subscriptionRef.current) {
+				subscriptionRef.current.unsubscribe();
+			}
+		};
 	}, [trpc]);
 
 	return count;

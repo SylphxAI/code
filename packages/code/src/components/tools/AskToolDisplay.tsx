@@ -5,11 +5,13 @@
 
 import type { ToolDisplayProps } from "@sylphx/code-client";
 import { useElapsedTime } from "../../hooks/client/useElapsedTime.js";
-import { Box, Text } from "ink";
-import Spinner from "../Spinner.js";
+import { Text } from "ink";
+import { BaseToolDisplay } from "../BaseToolDisplay.js";
+import { getColors } from "../../utils/theme/index.js";
 
 export function AskToolDisplay(props: ToolDisplayProps) {
 	const { status, duration, startTime, input, result, error } = props;
+	const colors = getColors();
 
 	// Calculate real-time elapsed time for running tools
 	const { display: durationDisplay } = useElapsedTime({
@@ -27,50 +29,25 @@ export function AskToolDisplay(props: ToolDisplayProps) {
 	// Format result (user's answer) - this is what gets sent back to LLM
 	const answer = typeof result === "string" ? result : "";
 
-	// Create summary from answer
-	const summary = answer
-		? answer.length > 100
-			? `${answer.slice(0, 100)}...`
-			: answer
-		: undefined;
+	// Prepare summary content
+	const summaryContent = (() => {
+		if (status === "failed" && error) {
+			return <Text color={colors.error}>{error}</Text>;
+		}
+		if (status === "completed" && answer) {
+			const truncated = answer.length > 100 ? `${answer.slice(0, 100)}...` : answer;
+			return <Text color={colors.textDim}>Answer: {truncated}</Text>;
+		}
+		return undefined;
+	})();
 
 	return (
-		<Box flexDirection="column">
-			{/* Tool header */}
-			<Box>
-				{status === "running" && (
-					<>
-						<Spinner color="yellow" />
-						<Text> </Text>
-					</>
-				)}
-				{status === "completed" && <Text color="green">✓ </Text>}
-				{status === "failed" && <Text color="red">✗ </Text>}
-				<Text bold>ask</Text>
-				{question && (
-					<>
-						<Text> </Text>
-						<Text>{question}</Text>
-					</>
-				)}
-				{durationDisplay && (status === "completed" || status === "running") && (
-					<Text dimColor> {durationDisplay}</Text>
-				)}
-			</Box>
-
-			{/* Answer summary (tool result sent to LLM) */}
-			{status === "completed" && summary && (
-				<Box marginLeft={2}>
-					<Text dimColor>Answer: {summary}</Text>
-				</Box>
-			)}
-
-			{/* Error */}
-			{status === "failed" && error && (
-				<Box marginLeft={2}>
-					<Text color="red">{error}</Text>
-				</Box>
-			)}
-		</Box>
+		<BaseToolDisplay
+			status={status}
+			toolName="ask"
+			args={question}
+			duration={durationDisplay}
+			summary={summaryContent}
+		/>
 	);
 }

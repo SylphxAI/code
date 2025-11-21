@@ -15,6 +15,7 @@
 import Markdown from "@jescalan/ink-markdown";
 import { Box, Text } from "ink";
 import React from "react";
+import { getColors } from "../utils/theme/index.js";
 
 interface MarkdownTextProps {
 	children: string;
@@ -133,7 +134,7 @@ const MarkdownText = React.memo(function MarkdownText({
 					return (
 						<Box key={key}>
 							{prefix && <Text color={prefixColor}>{prefix}</Text>}
-							<Text dimColor>{"─".repeat(48)}</Text>
+							<Text color={getColors().textDim}>{"─".repeat(48)}</Text>
 						</Box>
 					);
 				}

@@ -23,10 +23,17 @@ export function initializeBashEventBridge(appContext: AppContext): void {
 	bashManagerV2.on("bash:event", (event: BashStateChange) => {
 		const channel = `bash:${event.bashId}`;
 
-		// Publish to event stream (persisted + real-time)
+		// Publish to individual bash channel (persisted + real-time)
 		eventStream.publish(channel, event).catch((err) => {
 			console.error("[BashEventBridge] Failed to publish event:", err);
 		});
+
+		// Also publish to global channel for discovery (only "started" events)
+		if (event.type === "started") {
+			eventStream.publish("bash:all", event).catch((err) => {
+				console.error("[BashEventBridge] Failed to publish to bash:all:", err);
+			});
+		}
 	});
 
 	// Listen to active-queued events

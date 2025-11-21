@@ -4,6 +4,7 @@
  */
 
 import { Box, Text } from "ink";
+import { getColors } from "../utils/theme/index.js";
 
 interface LogPanelProps {
 	logs: string[];
@@ -12,19 +13,20 @@ interface LogPanelProps {
 
 export default function LogPanel({ logs, maxLines = 10 }: LogPanelProps) {
 	const displayLogs = logs.slice(-maxLines);
+	const colors = getColors();
 
 	return (
-		<Box flexDirection="column" borderStyle="single" borderColor="gray" paddingX={1}>
+		<Box flexDirection="column" borderStyle="single" borderColor={colors.textDim} paddingX={1}>
 			<Box marginBottom={1}>
-				<Text color="yellow" bold>
+				<Text color={colors.warning} bold>
 					DEBUG LOGS
 				</Text>
 			</Box>
 			{displayLogs.length === 0 ? (
-				<Text dimColor>No logs yet...</Text>
+				<Text color={colors.textDim}>No logs yet...</Text>
 			) : (
 				displayLogs.map((log, idx) => (
-					<Text key={`${idx}-${log.slice(0, 50)}`} dimColor>
+					<Text key={`${idx}-${log.slice(0, 50)}`} color={colors.textDim}>
 						{log}
 					</Text>
 				))

@@ -7,7 +7,8 @@ import { getTRPCClient, setCurrentScreen } from "@sylphx/code-client";
 import type { FileAttachment } from "@sylphx/code-core";
 import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Text } from "ink";
-import { getThemeColors, indicators } from "../../../utils/colors.js";
+import { indicators } from "../../../utils/colors.js";
+import { getColors } from "../../../utils/theme/index.js";
 import { useEffect, useRef } from "react";
 import type { Command, WaitForInputOptions } from "../../../commands/types.js";
 import { CommandAutocomplete } from "../../../components/CommandAutocomplete.js";
@@ -192,19 +193,19 @@ export function InputSection({
 	// Get terminal width for separator line
 	const termWidth = process.stdout.columns || 80;
 	const separatorLine = "─".repeat(termWidth);
-	const themeColors = getThemeColors();
+	const colors = getColors();
 
 	return (
 		<Box flexDirection="column" flexShrink={0}>
 			{/* Top separator */}
 			<Box>
-				<Text color={themeColors.separatorSubtle}>{separatorLine}</Text>
+				<Text color={colors.borderSubtle}>{separatorLine}</Text>
 			</Box>
 
 			{/* Dynamic Header - only show when not default "YOU" */}
 			{headerTitle !== "YOU" && (
 				<Box>
-					<Text color="cyan">{indicators.user} {headerTitle}</Text>
+					<Text color={colors.user}>{indicators.user} {headerTitle}</Text>
 				</Box>
 			)}
 
@@ -288,24 +289,24 @@ export function InputSection({
 							{pendingAttachments.length > 0 ? (
 								<Box flexDirection="column" marginBottom={1}>
 									<Box marginBottom={1}>
-										<Text dimColor>Attachments ({pendingAttachments.length}):</Text>
+										<Text color={colors.textDim}>Attachments ({pendingAttachments.length}):</Text>
 									</Box>
 									{pendingAttachments.map((att) => (
 										<Box key={`pending-att-${att.path}`} marginLeft={2}>
-											<Text color="cyan">{att.relativePath}</Text>
-											<Text dimColor> (</Text>
+											<Text color={colors.primary}>{att.relativePath}</Text>
+											<Text color={colors.textDim}> (</Text>
 											{att.size ? (
 												<>
-													<Text dimColor>{(att.size / 1024).toFixed(1)}KB</Text>
-													{attachmentTokens.has(att.path) && <Text dimColor>, </Text>}
+													<Text color={colors.textDim}>{(att.size / 1024).toFixed(1)}KB</Text>
+													{attachmentTokens.has(att.path) && <Text color={colors.textDim}>, </Text>}
 												</>
 											) : null}
 											{attachmentTokens.has(att.path) ? (
-												<Text dimColor>
+												<Text color={colors.textDim}>
 													{formatTokenCount(attachmentTokens.get(att.path)!)} Tokens
 												</Text>
 											) : null}
-											<Text dimColor>)</Text>
+											<Text color={colors.textDim}>)</Text>
 										</Box>
 									))}
 								</Box>
@@ -314,7 +315,7 @@ export function InputSection({
 							{/* Show prompt for text input mode */}
 							{pendingInput?.type === "text" && pendingInput.prompt && (
 								<Box marginBottom={1}>
-									<Text dimColor>{pendingInput.prompt}</Text>
+									<Text color={colors.textDim}>{pendingInput.prompt}</Text>
 								</Box>
 							)}
 
@@ -406,7 +407,7 @@ export function InputSection({
 							{/* ESC hint - shows after first ESC press */}
 							{showEscHint && (
 								<Box marginTop={1}>
-									<Text color="yellow">Press ESC again to clear input</Text>
+									<Text color={colors.warning}>Press ESC again to clear input</Text>
 								</Box>
 							)}
 
@@ -435,7 +436,7 @@ export function InputSection({
 
 			{/* Bottom separator */}
 			<Box>
-				<Text color={themeColors.separatorSubtle}>{separatorLine}</Text>
+				<Text color={colors.borderSubtle}>{separatorLine}</Text>
 			</Box>
 		</Box>
 	);

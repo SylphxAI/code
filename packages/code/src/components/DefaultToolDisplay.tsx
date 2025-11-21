@@ -8,9 +8,10 @@ import type { ToolDisplayProps } from "@sylphx/code-client";
 import { useElapsedTime } from "../hooks/client/useElapsedTime.js";
 import type { InputFormatter, ResultFormatter } from "@sylphx/code-core";
 import dJSON from "dirty-json";
-import { Box, Text } from "ink";
+import { Text } from "ink";
 import type React from "react";
-import Spinner from "./Spinner.js";
+import { BaseToolDisplay } from "./BaseToolDisplay.js";
+import { getColors } from "../utils/theme/index.js";
 
 /**
  * Parse partial/dirty JSON into an object with best-effort parsing
@@ -32,85 +33,6 @@ function parsePartialJSON(jsonString: string): Record<string, unknown> {
 	}
 }
 
-interface StatusIndicatorProps {
-	status: "running" | "completed" | "failed";
-}
-
-const StatusIndicator: React.FC<StatusIndicatorProps> = ({ status }) => {
-	if (status === "running") {
-		return (
-			<>
-				<Spinner color="yellow" />
-				<Text> </Text>
-			</>
-		);
-	}
-
-	return status === "completed" ? <Text color="green">✓ </Text> : <Text color="red">✗ </Text>;
-};
-
-interface ToolHeaderProps {
-	statusIndicator: React.ReactNode;
-	displayName: string;
-	formattedArgs: string;
-	durationDisplay?: string;
-	status: "running" | "completed" | "failed";
-}
-
-const ToolHeader: React.FC<ToolHeaderProps> = ({
-	statusIndicator,
-	displayName,
-	formattedArgs,
-	durationDisplay,
-	status,
-}) => (
-	<Box>
-		{statusIndicator}
-		<Text bold>{displayName}</Text>
-		{formattedArgs && (
-			<>
-				<Text> </Text>
-				<Text>{formattedArgs}</Text>
-			</>
-		)}
-		{durationDisplay && (status === "completed" || status === "running") && (
-			<Text dimColor> {durationDisplay}</Text>
-		)}
-	</Box>
-);
-
-interface ResultDisplayProps {
-	status: "running" | "completed" | "failed";
-	result: unknown;
-	formattedResult: { lines: string[]; summary?: string };
-	error?: string;
-}
-
-const ResultDisplay: React.FC<ResultDisplayProps> = ({ status, formattedResult, error }) => {
-	// Don't show anything for running tools
-	if (status === "running") {
-		return null;
-	}
-
-	if (status === "failed") {
-		return (
-			<Box marginLeft={2}>
-				<Text color="red">{error || "Failed"}</Text>
-			</Box>
-		);
-	}
-
-	// For completed tools, show summary if available
-	if (status === "completed" && formattedResult.summary) {
-		return (
-			<Box marginLeft={2}>
-				<Text>{formattedResult.summary}</Text>
-			</Box>
-		);
-	}
-
-	return null;
-};
 
 /**
  * Factory function to create a default tool display component
@@ -127,6 +49,7 @@ export function createDefaultToolDisplay(
 ): React.FC<ToolDisplayProps> {
 	return function DefaultToolDisplay(props: ToolDisplayProps) {
 		const { status, duration, input, result, error, startTime } = props;
+		const colors = getColors();
 
 		// Calculate real-time elapsed time for running tools
 		const { display: durationDisplay } = useElapsedTime({
@@ -151,22 +74,35 @@ export function createDefaultToolDisplay(
 		})();
 		const formattedResult = formatResult(result);
 
+		// Prepare summary content
+		const summary =
+			status === "failed" ? (
+				<Text color={colors.error}>{error || "Failed"}</Text>
+			) : status === "completed" && formattedResult.summary ? (
+				<Text>{formattedResult.summary}</Text>
+			) : null;
+
+		// Prepare details content (show formatted lines if available)
+		const details =
+			status === "completed" && formattedResult.lines.length > 0 ? (
+				<>
+					{formattedResult.lines.map((line, i) => (
+						<Text key={`${i}-${line.slice(0, 30)}`} color={colors.textDim}>
+							{line}
+						</Text>
+					))}
+				</>
+			) : null;
+
 		return (
-			<Box flexDirection="column">
-				<ToolHeader
-					statusIndicator={<StatusIndicator status={status} />}
-					displayName={displayName}
-					formattedArgs={formattedArgs}
-					durationDisplay={durationDisplay}
-					status={status}
-				/>
-				<ResultDisplay
-					status={status}
-					result={result}
-					formattedResult={formattedResult}
-					error={error}
-				/>
-			</Box>
+			<BaseToolDisplay
+				status={status}
+				toolName={displayName}
+				args={formattedArgs}
+				duration={durationDisplay}
+				summary={summary}
+				details={details}
+			/>
 		);
 	};
 }

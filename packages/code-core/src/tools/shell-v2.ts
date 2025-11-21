@@ -66,22 +66,43 @@ All output is streamed in real-time via event channel "bash:{bash_id}"`,
 				timeout: mode === "active" ? timeout : undefined,
 			});
 
-			const proc = bashManagerV2.get(bashId);
-			if (!proc) {
-				throw new Error(`Failed to create bash process with ID ${bashId}`);
+			// Background mode: Return immediately with bash_id
+			if (mode === "background") {
+				return {
+					bash_id: bashId,
+					command,
+					mode: "background",
+					message: `Running in background. Use bash-status tool to check progress.`,
+				};
 			}
 
-			return {
-				bash_id: bashId,
-				command,
-				mode,
-				status: proc.status,
-				message:
-					mode === "active"
-						? `Started in active mode. Will auto-convert to background after ${timeout}ms if still running. Subscribe to channel "bash:${bashId}" for real-time output.`
-						: `Started in background. Subscribe to channel "bash:${bashId}" for real-time output.`,
-				subscription_channel: `bash:${bashId}`,
-			};
+			// Active mode: Wait for completion or demotion (blocking)
+			// This is what LLM expects - execute and get output
+			console.log(`[executeBashToolV2] Waiting for completion: ${bashId.slice(0, 8)}`);
+			const result = await bashManagerV2.waitForCompletion(bashId);
+			console.log(`[executeBashToolV2] waitForCompletion resolved: ${bashId.slice(0, 8)}, completed=${result.completed}, stdout length=${result.stdout.length}`);
+
+			if (result.completed) {
+				// Bash completed normally - return output to LLM
+				console.log(`[executeBashToolV2] Returning completed result for ${bashId.slice(0, 8)}`);
+				return {
+					stdout: result.stdout,
+					stderr: result.stderr,
+					exitCode: result.exitCode,
+				};
+			} else {
+				// Bash was demoted to background (timeout or Ctrl+B)
+				console.log(`[executeBashToolV2] Returning demoted result for ${bashId.slice(0, 8)}`);
+				return {
+					bash_id: bashId,
+					command,
+					mode: "background",
+					stdout: result.stdout,
+					stderr: result.stderr,
+					demoted: true,
+					message: `Converted to background. Use bash-status tool to monitor.`,
+				};
+			}
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			console.error("[executeBashToolV2] Error:", errorMessage, error);

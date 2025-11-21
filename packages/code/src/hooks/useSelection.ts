@@ -26,6 +26,7 @@ export interface UseSelectionOptions {
 	preSelected?: string[]; // Pre-selected values for multi-select
 	onSelect?: (value: string | string[]) => void;
 	onCancel?: () => void;
+	onCustomInput?: (char: string, key: any) => boolean; // Custom key handler, return true to prevent default
 }
 
 export interface UseSelectionReturn {
@@ -68,6 +69,7 @@ export function useSelection({
 	preSelected = [],
 	onSelect,
 	onCancel,
+	onCustomInput,
 }: UseSelectionOptions): UseSelectionReturn {
 	const [selectedIndex, setSelectedIndex] = useState(0);
 	const [selectedValues, setSelectedValues] = useState<Set<string>>(new Set(preSelected));
@@ -138,6 +140,11 @@ export function useSelection({
 
 	// Keyboard handling
 	useInput((char, key) => {
+		// Custom input handler takes precedence
+		if (onCustomInput?.(char, key)) {
+			return; // Custom handler consumed the input
+		}
+
 		// ESC always handled
 		if (key.escape) {
 			if (isFilterMode) {

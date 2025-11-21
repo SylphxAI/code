@@ -8,6 +8,7 @@ import { useSessionPersistence } from "./hooks/client/useSessionPersistence.js";
 import { setError, setCurrentScreen, useCurrentScreen, useIsLoading, useUIError, useTRPCClient } from "@sylphx/code-client";
 import { Box, Text, useInput } from "ink";
 import { useEffect, useState } from "react";
+import { getColors } from "./utils/theme/index.js";
 import Chat from "./screens/Chat.js";
 import CommandPalette from "./screens/CommandPalette.js";
 import Logs from "./screens/Logs.js";
@@ -113,35 +114,37 @@ function AppContent() {
 		);
 	}
 
+	const colors = getColors();
+
 	// Other screens use app layout with padding
 	return (
 		<Box flexDirection="column" width="100%" height="100%" paddingX={1}>
 			{/* Header */}
 			<Box paddingY={1}>
-				<Text bold color="cyan">SYLPHX CODE</Text>
+				<Text bold color={colors.primary}>SYLPHX CODE</Text>
 			</Box>
 
 			{/* Error Display */}
 			{error && (
 				<Box paddingY={1}>
-					<Text color="red">▌</Text>
-					<Text color="red" bold>
+					<Text color={colors.error}>▌</Text>
+					<Text color={colors.error} bold>
 						{" "}
 						ERROR{" "}
 					</Text>
-					<Text color="gray">{error}</Text>
+					<Text color={colors.textDim}>{error}</Text>
 				</Box>
 			)}
 
 			{/* Loading Indicator */}
 			{isLoading && (
 				<Box paddingY={1}>
-					<Text color="yellow">▌</Text>
-					<Text color="yellow" bold>
+					<Text color={colors.warning}>▌</Text>
+					<Text color={colors.warning} bold>
 						{" "}
 						LOADING
 					</Text>
-					<Text color="gray">...</Text>
+					<Text color={colors.textDim}>...</Text>
 				</Box>
 			)}
 

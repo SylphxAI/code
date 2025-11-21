@@ -5,6 +5,7 @@
 
 import { Box, Text } from "ink";
 import React from "react";
+import { getColors } from "../utils/theme/index.js";
 
 interface ErrorBoundaryProps {
 	children: React.ReactNode;
@@ -37,29 +38,31 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 	}
 
 	render() {
+		const colors = getColors();
+
 		if (this.state.hasError) {
 			return (
 				<Box flexDirection="column" padding={1}>
 					<Box marginBottom={1}>
-						<Text color="red" bold>
+						<Text color={colors.error} bold>
 							[ERROR] Application Error
 						</Text>
 					</Box>
 					<Box marginBottom={1}>
-						<Text color="yellow">The application encountered an error and needs to restart.</Text>
+						<Text color={colors.warning}>The application encountered an error and needs to restart.</Text>
 					</Box>
 					{this.state.error && (
 						<Box flexDirection="column" marginBottom={1}>
-							<Text color="gray">Error: {this.state.error.message}</Text>
+							<Text color={colors.textDim}>Error: {this.state.error.message}</Text>
 							{this.state.error.stack && (
-								<Text color="gray" dimColor>
+								<Text color={colors.textDim}>
 									{this.state.error.stack.split("\n").slice(0, 5).join("\n")}
 								</Text>
 							)}
 						</Box>
 					)}
 					<Box>
-						<Text dimColor>Press Ctrl+C to exit and restart the application.</Text>
+						<Text color={colors.textDim}>Press Ctrl+C to exit and restart the application.</Text>
 					</Box>
 				</Box>
 			);

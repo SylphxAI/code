@@ -12,6 +12,7 @@ import SelectInput from "ink-select-input";
 import TextInput from "ink-text-input";
 import { useState } from "react";
 import ProviderCard from "../components/ProviderCard.js";
+import { getColors } from "../utils/theme/index.js";
 
 type Mode = "menu" | "add" | "remove" | "view";
 
@@ -21,6 +22,7 @@ interface MenuItem {
 }
 
 export default function ProviderManagement() {
+	const colors = getColors();
 	const [mode, setMode] = useState<Mode>("menu");
 	const [selectedProvider, setSelectedProvider] = useState<ProviderId | null>(null);
 	const [apiKeyInput, setApiKeyInput] = useState("");
@@ -59,7 +61,7 @@ export default function ProviderManagement() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="cyan">▌ PROVIDER MANAGEMENT</Text>
+					<Text color={colors.primary}>▌ PROVIDER MANAGEMENT</Text>
 				</Box>
 
 				<Box flexGrow={1} paddingY={1}>
@@ -67,7 +69,7 @@ export default function ProviderManagement() {
 				</Box>
 
 				<Box flexShrink={0} paddingTop={1}>
-					<Text dimColor>↑↓ Navigate · Enter Select · Esc Back</Text>
+					<Text color={colors.textDim}>↑↓ Navigate · Enter Select · Esc Back</Text>
 				</Box>
 			</Box>
 		);
@@ -78,14 +80,14 @@ export default function ProviderManagement() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="cyan">▌ CONFIGURED PROVIDERS</Text>
+					<Text color={colors.primary}>▌ CONFIGURED PROVIDERS</Text>
 				</Box>
 
 				<Box flexGrow={1} paddingY={1}>
 					{configuredProviders.length === 0 ? (
 						<Box>
-							<Text color="yellow">▌</Text>
-							<Text dimColor> No providers configured yet</Text>
+							<Text color={colors.warning}>▌</Text>
+							<Text color={colors.textDim}> No providers configured yet</Text>
 						</Box>
 					) : (
 						configuredProviders.map((id) => (
@@ -101,7 +103,7 @@ export default function ProviderManagement() {
 				</Box>
 
 				<Box flexShrink={0} paddingTop={1}>
-					<Text dimColor>Press Esc to go back</Text>
+					<Text color={colors.textDim}>Press Esc to go back</Text>
 				</Box>
 			</Box>
 		);
@@ -121,7 +123,7 @@ export default function ProviderManagement() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="cyan">▌ SELECT PROVIDER</Text>
+					<Text color={colors.primary}>▌ SELECT PROVIDER</Text>
 				</Box>
 
 				<Box flexGrow={1} paddingY={1}>
@@ -129,7 +131,7 @@ export default function ProviderManagement() {
 				</Box>
 
 				<Box flexShrink={0} paddingTop={1}>
-					<Text dimColor>↑↓ Navigate · Enter Select · Esc Cancel</Text>
+					<Text color={colors.textDim}>↑↓ Navigate · Enter Select · Esc Cancel</Text>
 				</Box>
 			</Box>
 		);
@@ -152,38 +154,38 @@ export default function ProviderManagement() {
 			return (
 				<Box flexDirection="column" flexGrow={1}>
 					<Box flexShrink={0} paddingBottom={1}>
-						<Text color="cyan">▌ CONFIGURE {provider.name.toUpperCase()}</Text>
+						<Text color={colors.primary}>▌ CONFIGURE {provider.name.toUpperCase()}</Text>
 					</Box>
 
 					<Box flexShrink={0} paddingBottom={2}>
-						<Text dimColor>Claude Code uses CLI authentication. To set up:</Text>
+						<Text color={colors.textDim}>Claude Code uses CLI authentication. To set up:</Text>
 					</Box>
 
 					<Box flexShrink={0} paddingLeft={2} flexDirection="column">
 						<Box paddingBottom={1}>
-							<Text color="green">1.</Text>
-							<Text dimColor> Install the Claude Code CLI globally:</Text>
+							<Text color={colors.success}>1.</Text>
+							<Text color={colors.textDim}> Install the Claude Code CLI globally:</Text>
 						</Box>
 						<Box paddingBottom={1} paddingLeft={3}>
-							<Text color="white">npm install -g @anthropic-ai/claude-code</Text>
+							<Text color={colors.text}>npm install -g @anthropic-ai/claude-code</Text>
 						</Box>
 
 						<Box paddingBottom={1}>
-							<Text color="green">2.</Text>
-							<Text dimColor> Login to Claude:</Text>
+							<Text color={colors.success}>2.</Text>
+							<Text color={colors.textDim}> Login to Claude:</Text>
 						</Box>
 						<Box paddingBottom={1} paddingLeft={3}>
-							<Text color="white">claude login</Text>
+							<Text color={colors.text}>claude login</Text>
 						</Box>
 
 						<Box paddingBottom={1}>
-							<Text color="green">3.</Text>
-							<Text dimColor> You can now use Claude Code models (opus, sonnet, haiku)</Text>
+							<Text color={colors.success}>3.</Text>
+							<Text color={colors.textDim}> You can now use Claude Code models (opus, sonnet, haiku)</Text>
 						</Box>
 					</Box>
 
 					<Box flexShrink={0} paddingTop={1}>
-						<Text dimColor>Press Esc to go back</Text>
+						<Text color={colors.textDim}>Press Esc to go back</Text>
 					</Box>
 				</Box>
 			);
@@ -207,17 +209,17 @@ export default function ProviderManagement() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="cyan">▌ CONFIGURE {provider.name.toUpperCase()}</Text>
+					<Text color={colors.primary}>▌ CONFIGURE {provider.name.toUpperCase()}</Text>
 				</Box>
 
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text dimColor>Enter your {provider.keyName}</Text>
+					<Text color={colors.textDim}>Enter your {provider.keyName}</Text>
 				</Box>
 
 				<Box flexGrow={1} flexDirection="column" paddingY={1}>
 					{apiKeyInput && (
 						<Box marginBottom={1}>
-							<Text dimColor>{"*".repeat(apiKeyInput.length)}</Text>
+							<Text color={colors.textDim}>{"*".repeat(apiKeyInput.length)}</Text>
 						</Box>
 					)}
 
@@ -231,7 +233,7 @@ export default function ProviderManagement() {
 				</Box>
 
 				<Box flexShrink={0} paddingTop={1}>
-					<Text dimColor>Enter Save · Esc Cancel</Text>
+					<Text color={colors.textDim}>Enter Save · Esc Cancel</Text>
 				</Box>
 			</Box>
 		);
@@ -254,7 +256,7 @@ export default function ProviderManagement() {
 		return (
 			<Box flexDirection="column" flexGrow={1}>
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color="red">▌ REMOVE PROVIDER</Text>
+					<Text color={colors.error}>▌ REMOVE PROVIDER</Text>
 				</Box>
 
 				<Box flexGrow={1} paddingY={1}>
@@ -262,7 +264,7 @@ export default function ProviderManagement() {
 				</Box>
 
 				<Box flexShrink={0} paddingTop={1}>
-					<Text dimColor>↑↓ Navigate · Enter Remove · Esc Cancel</Text>
+					<Text color={colors.textDim}>↑↓ Navigate · Enter Remove · Esc Cancel</Text>
 				</Box>
 			</Box>
 		);

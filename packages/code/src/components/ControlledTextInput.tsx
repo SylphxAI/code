@@ -14,6 +14,7 @@ import React, { useCallback, useRef } from "react";
 import * as Cursor from "../utils/cursor-ops.js";
 import * as TextOps from "../utils/text-ops.js";
 import * as Wrapping from "../utils/wrapping-ops.js";
+import { getColors } from "../utils/theme/index.js";
 
 export interface ControlledTextInputProps {
 	value: string;
@@ -33,6 +34,8 @@ export interface ControlledTextInputProps {
 	onDownArrow?: () => void; // Callback when Down Arrow is pressed (for autocomplete)
 	onEscape?: () => void; // Callback when ESC is pressed (for abort/cancel)
 	onPasteImage?: () => void | Promise<void>; // Callback when Ctrl+V is pressed (for image paste)
+	onCtrlB?: () => void; // Callback when Ctrl+B is pressed (for demote bash)
+	onCtrlP?: () => void; // Callback when Ctrl+P is pressed (for bash list)
 }
 
 function ControlledTextInput({
@@ -53,6 +56,8 @@ function ControlledTextInput({
 	onDownArrow,
 	onEscape,
 	onPasteImage,
+	onCtrlB,
+	onCtrlP,
 }: ControlledTextInputProps) {
 	// Kill buffer for Ctrl+K, Ctrl+U, Ctrl+W → Ctrl+Y
 	const killBufferRef = useRef("");
@@ -103,11 +108,27 @@ function ControlledTextInput({
 				}
 			}
 
+			// Ctrl+P - open bash list (custom handler takes priority)
+			if (key.ctrl && input?.toLowerCase() === "p") {
+				if (onCtrlP) {
+					onCtrlP();
+					return;
+				}
+			}
+
+			// Ctrl+B - demote active bash (custom handler takes priority over cursor movement)
+			if (key.ctrl && input?.toLowerCase() === "b") {
+				if (onCtrlB) {
+					onCtrlB();
+					return;
+				}
+			}
+
 			// ===========================================
 			// Movement (Character)
 			// ===========================================
 
-			// Ctrl+B or Left Arrow - move left
+			// Ctrl+B or Left Arrow - move left (if not handled by custom onCtrlB)
 			if (key.leftArrow || (key.ctrl && input?.toLowerCase() === "b")) {
 				onCursorChange(Cursor.moveCursorLeft(cursor, value.length));
 				return;
@@ -383,7 +404,7 @@ function ControlledTextInput({
 		return (
 			<Box>
 				{showCursor && <Text inverse> </Text>}
-				<Text dimColor>{placeholder}</Text>
+				<Text color={getColors().textDim}>{placeholder}</Text>
 			</Box>
 		);
 	}
@@ -475,7 +496,7 @@ function ControlledTextInput({
 		<Box flexDirection="column">
 			{startLine > 0 && (
 				<Box>
-					<Text dimColor>... ({startLine} more lines above)</Text>
+					<Text color={getColors().textDim}>... ({startLine} more lines above)</Text>
 				</Box>
 			)}
 			{visibleLines.map((physicalLine, idx) => {
@@ -499,7 +520,7 @@ function ControlledTextInput({
 			})}
 			{endLine < totalPhysicalLines && (
 				<Box>
-					<Text dimColor>... ({totalPhysicalLines - endLine} more lines below)</Text>
+					<Text color={getColors().textDim}>... ({totalPhysicalLines - endLine} more lines below)</Text>
 				</Box>
 			)}
 		</Box>

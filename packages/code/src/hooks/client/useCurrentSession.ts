@@ -52,6 +52,16 @@ export function useCurrentSession() {
 			return;
 		}
 
+		// FIX: Skip fetch if session already exists in memory with same ID
+		// This prevents overwriting in-memory data (with tool results) with DB data
+		// when user navigates back to chat screen.
+		// Event replay will handle any updates needed.
+		const existingSession = currentSession.value;
+		if (existingSession?.id === currentSessionId && existingSession.messages.length > 0) {
+			setIsLoading(false);
+			return;
+		}
+
 		setIsLoading(true);
 		setError(null);
 

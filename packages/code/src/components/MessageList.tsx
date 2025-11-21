@@ -12,17 +12,19 @@ import React, { useState, useEffect } from "react";
 import MarkdownText from "./MarkdownText.js";
 import { MessagePart } from "./MessagePart.js";
 import { indicators } from "../utils/colors.js";
+import { getColors } from "../utils/theme/index.js";
 
 // Animated indicator that pulses between ◆ and ◇
 function AnimatedIndicator() {
 	const [frame, setFrame] = useState(0);
+	const colors = getColors();
 	useEffect(() => {
 		const timer = setInterval(() => {
 			setFrame((prev) => (prev + 1) % 2);
 		}, 500);
 		return () => clearInterval(timer);
 	}, []);
-	return <Text color="green">{frame === 0 ? indicators.assistant : indicators.system} </Text>;
+	return <Text color={colors.success}>{frame === 0 ? indicators.assistant : indicators.system} </Text>;
 }
 
 interface MessageListProps {
@@ -34,8 +36,10 @@ interface MessageListProps {
 
 // Memoized message header component to prevent re-renders
 const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
+	const colors = getColors();
+
 	if (msg.role === "user") {
-		return <Text color="cyan">{indicators.user} YOU</Text>;
+		return <Text color={colors.primary}>{indicators.user} YOU</Text>;
 	}
 
 	if (msg.role === "system") {
@@ -46,8 +50,8 @@ const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
 
 		return (
 			<Box flexDirection="row">
-				<Text color="yellow">{indicators.system} SYSTEM</Text>
-				<Text color="yellow" dimColor>
+				<Text color={colors.warning}>{indicators.system} SYSTEM</Text>
+				<Text color={colors.warning}>
 					{" "}
 					· {messageType}
 				</Text>
@@ -60,7 +64,7 @@ const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
 	const stepsWithModel = steps.filter((s) => s.provider && s.model);
 
 	if (stepsWithModel.length === 0) {
-		return <Text color="green">{indicators.assistant} SYLPHX</Text>;
+		return <Text color={colors.success}>{indicators.assistant} SYLPHX</Text>;
 	}
 
 	const firstProvider = stepsWithModel[0].provider;
@@ -72,8 +76,8 @@ const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
 	if (allSame) {
 		return (
 			<Box flexDirection="row">
-				<Text color="green">{indicators.assistant} SYLPHX</Text>
-				<Text dimColor>
+				<Text color={colors.success}>{indicators.assistant} SYLPHX</Text>
+				<Text color={colors.textDim}>
 					{" "}
 					· {firstProvider} · {firstModel}
 				</Text>
@@ -84,8 +88,8 @@ const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
 	const uniqueModels = new Set(stepsWithModel.map((s) => `${s.provider}/${s.model}`));
 	return (
 		<Box flexDirection="row">
-			<Text color="green">{indicators.assistant} SYLPHX</Text>
-			<Text dimColor> · Mixed {uniqueModels.size} models</Text>
+			<Text color={colors.success}>{indicators.assistant} SYLPHX</Text>
+			<Text color={colors.textDim}> · Mixed {uniqueModels.size} models</Text>
 		</Box>
 	);
 });
@@ -98,6 +102,8 @@ export function MessageList({
 	hideMessageTitles = true,
 	hideMessageUsage = true,
 }: MessageListProps) {
+	const colors = getColors();
+
 	return (
 		<>
 			{messages.map((msg) => (
@@ -115,7 +121,7 @@ export function MessageList({
 						msg.steps && msg.steps.length > 0 ? (
 							<Box paddingTop={0} paddingX={1} flexDirection="row">
 								{hideMessageTitles && (
-									<Text color={msg.role === "user" ? "cyan" : "yellow"}>
+									<Text color={msg.role === "user" ? colors.primary : colors.warning}>
 										{msg.role === "user" ? indicators.user : indicators.system}{" "}
 									</Text>
 								)}
@@ -206,7 +212,7 @@ export function MessageList({
 														<Text
 															key={`line-${lineIdx}-seg-${segIdx}-${seg.text.slice(0, 10)}`}
 															backgroundColor="#1a472a"
-															color="green"
+															color={colors.success}
 														>
 															{seg.text}
 														</Text>
@@ -214,7 +220,7 @@ export function MessageList({
 														// System messages: render plain text (no markdown to avoid Box nesting)
 														<Text
 															key={`line-${lineIdx}-seg-${segIdx}-${seg.text.slice(0, 10)}`}
-															color="yellow"
+															color={colors.warning}
 														>
 															{seg.text}
 														</Text>
@@ -236,7 +242,7 @@ export function MessageList({
 						) : msg.content && msg.content.length > 0 ? (
 							<Box paddingTop={0} paddingX={1} flexDirection="row">
 								{hideMessageTitles && (
-									<Text color={msg.role === "user" ? "cyan" : "yellow"}>
+									<Text color={msg.role === "user" ? colors.primary : colors.warning}>
 										{msg.role === "user" ? indicators.user : indicators.system}{" "}
 									</Text>
 								)}
@@ -319,13 +325,13 @@ export function MessageList({
 														<Text
 															key={`legacy-line-${lineIdx}-seg-${segIdx}-${seg.text.slice(0, 10)}`}
 															backgroundColor="#1a472a"
-															color="green"
+															color={colors.success}
 														>
 															{seg.text}
 														</Text>
 													) : msg.role === "system" ? (
 														// System messages: render plain text (no markdown to avoid Box nesting)
-														<Text key={`legacy-line-${lineIdx}-seg-${segIdx}`} color="yellow">
+														<Text key={`legacy-line-${lineIdx}-seg-${segIdx}`} color={colors.warning}>
 															{seg.text}
 														</Text>
 													) : (
@@ -345,7 +351,7 @@ export function MessageList({
 					) : // Assistant message: render each part separately (tools, reasoning, files, etc.)
 					msg.steps && msg.steps.length > 0 ? (
 						<Box paddingTop={0} paddingX={1} flexDirection="row">
-							{hideMessageTitles && (msg.status === "active" ? <AnimatedIndicator /> : <Text color="green">{indicators.assistant} </Text>)}
+							{hideMessageTitles && (msg.status === "active" ? <AnimatedIndicator /> : <Text color={colors.success}>{indicators.assistant} </Text>)}
 							<Box flexDirection="column" flexGrow={1}>
 								{(() => {
 									let globalIdx = 0;
@@ -364,7 +370,7 @@ export function MessageList({
 						</Box>
 					) : msg.content && msg.content.length > 0 ? (
 						<Box paddingTop={0} paddingX={1} flexDirection="row">
-							{hideMessageTitles && (msg.status === "active" ? <AnimatedIndicator /> : <Text color="green">{indicators.assistant} </Text>)}
+							{hideMessageTitles && (msg.status === "active" ? <AnimatedIndicator /> : <Text color={colors.success}>{indicators.assistant} </Text>)}
 							<Box flexDirection="column" flexGrow={1}>
 								{msg.content.map((part, partIdx) => (
 									<MessagePart
@@ -395,7 +401,7 @@ export function MessageList({
 
 							return fileParts.map((filePart, idx) => (
 								<Box key={`${msg.id}-file-${idx}`} marginLeft={3}>
-									<Text color="green">✓ </Text>
+									<Text color={colors.success}>✓ </Text>
 									<Text bold>Read {filePart.relativePath}</Text>
 								</Box>
 							));
@@ -408,17 +414,17 @@ export function MessageList({
 							<Box flexDirection="column" marginLeft={hideMessageTitles ? 3 : 0}>
 								{msg.status === "abort" && (
 									<Box marginLeft={hideMessageTitles ? 0 : 3}>
-										<Text color="yellow">[Aborted]</Text>
+										<Text color={colors.warning}>[Aborted]</Text>
 									</Box>
 								)}
 								{msg.status === "error" && (
 									<Box marginLeft={hideMessageTitles ? 0 : 3}>
-										<Text color="red">[Error]</Text>
+										<Text color={colors.error}>[Error]</Text>
 									</Box>
 								)}
 								{!hideMessageUsage && msg.usage && (
 									<Box marginLeft={hideMessageTitles ? 0 : 3}>
-										<Text dimColor>
+										<Text color={colors.textDim}>
 											{msg.usage.promptTokens.toLocaleString()} →{" "}
 											{msg.usage.completionTokens.toLocaleString()}
 										</Text>

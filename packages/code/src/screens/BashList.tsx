@@ -1,12 +1,15 @@
 /**
  * Bash List Screen
- * Shows all bash processes, press k to kill, Enter to view details
+ * Shows all bash processes, press K to kill, Enter to view details
  */
 
 import { useTRPCClient } from "@sylphx/code-client";
-import { Box, Text, useInput } from "ink";
-import { useEffect, useState } from "react";
+import { Box, Text } from "ink";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Spinner from "../components/Spinner.js";
+import { SelectionOptionsList } from "../components/selection/SelectionOptionsList.js";
+import { useSelection, type SelectionOption } from "../hooks/useSelection.js";
+import { getColors } from "../utils/theme/index.js";
 
 interface BashProcess {
 	id: string;
@@ -24,13 +27,40 @@ interface BashListProps {
 	onSelectBash: (bashId: string) => void;
 }
 
+// Format duration helper
+function formatDuration(ms: number): string {
+	const seconds = Math.floor(ms / 1000);
+	if (seconds < 60) return `${seconds}s`;
+	const minutes = Math.floor(seconds / 60);
+	if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
+	const hours = Math.floor(minutes / 60);
+	return `${hours}h ${minutes % 60}m`;
+}
+
+// Status color helper
+function getStatusColor(status: string): "green" | "red" | "yellow" | "blue" | "gray" {
+	switch (status) {
+		case "running":
+			return "green";
+		case "failed":
+			return "red";
+		case "killed":
+			return "yellow";
+		case "completed":
+			return "blue";
+		default:
+			return "gray";
+	}
+}
+
 export default function BashList({ onClose, onSelectBash }: BashListProps) {
 	const trpc = useTRPCClient();
+	const colors = getColors();
 	const [processes, setProcesses] = useState<BashProcess[]>([]);
-	const [selectedIndex, setSelectedIndex] = useState(0);
 	const [loading, setLoading] = useState(true);
+	const subscriptionRef = useRef<any>(null);
 
-	// Load bash list
+	// Load bash list - event-driven
 	useEffect(() => {
 		const loadProcesses = async () => {
 			try {
@@ -43,90 +73,116 @@ export default function BashList({ onClose, onSelectBash }: BashListProps) {
 			}
 		};
 
+		// Initial load
 		loadProcesses();
-		const interval = setInterval(loadProcesses, 2000); // Refresh every 2s
 
-		return () => clearInterval(interval);
+		// Subscribe to bash:all for event-driven updates
+		try {
+			subscriptionRef.current = trpc.events.subscribe.subscribe(
+				{ channel: "bash:all", fromCursor: undefined },
+				{
+					onData: (event: any) => {
+						const eventType = event.payload?.type;
+						// Reload list on any bash state change
+						if (["started", "completed", "failed", "killed", "demoted", "promoted", "output"].includes(eventType)) {
+							loadProcesses();
+						}
+					},
+					onError: (err: any) => {
+						console.error("[BashList] Subscription error:", err);
+					},
+				},
+			);
+		} catch (error) {
+			console.error("[BashList] Failed to subscribe:", error);
+		}
+
+		return () => {
+			if (subscriptionRef.current) {
+				subscriptionRef.current.unsubscribe();
+			}
+		};
 	}, [trpc]);
 
-	// Keyboard navigation
-	useInput(
-		(input, key) => {
-			if (key.escape || input === "q") {
-				onClose();
-				return;
-			}
+	// Transform processes to SelectionOption[]
+	const options: SelectionOption[] = useMemo(
+		() =>
+			processes.map((proc) => {
+				const modeLabel = proc.isActive ? "[ACTIVE]" : proc.mode === "background" ? "[BG]" : "";
+				const statusLabel = proc.status.toUpperCase();
+				const durationLabel = formatDuration(proc.duration);
 
-			if (key.upArrow || input === "k") {
-				setSelectedIndex((prev) => Math.max(0, prev - 1));
-				return;
-			}
-
-			if (key.downArrow || input === "j") {
-				setSelectedIndex((prev) => Math.min(processes.length - 1, prev + 1));
-				return;
-			}
-
-			if (key.return) {
-				if (processes[selectedIndex]) {
-					onSelectBash(processes[selectedIndex].id);
-				}
-				return;
-			}
-
-			// Kill selected bash
-			if (input === "K") {
-				if (processes[selectedIndex]) {
-					const bashId = processes[selectedIndex].id;
-					trpc.bash.kill
-						.mutate({ bashId })
-						.catch((error) => console.error("[BashList] Failed to kill:", error));
-				}
-				return;
-			}
-		},
-		{ isActive: true },
+				return {
+					label: proc.command,
+					value: proc.id,
+					description: `${modeLabel} ${statusLabel} • ${durationLabel}`,
+					badge: {
+						text: statusLabel,
+						color: getStatusColor(proc.status),
+					},
+				};
+			}),
+		[processes],
 	);
 
-	const formatDuration = (ms: number): string => {
-		const seconds = Math.floor(ms / 1000);
-		if (seconds < 60) return `${seconds}s`;
-		const minutes = Math.floor(seconds / 60);
-		if (minutes < 60) return `${minutes}m ${seconds % 60}s`;
-		const hours = Math.floor(minutes / 60);
-		return `${hours}h ${minutes % 60}m`;
-	};
+	// Selection hook with custom key handlers
+	const selection = useSelection({
+		options,
+		filter: false, // No filter for bash list
+		onSelect: (value) => {
+			if (typeof value === "string") {
+				onSelectBash(value);
+			}
+		},
+		onCancel: onClose,
+		onCustomInput: (char, key) => {
+			// 'q' to close
+			if (char === "q") {
+				onClose();
+				return true; // Consumed
+			}
 
-	const getStatusColor = (status: string): "green" | "red" | "yellow" | "blue" | "gray" => {
-		switch (status) {
-			case "running":
-				return "green";
-			case "failed":
-				return "red";
-			case "killed":
-				return "yellow";
-			case "completed":
-				return "blue";
-			default:
-				return "gray";
-		}
-	};
+			// 'K' to kill selected process
+			if (char === "K") {
+				const selectedProc = processes[selection.selectedIndex];
+				if (selectedProc) {
+					trpc.bash.kill
+						.mutate({ bashId: selectedProc.id })
+						.catch((error) => console.error("[BashList] Failed to kill:", error));
+				}
+				return true; // Consumed
+			}
+
+			// 'j'/'k' vim navigation
+			if (char === "j") {
+				selection.moveDown();
+				return true; // Consumed
+			}
+
+			if (char === "k") {
+				selection.moveUp();
+				return true; // Consumed
+			}
+
+			return false; // Not consumed, use default handlers
+		},
+	});
 
 	return (
 		<Box flexDirection="column" width="100%" height="100%" padding={1}>
 			{/* Header */}
 			<Box marginBottom={1}>
-				<Text bold color="cyan">
+				<Text bold color={colors.primary}>
 					Bash Processes
 				</Text>
-				<Text dimColor>
+				<Text color={colors.textDim}>
 					{" "}
 					│ {processes.length} total, {processes.filter((p) => p.status === "running").length} running
 				</Text>
 			</Box>
 
 			<Box marginBottom={1}>
-				<Text dimColor>↑↓ Navigate • Enter View • K Kill • ESC/q Close</Text>
+				<Text color={colors.textDim}>↑↓/j/k Navigate • Enter View • K Kill • ESC/q Close</Text>
 			</Box>
 
 			{/* Process List */}
@@ -136,36 +192,13 @@ export default function BashList({ onClose, onSelectBash }: BashListProps) {
 						<Spinner />
 						<Text> Loading...</Text>
 					</Box>
-				) : processes.length === 0 ? (
-					<Text dimColor>No bash processes</Text>
 				) : (
-					processes.map((proc, index) => {
-						const isSelected = index === selectedIndex;
-						return (
-							<Box key={proc.id} marginBottom={0}>
-								<Box width={2}>{isSelected ? <Text color="cyan">▶ </Text> : <Text>  </Text>}</Box>
-
-								<Box width={10}>
-									{proc.isActive && <Text color="blue" bold>[ACTIVE] </Text>}
-									{proc.mode === "background" && !proc.isActive && <Text dimColor>[BG] </Text>}
-								</Box>
-
-								<Box width={12}>
-									<Text color={getStatusColor(proc.status)} bold>
-										{proc.status.toUpperCase()}
-									</Text>
-								</Box>
-
-								<Box width={10}>
-									<Text dimColor>{formatDuration(proc.duration)}</Text>
-								</Box>
-
-								<Box flexGrow={1}>
-									<Text bold={isSelected}>{proc.command.slice(0, 60)}</Text>
-								</Box>
-							</Box>
-						);
-					})
+					<SelectionOptionsList
+						options={selection.filteredOptions}
+						selectedIndex={selection.selectedIndex}
+						emptyMessage="No bash processes"
+						maxVisible={10}
+					/>
 				)}
 			</Box>
 		</Box>

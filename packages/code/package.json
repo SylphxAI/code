@@ -22,6 +22,7 @@
 	},
 	"dependencies": {
 		"@jescalan/ink-markdown": "^2.0.0",
+		"@preact/signals-core": "^1.12.1",
 		"@sylphx/code-client": "workspace:*",
 		"@sylphx/code-core": "workspace:*",
 		"@sylphx/code-server": "workspace:*",

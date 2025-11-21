@@ -8,6 +8,7 @@ import { DEFAULT_TOOL_DISPLAY_SETTINGS } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
 import { useState } from "react";
+import { getColors } from "../../../utils/theme/index.js";
 
 interface SettingsManagementProps {
 	aiConfig: AIConfig | null;
@@ -26,6 +27,7 @@ interface ToolDisplayItem {
 }
 
 export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsManagementProps) {
+	const colors = getColors();
 	const [view, setView] = useState<View>("main");
 	const [toolDisplaySettings, setToolDisplaySettings] = useState<Record<string, boolean>>(
 		aiConfig?.toolDisplaySettings || {},
@@ -143,7 +145,7 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 				</Box>
 
 				<Box marginBottom={1}>
-					<Text dimColor>Select a category to configure:</Text>
+					<Text color={colors.textDim}>Select a category to configure:</Text>
 				</Box>
 
 				<SelectInput items={mainMenuItems} onSelect={handleMainMenuSelect} />
@@ -183,10 +185,10 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 				</Box>
 
 				<Box marginBottom={1} flexDirection="column">
-					<Text dimColor>Configure which tools show details by default:</Text>
-					<Text dimColor>• ON = Show full output</Text>
-					<Text dimColor>• OFF = Show summary only</Text>
-					<Text dimColor>Press Enter to toggle</Text>
+					<Text color={colors.textDim}>Configure which tools show details by default:</Text>
+					<Text color={colors.textDim}>• ON = Show full output</Text>
+					<Text color={colors.textDim}>• OFF = Show summary only</Text>
+					<Text color={colors.textDim}>Press Enter to toggle</Text>
 				</Box>
 
 				<SelectInput items={items} onSelect={handleToolDisplaySelect} />
@@ -203,15 +205,15 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 				</Box>
 
 				<Box marginBottom={1} flexDirection="column">
-					<Text dimColor>Choose how token counts are calculated:</Text>
-					<Text dimColor> </Text>
-					<Text dimColor>• Accurate: BPE tokenizer (slow, 100% accurate)</Text>
-					<Text dimColor> - First calculation: ~3-5s</Text>
-					<Text dimColor> - Subsequent: &lt;100ms (cached)</Text>
-					<Text dimColor> </Text>
-					<Text dimColor>• Fast: Mathematical estimation (instant, ~10% error)</Text>
-					<Text dimColor> - All calculations: ~100ms</Text>
-					<Text dimColor> - Good for large sessions</Text>
+					<Text color={colors.textDim}>Choose how token counts are calculated:</Text>
+					<Text color={colors.textDim}> </Text>
+					<Text color={colors.textDim}>• Accurate: BPE tokenizer (slow, 100% accurate)</Text>
+					<Text color={colors.textDim}> - First calculation: ~3-5s</Text>
+					<Text color={colors.textDim}> - Subsequent: &lt;100ms (cached)</Text>
+					<Text color={colors.textDim}> </Text>
+					<Text color={colors.textDim}>• Fast: Mathematical estimation (instant, ~10% error)</Text>
+					<Text color={colors.textDim}> - All calculations: ~100ms</Text>
+					<Text color={colors.textDim}> - Good for large sessions</Text>
 				</Box>
 
 				<SelectInput
@@ -259,13 +261,13 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 				</Box>
 
 				<Box marginBottom={1} flexDirection="column">
-					<Text dimColor>Configure how message headers are displayed:</Text>
-					<Text dimColor> </Text>
-					<Text dimColor>• Show: Full headers with role and model info</Text>
-					<Text dimColor>  ▌ YOU / ▌ SYLPHX · provider · model</Text>
-					<Text dimColor> </Text>
-					<Text dimColor>• Hide: Compact view (default)</Text>
-					<Text dimColor>  ▌ content directly</Text>
+					<Text color={colors.textDim}>Configure how message headers are displayed:</Text>
+					<Text color={colors.textDim}> </Text>
+					<Text color={colors.textDim}>• Show: Full headers with role and model info</Text>
+					<Text color={colors.textDim}>  ▌ YOU / ▌ SYLPHX · provider · model</Text>
+					<Text color={colors.textDim}> </Text>
+					<Text color={colors.textDim}>• Hide: Compact view (default)</Text>
+					<Text color={colors.textDim}>  ▌ content directly</Text>
 				</Box>
 
 				<SelectInput
@@ -313,10 +315,10 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 				</Box>
 
 				<Box marginBottom={1} flexDirection="column">
-					<Text dimColor>Show or hide token usage after each message:</Text>
-					<Text dimColor> </Text>
-					<Text dimColor>• Show: Display "2,632 → 145" (prompt → completion)</Text>
-					<Text dimColor>• Hide: Cleaner display without token counts (default)</Text>
+					<Text color={colors.textDim}>Show or hide token usage after each message:</Text>
+					<Text color={colors.textDim}> </Text>
+					<Text color={colors.textDim}>• Show: Display "2,632 → 145" (prompt → completion)</Text>
+					<Text color={colors.textDim}>• Hide: Cleaner display without token counts (default)</Text>
 				</Box>
 
 				<SelectInput
@@ -364,15 +366,15 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 				</Box>
 
 				<Box marginBottom={1} flexDirection="column">
-					<Text dimColor>Percentage of context to reserve for:</Text>
-					<Text dimColor>• Tokenizer error margin (~1% of total)</Text>
-					<Text dimColor>• AI summary during compact (~9% of total)</Text>
-					<Text dimColor> </Text>
-					<Text dimColor>Examples (for 128K context):</Text>
-					<Text dimColor>• 5%: 6.4K reserved (minimal, more space, risk hitting limits)</Text>
-					<Text dimColor>• 10%: 12.8K reserved (balanced, recommended)</Text>
-					<Text dimColor>• 15%: 19.2K reserved (conservative, better summaries)</Text>
-					<Text dimColor>• 20%: 25.6K reserved (very safe, max quality)</Text>
+					<Text color={colors.textDim}>Percentage of context to reserve for:</Text>
+					<Text color={colors.textDim}>• Tokenizer error margin (~1% of total)</Text>
+					<Text color={colors.textDim}>• AI summary during compact (~9% of total)</Text>
+					<Text color={colors.textDim}> </Text>
+					<Text color={colors.textDim}>Examples (for 128K context):</Text>
+					<Text color={colors.textDim}>• 5%: 6.4K reserved (minimal, more space, risk hitting limits)</Text>
+					<Text color={colors.textDim}>• 10%: 12.8K reserved (balanced, recommended)</Text>
+					<Text color={colors.textDim}>• 15%: 19.2K reserved (conservative, better summaries)</Text>
+					<Text color={colors.textDim}>• 20%: 25.6K reserved (very safe, max quality)</Text>
 				</Box>
 
 				<SelectInput

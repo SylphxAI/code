@@ -14,6 +14,7 @@ import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Spacer, Text } from "ink";
 import { useMemo } from "react";
 import { getAgentById } from "../embedded-context.js";
+import { getColors } from "../utils/theme/index.js";
 
 interface StatusBarProps {
 	provider: string | null;
@@ -119,20 +120,23 @@ function StatusBarInternal({
 		return rightParts.join(" · ");
 	}, [enabledRulesCount, mcpStatus, backgroundBashCount, loading, contextLength, totalTokens, usagePercent]);
 
+	// Get theme colors
+	const colors = getColors();
+
 	// ALL EARLY RETURNS MUST COME AFTER ALL HOOKS
 	// Early return for missing provider
 	if (!provider) {
 		return (
 			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
 				<Box flexShrink={0}>
-					<Text dimColor>{leftContent}</Text>
+					<Text color={colors.textDim}>{leftContent}</Text>
 				</Box>
 				<Spacer />
 				<Box flexShrink={0}>
-					<Text dimColor>{rightContent}</Text>
+					<Text color={colors.textDim}>{rightContent}</Text>
 				</Box>
 				<Box flexShrink={0} marginLeft={1}>
-					<Text color="yellow">⚠ No AI provider selected - use /provider to select one</Text>
+					<Text color={colors.warning}>⚠ No AI provider selected - use /provider to select one</Text>
 				</Box>
 			</Box>
 		);
@@ -143,14 +147,14 @@ function StatusBarInternal({
 		return (
 			<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
 				<Box flexShrink={0}>
-					<Text dimColor>{leftContent}</Text>
+					<Text color={colors.textDim}>{leftContent}</Text>
 				</Box>
 				<Spacer />
 				<Box flexShrink={0}>
-					<Text dimColor>{rightContent}</Text>
+					<Text color={colors.textDim}>{rightContent}</Text>
 				</Box>
 				<Box flexShrink={0} marginLeft={1}>
-					<Text color="yellow">⚠ No model selected - type "/model" to select a model</Text>
+					<Text color={colors.warning}>⚠ No model selected - type "/model" to select a model</Text>
 				</Box>
 			</Box>
 		);
@@ -160,14 +164,14 @@ function StatusBarInternal({
 		<Box width="100%" flexDirection="row" flexWrap="nowrap" marginBottom={1}>
 			{/* Left side - agent, provider, model */}
 			<Box flexShrink={0}>
-				<Text dimColor>{leftContent}</Text>
+				<Text color={colors.textDim}>{leftContent}</Text>
 			</Box>
 
 			<Spacer />
 
 			{/* Right side - rules, MCP, context */}
 			<Box flexShrink={0}>
-				<Text dimColor>{rightContent}</Text>
+				<Text color={colors.textDim}>{rightContent}</Text>
 			</Box>
 		</Box>
 	);

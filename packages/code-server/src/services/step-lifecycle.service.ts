@@ -230,6 +230,8 @@ export async function completeStep(
 		}
 
 		// Update tool results with AI SDK's wrapped format
+		// NOTE: Only update if the result is not already set (ai-orchestrator may have set it earlier)
+		// and only if stepResult.toolResults has a valid result
 		if (stepResult.toolResults && stepResult.toolResults.length > 0) {
 			for (const toolResult of stepResult.toolResults) {
 				const toolPart = currentStepParts.find(
@@ -237,7 +239,11 @@ export async function completeStep(
 				);
 
 				if (toolPart && toolPart.type === "tool") {
-					toolPart.result = toolResult.result;
+					// Only update if result is not already set OR if stepResult has a valid result
+					if (toolPart.result === undefined && toolResult.result !== undefined) {
+						toolPart.result = toolResult.result;
+					}
+					// If toolPart already has result, keep it (set by ai-orchestrator from streaming)
 				}
 			}
 		}

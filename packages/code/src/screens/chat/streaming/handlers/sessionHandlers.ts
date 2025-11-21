@@ -166,7 +166,7 @@ export function handleSessionTitleUpdated(
  */
 export function handleSessionTokensUpdated(
 	event: Extract<StreamEvent, { type: "session-tokens-updated" }>,
-	_context: EventHandlerContext,
+	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
 	const currentSessionValue = currentSession.value;
@@ -183,6 +183,7 @@ export function handleSessionTokensUpdated(
 		sessionId: event.sessionId,
 		totalTokens: event.totalTokens,
 		baseContextTokens: event.baseContextTokens,
+		outputTokens: event.outputTokens,
 	});
 
 	// Update local state with data from event (no API call needed)
@@ -192,8 +193,15 @@ export function handleSessionTokensUpdated(
 		baseContextTokens: event.baseContextTokens,
 	});
 
+	// Update streaming output tokens for status indicator
+	if (event.outputTokens !== undefined) {
+		context.setStreamingOutputTokens(event.outputTokens);
+		logSession("Output tokens updated:", event.outputTokens);
+	}
+
 	logSession("Session tokens updated successfully:", {
 		total: event.totalTokens,
 		base: event.baseContextTokens,
+		output: event.outputTokens,
 	});
 }

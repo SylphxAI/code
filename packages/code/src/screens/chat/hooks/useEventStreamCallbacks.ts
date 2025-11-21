@@ -25,6 +25,10 @@ export interface EventStreamCallbacksDeps {
 		sessionId: string;
 		toolCallId: string;
 	} | null>;
+	currentStepIndexRef: React.MutableRefObject<number | null>;
+	skipContentForStepRef: React.MutableRefObject<boolean>;
+	setStreamingStartTime: (time: number | null) => void;
+	setStreamingOutputTokens: (tokens: number | ((prev: number) => number)) => void;
 }
 
 /**
@@ -64,6 +68,10 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 		notificationSettings,
 		setPendingInput,
 		askToolContextRef,
+		currentStepIndexRef,
+		skipContentForStepRef,
+		setStreamingStartTime,
+		setStreamingOutputTokens,
 	} = deps;
 
 	// Event context parameters (memoized separately for better performance)
@@ -82,6 +90,10 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 			notificationSettings,
 			setPendingInput,
 			askToolContextRef,
+			currentStepIndexRef,
+			skipContentForStepRef,
+			setStreamingStartTime,
+			setStreamingOutputTokens,
 		}),
 		[
 			updateSessionTitle,
@@ -94,6 +106,10 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 			notificationSettings,
 			setPendingInput,
 			askToolContextRef,
+			currentStepIndexRef,
+			skipContentForStepRef,
+			setStreamingStartTime,
+			setStreamingOutputTokens,
 		],
 	);
 
@@ -138,9 +154,10 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 				sessionId: string,
 				totalTokens: number,
 				baseContextTokens: number,
+				outputTokens?: number,
 			) => {
 				handleStreamEvent(
-					{ type: "session-tokens-updated", sessionId, totalTokens, baseContextTokens },
+					{ type: "session-tokens-updated", sessionId, totalTokens, baseContextTokens, outputTokens },
 					eventContextParams,
 				);
 			},
@@ -243,8 +260,8 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 			},
 
 			// Tool streaming
-			onToolCall: (toolCallId: string, toolName: string, input: unknown) => {
-				handleStreamEvent({ type: "tool-call", toolCallId, toolName, input }, eventContextParams);
+			onToolCall: (toolCallId: string, toolName: string, input: unknown, startTime: number) => {
+				handleStreamEvent({ type: "tool-call", toolCallId, toolName, input, startTime }, eventContextParams);
 			},
 			onToolResult: (toolCallId: string, toolName: string, result: unknown, duration: number) => {
 				handleStreamEvent(

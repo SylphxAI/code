@@ -7,6 +7,7 @@ import { Box, Text } from "ink";
 import Spinner from "../../../components/Spinner.js";
 import { InlineSelection } from "../../../components/selection/index.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
+import { getColors } from "../../../utils/theme/index.js";
 
 interface ModelSelectionProps {
 	models: Array<{ id: string; name: string }> | null;
@@ -25,12 +26,14 @@ export function ModelSelection({
 	loading = false,
 	error,
 }: ModelSelectionProps) {
+	const colors = getColors();
+
 	// Loading state
 	if (loading) {
 		return (
 			<Box>
-				<Spinner color="yellow" />
-				<Text dimColor> Loading models from {currentProvider}...</Text>
+				<Spinner color={colors.warning} />
+				<Text color={colors.textDim}> Loading models from {currentProvider}...</Text>
 			</Box>
 		);
 	}
@@ -39,8 +42,8 @@ export function ModelSelection({
 	if (error) {
 		return (
 			<Box flexDirection="column">
-				<Text color="red">Failed to load models: {error}</Text>
-				<Text dimColor>Press Esc to cancel</Text>
+				<Text color={colors.error}>Failed to load models: {error}</Text>
+				<Text color={colors.textDim}>Press Esc to cancel</Text>
 			</Box>
 		);
 	}
@@ -49,8 +52,8 @@ export function ModelSelection({
 	if (!models || models.length === 0) {
 		return (
 			<Box flexDirection="column">
-				<Text color="yellow">No models available for {currentProvider}</Text>
-				<Text dimColor>Press Esc to cancel</Text>
+				<Text color={colors.warning}>No models available for {currentProvider}</Text>
+				<Text color={colors.textDim}>Press Esc to cancel</Text>
 			</Box>
 		);
 	}

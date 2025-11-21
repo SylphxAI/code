@@ -60,6 +60,7 @@ export type StreamEvent =
 			sessionId: string;
 			totalTokens: number;
 			baseContextTokens: number;
+			outputTokens?: number; // Current streaming output tokens (for status indicator)
 	  }
 	| { type: "session-title-updated-start"; sessionId: string }
 	| { type: "session-title-updated-delta"; sessionId: string; text: string }
@@ -102,8 +103,8 @@ export type StreamEvent =
 	| { type: "reasoning-start" }
 	| { type: "reasoning-delta"; text: string }
 	| { type: "reasoning-end"; duration: number }
-	| { type: "tool-call"; toolCallId: string; toolName: string; input: ToolInput }
-	| { type: "tool-input-start"; toolCallId: string }
+	| { type: "tool-call"; toolCallId: string; toolName: string; input: ToolInput; startTime: number }
+	| { type: "tool-input-start"; toolCallId: string; startTime: number }
 	| { type: "tool-input-delta"; toolCallId: string; inputTextDelta: string }
 	| { type: "tool-input-end"; toolCallId: string }
 	| {

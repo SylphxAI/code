@@ -71,6 +71,8 @@ export default function Chat(props: ChatProps) {
 						streamParts={
 							state.currentSession?.messages.find((m) => m.status === "active")?.content || []
 						}
+						streamingStartTime={state.streamingState.streamingStartTime}
+						streamingOutputTokens={state.streamingState.streamingOutputTokens}
 					/>
 				</Box>
 

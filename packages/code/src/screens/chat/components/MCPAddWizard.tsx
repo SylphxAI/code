@@ -10,6 +10,7 @@ import { InlineSelection } from "../../../components/selection/index.js";
 import TextInputWithHint from "../../../components/TextInputWithHint.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
 import { InputContentLayout } from "./InputContentLayout.js";
+import { getColors } from "../../../utils/theme/index.js";
 
 interface MCPAddWizardProps {
 	onComplete: () => void;
@@ -27,6 +28,7 @@ type Step =
 
 export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 	const [step, setStep] = useState<Step>("input-id");
+	const colors = getColors();
 
 	// Form state
 	const [serverId, setServerId] = useState("");
@@ -121,7 +123,7 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 			<Box flexDirection="column" gap={1}>
 				{step === "input-id" && (
 					<Box flexDirection="column">
-						<Text color="cyan">Server ID (alphanumeric, hyphens, underscores only):</Text>
+						<Text color={colors.primary}>Server ID (alphanumeric, hyphens, underscores only):</Text>
 						<TextInputWithHint
 							value={serverId}
 							onChange={setServerId}
@@ -137,7 +139,7 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 
 				{step === "input-name" && (
 					<Box flexDirection="column">
-						<Text color="cyan">Display Name:</Text>
+						<Text color={colors.primary}>Display Name:</Text>
 						<TextInputWithHint
 							value={serverName}
 							onChange={setServerName}
@@ -153,7 +155,7 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 
 				{step === "input-description" && (
 					<Box flexDirection="column">
-						<Text color="cyan">Description (optional, press Enter to skip):</Text>
+						<Text color={colors.primary}>Description (optional, press Enter to skip):</Text>
 						<TextInputWithHint
 							value={serverDescription}
 							onChange={setServerDescription}
@@ -178,7 +180,7 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 
 				{step === "input-url" && (
 					<Box flexDirection="column">
-						<Text color="cyan">Server URL:</Text>
+						<Text color={colors.primary}>Server URL:</Text>
 						<TextInputWithHint
 							value={url}
 							onChange={setUrl}
@@ -194,7 +196,7 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 
 				{step === "input-command" && (
 					<Box flexDirection="column">
-						<Text color="cyan">Command to run:</Text>
+						<Text color={colors.primary}>Command to run:</Text>
 						<TextInputWithHint
 							value={command}
 							onChange={setCommand}
@@ -210,7 +212,7 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 
 				{step === "input-args" && (
 					<Box flexDirection="column">
-						<Text color="cyan">Arguments (comma-separated, optional, press Enter to skip):</Text>
+						<Text color={colors.primary}>Arguments (comma-separated, optional, press Enter to skip):</Text>
 						<TextInputWithHint
 							value={args}
 							onChange={setArgs}
@@ -223,7 +225,7 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 				)}
 
 				<Box marginTop={1}>
-					<Text dimColor>Press ESC to cancel</Text>
+					<Text color={colors.textDim}>Press ESC to cancel</Text>
 				</Box>
 			</Box>
 		</InputContentLayout>

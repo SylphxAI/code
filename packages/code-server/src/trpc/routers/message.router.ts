@@ -152,6 +152,7 @@ const StreamEventSchema = z.discriminatedUnion("type", [
 		toolCallId: z.string(),
 		toolName: z.string(),
 		input: z.unknown(), // Tool input are dynamic JSON
+		startTime: z.number(),
 	}),
 	z.object({
 		type: z.literal("tool-result"),
@@ -166,6 +167,20 @@ const StreamEventSchema = z.discriminatedUnion("type", [
 		toolName: z.string(),
 		error: z.string(),
 		duration: z.number(),
+	}),
+	z.object({
+		type: z.literal("tool-input-start"),
+		toolCallId: z.string(),
+		startTime: z.number(),
+	}),
+	z.object({
+		type: z.literal("tool-input-delta"),
+		toolCallId: z.string(),
+		inputTextDelta: z.string(),
+	}),
+	z.object({
+		type: z.literal("tool-input-end"),
+		toolCallId: z.string(),
 	}),
 
 	// Ask tool (client-server architecture)
@@ -265,6 +280,13 @@ const StreamEventSchema = z.discriminatedUnion("type", [
 	z.object({
 		type: z.literal("queue-cleared"),
 		sessionId: z.string(),
+	}),
+
+	// File streaming
+	z.object({
+		type: z.literal("file"),
+		mediaType: z.string(),
+		base64: z.string(),
 	}),
 
 	// Error/Abort
@@ -526,10 +548,10 @@ export const messageRouter = router({
 			// If streaming, enqueue message instead of starting new stream
 			if (eventSessionId) {
 				const isStreaming = activeStreamAbortControllers.has(eventSessionId);
-				console.log(`[TriggerStream] Session ${eventSessionId} streaming check: ${isStreaming}`);
+				// console.log(`[TriggerStream] Session ${eventSessionId} streaming check: ${isStreaming}`);
 
 				if (isStreaming && input.content.length > 0) {
-					console.log(`[TriggerStream] ⏸️  Session is streaming, enqueueing message`);
+					// console.log(`[TriggerStream] ⏸️  Session is streaming, enqueueing message`);
 
 					// Convert parsed content to string
 					const messageContent = input.content
@@ -563,7 +585,7 @@ export const messageRouter = router({
 						attachments,
 					);
 
-					console.log(`[TriggerStream] ✅ Message queued: ${queuedMessage.id}`);
+					// console.log(`[TriggerStream] ✅ Message queued: ${queuedMessage.id}`);
 
 					// Publish queue-message-added event
 					await ctx.appContext.eventStream.publish(`session:${eventSessionId}`, {
@@ -573,7 +595,7 @@ export const messageRouter = router({
 					});
 
 					// Return success with sessionId (no new stream started)
-					console.log(`[TriggerStream] 🔙 Returning early (queued, no stream started)`);
+					// console.log(`[TriggerStream] 🔙 Returning early (queued, no stream started)`);
 					return {
 						success: true,
 						sessionId: eventSessionId,
@@ -581,7 +603,7 @@ export const messageRouter = router({
 					};
 				}
 
-				console.log(`[TriggerStream] ▶️  Session not streaming, starting new stream`);
+				// console.log(`[TriggerStream] ▶️  Session not streaming, starting new stream`);
 			}
 
 			// Create AbortController for this stream

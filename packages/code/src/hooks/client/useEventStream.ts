@@ -29,6 +29,7 @@ export interface EventStreamCallbacks {
 		sessionId: string,
 		totalTokens: number,
 		baseContextTokens: number,
+		outputTokens?: number,
 	) => void;
 
 	// Message events
@@ -65,7 +66,7 @@ export interface EventStreamCallbacks {
 	onReasoningEnd?: (duration: number) => void;
 
 	// Tool streaming
-	onToolCall?: (toolCallId: string, toolName: string, input: unknown) => void;
+	onToolCall?: (toolCallId: string, toolName: string, input: unknown, startTime: number) => void;
 	onToolResult?: (toolCallId: string, toolName: string, result: unknown, duration: number) => void;
 	onToolError?: (toolCallId: string, toolName: string, error: string, duration: number) => void;
 
@@ -200,6 +201,7 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 								event.sessionId,
 								event.totalTokens,
 								event.baseContextTokens,
+								event.outputTokens,
 							);
 							break;
 
@@ -270,7 +272,7 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 							break;
 
 						case "tool-call":
-							callbacksRef.current.onToolCall?.(event.toolCallId, event.toolName, event.input);
+							callbacksRef.current.onToolCall?.(event.toolCallId, event.toolName, event.input, event.startTime);
 							break;
 
 						case "tool-result":

@@ -56,27 +56,23 @@ export interface ElapsedTimeResult {
 export function useElapsedTime(options: ElapsedTimeOptions): ElapsedTimeResult {
 	const { startTime, duration, isRunning = true } = options;
 
-	// If duration is provided (completed operation), return it immediately
-	if (duration !== undefined) {
-		return {
-			elapsed: duration,
-			display: formatDuration(duration),
-		};
-	}
+	// Trigger for re-renders (incremented by interval)
+	const [, setTick] = useState(0);
 
-	// If no startTime or not running, return 0
-	if (!startTime || !isRunning) {
-		return {
-			elapsed: 0,
-			display: "0ms",
-		};
-	}
-
-	// Calculate elapsed time with adaptive update interval
-	const [elapsed, setElapsed] = useState(() => Date.now() - startTime);
+	// Calculate elapsed on every render (not just initial mount)
+	// This ensures correct value even after component remount
+	const elapsed = (() => {
+		// If duration provided (tool completed), use it
+		if (duration !== undefined) return duration;
+		// If no startTime, return 0
+		if (!startTime) return 0;
+		// Always recalculate from current time (source of truth)
+		return Date.now() - startTime;
+	})();
 
 	useEffect(() => {
-		if (!startTime || !isRunning || duration !== undefined) {
+		// If duration is provided or not running, don't update
+		if (duration !== undefined || !startTime || !isRunning) {
 			return;
 		}
 
@@ -89,20 +85,20 @@ export function useElapsedTime(options: ElapsedTimeOptions): ElapsedTimeResult {
 
 		let intervalId: NodeJS.Timeout;
 
-		const updateElapsed = () => {
-			const now = Date.now();
-			const newElapsed = now - startTime;
-			setElapsed(newElapsed);
+		const triggerUpdate = () => {
+			const newElapsed = Date.now() - startTime;
+			// Trigger re-render by updating tick
+			setTick((prev) => prev + 1);
 
 			// Clear old interval and create new one with updated frequency
 			if (intervalId) {
 				clearInterval(intervalId);
 			}
-			intervalId = setInterval(updateElapsed, getUpdateInterval(newElapsed));
+			intervalId = setInterval(triggerUpdate, getUpdateInterval(newElapsed));
 		};
 
 		// Start with first update
-		updateElapsed();
+		triggerUpdate();
 
 		return () => {
 			if (intervalId) {

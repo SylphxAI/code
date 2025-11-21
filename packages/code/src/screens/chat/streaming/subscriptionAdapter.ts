@@ -81,6 +81,8 @@ export interface SubscriptionAdapterParams {
 	setIsStreaming: (value: boolean) => void;
 	setIsTitleStreaming: (value: boolean) => void;
 	setStreamingTitle: React.Dispatch<React.SetStateAction<string>>;
+	setStreamingStartTime: (time: number | null) => void;
+	setStreamingOutputTokens: (tokens: number | ((prev: number) => number)) => void;
 }
 
 /**
@@ -111,6 +113,8 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		setIsStreaming,
 		setIsTitleStreaming,
 		setStreamingTitle,
+		setStreamingStartTime,
+		setStreamingOutputTokens,
 	} = params;
 
 	return async (
@@ -159,6 +163,11 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
 		// Reset streaming state for new stream
 		streamingMessageIdRef.current = null;
+
+		// OPTIMISTIC: Show indicator immediately on send (before server response)
+		setStreamingStartTime(Date.now());
+		setStreamingOutputTokens(0);
+		setIsStreaming(true);
 
 		// Create abort controller for this stream
 		abortControllerRef.current = new AbortController();
@@ -304,6 +313,9 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				const { isStreaming: isStreamingSignal } = await import("@sylphx/code-client");
 				const currentlyStreaming = isStreamingSignal.value;
 
+				// Optimistic assistant message ID
+				const optimisticAssistantId = `temp-assistant-${Date.now()}`;
+
 				// IMMUTABLE UPDATE: zen signals need immutable updates to trigger re-renders
 				if (sessionId && currentSessionValue?.id === sessionId) {
 					// For existing sessions
@@ -311,6 +323,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
 					// Only add to messages if NOT streaming
 					if (!currentlyStreaming) {
+						// Add BOTH user message AND assistant placeholder for instant feedback
 						setCurrentSession({
 							...currentSessionValue,
 							messages: [
@@ -322,14 +335,24 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 									timestamp: Date.now(),
 									status: "completed",
 								},
+								{
+									id: optimisticAssistantId,
+									role: "assistant",
+									content: [], // Empty - will be filled by streaming
+									timestamp: Date.now(),
+									status: "active", // Show as active immediately
+								},
 							],
 						});
 
-						logSession("Added optimistic message to existing session:", {
-							id: optimisticMessageId,
+						// Track optimistic assistant message ID for reconciliation
+						streamingMessageIdRef.current = optimisticAssistantId;
+
+						logSession("Added optimistic user + assistant messages:", {
+							userId: optimisticMessageId,
+							assistantId: optimisticAssistantId,
 							beforeCount,
-							afterCount: beforeCount + 1,
-							streaming: currentlyStreaming,
+							afterCount: beforeCount + 2,
 						});
 					} else {
 						logSession("Skipped adding to messages (streaming, will be queued):", {
@@ -356,7 +379,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 					logSession("Creating temporary session for optimistic display");
 
 					setCurrentSessionId("temp-session");
-					setCurrentSession( {
+					setCurrentSession({
 						id: "temp-session",
 						title: "",
 						agentId: "coder",
@@ -372,11 +395,21 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 								timestamp: Date.now(),
 								status: "completed",
 							},
+							{
+								id: optimisticAssistantId,
+								role: "assistant",
+								content: [], // Empty - will be filled by streaming
+								timestamp: Date.now(),
+								status: "active", // Show as active immediately
+							},
 						],
 						todos: [],
 					});
 
-					logSession("Created temporary session with optimistic message");
+					// Track optimistic assistant message ID for reconciliation
+					streamingMessageIdRef.current = optimisticAssistantId;
+
+					logSession("Created temporary session with optimistic user + assistant messages");
 				}
 			} else {
 				logSession(
@@ -437,9 +470,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 					setCurrentSessionId(result.sessionId);
 				}
 			}
-
-			// Set streaming flag immediately after mutation triggers
-			setIsStreaming(true);
+			// Note: setIsStreaming(true) is called optimistically at start
 		} catch (error) {
 			logSession("Mutation call error:", {
 				error: error instanceof Error ? error.message : String(error),
@@ -455,6 +486,8 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			} finally {
 				// Always reset streaming state
 				setIsStreaming(false);
+				setStreamingStartTime(null);
+				setStreamingOutputTokens(0);
 			}
 
 			// Re-throw the error so it's not silently swallowed

@@ -6,6 +6,7 @@
 import { Box, Text } from "ink";
 import type { Command } from "../commands/types.js";
 import Spinner from "./Spinner.js";
+import { getColors } from "../utils/theme/index.js";
 
 interface CommandAutocompleteProps {
 	commands: Command[];
@@ -20,11 +21,13 @@ export function CommandAutocomplete({
 	currentlyLoading,
 	loadError,
 }: CommandAutocompleteProps) {
+	const colors = getColors();
+
 	if (currentlyLoading) {
 		return (
 			<Box marginTop={1}>
-				<Spinner color="yellow" />
-				<Text color="gray"> Loading options...</Text>
+				<Spinner color={colors.warning} />
+				<Text color={colors.textDim}> Loading options...</Text>
 			</Box>
 		);
 	}
@@ -33,10 +36,10 @@ export function CommandAutocomplete({
 		return (
 			<Box flexDirection="column" marginTop={1}>
 				<Box>
-					<Text color="red">Failed to load options</Text>
+					<Text color={colors.error}>Failed to load options</Text>
 				</Box>
 				<Box marginTop={1}>
-					<Text dimColor>{loadError}</Text>
+					<Text color={colors.textDim}>{loadError}</Text>
 				</Box>
 			</Box>
 		);
@@ -65,7 +68,7 @@ export function CommandAutocomplete({
 		<Box flexDirection="column" marginTop={1}>
 			{startIdx > 0 && (
 				<Box>
-					<Text dimColor> ↑ {startIdx} more above</Text>
+					<Text color={colors.textDim}> ↑ {startIdx} more above</Text>
 				</Box>
 			)}
 			{visibleCommands.map((cmd, idx) => {
@@ -73,19 +76,19 @@ export function CommandAutocomplete({
 				return (
 					<Box key={cmd.id}>
 						<Text
-							color={actualIdx === selectedCommandIndex ? "#00FF88" : "gray"}
+							color={actualIdx === selectedCommandIndex ? colors.success : colors.textDim}
 							bold={actualIdx === selectedCommandIndex}
 						>
 							{actualIdx === selectedCommandIndex ? "> " : "  "}
 							{cmd.label}
 						</Text>
-						{cmd.description && <Text dimColor> {cmd.description}</Text>}
+						{cmd.description && <Text color={colors.textDim}> {cmd.description}</Text>}
 					</Box>
 				);
 			})}
 			{endIdx < totalCommands && (
 				<Box>
-					<Text dimColor> ↓ {totalCommands - endIdx} more below</Text>
+					<Text color={colors.textDim}> ↓ {totalCommands - endIdx} more below</Text>
 				</Box>
 			)}
 		</Box>

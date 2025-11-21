@@ -1,103 +1,113 @@
 /**
  * Terminal Colors
- * Uses semantic color names that adapt to terminal theme
+ * Re-exports from theme system for backwards compatibility
  *
- * DESIGN: Use terminal's basic colors instead of hex codes
- * - Light theme: Terminal adjusts to darker shades
- * - Dark theme: Terminal adjusts to lighter shades
+ * MIGRATION: This file is deprecated. Import from utils/theme instead.
  */
+
+import { getColors, isDarkTheme } from "./theme/index.js";
 
 /**
  * Detect if terminal is using a light theme
- * Checks COLORFGBG env var (format: "fg;bg" where bg > 7 typically means light)
- * Also checks common terminal theme indicators
+ * @deprecated Use isDarkTheme() from utils/theme instead
  */
 export function isLightTheme(): boolean {
-	// Check COLORFGBG (set by some terminals like xterm, iTerm2)
-	const colorFgBg = process.env.COLORFGBG;
-	if (colorFgBg) {
-		const parts = colorFgBg.split(";");
-		const bg = parseInt(parts[parts.length - 1], 10);
-		// Background color index > 7 typically indicates light theme
-		// (0-7 are dark colors, 8-15 are light colors in standard palette)
-		if (!isNaN(bg) && bg > 7) return true;
-		if (!isNaN(bg) && bg <= 7) return false;
-	}
-
-	// Check TERM_PROGRAM specific settings
-	const termProgram = process.env.TERM_PROGRAM;
-	if (termProgram === "Apple_Terminal") {
-		// Apple Terminal defaults to light theme
-		return true;
-	}
-
-	// Check macOS appearance (if available via environment)
-	const appearance = process.env.DARKMODE;
-	if (appearance === "0") return true;
-	if (appearance === "1") return false;
-
-	// Default to dark theme (most developer terminals are dark)
-	return false;
+	return !isDarkTheme();
 }
 
 /**
  * Get theme-aware colors
+ * @deprecated Use getColors() from utils/theme instead
  */
 export function getThemeColors() {
-	const light = isLightTheme();
+	const colors = getColors();
 	return {
 		// Subtle separator line color
-		separator: light ? "#ccc" : "#444",
-		// Very subtle (almost invisible)
-		separatorSubtle: light ? "#eee" : "#333",
+		separator: colors.border,
+		// Subtle - close to background
+		separatorSubtle: colors.borderSubtle,
 	};
 }
 
 /**
  * Semantic colors for consistent theming
- * These use terminal's basic colors which adapt to theme
+ * @deprecated Use getColors() from utils/theme instead
  */
 export const colors = {
 	// Primary UI colors
-	primary: "cyan" as const, // User messages, highlights
-	secondary: "blue" as const, // Secondary elements
+	get primary() {
+		return getColors().primary;
+	},
+	get secondary() {
+		return getColors().secondary;
+	},
 
 	// Status colors
-	success: "green" as const, // Success states, checkmarks
-	warning: "yellow" as const, // Warnings, pending states
-	error: "red" as const, // Errors, failures
-	info: "magenta" as const, // System messages, info
+	get success() {
+		return getColors().success;
+	},
+	get warning() {
+		return getColors().warning;
+	},
+	get error() {
+		return getColors().error;
+	},
+	get info() {
+		return getColors().info;
+	},
 
 	// Text colors
-	text: "white" as const, // Primary text (adapts to theme)
-	textDim: "gray" as const, // Secondary text, descriptions
+	get text() {
+		return getColors().text;
+	},
+	get textDim() {
+		return getColors().textDim;
+	},
 
 	// Special
-	accent: "yellow" as const, // Accent elements, badges
+	get accent() {
+		return getColors().warning;
+	},
 } as const;
 
 /**
  * Role-specific colors
+ * @deprecated Use getColors() from utils/theme instead
  */
 export const roleColors = {
-	user: colors.primary, // Cyan - stands out
-	assistant: colors.success, // Green - friendly
-	system: colors.warning, // Yellow - attention
+	get user() {
+		return getColors().user;
+	},
+	get assistant() {
+		return getColors().assistant;
+	},
+	get system() {
+		return getColors().system;
+	},
 } as const;
 
 /**
  * Status colors
+ * @deprecated Use getColors() from utils/theme instead
  */
 export const statusColors = {
-	completed: colors.success,
-	pending: colors.warning,
-	failed: colors.error,
-	aborted: colors.warning,
+	get completed() {
+		return getColors().success;
+	},
+	get pending() {
+		return getColors().warning;
+	},
+	get failed() {
+		return getColors().error;
+	},
+	get aborted() {
+		return getColors().warning;
+	},
 } as const;
 
-export type Color = (typeof colors)[keyof typeof colors];
-export type RoleColor = (typeof roleColors)[keyof typeof roleColors];
-export type StatusColor = (typeof statusColors)[keyof typeof statusColors];
+export type Color = string;
+export type RoleColor = string;
+export type StatusColor = string;
 
 /**
  * Message indicator symbols

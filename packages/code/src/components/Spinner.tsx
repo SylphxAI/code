@@ -5,6 +5,7 @@
 
 import { Text } from "ink";
 import { useEffect, useState } from "react";
+import { getColors } from "../utils/theme/index.js";
 
 const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
@@ -13,8 +14,10 @@ interface SpinnerProps {
 	color?: string;
 }
 
-export default function Spinner({ label, color = "#00FF88" }: SpinnerProps) {
+export default function Spinner({ label, color }: SpinnerProps) {
 	const [frame, setFrame] = useState(0);
+	const colors = getColors();
+	const spinnerColor = color || colors.success;
 
 	useEffect(() => {
 		const timer = setInterval(() => {
@@ -26,8 +29,8 @@ export default function Spinner({ label, color = "#00FF88" }: SpinnerProps) {
 
 	return (
 		<>
-			<Text color={color}>{frames[frame]}</Text>
-			{label && <Text color="gray"> {label}</Text>}
+			<Text color={spinnerColor}>{frames[frame]}</Text>
+			{label && <Text color={colors.textDim}> {label}</Text>}
 		</>
 	);
 }
