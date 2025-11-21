@@ -18,6 +18,8 @@ function TodoListInternal() {
 	const colors = useThemeColors();
 	const todos = currentSession?.todos || [];
 
+	console.log("[TodoList] Rendering. Session ID:", currentSession?.id, "Todos count:", todos.length);
+
 	// Calculate progress
 	const completedCount = todos.filter((t) => t.status === "completed").length;
 	const totalCount = todos.filter((t) => t.status !== "removed").length;
