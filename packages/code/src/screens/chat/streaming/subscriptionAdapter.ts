@@ -310,8 +310,8 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				// - If NOT streaming → add to messages (will be confirmed by user-message-created event)
 				// - If streaming → DON'T add to messages, server will queue it and emit queue-message-added
 				// This prevents showing message in both places (messages AND queue)
-				const { isStreaming: isStreamingSignal } = await import("@sylphx/code-client");
-				const currentlyStreaming = isStreamingSignal.value;
+				const { getIsStreaming } = await import("@sylphx/code-client");
+				const currentlyStreaming = getIsStreaming();
 
 				// Optimistic assistant message ID
 				const optimisticAssistantId = `temp-assistant-${Date.now()}`;
