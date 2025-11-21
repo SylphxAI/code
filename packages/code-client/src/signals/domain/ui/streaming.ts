@@ -5,17 +5,20 @@
 
 import { zen } from "@sylphx/zen";
 import { useZen } from "../../react-bridge.js";
+// Re-export isStreaming from session domain to avoid duplicate exports
+import { useIsStreaming, setIsStreaming } from "../session/index.js";
 
 // Core streaming signals
-export const isStreaming = zen<boolean>(false);
+// Note: isStreaming is managed by session domain, not UI domain
 export const isTitleStreaming = zen<boolean>(false);
 export const streamingTitle = zen<string>("");
 export const streamingStartTime = zen<number | null>(null);
 export const streamingOutputTokens = zen<number>(0);
 
 // React hooks
+// Re-export from session domain to maintain backwards compatibility
 export function useIsStreamingUI(): boolean {
-	return useZen(isStreaming);
+	return useIsStreaming();
 }
 
 export function useIsTitleStreaming(): boolean {
@@ -35,8 +38,9 @@ export function useStreamingOutputTokens(): number {
 }
 
 // Actions
+// Backwards compatibility: delegate to session domain
 export function setIsStreamingUI(streaming: boolean): void {
-	isStreaming.value = streaming;
+	setIsStreaming(streaming);
 }
 
 export function setIsTitleStreaming(streaming: boolean): void {
@@ -64,9 +68,8 @@ export function setStreamingOutputTokens(tokens: number | ((prev: number) => num
 }
 
 // Getters (for non-React code)
-export function getIsStreaming(): boolean {
-	return isStreaming.value;
-}
+// Note: getIsStreaming is exported from session domain, not UI domain
+// to avoid naming conflict. Use session domain's getIsStreaming for non-React code.
 
 export function getStreamingTitle(): string {
 	return streamingTitle.value;

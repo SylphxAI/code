@@ -1,22 +1,20 @@
 /**
  * useModelDetails Hook
  * Get model details including context length, capabilities, and tokenizer info
+ * State stored in Zen signals for global caching
  */
 
-import type { ModelCapabilities } from "@sylphx/code-core";
-import { useEffect, useState } from "react";
-import { useTRPCClient } from "@sylphx/code-client";
-
-interface ModelDetails {
-	contextLength: number | null;
-	capabilities: ModelCapabilities | null;
-	tokenizerInfo: {
-		modelName: string;
-		tokenizerName: string;
-		loaded: boolean;
-		failed: boolean;
-	} | null;
-}
+import { useEffect } from "react";
+import {
+	useTRPCClient,
+	useModelDetailsCache,
+	useModelDetailsLoading,
+	useModelDetailsError,
+	setModelDetails as setModelDetailsSignal,
+	setModelDetailsLoading as setModelDetailsLoadingSignal,
+	setModelDetailsError as setModelDetailsErrorSignal,
+	type ModelDetails,
+} from "@sylphx/code-client";
 
 /**
  * Hook to fetch model details from server
@@ -29,23 +27,24 @@ interface ModelDetails {
  */
 export function useModelDetails(providerId: string | null, modelId: string | null) {
 	const trpc = useTRPCClient();
-	const [details, setDetails] = useState<ModelDetails>({
-		contextLength: null,
-		capabilities: null,
-		tokenizerInfo: null,
-	});
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const detailsCache = useModelDetailsCache();
+	const loading = useModelDetailsLoading();
+	const error = useModelDetailsError();
+
+	// Get cached details for this model
+	const cacheKey = providerId && modelId ? `${providerId}:${modelId}` : null;
+	const details = cacheKey ? detailsCache[cacheKey] : null;
 
 	useEffect(() => {
 		if (!providerId || !modelId) {
-			setDetails({
-				contextLength: null,
-				capabilities: null,
-				tokenizerInfo: null,
-			});
-			setLoading(false);
-			setError(null);
+			setModelDetailsLoadingSignal(false);
+			setModelDetailsErrorSignal(null);
+			return;
+		}
+
+		// Skip if already cached
+		if (cacheKey && detailsCache[cacheKey]) {
+			setModelDetailsLoadingSignal(false);
 			return;
 		}
 
@@ -53,8 +52,8 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 
 		async function fetchDetails() {
 			try {
-				setLoading(true);
-				setError(null);
+				setModelDetailsLoadingSignal(true);
+				setModelDetailsErrorSignal(null);
 
 				// Fetch model details and tokenizer info in parallel
 				const [detailsResult, tokInfo] = await Promise.all([
@@ -73,19 +72,26 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 							? detailsResult.details.capabilities || null
 							: null;
 
-					setDetails({
+					const modelDetails = {
 						contextLength,
 						capabilities,
 						tokenizerInfo: tokInfo,
-					});
+					};
+
+					// Cache the result
+					if (providerId && modelId) {
+						setModelDetailsSignal(providerId, modelId, modelDetails);
+					}
 				}
 			} catch (err) {
 				if (mounted) {
-					setError(err instanceof Error ? err.message : "Failed to load model details");
+					setModelDetailsErrorSignal(
+						err instanceof Error ? err.message : "Failed to load model details"
+					);
 				}
 			} finally {
 				if (mounted) {
-					setLoading(false);
+					setModelDetailsLoadingSignal(false);
 				}
 			}
 		}
@@ -95,7 +101,11 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 		return () => {
 			mounted = false;
 		};
-	}, [trpc, providerId, modelId]);
+	}, [trpc, providerId, modelId, cacheKey, detailsCache]);
 
-	return { details, loading, error };
+	return {
+		details: details || { contextLength: null, capabilities: null, tokenizerInfo: null },
+		loading,
+		error,
+	};
 }

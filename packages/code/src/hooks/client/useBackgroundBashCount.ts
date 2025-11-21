@@ -1,14 +1,19 @@
 /**
  * Hook to track background bash count
  * Event-driven: subscribes to bash:all channel for updates
+ * State stored in Zen signals for global access
  */
 
-import { useTRPCClient } from "@sylphx/code-client";
-import { useEffect, useState, useRef } from "react";
+import {
+	useTRPCClient,
+	useBackgroundBashCount as useBackgroundBashCountSignal,
+	setBackgroundBashCount as setBackgroundBashCountSignal,
+} from "@sylphx/code-client";
+import { useEffect, useRef } from "react";
 
 export function useBackgroundBashCount(): number {
 	const trpc = useTRPCClient();
-	const [count, setCount] = useState(0);
+	const count = useBackgroundBashCountSignal();
 	const subscriptionRef = useRef<any>(null);
 
 	useEffect(() => {
@@ -19,7 +24,7 @@ export function useBackgroundBashCount(): number {
 				const bgCount = processes.filter(
 					(p: any) => !p.isActive && p.status === "running",
 				).length;
-				setCount(bgCount);
+				setBackgroundBashCountSignal(bgCount);
 			} catch (error) {
 				console.error("[useBackgroundBashCount] Failed to fetch:", error);
 			}

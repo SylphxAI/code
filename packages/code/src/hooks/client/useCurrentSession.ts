@@ -7,20 +7,36 @@
  * - Respects streaming state (won't overwrite optimistic data during streaming)
  * - Emits events for cross-store communication (no direct store imports)
  * - Simple, focused responsibility: fetch data and emit events
+ * - State stored in Zen signals for global access
  */
 
 import type { Session } from "@sylphx/code-core";
-import { useEffect, useRef, useState } from "react";
-import {  eventBus, currentSession, getTRPCClient, isStreaming, setCurrentSession, useCurrentSession as useOptimisticSession, useCurrentSessionId, useIsStreaming  } from "@sylphx/code-client";
+import { useEffect, useRef } from "react";
+import {
+	eventBus,
+	currentSession,
+	getTRPCClient,
+	isStreaming,
+	setCurrentSession,
+	useCurrentSession as useOptimisticSession,
+	useCurrentSessionId,
+	useIsStreaming,
+	useServerSession,
+	useCurrentSessionLoading,
+	useCurrentSessionError,
+	setServerSession as setServerSessionSignal,
+	setCurrentSessionLoading as setCurrentSessionLoadingSignal,
+	setCurrentSessionError as setCurrentSessionErrorSignal,
+} from "@sylphx/code-client";
 
 export function useCurrentSession() {
 	const currentSessionId = useCurrentSessionId();
 	const optimisticSession = useOptimisticSession();
-	const isStreaming = useIsStreaming();
+	const isStreamingValue = useIsStreaming();
 
-	const [serverSession, setServerSession] = useState<Session | null>(null);
-	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState<Error | null>(null);
+	const serverSession = useServerSession();
+	const isLoading = useCurrentSessionLoading();
+	const error = useCurrentSessionError();
 
 	// Track previous session ID to detect temp-session → real session transition
 	const prevSessionIdRef = useRef<string | null>(null);
@@ -31,15 +47,15 @@ export function useCurrentSession() {
 		prevSessionIdRef.current = currentSessionId;
 
 		if (!currentSessionId) {
-			setServerSession(null);
-			setIsLoading(false);
-			setError(null);
+			setServerSessionSignal(null);
+			setCurrentSessionLoadingSignal(false);
+			setCurrentSessionErrorSignal(null);
 			return;
 		}
 
 		// Skip server fetch if we have optimistic data for a temp session
 		if (currentSessionId === "temp-session") {
-			setIsLoading(false);
+			setCurrentSessionLoadingSignal(false);
 			return;
 		}
 
@@ -48,7 +64,7 @@ export function useCurrentSession() {
 		// The session-created event handler will set up the session with preserved messages.
 		// Let the streaming flow complete first, then session will be synced via events.
 		if (prevSessionId === "temp-session" && currentSessionId !== "temp-session") {
-			setIsLoading(false);
+			setCurrentSessionLoadingSignal(false);
 			return;
 		}
 
@@ -58,19 +74,19 @@ export function useCurrentSession() {
 		// Event replay will handle any updates needed.
 		const existingSession = currentSession.value;
 		if (existingSession?.id === currentSessionId && existingSession.messages.length > 0) {
-			setIsLoading(false);
+			setCurrentSessionLoadingSignal(false);
 			return;
 		}
 
-		setIsLoading(true);
-		setError(null);
+		setCurrentSessionLoadingSignal(true);
+		setCurrentSessionErrorSignal(null);
 
 		const client = getTRPCClient();
 		client.session.getById
 			.query({ sessionId: currentSessionId })
 			.then((session) => {
-				setServerSession(session);
-				setIsLoading(false);
+				setServerSessionSignal(session);
+				setCurrentSessionLoadingSignal(false);
 
 				// Only update store and emit events if not streaming
 				// During streaming, optimistic data is authoritative
@@ -112,8 +128,8 @@ export function useCurrentSession() {
 				}
 			})
 			.catch((err) => {
-				setError(err as Error);
-				setIsLoading(false);
+				setCurrentSessionErrorSignal(err as Error);
+				setCurrentSessionLoadingSignal(false);
 			});
 	}, [currentSessionId]);
 
@@ -123,7 +139,7 @@ export function useCurrentSession() {
 	return {
 		currentSession,
 		currentSessionId,
-		isStreaming,
+		isStreaming: isStreamingValue,
 		isLoading,
 		error,
 	};

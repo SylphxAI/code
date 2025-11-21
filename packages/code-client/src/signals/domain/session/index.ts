@@ -24,6 +24,11 @@ export const recentSessions = zen<Session[]>([]);
 export const sessionsLoading = zen(false);
 export const sessionsError = zen<string | null>(null);
 
+// Current session loading state
+export const currentSessionLoading = zen(false);
+export const currentSessionError = zen<Error | null>(null);
+export const serverSession = zen<Session | null>(null);
+
 // Computed signals
 export const hasCurrentSession = computed(() => currentSessionId.value !== null);
 export const currentSessionTitle = computed(() => currentSession.value?.title || "New Chat");
@@ -43,9 +48,16 @@ export const setMessages = (value: SessionMessage[]) => { (messages as any).valu
 export const setRecentSessions = (value: Session[]) => { (recentSessions as any).value = value };
 export const setSessionsLoading = (value: boolean) => { (sessionsLoading as any).value = value };
 export const setSessionsError = (value: string | null) => { (sessionsError as any).value = value };
+export const setCurrentSessionLoading = (value: boolean) => { (currentSessionLoading as any).value = value };
+export const setCurrentSessionError = (value: Error | null) => { (currentSessionError as any).value = value };
+export const setServerSession = (value: Session | null) => { (serverSession as any).value = value };
 
 // Actions
 export const getCurrentSessionId = () => currentSessionId.value;
+export const getIsStreaming = () => isStreaming.value;
+export const getCurrentSessionLoading = () => currentSessionLoading.value;
+export const getCurrentSessionError = () => currentSessionError.value;
+export const getServerSession = () => serverSession.value;
 
 export const updateCurrentSession = (session: Session | null) => {
 	(currentSession as any).value = session;
@@ -223,6 +235,9 @@ export const useCurrentSessionTitle = () => useZen(currentSessionTitle);
 export const useRecentSessions = () => useZen(recentSessions);
 export const useSessionsLoading = () => useZen(sessionsLoading);
 export const useSessionsError = () => useZen(sessionsError);
+export const useCurrentSessionLoading = () => useZen(currentSessionLoading);
+export const useCurrentSessionError = () => useZen(currentSessionError);
+export const useServerSession = () => useZen(serverSession);
 
 // Setup event listeners
 eventBus.on("streaming:started", () => {

@@ -53,6 +53,7 @@ export * from "./signals/domain/theme/index.js";
 export * from "./signals/domain/providers/index.js";
 export * from "./signals/domain/models/index.js";
 export * from "./signals/domain/mcp/index.js";
+export * from "./signals/domain/bash/index.js";
 // ============================================================================
 // Optimistic Updates
 // ============================================================================
