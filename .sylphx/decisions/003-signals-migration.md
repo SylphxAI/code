@@ -64,10 +64,17 @@ No useState/useReducer for state (only for derived/transient UI)
 - [x] Resolved naming conflicts with session domain
 - [x] Maintained backwards compatibility
 
-### Phase 3: Component State
-- [ ] Transient UI (loading, hover, focus) → keep useState
-- [ ] Persistent UI (theme, selected index) → signals
-- [ ] Form state → signals or useState (case-by-case)
+### Phase 4: File Management State (✅ Complete)
+- [x] Created files domain signals structure
+  - `domain/files/attachments.ts` - File attachment management
+  - `domain/files/project.ts` - Project files list
+- [x] Migrated useFileAttachments to Zen signals (2 useState eliminated)
+- [x] Migrated useProjectFiles to Zen signals (2 useState eliminated)
+- [x] Added computed signals (validTags, attachmentCount)
+
+### Future Phases (Optional)
+- [ ] Transient UI (loading, hover, focus) → keep useState (appropriate use case)
+- [ ] Component-specific state (MCP management, provider management) → migrate as needed
 
 ## Implementation Patterns
 
@@ -145,13 +152,15 @@ code/
 - [x] Streaming state (5 useState eliminated)
 - [x] Queue browsing state (3 useState eliminated)
 
-**Total useState eliminated: 33 across 5 hooks**
+**File Management (Priority 3)**
+- [x] File attachments (2 useState eliminated)
+- [x] Project files (2 useState eliminated)
 
-**Component (Priority 3)**
-- [ ] File attachments
-- [ ] Project files
-- [ ] MCP management
-- [ ] Provider management
+**Total useState eliminated: 37 across 7 hooks**
+
+**Remaining (Low Priority - Optional)**
+- [ ] Component-specific state (MCP management, provider management)
+- [ ] Transient UI state (appropriate to keep as useState)
 
 ### Testing Strategy
 - Test each migrated signal independently
