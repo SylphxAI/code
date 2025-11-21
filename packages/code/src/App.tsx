@@ -118,11 +118,7 @@ function AppContent() {
 		<Box flexDirection="column" width="100%" height="100%" paddingX={1}>
 			{/* Header */}
 			<Box paddingY={1}>
-				<Text bold color="cyan">
-					SYLPHX FLOW
-				</Text>
-				<Text dimColor> │ </Text>
-				<Text dimColor>AI Development Assistant</Text>
+				<Text bold color="cyan">SYLPHX CODE</Text>
 			</Box>
 
 			{/* Error Display */}

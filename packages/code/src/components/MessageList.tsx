@@ -8,10 +8,22 @@
 
 import type { SessionMessage } from "@sylphx/code-core";
 import { Box, Text } from "ink";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import MarkdownText from "./MarkdownText.js";
 import { MessagePart } from "./MessagePart.js";
 import { indicators } from "../utils/colors.js";
+
+// Animated indicator that pulses between ◆ and ◇
+function AnimatedIndicator() {
+	const [frame, setFrame] = useState(0);
+	useEffect(() => {
+		const timer = setInterval(() => {
+			setFrame((prev) => (prev + 1) % 2);
+		}, 500);
+		return () => clearInterval(timer);
+	}, []);
+	return <Text color="green">{frame === 0 ? indicators.assistant : indicators.system} </Text>;
+}
 
 interface MessageListProps {
 	messages: SessionMessage[];
@@ -333,47 +345,40 @@ export function MessageList({
 					) : // Assistant message: render each part separately (tools, reasoning, files, etc.)
 					msg.steps && msg.steps.length > 0 ? (
 						<Box paddingTop={0} paddingX={1} flexDirection="row">
-							{hideMessageTitles && <Text color="green">{indicators.assistant} </Text>}
+							{hideMessageTitles && (msg.status === "active" ? <AnimatedIndicator /> : <Text color="green">{indicators.assistant} </Text>)}
 							<Box flexDirection="column" flexGrow={1}>
 								{(() => {
-									// Flatten all parts with globally unique index
-									let globalPartIndex = 0;
-									const parts = msg.steps.flatMap((step) =>
-										step.parts.map((part) => (
+									let globalIdx = 0;
+									return msg.steps.flatMap((step, stepIdx) =>
+										step.parts.map((part, partIdx) => (
 											<MessagePart
-												key={`${msg.id}-part-${globalPartIndex++}`}
+												key={`${msg.id}-step-${stepIdx}-part-${partIdx}`}
 												part={part}
 												compact={hideMessageTitles}
+												isFirst={globalIdx++ === 0}
 											/>
 										)),
 									);
-
-									// If message is active but no parts yet, show spinner
-									if (parts.length === 0 && msg.status === "active") {
-										return <Text dimColor>...</Text>;
-									}
-
-									return parts;
 								})()}
 							</Box>
 						</Box>
 					) : msg.content && msg.content.length > 0 ? (
 						<Box paddingTop={0} paddingX={1} flexDirection="row">
-							{hideMessageTitles && <Text color="green">{indicators.assistant} </Text>}
+							{hideMessageTitles && (msg.status === "active" ? <AnimatedIndicator /> : <Text color="green">{indicators.assistant} </Text>)}
 							<Box flexDirection="column" flexGrow={1}>
 								{msg.content.map((part, partIdx) => (
 									<MessagePart
 										key={`${msg.id}-part-${partIdx}`}
 										part={part}
 										compact={hideMessageTitles}
+										isFirst={partIdx === 0}
 									/>
 								))}
 							</Box>
 						</Box>
 					) : msg.status === "active" ? (
 						<Box paddingTop={0} paddingX={1} flexDirection="row">
-							{hideMessageTitles && <Text color="green">{indicators.assistant} </Text>}
-							<Text dimColor>...</Text>
+							{hideMessageTitles && <AnimatedIndicator />}
 						</Box>
 					) : null}
 
@@ -389,7 +394,7 @@ export function MessageList({
 										: [];
 
 							return fileParts.map((filePart, idx) => (
-								<Box key={`${msg.id}-file-${idx}`} marginLeft={3} marginBottom={1}>
+								<Box key={`${msg.id}-file-${idx}`} marginLeft={3}>
 									<Text color="green">✓ </Text>
 									<Text bold>Read {filePart.relativePath}</Text>
 								</Box>
@@ -402,12 +407,12 @@ export function MessageList({
 						(msg.status === "abort" || msg.status === "error" || (!hideMessageUsage && msg.usage)) && (
 							<Box flexDirection="column" marginLeft={hideMessageTitles ? 3 : 0}>
 								{msg.status === "abort" && (
-									<Box marginLeft={hideMessageTitles ? 0 : 3} marginBottom={1}>
+									<Box marginLeft={hideMessageTitles ? 0 : 3}>
 										<Text color="yellow">[Aborted]</Text>
 									</Box>
 								)}
 								{msg.status === "error" && (
-									<Box marginLeft={hideMessageTitles ? 0 : 3} marginBottom={1}>
+									<Box marginLeft={hideMessageTitles ? 0 : 3}>
 										<Text color="red">[Error]</Text>
 									</Box>
 								)}

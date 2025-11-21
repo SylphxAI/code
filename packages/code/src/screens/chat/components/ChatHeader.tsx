@@ -16,31 +16,19 @@ export function ChatHeader({
 	isTitleStreaming,
 	streamingTitle,
 }: ChatHeaderProps) {
-	// Priority: streaming title > current title > nothing
-	const shouldShowChatTitle = isTitleStreaming || currentSessionTitle;
+	// Get title to display (streaming takes priority)
+	const title = isTitleStreaming
+		? streamingTitle || currentSessionTitle
+		: currentSessionTitle;
 
 	return (
-		<Box flexDirection="column">
-			{/* App Header */}
-			<Box paddingX={1} paddingY={1}>
-				<Text bold color="cyan">
-					SYLPHX FLOW
-				</Text>
-				<Text dimColor> │ </Text>
-				<Text dimColor>AI Development Assistant</Text>
-			</Box>
-
-			{/* Chat Title - shows streaming or current title */}
-			{shouldShowChatTitle && (
-				<Box paddingX={1} paddingBottom={1}>
-					<Text color="cyan">▌ CHAT</Text>
-					<Text color="cyan"> · </Text>
-					<Text color="white">
-						{isTitleStreaming
-							? streamingTitle || currentSessionTitle || "New Chat"
-							: currentSessionTitle || "New Chat"}
-					</Text>
-				</Box>
+		<Box paddingX={1} paddingY={1}>
+			<Text bold color="cyan">SYLPHX CODE</Text>
+			{title && (
+				<>
+					<Text dimColor> › </Text>
+					<Text color="white">{title}</Text>
+				</>
 			)}
 		</Box>
 	);

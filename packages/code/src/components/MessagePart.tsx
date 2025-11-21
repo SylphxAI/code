@@ -21,6 +21,7 @@ import { ToolPart } from "./ToolPart.js";
 interface MessagePartProps {
 	part: MessagePartType | StreamingPart;
 	compact?: boolean;
+	isFirst?: boolean;
 }
 
 // Extended type for streaming parts - UNIFIED with status field
@@ -51,12 +52,13 @@ type StreamingPart =
 	| { type: "file"; mediaType: string; base64: string; status: "completed" }
 	| { type: "error"; error: string; status: "completed" };
 
-function MessagePartInternal({ part, compact = false }: MessagePartProps) {
+function MessagePartInternal({ part, compact = false, isFirst = false }: MessagePartProps) {
 	const marginLeft = compact ? 0 : 3;
+	const marginTop = isFirst ? 0 : 1;
 
 	if (part.type === "text") {
 		return (
-			<Box flexDirection="column" marginLeft={marginLeft} marginBottom={1}>
+			<Box flexDirection="column" marginLeft={marginLeft} marginTop={marginTop}>
 				<MarkdownText>{part.content}</MarkdownText>
 			</Box>
 		);
@@ -78,7 +80,7 @@ function MessagePartInternal({ part, compact = false }: MessagePartProps) {
 		if (isActive) {
 			// Still streaming - show spinner with real-time duration
 			return (
-				<Box flexDirection="column" marginLeft={marginLeft} marginBottom={1}>
+				<Box flexDirection="column" marginLeft={marginLeft} marginTop={marginTop}>
 					<Box>
 						<Spinner color="yellow" />
 						<Text dimColor> Thinking... {durationDisplay}</Text>
@@ -89,7 +91,7 @@ function MessagePartInternal({ part, compact = false }: MessagePartProps) {
 			// Show completed/aborted reasoning with humanized duration
 			// durationDisplay uses same format as active state (e.g., "523ms", "5.2s", "45s", "1m11s")
 			return (
-				<Box flexDirection="column" marginLeft={marginLeft} marginBottom={1}>
+				<Box flexDirection="column" marginLeft={marginLeft} marginTop={marginTop}>
 					<Box>
 						<Text dimColor>Thought {durationDisplay}</Text>
 					</Box>
@@ -100,7 +102,7 @@ function MessagePartInternal({ part, compact = false }: MessagePartProps) {
 
 	if (part.type === "error") {
 		return (
-			<Box marginLeft={marginLeft} marginBottom={1}>
+			<Box marginLeft={marginLeft} marginTop={marginTop}>
 				<Text color="red">{part.error}</Text>
 			</Box>
 		);
@@ -141,7 +143,7 @@ function MessagePartInternal({ part, compact = false }: MessagePartProps) {
 
 			if (!tempPath) {
 				return (
-					<Box flexDirection="column" marginLeft={marginLeft} marginBottom={1}>
+					<Box flexDirection="column" marginLeft={marginLeft} marginTop={marginTop}>
 						<Text dimColor>Image ({part.mediaType}):</Text>
 						<Text color="red">Failed to save image</Text>
 					</Box>
@@ -151,7 +153,7 @@ function MessagePartInternal({ part, compact = false }: MessagePartProps) {
 			const fileSize = Math.round((part.base64.length * 3) / 4 / 1024); // Convert base64 to KB
 
 			return (
-				<Box flexDirection="column" marginLeft={marginLeft} marginBottom={1}>
+				<Box flexDirection="column" marginLeft={marginLeft} marginTop={marginTop}>
 					<Text dimColor>
 						Image ({part.mediaType}) - {fileSize}KB
 					</Text>
@@ -162,7 +164,7 @@ function MessagePartInternal({ part, compact = false }: MessagePartProps) {
 		} else {
 			// Render non-image file info
 			return (
-				<Box flexDirection="column" marginLeft={marginLeft} marginBottom={1}>
+				<Box flexDirection="column" marginLeft={marginLeft} marginTop={marginTop}>
 					<Text dimColor>File: {part.mediaType}</Text>
 					<Text dimColor>Size: {Math.round(part.base64.length * 0.75)} bytes</Text>
 				</Box>
@@ -182,6 +184,7 @@ function MessagePartInternal({ part, compact = false }: MessagePartProps) {
 				result={part.result}
 				error={part.error}
 				compact={compact}
+				isFirst={isFirst}
 			/>
 		);
 	}
@@ -195,7 +198,7 @@ function MessagePartInternal({ part, compact = false }: MessagePartProps) {
 			.join(" ");
 
 		return (
-			<Box marginLeft={compact ? 0 : 2} marginBottom={1}>
+			<Box marginLeft={compact ? 0 : 2} marginTop={marginTop}>
 				<Text dimColor>System: {humanizedType}</Text>
 			</Box>
 		);
@@ -206,8 +209,9 @@ function MessagePartInternal({ part, compact = false }: MessagePartProps) {
 
 // Memoize component to prevent re-rendering unchanged message parts
 export const MessagePart = React.memo(MessagePartInternal, (prevProps, nextProps) => {
-	// Check compact prop first
+	// Check compact and isFirst props first
 	if (prevProps.compact !== nextProps.compact) return false;
+	if (prevProps.isFirst !== nextProps.isFirst) return false;
 
 	const prevPart = prevProps.part;
 	const nextPart = nextProps.part;
