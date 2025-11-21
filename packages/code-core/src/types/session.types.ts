@@ -4,6 +4,7 @@
  */
 
 import type { ProviderId } from "../config/ai-config.js";
+import type { SessionStatus } from "./streaming-events.types.js";
 import type { Todo } from "./todo.types.js";
 
 /**
@@ -404,6 +405,11 @@ export interface Session {
 	// Client displays only - NO client-side calculation
 	baseContextTokens?: number; // System prompt + tools (calculated once at session creation)
 	totalTokens?: number; // Base + all messages (updated after each message)
+
+	// Session status (current activity state)
+	// Controlled by server, updated via session-status-updated events
+	// Used for unified progress indicator across UI (StatusIndicator, SessionList)
+	status?: SessionStatus;
 
 	// Note: Streaming state derived from message.status, not stored here
 	// To check if streaming: messages.some(m => m.status === 'active')

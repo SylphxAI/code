@@ -43,6 +43,21 @@ export type ToolResult =
 export type TodoSnapshot = Todo[];
 
 /**
+ * Session status - current activity state
+ * Controls unified progress indicator across UI
+ */
+export interface SessionStatus {
+	/** Status text (e.g., "Implementing user auth", "Thinking...", "Reading files...") */
+	text: string;
+	/** Milliseconds since activity started */
+	duration: number;
+	/** Cumulative tokens used in current activity */
+	tokenUsage: number;
+	/** true = streaming/active, false = completed/idle */
+	isActive: boolean;
+}
+
+/**
  * Stream events emitted during AI response generation
  * Discriminated union ensures type safety for event handling
  */
@@ -65,6 +80,7 @@ export type StreamEvent =
 	| { type: "session-title-updated-start"; sessionId: string }
 	| { type: "session-title-updated-delta"; sessionId: string; text: string }
 	| { type: "session-title-updated-end"; sessionId: string; title: string }
+	| { type: "session-status-updated"; sessionId: string; status: SessionStatus }
 
 	// Message-level events
 	| { type: "user-message-created"; messageId: string; content: string }

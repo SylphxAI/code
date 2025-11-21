@@ -70,11 +70,12 @@ Server Event Emitter → SSE Stream → Client Event Bus → Signal Updates
 ```
 
 **Event Types**:
-- `session-*`: Session lifecycle
+- `session-*`: Session lifecycle, status updates
 - `message-*`: Message updates
 - `step-*`: Streaming steps
 - `tool-*`: Tool execution
 - `ask-question-*`: User input requests
+- `session-status-updated`: Real-time session progress updates
 
 ### Client → Server (tRPC)
 
@@ -109,6 +110,65 @@ function switchSession(id: string) {
   setCurrentSession(sessions.find(s => s.id === id));
 }
 ```
+
+## Session Status Architecture
+
+**WHY**: Unified progress indicator controlled by backend. Displays current activity (tool execution, thinking, todo progress) with duration and token usage.
+
+**Trade-off**: Backend complexity (status text generation) vs frontend flexibility (can display in multiple locations consistently).
+
+### Status Data Structure
+```ts
+interface SessionStatus {
+  text: string;         // "Implementing user auth" | "Thinking..." | "Reading files..."
+  duration: number;     // Milliseconds since activity started
+  tokenUsage: number;   // Cumulative tokens used
+  isActive: boolean;    // true = streaming, false = completed/idle
+}
+```
+
+### Backend Status Text Generation
+
+**Current implementation**: Rule-based
+```ts
+// Priority order:
+1. In-progress todo exists → Use todo.activeForm
+2. Tool executing → "Reading files...", "Writing code...", "Running command..."
+3. Default → "Thinking..."
+```
+
+**Future enhancement**: LLM-generated semantic descriptions
+- Fast LLM (Haiku) analyzes context (tools used, files modified, etc.)
+- Generates precise status: "Analyzing authentication flow in 3 files..."
+
+### Event Flow
+```
+Activity starts → Server determines status text → Emit session-status-updated
+                                                          ↓
+                                      Client updates session.status signal
+                                                          ↓
+                                      UI components re-render (StatusIndicator, SessionList)
+```
+
+### Display Locations
+
+**Chat Screen** (StatusIndicator component):
+```
+⠙ Implementing user authentication · 1.2s · 150 tokens (ESC to cancel)
+```
+
+**Session List** (multi-session overview):
+```
+📝 Fix auth bug     ⠙ Running tests · 5.2s · 1.2K tokens
+📝 Add feature      ⠿ Writing code · 15s · 850 tokens
+📝 Refactor DB      [Idle]
+```
+
+### Integration Points
+- **Token Tracking**: `session-status-updated` includes real-time token counts
+- **Todo System**: Reads `session.todos` to find in_progress task
+- **Tool Execution**: Tool name determines fallback status text
+- **Duration Tracking**: Server tracks elapsed time since activity start
 
 ## Key Design Patterns
 
