@@ -4,7 +4,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import type { StreamCallbacks } from "@sylphx/code-core";
+import type { SessionStatus, StreamCallbacks, Todo } from "@sylphx/code-core";
 import { buildSystemPrompt, getAISDKTools, getProvider } from "@sylphx/code-core";
 import { type Observable, observable } from "@trpc/server/observable";
 import {
@@ -28,6 +28,7 @@ import {
 	emitReasoningEnd,
 	emitReasoningStart,
 	emitSessionCreated,
+	emitSessionStatusUpdated,
 	emitSystemMessageCreated,
 	emitTextDelta,
 	emitTextEnd,
@@ -44,6 +45,44 @@ import { generateSessionTitle, needsTitleGeneration } from "./title-generator.js
 import type { StreamAIResponseOptions, StreamEvent } from "./types.js";
 
 const STREAM_TIMEOUT_MS = 45000; // 45 seconds
+
+/**
+ * Determine status text based on current activity
+ * Priority: in_progress todo > tool name > default "Thinking..."
+ */
+function determineStatusText(todos: Todo[] | undefined, currentToolName?: string): string {
+	// 1. Check for in_progress todo
+	if (todos) {
+		const inProgressTodo = todos.find((t) => t.status === "in_progress");
+		if (inProgressTodo && inProgressTodo.activeForm) {
+			return inProgressTodo.activeForm;
+		}
+	}
+
+	// 2. Use tool name if available
+	if (currentToolName) {
+		// Map tool names to readable status text
+		switch (currentToolName) {
+			case "Read":
+			case "Glob":
+			case "Grep":
+				return "Reading files...";
+			case "Write":
+			case "Edit":
+				return "Writing code...";
+			case "Bash":
+				return "Running command...";
+			case "WebFetch":
+			case "WebSearch":
+				return "Searching web...";
+			default:
+				return `Using ${currentToolName}...`;
+		}
+	}
+
+	// 3. Default
+	return "Thinking...";
+}
 
 /**
  * Stream AI response as Observable<StreamEvent>
