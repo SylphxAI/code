@@ -112,3 +112,5 @@ export const useIsCompacting = () => useZen(isCompacting);
 export * from "./command.js";
 export * from "./input.js";
 export * from "./selection.js";
+export * from "./streaming.js";
+export * from "./queue.js";

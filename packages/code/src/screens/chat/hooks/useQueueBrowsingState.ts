@@ -1,10 +1,17 @@
 /**
  * Queue Browsing State Hook
- * Manages queue browsing navigation state (similar to message history browsing)
+ * Manages queue browsing navigation state using Zen signals
  */
 
+import {
+	useQueueBrowseIndex,
+	setQueueBrowseIndex as setQueueBrowseIndexSignal,
+	useTempQueueInput,
+	setTempQueueInput as setTempQueueInputSignal,
+	useTempQueueAttachments,
+	setTempQueueAttachments as setTempQueueAttachmentsSignal,
+} from "@sylphx/code-client";
 import type { FileAttachment } from "@sylphx/code-core";
-import { useState } from "react";
 
 export interface QueueBrowsingState {
 	queueBrowseIndex: number;
@@ -16,16 +23,16 @@ export interface QueueBrowsingState {
 }
 
 export function useQueueBrowsingState(): QueueBrowsingState {
-	const [queueBrowseIndex, setQueueBrowseIndex] = useState(-1);
-	const [tempQueueInput, setTempQueueInput] = useState("");
-	const [tempQueueAttachments, setTempQueueAttachments] = useState<FileAttachment[]>([]);
+	const queueBrowseIndex = useQueueBrowseIndex();
+	const tempQueueInput = useTempQueueInput();
+	const tempQueueAttachments = useTempQueueAttachments();
 
 	return {
 		queueBrowseIndex,
-		setQueueBrowseIndex,
+		setQueueBrowseIndex: setQueueBrowseIndexSignal,
 		tempQueueInput,
-		setTempQueueInput,
+		setTempQueueInput: setTempQueueInputSignal,
 		tempQueueAttachments,
-		setTempQueueAttachments,
+		setTempQueueAttachments: setTempQueueAttachmentsSignal,
 	};
 }

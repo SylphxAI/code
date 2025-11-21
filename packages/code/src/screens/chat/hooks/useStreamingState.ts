@@ -1,10 +1,23 @@
 /**
  * Streaming State Hook
- * Manages streaming flags and refs
+ * Manages streaming flags and refs using Zen signals
  */
 
+import {
+	useIsStreamingUI,
+	setIsStreamingUI as setIsStreamingSignal,
+	useIsTitleStreaming,
+	setIsTitleStreaming as setIsTitleStreamingSignal,
+	useStreamingTitle,
+	setStreamingTitle as setStreamingTitleSignal,
+	useStreamingStartTime,
+	setStreamingStartTime as setStreamingStartTimeSignal,
+	useStreamingOutputTokens,
+	setStreamingOutputTokens as setStreamingOutputTokensSignal,
+	getIsStreaming,
+} from "@sylphx/code-client";
 import type { MessagePart as StreamPart } from "@sylphx/code-core";
-import { useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 export interface StreamingState {
 	isStreaming: boolean;
@@ -31,22 +44,27 @@ export interface StreamingState {
 }
 
 export function useStreamingState(): StreamingState {
-	const [isStreaming, setIsStreamingState] = useState(false);
-	const [isTitleStreaming, setIsTitleStreaming] = useState(false);
-	const [streamingTitle, setStreamingTitle] = useState("");
-	const [streamingStartTime, setStreamingStartTime] = useState<number | null>(null);
-	const [streamingOutputTokens, setStreamingOutputTokens] = useState(0);
+	const isStreaming = useIsStreamingUI();
+	const isTitleStreaming = useIsTitleStreaming();
+	const streamingTitle = useStreamingTitle();
+	const streamingStartTime = useStreamingStartTime();
+	const streamingOutputTokens = useStreamingOutputTokens();
 
 	// Ref to track current streaming state (for stable access across renders)
-	const isStreamingRef = useRef<boolean>(false);
+	const isStreamingRef = useRef<boolean>(isStreaming);
 
-	// Wrapper to keep ref in sync with state
+	// Keep ref in sync with signal
+	useEffect(() => {
+		isStreamingRef.current = isStreaming;
+	}, [isStreaming]);
+
+	// Wrapper to keep ref in sync with signal when setting
 	const setIsStreaming = (streaming: boolean) => {
 		isStreamingRef.current = streaming;
-		setIsStreamingState(streaming);
+		setIsStreamingSignal(streaming);
 	};
 
-	// Refs for streaming management
+	// Refs for streaming management (not migrated - React-specific, no reactivity needed)
 	const abortControllerRef = useRef<AbortController | null>(null);
 	const streamingMessageIdRef = useRef<string | null>(null);
 
@@ -63,9 +81,9 @@ export function useStreamingState(): StreamingState {
 		setIsStreaming,
 		isStreamingRef,
 		isTitleStreaming,
-		setIsTitleStreaming,
+		setIsTitleStreaming: setIsTitleStreamingSignal,
 		streamingTitle,
-		setStreamingTitle,
+		setStreamingTitle: setStreamingTitleSignal,
 		abortControllerRef,
 		streamingMessageIdRef,
 		dbWriteTimerRef,
@@ -73,8 +91,11 @@ export function useStreamingState(): StreamingState {
 		currentStepIndexRef,
 		skipContentForStepRef,
 		streamingStartTime,
-		setStreamingStartTime,
+		setStreamingStartTime: setStreamingStartTimeSignal,
 		streamingOutputTokens,
-		setStreamingOutputTokens,
+		setStreamingOutputTokens: setStreamingOutputTokensSignal,
 	};
 }
+
+// Export getter for non-React code
+export { getIsStreaming };
