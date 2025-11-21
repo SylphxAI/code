@@ -60,6 +60,10 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 	return observable<StreamEvent>((observer) => {
 		let askToolRegistered = false;
 		let sessionId: string | null = null;
+		// Declare these outside try-catch so they're accessible in catch block
+		let assistantMessageId: string | undefined = undefined;
+		let state: StreamState | null = null;
+
 		const executionPromise = (async () => {
 			try {
 				const {
@@ -207,14 +211,25 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				const needsTitle = needsTitleGeneration(updatedSession, isNewSession, isFirstMessage);
 
 				// 13. Create assistant message in database BEFORE stream
-				let assistantMessageId = await createAssistantMessage(
+				assistantMessageId = await createAssistantMessage(
 					sessionId,
 					messageRepository,
 					observer,
 				);
 
 				// 14. Initialize stream processing state
-				const state = createStreamState();
+				state = createStreamState();
+
+				// Listen for abort signal to set state.aborted immediately
+				// This ensures state.aborted is true BEFORE any errors are thrown
+				if (abortSignal) {
+					abortSignal.addEventListener("abort", () => {
+						if (state) {
+							state.aborted = true;
+						}
+					});
+				}
+
 				let lastCompletedStepNumber = -1;
 				const streamStartTime = Date.now();
 				const stepIdMap = new Map<number, string>(); // Track stepNumber → stepId mapping
@@ -562,20 +577,20 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				}
 
 				// Check if this is an intentional abort (user pressed ESC)
-				// Don't treat AI SDK errors ("No output generated") as aborts unless state.aborted is true
+				// Only treat as abort if state.aborted is explicitly true
 				const errorMessage = error instanceof Error ? error.message : String(error);
-				const isAbortError = state.aborted;
+				const isAbortError = state?.aborted ?? false;
 
 				if (isAbortError) {
 					// For abort errors: update message status to trigger cleanup, but don't emit error event
 					// Only if assistantMessageId was created (error occurred after message creation)
-					if (typeof assistantMessageId !== 'undefined') {
+					if (assistantMessageId) {
 						await updateMessageStatus(
 							assistantMessageId,
 							"abort",
 							undefined, // no finishReason
 							undefined, // no usage
-							messageRepository,
+							opts.messageRepository,
 							observer,
 						);
 					}
