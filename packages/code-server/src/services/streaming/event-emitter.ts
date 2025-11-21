@@ -3,7 +3,7 @@
  * Centralized event emission helpers for streaming service
  */
 
-import type { TokenUsage } from "@sylphx/code-core";
+import type { SessionStatus, TokenUsage } from "@sylphx/code-core";
 import type { Observer } from "@trpc/server/observable";
 import type { StreamEvent } from "./types.js";
 
@@ -21,6 +21,22 @@ export function emitSessionCreated(
 		sessionId,
 		provider,
 		model,
+	});
+}
+
+/**
+ * Emit session-status-updated event
+ * Updates unified progress indicator (status text, duration, tokens)
+ */
+export function emitSessionStatusUpdated(
+	observer: Observer<StreamEvent, unknown>,
+	sessionId: string,
+	status: SessionStatus,
+): void {
+	observer.next({
+		type: "session-status-updated",
+		sessionId,
+		status,
 	});
 }
 
