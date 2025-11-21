@@ -205,3 +205,36 @@ export function handleSessionTokensUpdated(
 		output: event.outputTokens,
 	});
 }
+
+// ============================================================================
+// Session Status Events
+// ============================================================================
+
+/**
+ * Handle session status updated event
+ * Server controls unified progress indicator (status text, duration, tokens)
+ * Client is pure UI - directly display data from server
+ */
+export function handleSessionStatusUpdated(
+	event: Extract<StreamEvent, { type: "session-status-updated" }>,
+	context: EventHandlerContext,
+) {
+	const currentSessionId = getCurrentSessionId();
+	const currentSessionValue = currentSession.value;
+
+	// Only handle if this is the current session
+	if (event.sessionId !== currentSessionId || !currentSessionValue) {
+		return;
+	}
+
+	logSession("Session status updated from event:", {
+		sessionId: event.sessionId,
+		status: event.status,
+	});
+
+	// Update local state with status from event
+	setCurrentSession({
+		...currentSessionValue,
+		status: event.status,
+	});
+}

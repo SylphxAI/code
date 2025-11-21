@@ -66,14 +66,7 @@ export default function Chat(props: ChatProps) {
 
 				{/* Status Indicator */}
 				<Box flexShrink={0} marginTop={1}>
-					<StatusIndicator
-						isStreaming={state.streamingState.isStreaming}
-						streamParts={
-							state.currentSession?.messages.find((m) => m.status === "active")?.content || []
-						}
-						streamingStartTime={state.streamingState.streamingStartTime}
-						streamingOutputTokens={state.streamingState.streamingOutputTokens}
-					/>
+					<StatusIndicator />
 				</Box>
 
 				{/* Todo List */}
