@@ -60,10 +60,12 @@ export default function Chat(props: ChatProps) {
 					hasSession={!!state.currentSession}
 					messages={state.currentSession?.messages}
 					attachmentTokens={state.attachmentTokens}
+					hideMessageTitles={state.hideMessageTitles}
+					hideMessageUsage={state.hideMessageUsage}
 				/>
 
 				{/* Status Indicator */}
-				<Box flexShrink={0}>
+				<Box flexShrink={0} marginTop={1}>
 					<StatusIndicator
 						isStreaming={state.streamingState.isStreaming}
 						streamParts={

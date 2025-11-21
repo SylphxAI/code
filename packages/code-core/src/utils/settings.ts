@@ -35,6 +35,20 @@ export interface ProjectSettings {
 	 * - 0.15 (15%): Conservative, better summary quality for large contexts
 	 */
 	contextReserveRatio?: number;
+	/**
+	 * Hide message titles (YOU, SYLPHX) for compact display
+	 * - true: Show compact view (▌ content)
+	 * - false: Show full titles (▌ YOU / ▌ SYLPHX · provider · model)
+	 * Default: true (compact)
+	 */
+	hideMessageTitles?: boolean;
+	/**
+	 * Hide message usage (token counts) for cleaner display
+	 * - true: Hide "2,632 → 145" token usage
+	 * - false: Show token usage after each assistant message
+	 * Default: true (hidden)
+	 */
+	hideMessageUsage?: boolean;
 }
 
 /**
@@ -46,6 +60,8 @@ const ProjectSettingsSchema = z
 		version: z.string().optional(),
 		useAccurateTokenizer: z.boolean().optional().default(true),
 		contextReserveRatio: z.number().min(0.01).max(0.5).optional().default(0.1),
+		hideMessageTitles: z.boolean().optional().default(true),
+		hideMessageUsage: z.boolean().optional().default(true),
 	})
 	.passthrough(); // Allow additional fields for forward compatibility
 

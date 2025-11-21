@@ -20,6 +20,7 @@ import { ToolPart } from "./ToolPart.js";
 
 interface MessagePartProps {
 	part: MessagePartType | StreamingPart;
+	compact?: boolean;
 }
 
 // Extended type for streaming parts - UNIFIED with status field
@@ -50,10 +51,12 @@ type StreamingPart =
 	| { type: "file"; mediaType: string; base64: string; status: "completed" }
 	| { type: "error"; error: string; status: "completed" };
 
-function MessagePartInternal({ part }: MessagePartProps) {
+function MessagePartInternal({ part, compact = false }: MessagePartProps) {
+	const marginLeft = compact ? 0 : 3;
+
 	if (part.type === "text") {
 		return (
-			<Box flexDirection="column" marginLeft={3} marginBottom={1}>
+			<Box flexDirection="column" marginLeft={marginLeft} marginBottom={1}>
 				<MarkdownText>{part.content}</MarkdownText>
 			</Box>
 		);
@@ -75,7 +78,7 @@ function MessagePartInternal({ part }: MessagePartProps) {
 		if (isActive) {
 			// Still streaming - show spinner with real-time duration
 			return (
-				<Box flexDirection="column" marginLeft={3} marginBottom={1}>
+				<Box flexDirection="column" marginLeft={marginLeft} marginBottom={1}>
 					<Box>
 						<Spinner color="yellow" />
 						<Text dimColor> Thinking... {durationDisplay}</Text>
@@ -86,7 +89,7 @@ function MessagePartInternal({ part }: MessagePartProps) {
 			// Show completed/aborted reasoning with humanized duration
 			// durationDisplay uses same format as active state (e.g., "523ms", "5.2s", "45s", "1m11s")
 			return (
-				<Box flexDirection="column" marginLeft={3} marginBottom={1}>
+				<Box flexDirection="column" marginLeft={marginLeft} marginBottom={1}>
 					<Box>
 						<Text dimColor>Thought {durationDisplay}</Text>
 					</Box>
@@ -97,7 +100,7 @@ function MessagePartInternal({ part }: MessagePartProps) {
 
 	if (part.type === "error") {
 		return (
-			<Box marginLeft={3} marginBottom={1}>
+			<Box marginLeft={marginLeft} marginBottom={1}>
 				<Text color="red">{part.error}</Text>
 			</Box>
 		);
@@ -138,7 +141,7 @@ function MessagePartInternal({ part }: MessagePartProps) {
 
 			if (!tempPath) {
 				return (
-					<Box flexDirection="column" marginLeft={3} marginBottom={1}>
+					<Box flexDirection="column" marginLeft={marginLeft} marginBottom={1}>
 						<Text dimColor>Image ({part.mediaType}):</Text>
 						<Text color="red">Failed to save image</Text>
 					</Box>
@@ -148,7 +151,7 @@ function MessagePartInternal({ part }: MessagePartProps) {
 			const fileSize = Math.round((part.base64.length * 3) / 4 / 1024); // Convert base64 to KB
 
 			return (
-				<Box flexDirection="column" marginLeft={3} marginBottom={1}>
+				<Box flexDirection="column" marginLeft={marginLeft} marginBottom={1}>
 					<Text dimColor>
 						Image ({part.mediaType}) - {fileSize}KB
 					</Text>
@@ -159,7 +162,7 @@ function MessagePartInternal({ part }: MessagePartProps) {
 		} else {
 			// Render non-image file info
 			return (
-				<Box flexDirection="column" marginLeft={3} marginBottom={1}>
+				<Box flexDirection="column" marginLeft={marginLeft} marginBottom={1}>
 					<Text dimColor>File: {part.mediaType}</Text>
 					<Text dimColor>Size: {Math.round(part.base64.length * 0.75)} bytes</Text>
 				</Box>
@@ -178,6 +181,7 @@ function MessagePartInternal({ part }: MessagePartProps) {
 				input={part.input}
 				result={part.result}
 				error={part.error}
+				compact={compact}
 			/>
 		);
 	}
@@ -191,7 +195,7 @@ function MessagePartInternal({ part }: MessagePartProps) {
 			.join(" ");
 
 		return (
-			<Box marginLeft={2} marginBottom={1}>
+			<Box marginLeft={compact ? 0 : 2} marginBottom={1}>
 				<Text dimColor>System: {humanizedType}</Text>
 			</Box>
 		);
@@ -202,6 +206,9 @@ function MessagePartInternal({ part }: MessagePartProps) {
 
 // Memoize component to prevent re-rendering unchanged message parts
 export const MessagePart = React.memo(MessagePartInternal, (prevProps, nextProps) => {
+	// Check compact prop first
+	if (prevProps.compact !== nextProps.compact) return false;
+
 	const prevPart = prevProps.part;
 	const nextPart = nextProps.part;
 

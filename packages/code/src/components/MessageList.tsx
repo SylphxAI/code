@@ -11,16 +11,19 @@ import { Box, Text } from "ink";
 import React from "react";
 import MarkdownText from "./MarkdownText.js";
 import { MessagePart } from "./MessagePart.js";
+import { indicators } from "../utils/colors.js";
 
 interface MessageListProps {
 	messages: SessionMessage[];
 	attachmentTokens: Map<string, number>;
+	hideMessageTitles?: boolean;
+	hideMessageUsage?: boolean;
 }
 
 // Memoized message header component to prevent re-renders
 const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
 	if (msg.role === "user") {
-		return <Text color="cyan">▌ YOU</Text>;
+		return <Text color="cyan">{indicators.user} YOU</Text>;
 	}
 
 	if (msg.role === "system") {
@@ -31,7 +34,7 @@ const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
 
 		return (
 			<Box flexDirection="row">
-				<Text color="yellow">▌ SYSTEM</Text>
+				<Text color="yellow">{indicators.system} SYSTEM</Text>
 				<Text color="yellow" dimColor>
 					{" "}
 					· {messageType}
@@ -45,7 +48,7 @@ const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
 	const stepsWithModel = steps.filter((s) => s.provider && s.model);
 
 	if (stepsWithModel.length === 0) {
-		return <Text color="green">▌ SYLPHX</Text>;
+		return <Text color="green">{indicators.assistant} SYLPHX</Text>;
 	}
 
 	const firstProvider = stepsWithModel[0].provider;
@@ -57,7 +60,7 @@ const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
 	if (allSame) {
 		return (
 			<Box flexDirection="row">
-				<Text color="green">▌ SYLPHX</Text>
+				<Text color="green">{indicators.assistant} SYLPHX</Text>
 				<Text dimColor>
 					{" "}
 					· {firstProvider} · {firstModel}
@@ -69,7 +72,7 @@ const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
 	const uniqueModels = new Set(stepsWithModel.map((s) => `${s.provider}/${s.model}`));
 	return (
 		<Box flexDirection="row">
-			<Text color="green">▌ SYLPHX</Text>
+			<Text color="green">{indicators.assistant} SYLPHX</Text>
 			<Text dimColor> · Mixed {uniqueModels.size} models</Text>
 		</Box>
 	);
@@ -77,21 +80,34 @@ const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
 
 MessageHeader.displayName = "MessageHeader";
 
-export function MessageList({ messages, attachmentTokens }: MessageListProps) {
+export function MessageList({
+	messages,
+	attachmentTokens,
+	hideMessageTitles = true,
+	hideMessageUsage = true,
+}: MessageListProps) {
 	return (
 		<>
 			{messages.map((msg) => (
-				<Box key={msg.id} flexDirection="column">
-					{/* Message Header */}
-					<Box paddingTop={1} paddingX={1}>
-						<MessageHeader msg={msg} />
-					</Box>
+				<Box key={msg.id} flexDirection="column" marginTop={1}>
+					{/* Message Header - only show when not hiding titles */}
+					{!hideMessageTitles && (
+						<Box paddingTop={1} paddingX={1}>
+							<MessageHeader msg={msg} />
+						</Box>
+					)}
 
 					{/* Message Content (Step-based or fallback to content array) */}
 					{msg.role === "user" || msg.role === "system" ? (
 						// User/System message: reconstruct original text with inline @file highlighting
 						msg.steps && msg.steps.length > 0 ? (
-							<Box marginLeft={3} paddingY={1} flexDirection="column">
+							<Box paddingTop={0} paddingX={1} flexDirection="row">
+								{hideMessageTitles && (
+									<Text color={msg.role === "user" ? "cyan" : "yellow"}>
+										{msg.role === "user" ? indicators.user : indicators.system}{" "}
+									</Text>
+								)}
+								<Box flexDirection="column" marginLeft={hideMessageTitles ? 0 : 2}>
 								{(() => {
 									// Reconstruct original text from parts
 									const parts = msg.steps.flatMap((step) => step.parts);
@@ -203,9 +219,16 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 										);
 									});
 								})()}
+								</Box>
 							</Box>
 						) : msg.content && msg.content.length > 0 ? (
-							<Box marginLeft={3} paddingY={1} flexDirection="column">
+							<Box paddingTop={0} paddingX={1} flexDirection="row">
+								{hideMessageTitles && (
+									<Text color={msg.role === "user" ? "cyan" : "yellow"}>
+										{msg.role === "user" ? indicators.user : indicators.system}{" "}
+									</Text>
+								)}
+								<Box flexDirection="column" marginLeft={hideMessageTitles ? 0 : 2}>
 								{(() => {
 									// Same logic for legacy content array
 									let fullText = "";
@@ -304,36 +327,52 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 										);
 									});
 								})()}
+								</Box>
 							</Box>
 						) : null
 					) : // Assistant message: render each part separately (tools, reasoning, files, etc.)
 					msg.steps && msg.steps.length > 0 ? (
-						(() => {
-							// Flatten all parts with globally unique index
-							let globalPartIndex = 0;
-							const parts = msg.steps.flatMap((step) =>
-								step.parts.map((part) => (
-									<MessagePart key={`${msg.id}-part-${globalPartIndex++}`} part={part} />
-								)),
-							);
+						<Box paddingTop={0} paddingX={1} flexDirection="row">
+							{hideMessageTitles && <Text color="green">{indicators.assistant} </Text>}
+							<Box flexDirection="column" flexGrow={1}>
+								{(() => {
+									// Flatten all parts with globally unique index
+									let globalPartIndex = 0;
+									const parts = msg.steps.flatMap((step) =>
+										step.parts.map((part) => (
+											<MessagePart
+												key={`${msg.id}-part-${globalPartIndex++}`}
+												part={part}
+												compact={hideMessageTitles}
+											/>
+										)),
+									);
 
-							// If message is active but no parts yet, show spinner
-							if (parts.length === 0 && msg.status === "active") {
-								return (
-									<Box paddingX={1} marginLeft={3}>
-										<Text dimColor>...</Text>
-									</Box>
-								);
-							}
+									// If message is active but no parts yet, show spinner
+									if (parts.length === 0 && msg.status === "active") {
+										return <Text dimColor>...</Text>;
+									}
 
-							return parts;
-						})()
+									return parts;
+								})()}
+							</Box>
+						</Box>
 					) : msg.content && msg.content.length > 0 ? (
-						msg.content.map((part, partIdx) => (
-							<MessagePart key={`${msg.id}-part-${partIdx}`} part={part} />
-						))
+						<Box paddingTop={0} paddingX={1} flexDirection="row">
+							{hideMessageTitles && <Text color="green">{indicators.assistant} </Text>}
+							<Box flexDirection="column" flexGrow={1}>
+								{msg.content.map((part, partIdx) => (
+									<MessagePart
+										key={`${msg.id}-part-${partIdx}`}
+										part={part}
+										compact={hideMessageTitles}
+									/>
+								))}
+							</Box>
+						</Box>
 					) : msg.status === "active" ? (
-						<Box paddingX={1} marginLeft={3}>
+						<Box paddingTop={0} paddingX={1} flexDirection="row">
+							{hideMessageTitles && <Text color="green">{indicators.assistant} </Text>}
 							<Text dimColor>...</Text>
 						</Box>
 					) : null}
@@ -360,20 +399,20 @@ export function MessageList({ messages, attachmentTokens }: MessageListProps) {
 					{/* Footer (for assistant messages) */}
 					{msg.role === "assistant" &&
 						msg.status !== "active" &&
-						(msg.status === "abort" || msg.status === "error" || msg.usage) && (
-							<Box flexDirection="column">
+						(msg.status === "abort" || msg.status === "error" || (!hideMessageUsage && msg.usage)) && (
+							<Box flexDirection="column" marginLeft={hideMessageTitles ? 3 : 0}>
 								{msg.status === "abort" && (
-									<Box marginLeft={3} marginBottom={1}>
+									<Box marginLeft={hideMessageTitles ? 0 : 3} marginBottom={1}>
 										<Text color="yellow">[Aborted]</Text>
 									</Box>
 								)}
 								{msg.status === "error" && (
-									<Box marginLeft={3} marginBottom={1}>
+									<Box marginLeft={hideMessageTitles ? 0 : 3} marginBottom={1}>
 										<Text color="red">[Error]</Text>
 									</Box>
 								)}
-								{msg.usage && (
-									<Box marginLeft={3}>
+								{!hideMessageUsage && msg.usage && (
+									<Box marginLeft={hideMessageTitles ? 0 : 3}>
 										<Text dimColor>
 											{msg.usage.promptTokens.toLocaleString()} →{" "}
 											{msg.usage.completionTokens.toLocaleString()}

@@ -8,6 +8,52 @@
  */
 
 /**
+ * Detect if terminal is using a light theme
+ * Checks COLORFGBG env var (format: "fg;bg" where bg > 7 typically means light)
+ * Also checks common terminal theme indicators
+ */
+export function isLightTheme(): boolean {
+	// Check COLORFGBG (set by some terminals like xterm, iTerm2)
+	const colorFgBg = process.env.COLORFGBG;
+	if (colorFgBg) {
+		const parts = colorFgBg.split(";");
+		const bg = parseInt(parts[parts.length - 1], 10);
+		// Background color index > 7 typically indicates light theme
+		// (0-7 are dark colors, 8-15 are light colors in standard palette)
+		if (!isNaN(bg) && bg > 7) return true;
+		if (!isNaN(bg) && bg <= 7) return false;
+	}
+
+	// Check TERM_PROGRAM specific settings
+	const termProgram = process.env.TERM_PROGRAM;
+	if (termProgram === "Apple_Terminal") {
+		// Apple Terminal defaults to light theme
+		return true;
+	}
+
+	// Check macOS appearance (if available via environment)
+	const appearance = process.env.DARKMODE;
+	if (appearance === "0") return true;
+	if (appearance === "1") return false;
+
+	// Default to dark theme (most developer terminals are dark)
+	return false;
+}
+
+/**
+ * Get theme-aware colors
+ */
+export function getThemeColors() {
+	const light = isLightTheme();
+	return {
+		// Subtle separator line color
+		separator: light ? "#ccc" : "#444",
+		// Very subtle (almost invisible)
+		separatorSubtle: light ? "#eee" : "#333",
+	};
+}
+
+/**
  * Semantic colors for consistent theming
  * These use terminal's basic colors which adapt to theme
  */
@@ -52,3 +98,12 @@ export const statusColors = {
 export type Color = (typeof colors)[keyof typeof colors];
 export type RoleColor = (typeof roleColors)[keyof typeof roleColors];
 export type StatusColor = (typeof statusColors)[keyof typeof statusColors];
+
+/**
+ * Message indicator symbols
+ */
+export const indicators = {
+	user: "▷", // Empty triangle - user messages
+	assistant: "◆", // Filled diamond - assistant messages
+	system: "◇", // Empty diamond - system messages
+} as const;

@@ -3,10 +3,11 @@
  * Handles all input modes: selection, pending command, and normal input
  */
 
-import { getTRPCClient } from "@sylphx/code-client";
+import { getTRPCClient, setCurrentScreen } from "@sylphx/code-client";
 import type { FileAttachment } from "@sylphx/code-core";
 import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Text } from "ink";
+import { getThemeColors, indicators } from "../../../utils/colors.js";
 import { useEffect, useRef } from "react";
 import type { Command, WaitForInputOptions } from "../../../commands/types.js";
 import { CommandAutocomplete } from "../../../components/CommandAutocomplete.js";
@@ -188,12 +189,24 @@ export function InputSection({
 
 	const headerTitle = getHeaderTitle();
 
+	// Get terminal width for separator line
+	const termWidth = process.stdout.columns || 80;
+	const separatorLine = "─".repeat(termWidth);
+	const themeColors = getThemeColors();
+
 	return (
 		<Box flexDirection="column" flexShrink={0}>
-			{/* Dynamic Header */}
+			{/* Top separator */}
 			<Box>
-				<Text color="cyan">▌ {headerTitle}</Text>
+				<Text color={themeColors.separatorSubtle}>{separatorLine}</Text>
 			</Box>
+
+			{/* Dynamic Header - only show when not default "YOU" */}
+			{headerTitle !== "YOU" && (
+				<Box>
+					<Text color="cyan">{indicators.user} {headerTitle}</Text>
+				</Box>
+			)}
 
 			{/* Custom Input Component */}
 			{inputComponent ? (
@@ -371,6 +384,22 @@ export function InputSection({
 										}
 									}}
 									onPasteImage={onPasteImage}
+									onCtrlB={() => {
+										const client = getTRPCClient();
+										client.bash.getActive
+											.query()
+											.then((active) => {
+												if (active) {
+													return client.bash.demote.mutate({ bashId: active.id });
+												}
+											})
+											.catch((error) => {
+												console.error("[InputSection] Failed to demote active bash:", error);
+											});
+									}}
+									onCtrlP={() => {
+										setCurrentScreen("bash-list");
+									}}
 								/>
 							</Box>
 
@@ -403,6 +432,11 @@ export function InputSection({
 					)}
 				</>
 			)}
+
+			{/* Bottom separator */}
+			<Box>
+				<Text color={themeColors.separatorSubtle}>{separatorLine}</Text>
+			</Box>
 		</Box>
 	);
 }

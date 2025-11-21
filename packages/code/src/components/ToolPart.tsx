@@ -16,10 +16,11 @@ interface ToolPartProps {
 	input?: unknown;
 	result?: unknown;
 	error?: string;
+	compact?: boolean;
 }
 
 export const ToolPart = React.memo(function ToolPart(props: ToolPartProps) {
-	const { name, status, duration, startTime, input, result, error } = props;
+	const { name, status, duration, startTime, input, result, error, compact = false } = props;
 
 	// Load tool display settings from config
 	const [toolDisplaySettings, setToolDisplaySettings] = useState<Record<string, boolean>>({});
@@ -63,7 +64,7 @@ export const ToolPart = React.memo(function ToolPart(props: ToolPartProps) {
 	if (error !== undefined) toolProps.error = error;
 
 	return (
-		<Box marginLeft={2} marginBottom={1}>
+		<Box marginLeft={compact ? 0 : 2} marginBottom={1}>
 			<ToolDisplay {...toolProps} />
 		</Box>
 	);

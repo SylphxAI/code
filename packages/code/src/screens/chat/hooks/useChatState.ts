@@ -12,7 +12,8 @@ import { useProjectFiles } from "../../../hooks/client/useProjectFiles.js";
 import { useTokenCalculation } from "../../../hooks/client/useTokenCalculation.js";
 import { addDebugLog, useSelectedModel, useSelectedProvider } from "@sylphx/code-client";
 import type { FileAttachment } from "@sylphx/code-core";
-import { useCallback, useMemo, useState } from "react";
+import { loadSettings } from "@sylphx/code-core";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { commands } from "../../../commands/registry.js";
 import { createGetHintText } from "../autocomplete/hintText.js";
 import type { ChatProps } from "../types.js";
@@ -52,6 +53,22 @@ export function useChatState(_props: ChatProps) {
 	const [selectedFileIndex, setSelectedFileIndex] = useState(0);
 	const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
 	const [showEscHint, setShowEscHint] = useState(false);
+	const [hideMessageTitles, setHideMessageTitles] = useState(true); // default: hide
+	const [hideMessageUsage, setHideMessageUsage] = useState(true); // default: hide
+
+	// Load display settings on mount
+	useEffect(() => {
+		loadSettings().then((result) => {
+			if (result.success) {
+				if (result.data.hideMessageTitles !== undefined) {
+					setHideMessageTitles(result.data.hideMessageTitles);
+				}
+				if (result.data.hideMessageUsage !== undefined) {
+					setHideMessageUsage(result.data.hideMessageUsage);
+				}
+			}
+		});
+	}, []);
 
 	// Helper function to get AI config
 	const getAIConfig = useCallback(() => aiConfig, [aiConfig]);
@@ -139,6 +156,10 @@ export function useChatState(_props: ChatProps) {
 
 		// Autocomplete
 		hintText,
+
+		// Display settings
+		hideMessageTitles,
+		hideMessageUsage,
 	};
 }
 

@@ -15,7 +15,7 @@ interface SettingsManagementProps {
 	onSave: (config: AIConfig) => Promise<void>;
 }
 
-type View = "main" | "tool-display" | "tokenizer-mode" | "context-reserve";
+type View = "main" | "tool-display" | "tokenizer-mode" | "context-reserve" | "message-titles" | "message-usage";
 
 interface ToolDisplayItem {
 	label: string;
@@ -34,6 +34,8 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 
 	// Main menu options
 	const mainMenuItems = [
+		{ label: "Message Titles", value: "message-titles" },
+		{ label: "Message Usage", value: "message-usage" },
 		{ label: "Tool Display Settings", value: "tool-display" },
 		{ label: "Token Calculation Mode", value: "tokenizer-mode" },
 		{ label: "Context Reserve Ratio", value: "context-reserve" },
@@ -72,6 +74,10 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 	const handleMainMenuSelect = (item: { value: string }) => {
 		if (item.value === "back") {
 			onComplete();
+		} else if (item.value === "message-titles") {
+			setView("message-titles");
+		} else if (item.value === "message-usage") {
+			setView("message-usage");
 		} else if (item.value === "tool-display") {
 			setView("tool-display");
 		} else if (item.value === "tokenizer-mode") {
@@ -232,6 +238,111 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 							{
 								...currentSettings,
 								useAccurateTokenizer: useAccurate,
+							},
+							cwd,
+						);
+
+						// Go back to main menu
+						setView("main");
+					}}
+				/>
+			</Box>
+		);
+	}
+
+	// Message titles view
+	if (view === "message-titles") {
+		return (
+			<Box flexDirection="column" padding={1}>
+				<Box marginBottom={1}>
+					<Text bold>Message Titles</Text>
+				</Box>
+
+				<Box marginBottom={1} flexDirection="column">
+					<Text dimColor>Configure how message headers are displayed:</Text>
+					<Text dimColor> </Text>
+					<Text dimColor>• Show: Full headers with role and model info</Text>
+					<Text dimColor>  ▌ YOU / ▌ SYLPHX · provider · model</Text>
+					<Text dimColor> </Text>
+					<Text dimColor>• Hide: Compact view (default)</Text>
+					<Text dimColor>  ▌ content directly</Text>
+				</Box>
+
+				<SelectInput
+					items={[
+						{ label: "Hide Titles (Compact)", value: "hide" },
+						{ label: "Show Titles (Full)", value: "show" },
+						{ label: "← Back", value: "back" },
+					]}
+					onSelect={async (item) => {
+						if (item.value === "back") {
+							setView("main");
+							return;
+						}
+
+						const hideTitles = item.value === "hide";
+
+						// Save to project settings
+						const { loadSettings, saveSettings } = await import("@sylphx/code-core");
+						const cwd = process.cwd();
+						const settingsResult = await loadSettings(cwd);
+						const currentSettings = settingsResult.success ? settingsResult.data : {};
+
+						await saveSettings(
+							{
+								...currentSettings,
+								hideMessageTitles: hideTitles,
+							},
+							cwd,
+						);
+
+						// Go back to main menu
+						setView("main");
+					}}
+				/>
+			</Box>
+		);
+	}
+
+	// Message usage view
+	if (view === "message-usage") {
+		return (
+			<Box flexDirection="column" padding={1}>
+				<Box marginBottom={1}>
+					<Text bold>Message Usage</Text>
+				</Box>
+
+				<Box marginBottom={1} flexDirection="column">
+					<Text dimColor>Show or hide token usage after each message:</Text>
+					<Text dimColor> </Text>
+					<Text dimColor>• Show: Display "2,632 → 145" (prompt → completion)</Text>
+					<Text dimColor>• Hide: Cleaner display without token counts (default)</Text>
+				</Box>
+
+				<SelectInput
+					items={[
+						{ label: "Hide Usage (Cleaner)", value: "hide" },
+						{ label: "Show Usage (Token Counts)", value: "show" },
+						{ label: "← Back", value: "back" },
+					]}
+					onSelect={async (item) => {
+						if (item.value === "back") {
+							setView("main");
+							return;
+						}
+
+						const hideUsage = item.value === "hide";
+
+						// Save to project settings
+						const { loadSettings, saveSettings } = await import("@sylphx/code-core");
+						const cwd = process.cwd();
+						const settingsResult = await loadSettings(cwd);
+						const currentSettings = settingsResult.success ? settingsResult.data : {};
+
+						await saveSettings(
+							{
+								...currentSettings,
+								hideMessageUsage: hideUsage,
 							},
 							cwd,
 						);
