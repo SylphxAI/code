@@ -205,6 +205,15 @@ export function handleToolResult(
 			),
 		false, // Don't skip for completed - result updates are idempotent
 	);
+
+	// Refetch session if TodoWrite tool completed (todos were updated in database)
+	if (event.toolName === "TodoWrite" && currentSessionId) {
+		import("../../../utils/refetch-session.js").then(({ refetchCurrentSession }) => {
+			refetchCurrentSession(currentSessionId).catch((err) => {
+				console.error("[handleToolResult] Failed to refetch session after TodoWrite:", err);
+			});
+		});
+	}
 }
 
 export function handleToolError(
