@@ -66,19 +66,14 @@ export function handleQueueMessageAdded(event: {
 	sessionId: string;
 	message: QueuedMessage;
 }): void {
-	console.log("[handleQueueMessageAdded] Event received:", JSON.stringify(event));
 	const queues = sessionQueues.value;
-	console.log("[handleQueueMessageAdded] Current queues:", JSON.stringify(queues));
 	const sessionQueue = queues[event.sessionId] || [];
-	console.log("[handleQueueMessageAdded] Current session queue length:", sessionQueue.length);
 
 	const newQueues = {
 		...queues,
 		[event.sessionId]: [...sessionQueue, event.message],
 	};
-	console.log("[handleQueueMessageAdded] New queues:", JSON.stringify(newQueues));
 	(sessionQueues as any).value = newQueues;
-	console.log("[handleQueueMessageAdded] Signal updated");
 }
 
 /**
