@@ -179,11 +179,24 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				const supportsTools = modelCapabilities.has("tools");
 				let tools: Record<string, any> | undefined;
 				if (supportsTools) {
+					// Load base tools (filesystem, shell, search, MCP)
 					const baseTools = await getAISDKTools({ interactive: false });
+
+					// Create server-side ask tool
 					const { createAskTool } = await import("./ask-tool.js");
 					const askTool = createAskTool(sessionId, observer);
-					tools = { ...baseTools, ask: askTool };
 					askToolRegistered = true;
+
+					// Create server-side todo tool
+					const { createServerTodoTool } = await import("./todo-tool.js");
+					const todoTool = createServerTodoTool(sessionId, sessionRepository, opts.appContext);
+
+					// Combine all tools
+					tools = {
+						...baseTools,
+						ask: askTool,
+						updateTodos: todoTool,
+					};
 				} else {
 					tools = undefined;
 				}
