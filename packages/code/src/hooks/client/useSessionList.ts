@@ -1,11 +1,19 @@
 /**
  * Session List Hook
- * Provides reactive session list with loading/error states
+ * Provides reactive session list with loading/error states using Zen signals
  */
 
 import type { SessionMetadata } from "@sylphx/code-core";
-import { useCallback, useState } from "react";
-import {  getRecentSessions  } from "@sylphx/code-client";
+import { useCallback } from "react";
+import {
+	getRecentSessions,
+	useRecentSessions,
+	useSessionsLoading,
+	useSessionsError,
+	setRecentSessions as setRecentSessionsSignal,
+	setSessionsLoading as setSessionsLoadingSignal,
+	setSessionsError as setSessionsErrorSignal,
+} from "@sylphx/code-client";
 
 export interface UseSessionListReturn {
 	sessions: SessionMetadata[];
@@ -16,6 +24,7 @@ export interface UseSessionListReturn {
 
 /**
  * Hook for managing session list
+ * Data stored in Zen signals for global access
  *
  * @returns Session list with loading/error states and refresh function
  *
@@ -29,22 +38,22 @@ export interface UseSessionListReturn {
  * ```
  */
 export function useSessionList(): UseSessionListReturn {
-	const [sessions, setSessions] = useState<SessionMetadata[]>([]);
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const sessions = useRecentSessions();
+	const loading = useSessionsLoading();
+	const error = useSessionsError();
 
 	const loadSessions = useCallback(async (limit: number = 100) => {
-		setLoading(true);
-		setError(null);
+		setSessionsLoadingSignal(true);
+		setSessionsErrorSignal(null);
 		try {
 			const result = await getRecentSessions(limit);
-			setSessions(result);
+			setRecentSessionsSignal(result);
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : "Failed to load sessions";
-			setError(errorMessage);
-			setSessions([]);
+			setSessionsErrorSignal(errorMessage);
+			setRecentSessionsSignal([]);
 		} finally {
-			setLoading(false);
+			setSessionsLoadingSignal(false);
 		}
 	}, []);
 

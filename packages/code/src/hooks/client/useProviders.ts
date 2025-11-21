@@ -1,44 +1,49 @@
 /**
  * useProviders Hook
- * Get all available AI providers from server
+ * Get all available AI providers from server using Zen signals
  */
 
-import { useEffect, useState } from "react";
-import { useTRPCClient } from "@sylphx/code-client";
-
-interface Provider {
-	id: string;
-	name: string;
-}
+import { useEffect } from "react";
+import {
+	useTRPCClient,
+	useProviders as useProvidersSignal,
+	useProvidersLoading,
+	useProvidersError,
+	setProviders as setProvidersSignal,
+	setProvidersLoading as setProvidersLoadingSignal,
+	setProvidersError as setProvidersErrorSignal,
+	type Provider,
+} from "@sylphx/code-client";
 
 /**
  * Hook to fetch all available AI providers
  * Returns provider metadata (id, name) from server
+ * Data stored in Zen signals for global access
  */
 export function useProviders() {
 	const trpc = useTRPCClient();
-	const [providers, setProviders] = useState<Record<string, Provider>>({});
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+	const providers = useProvidersSignal();
+	const loading = useProvidersLoading();
+	const error = useProvidersError();
 
 	useEffect(() => {
 		let mounted = true;
 
 		async function fetchProviders() {
 			try {
-				setLoading(true);
-				setError(null);
+				setProvidersLoadingSignal(true);
+				setProvidersErrorSignal(null);
 				const data = await trpc.config.getProviders.query();
 				if (mounted) {
-					setProviders(data);
+					setProvidersSignal(data);
 				}
 			} catch (err) {
 				if (mounted) {
-					setError(err instanceof Error ? err.message : "Failed to load providers");
+					setProvidersErrorSignal(err instanceof Error ? err.message : "Failed to load providers");
 				}
 			} finally {
 				if (mounted) {
-					setLoading(false);
+					setProvidersLoadingSignal(false);
 				}
 			}
 		}

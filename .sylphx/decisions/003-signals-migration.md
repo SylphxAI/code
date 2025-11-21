@@ -1,8 +1,8 @@
 # 003. Migrate to Preact Signals (Zen) for State Management
 
-**Status:** ✅ Complete (All Core Phases Done)
+**Status:** ✅ Complete (Phases 1-5 Done - 47 useState Eliminated)
 **Date:** 2025-01-15
-**Updated:** 2025-01-15
+**Updated:** 2025-01-16
 
 ## Context
 
@@ -72,9 +72,22 @@ No useState/useReducer for state (only for derived/transient UI)
 - [x] Migrated useProjectFiles to Zen signals (2 useState eliminated)
 - [x] Added computed signals (validTags, attachmentCount)
 
+### Phase 5: Data Loading Hooks (✅ Complete)
+- [x] Created domain signals structure
+  - `domain/providers/index.ts` - AI providers data
+  - `domain/models/index.ts` - Models per provider
+  - `domain/mcp/index.ts` - MCP server status
+- [x] Extended session domain with `sessionsError` signal
+- [x] Migrated useProviders to Zen signals (3 useState eliminated)
+- [x] Migrated useModels to Zen signals (3 useState eliminated)
+- [x] Migrated useSessionList to Zen signals (3 useState eliminated)
+- [x] Migrated useMCPStatus to Zen signals (1 useState eliminated)
+- [x] Models stored per-provider for efficient caching
+- [x] Event-driven updates via eventBus maintained
+
 ### Future Phases (Optional)
 - [ ] Transient UI (loading, hover, focus) → keep useState (appropriate use case)
-- [ ] Component-specific state (MCP management, provider management) → migrate as needed
+- [ ] Component-specific state (settings forms, etc.) → migrate as needed
 
 ## Implementation Patterns
 
@@ -115,18 +128,23 @@ effect(() => {
 ```
 code-client/
   signals/
-    domain/        # Domain signals (session, ai, queue, ui)
+    domain/        # Domain signals (session, ai, queue, ui, providers, models, mcp)
+      ui/          # UI state (input, selection, command, streaming, queue)
+      session/     # Session and messages
+      ai/          # AI config
+      queue/       # Queue management
+      theme/       # Theme state
+      files/       # File attachments, project files
+      providers/   # AI providers data
+      models/      # Models per provider
+      mcp/         # MCP server status
     computed/      # Computed signals
     effects/       # Side effects
     react-bridge.ts  # useZen hook
 
 code/
   hooks/
-    signals/       # New: UI-specific signals
-      theme.ts
-      command.ts
-      input.ts
-      ...
+    client/        # Client hooks using signals (useProviders, useModels, etc.)
 ```
 
 ## Migration Checklist
@@ -156,10 +174,16 @@ code/
 - [x] File attachments (2 useState eliminated)
 - [x] Project files (2 useState eliminated)
 
-**Total useState eliminated: 37 across 7 hooks**
+**Data Loading (Priority 4)**
+- [x] Providers (3 useState eliminated)
+- [x] Models (3 useState eliminated)
+- [x] Session list (3 useState eliminated)
+- [x] MCP status (1 useState eliminated)
+
+**Total useState eliminated: 47 across 11 hooks**
 
 **Remaining (Low Priority - Optional)**
-- [ ] Component-specific state (MCP management, provider management)
+- [ ] Component-specific state (settings forms, etc.)
 - [ ] Transient UI state (appropriate to keep as useState)
 
 ### Testing Strategy

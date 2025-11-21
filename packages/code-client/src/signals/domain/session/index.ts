@@ -22,6 +22,7 @@ export const messageLimit = 100;
 // Session list
 export const recentSessions = zen<Session[]>([]);
 export const sessionsLoading = zen(false);
+export const sessionsError = zen<string | null>(null);
 
 // Computed signals
 export const hasCurrentSession = computed(() => currentSessionId.value !== null);
@@ -41,6 +42,7 @@ export const setStreamingMessageId = (value: string | null) => { (streamingMessa
 export const setMessages = (value: SessionMessage[]) => { (messages as any).value = value };
 export const setRecentSessions = (value: Session[]) => { (recentSessions as any).value = value };
 export const setSessionsLoading = (value: boolean) => { (sessionsLoading as any).value = value };
+export const setSessionsError = (value: string | null) => { (sessionsError as any).value = value };
 
 // Actions
 export const getCurrentSessionId = () => currentSessionId.value;
@@ -218,6 +220,9 @@ export const useMessageCount = () => useZen(messageCount);
 export const useLastMessage = () => useZen(lastMessage);
 export const useHasCurrentSession = () => useZen(hasCurrentSession);
 export const useCurrentSessionTitle = () => useZen(currentSessionTitle);
+export const useRecentSessions = () => useZen(recentSessions);
+export const useSessionsLoading = () => useZen(sessionsLoading);
+export const useSessionsError = () => useZen(sessionsError);
 
 // Setup event listeners
 eventBus.on("streaming:started", () => {
