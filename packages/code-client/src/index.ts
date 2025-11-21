@@ -45,6 +45,7 @@ export { getLastSession, getRecentSessions } from "./api/sessions.js";
 // Cross-domain computed signals
 export * from "./signals/computed/index.js";
 export * from "./signals/domain/ai/index.js";
+export * from "./signals/domain/files/index.js";
 export * from "./signals/domain/queue/index.js";
 export * from "./signals/domain/session/index.js";
 export * from "./signals/domain/settings/index.js";

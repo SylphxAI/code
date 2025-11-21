@@ -7,28 +7,33 @@
 import { readFile } from "node:fs/promises";
 import type { FileAttachment } from "@sylphx/code-core";
 import { lookup } from "mime-types";
-import { useEffect, useMemo, useState } from "react";
-import { getTRPCClient } from "@sylphx/code-client";
-import {  extractFileReferences  } from "@sylphx/code-client";
+import { useEffect } from "react";
+import {
+	getTRPCClient,
+	extractFileReferences,
+	usePendingAttachments,
+	setPendingAttachments as setPendingAttachmentsSignal,
+	addPendingAttachment,
+	clearAttachments as clearAttachmentsSignal,
+	useAttachmentTokens,
+	setAttachmentTokenCount as setAttachmentTokenCountSignal,
+	useValidTags,
+} from "@sylphx/code-client";
 
 export function useFileAttachments(input: string) {
-	const [pendingAttachments, setPendingAttachments] = useState<FileAttachment[]>([]);
-	const [attachmentTokens, setAttachmentTokens] = useState<Map<string, number>>(new Map());
+	const pendingAttachments = usePendingAttachments();
+	const attachmentTokens = useAttachmentTokens();
+	const validTags = useValidTags();
 
 	// Sync pending attachments with @file references in input
 	useEffect(() => {
 		const fileRefs = new Set(extractFileReferences(input));
 
 		// Remove attachments that are no longer in input
-		setPendingAttachments((prev) => {
+		setPendingAttachmentsSignal((prev) => {
 			return prev.filter((att) => fileRefs.has(att.relativePath));
 		});
 	}, [input]);
-
-	// Create validTags set from pendingAttachments
-	const validTags = useMemo(() => {
-		return new Set(pendingAttachments.map((att) => att.relativePath));
-	}, [pendingAttachments]);
 
 	// Add attachment (ChatGPT-style: immediate upload)
 	const addAttachment = async (
@@ -40,13 +45,7 @@ export function useFileAttachments(input: string) {
 	) => {
 		// If fileId already provided, just add to state
 		if (attachment.fileId) {
-			setPendingAttachments((prev) => {
-				// Check if already attached
-				if (prev.some((a) => a.fileId === attachment.fileId)) {
-					return prev;
-				}
-				return [...prev, attachment as FileAttachment];
-			});
+			addPendingAttachment(attachment as FileAttachment);
 			return;
 		}
 
@@ -84,21 +83,12 @@ export function useFileAttachments(input: string) {
 			});
 
 			// Add to state with fileId
-			setPendingAttachments((prev) => {
-				// Check if already attached
-				if (prev.some((a) => a.fileId === result.fileId)) {
-					return prev;
-				}
-				return [
-					...prev,
-					{
-						fileId: result.fileId,
-						relativePath: attachment.relativePath,
-						size,
-						mimeType,
-						type: attachment.type,
-					},
-				];
+			addPendingAttachment({
+				fileId: result.fileId,
+				relativePath: attachment.relativePath,
+				size,
+				mimeType,
+				type: attachment.type,
 			});
 		} catch (error) {
 			console.error("[addAttachment] Failed to upload file:", error);
@@ -106,23 +96,13 @@ export function useFileAttachments(input: string) {
 		}
 	};
 
-	// Clear all attachments
-	const clearAttachments = () => {
-		setPendingAttachments([]);
-	};
-
-	// Set token count for an attachment
-	const setAttachmentTokenCount = (path: string, tokens: number) => {
-		setAttachmentTokens((prev) => new Map(prev).set(path, tokens));
-	};
-
 	return {
 		pendingAttachments,
-		setPendingAttachments,
+		setPendingAttachments: setPendingAttachmentsSignal,
 		attachmentTokens,
 		validTags,
 		addAttachment,
-		clearAttachments,
-		setAttachmentTokenCount,
+		clearAttachments: clearAttachmentsSignal,
+		setAttachmentTokenCount: setAttachmentTokenCountSignal,
 	};
 }

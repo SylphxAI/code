@@ -1,28 +1,32 @@
 /**
  * Project Files Hook
- * Loads project files on mount for @file auto-completion
+ * Loads project files on mount for @file auto-completion using Zen signals
  */
 
-import { useEffect, useState } from "react";
-import { getTRPCClient } from "@sylphx/code-client";
+import { useEffect } from "react";
+import {
+	getTRPCClient,
+	useProjectFiles as useProjectFilesSignal,
+	useFilesLoading,
+	setProjectFiles as setProjectFilesSignal,
+	setFilesLoading as setFilesLoadingSignal,
+} from "@sylphx/code-client";
 
 export function useProjectFiles() {
-	const [projectFiles, setProjectFiles] = useState<
-		Array<{ path: string; relativePath: string; size: number }>
-	>([]);
-	const [filesLoading, setFilesLoading] = useState(false);
+	const projectFiles = useProjectFilesSignal();
+	const filesLoading = useFilesLoading();
 
 	useEffect(() => {
 		const loadFiles = async () => {
-			setFilesLoading(true);
+			setFilesLoadingSignal(true);
 			try {
 				const client = getTRPCClient();
 				const result = await client.config.scanProjectFiles.query({});
-				setProjectFiles(result.files);
+				setProjectFilesSignal(result.files);
 			} catch (error) {
 				console.error("Failed to load project files:", error);
 			} finally {
-				setFilesLoading(false);
+				setFilesLoadingSignal(false);
 			}
 		};
 
