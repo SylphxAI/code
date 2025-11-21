@@ -1,7 +1,8 @@
 # 003. Migrate to Preact Signals (Zen) for State Management
 
-**Status:** 🚧 In Progress
+**Status:** 🚧 In Progress (Phase 2 Complete)
 **Date:** 2025-01-15
+**Updated:** 2025-01-15
 
 ## Context
 
@@ -36,16 +37,25 @@ No useState/useReducer for state (only for derived/transient UI)
 
 ## Migration Strategy
 
-### Phase 1: Global State (✅ Partial)
-- [x] Theme system (`theme/store.ts` - using preact signals directly)
-- [ ] Migrate to Zen wrapper for consistency
-- [ ] Session state (already in zen)
-- [ ] AI config (already in zen)
+### Phase 1: Theme System (✅ Complete)
+- [x] Migrated theme system to Zen signals (`domain/theme/`)
+- [x] Created useThemeColors() hook
+- [x] Updated 46+ components to use new hook
+- [x] Removed old theme directory
+- [x] Verified reactivity in memoized components
 
-### Phase 2: Feature State
-- [ ] Command state (`useCommandState`)
-- [ ] Input state (`useInputState`)
-- [ ] Selection state (`useSelectionState`)
+### Phase 2: UI State Hooks (✅ Complete)
+- [x] Created UI domain signals structure
+  - `domain/ui/input.ts` - Input field state
+  - `domain/ui/selection.ts` - Selection/multi-select state
+  - `domain/ui/command.ts` - Command menu state
+- [x] Migrated useInputState to Zen signals (6 useState eliminated)
+- [x] Migrated useSelectionState to Zen signals (9 useState eliminated)
+- [x] Migrated useCommandState to Zen signals (10 useState eliminated)
+- [x] Maintained backwards compatibility (functional update wrappers)
+- [x] Kept refs as React refs (no reactivity needed)
+
+### Phase 3: Streaming State (Pending)
 - [ ] Streaming state (`useStreamingState`)
 
 ### Phase 3: Component State
@@ -111,21 +121,22 @@ code/
 ### Infrastructure
 - [x] Zen already installed (`@sylphx/zen`)
 - [x] React bridge exists (`useZen`)
-- [ ] Create UI signals directory structure
-- [ ] Document patterns
+- [x] UI signals directory structure created
+- [x] Patterns documented (architecture.md)
 
 ### State Categories
 
 **Global (Priority 1)**
-- [x] Theme (done, but using raw preact signals)
-- [ ] Session (already zen)
-- [ ] AI Config (already zen)
+- [x] Theme (migrated to Zen wrapper)
+- [x] Session (already Zen)
+- [x] AI Config (already Zen)
+- [x] UI state (screen, loading, error) (already Zen)
 
 **Feature (Priority 2)**
-- [ ] Command state (12 useState)
-- [ ] Input state (6 useState)
-- [ ] Selection state (10 useState)
-- [ ] Streaming state (6 useState)
+- [x] Command state (10 useState eliminated)
+- [x] Input state (6 useState eliminated)
+- [x] Selection state (9 useState eliminated)
+- [ ] Streaming state (6 useState remaining)
 
 **Component (Priority 3)**
 - [ ] File attachments
