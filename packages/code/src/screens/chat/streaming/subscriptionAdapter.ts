@@ -358,7 +358,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 					setCurrentSessionId("temp-session");
 					setCurrentSession( {
 						id: "temp-session",
-						title: "New Chat",
+						title: "",
 						agentId: "coder",
 						provider: provider || "",
 						model: model || "",

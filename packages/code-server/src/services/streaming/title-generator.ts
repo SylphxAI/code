@@ -94,17 +94,17 @@ Output only the title, nothing else.`,
 		// Stream title chunks
 		try {
 			for await (const chunk of fullStream) {
-				if (chunk.type === "text-delta" && chunk.textDelta) {
-					fullTitle += chunk.textDelta;
+				if (chunk.type === "text-delta" && chunk.text) {
+					fullTitle += chunk.text;
 
 					// Emit delta
 					if (callbacks) {
-						callbacks.onDelta(chunk.textDelta);
+						callbacks.onDelta(chunk.text);
 					} else {
 						const deltaEvent = {
 							type: "session-title-updated-delta" as const,
 							sessionId: session.id,
-							text: chunk.textDelta,
+							text: chunk.text,
 						};
 						// Fire-and-forget publish (non-blocking, same as message streaming)
 						appContext.eventStream.publish(`session:${session.id}`, deltaEvent).catch((err) => {
@@ -116,10 +116,6 @@ Output only the title, nothing else.`,
 		} catch (streamError) {
 			// Catch NoOutputGeneratedError and other stream errors
 			console.error("[Title Generation] Stream error:", streamError);
-			// If stream failed, use a default title based on first message
-			if (fullTitle.length === 0) {
-				fullTitle = userMessage.slice(0, 50);
-			}
 		}
 
 		// Clean up and update database (only if we got some title)
@@ -134,9 +130,7 @@ Output only the title, nothing else.`,
 					callbacks.onEnd(cleaned);
 				} else {
 					// Publish to both channels for UC5: Selective Event Delivery
-					publishTitleUpdate(appContext.eventStream, session.id, cleaned).catch((err) => {
-						console.error("[TitleGen] Failed to publish title update:", err);
-					});
+					await publishTitleUpdate(appContext.eventStream, session.id, cleaned);
 				}
 				return cleaned;
 			} catch (dbError) {

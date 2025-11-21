@@ -45,7 +45,7 @@ export function handleSessionCreated(
 	setCurrentSessionId(event.sessionId);
 	setCurrentSession( {
 		id: event.sessionId,
-		title: "New Chat",
+		title: "",
 		agentId: "coder",
 		provider: event.provider,
 		model: event.model,
