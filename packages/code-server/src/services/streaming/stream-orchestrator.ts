@@ -28,7 +28,6 @@ import {
 	emitReasoningEnd,
 	emitReasoningStart,
 	emitSessionCreated,
-	emitSessionStatusUpdated,
 	emitSystemMessageCreated,
 	emitTextDelta,
 	emitTextEnd,
@@ -41,48 +40,14 @@ import { buildFrozenContent } from "./file-handler.js";
 import { buildModelMessages } from "./message-builder.js";
 import { validateProvider } from "./provider-validator.js";
 import { ensureSession } from "./session-manager.js";
+import {
+	createSessionStatusManager,
+	type SessionStatusManager,
+} from "./session-status-manager.js";
 import { generateSessionTitle, needsTitleGeneration } from "./title-generator.js";
 import type { StreamAIResponseOptions, StreamEvent } from "./types.js";
 
 const STREAM_TIMEOUT_MS = 45000; // 45 seconds
-
-/**
- * Determine status text based on current activity
- * Priority: in_progress todo > tool name > default "Thinking..."
- */
-function determineStatusText(todos: Todo[] | undefined, currentToolName?: string): string {
-	// 1. Check for in_progress todo
-	if (todos) {
-		const inProgressTodo = todos.find((t) => t.status === "in_progress");
-		if (inProgressTodo && inProgressTodo.activeForm) {
-			return inProgressTodo.activeForm;
-		}
-	}
-
-	// 2. Use tool name if available
-	if (currentToolName) {
-		// Map tool names to readable status text
-		switch (currentToolName) {
-			case "Read":
-			case "Glob":
-			case "Grep":
-				return "Reading files...";
-			case "Write":
-			case "Edit":
-				return "Writing code...";
-			case "Bash":
-				return "Running command...";
-			case "WebFetch":
-			case "WebSearch":
-				return "Searching web...";
-			default:
-				return `Using ${currentToolName}...`;
-		}
-	}
-
-	// 3. Default
-	return "Thinking...";
-}
 
 /**
  * Stream AI response as Observable<StreamEvent>
@@ -99,9 +64,11 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 	return observable<StreamEvent>((observer) => {
 		let askToolRegistered = false;
 		let sessionId: string | null = null;
-		// Declare these outside try-catch so they're accessible in catch block
+		// Declare these outside try-catch so they're accessible in catch/finally blocks
 		let assistantMessageId: string | undefined = undefined;
 		let state: StreamState | null = null;
+		let statusManager: SessionStatusManager | null = null;
+		let tokenSubscription: any = null;
 
 		const executionPromise = (async () => {
 			try {
@@ -148,7 +115,22 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					return;
 				}
 
-				// 3. Validate provider configuration
+				// 3. Create Session Status Manager (Pub-Sub pattern)
+				statusManager = createSessionStatusManager(observer, sessionId, session.todos);
+
+				// Subscribe to token updates from app event stream
+				tokenSubscription = opts.appContext.eventStream
+					.subscribe(`session:${sessionId}`)
+					.subscribe((event) => {
+						if (event.type === "session-tokens-updated" && statusManager) {
+							const payload = event.payload as any;
+							// Use outputTokens if available (current streaming), else calculate from total
+							const tokenUsage = payload.outputTokens ?? payload.totalTokens ?? 0;
+							statusManager.callbacks.onTokenUpdate(tokenUsage);
+						}
+					});
+
+				// 4. Validate provider configuration
 				const validationError = validateProvider(aiConfig, session);
 				if (validationError) {
 					const errorMessageId = randomUUID();
@@ -309,12 +291,38 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 						emitReasoningDelta(observer, text);
 					},
 					onReasoningEnd: (duration) => emitReasoningEnd(observer, duration),
-					onToolCall: (toolCallId, toolName, input, startTime) =>
-						emitToolCall(observer, toolCallId, toolName, input, startTime),
-					onToolResult: (toolCallId, toolName, result, duration) =>
-						emitToolResult(observer, toolCallId, toolName, result, duration),
-					onToolError: (toolCallId, toolName, error, duration) =>
-						emitToolError(observer, toolCallId, toolName, error, duration),
+					onToolCall: (toolCallId, toolName, input, startTime) => {
+						emitToolCall(observer, toolCallId, toolName, input, startTime);
+						// Notify status manager
+						if (statusManager) {
+							statusManager.callbacks.onToolCall(toolName);
+						}
+					},
+					onToolResult: async (toolCallId, toolName, result, duration) => {
+						emitToolResult(observer, toolCallId, toolName, result, duration);
+						// Notify status manager
+						if (statusManager) {
+							statusManager.callbacks.onToolResult();
+						}
+						// If updateTodos tool completed, refetch session to get updated todos
+						if (toolName === "updateTodos" && sessionId && statusManager) {
+							try {
+								const updatedSession = await sessionRepository.getSessionById(sessionId);
+								if (updatedSession?.todos) {
+									statusManager.callbacks.onTodoUpdate(updatedSession.todos);
+								}
+							} catch (error) {
+								console.error("[StreamOrchestrator] Failed to refetch todos after updateTodos:", error);
+							}
+						}
+					},
+					onToolError: (toolCallId, toolName, error, duration) => {
+						emitToolError(observer, toolCallId, toolName, error, duration);
+						// Notify status manager
+						if (statusManager) {
+							statusManager.callbacks.onToolError();
+						}
+					},
 					onFile: (mediaType, base64) => emitFile(observer, mediaType, base64),
 					onAbort: () => {
 						state.aborted = true;
@@ -597,7 +605,22 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				cwd,
 			);
 
-			// 25. Complete observable
+			// 25. Notify status manager that streaming has ended
+			if (statusManager) {
+				statusManager.callbacks.onStreamEnd();
+			}
+
+			// 26. Cleanup status manager
+			if (statusManager) {
+				statusManager.cleanup();
+			}
+
+			// Unsubscribe from token updates
+			if (tokenSubscription) {
+				tokenSubscription.unsubscribe();
+			}
+
+			// 27. Complete observable
 			observer.complete();
 			} catch (error) {
 				console.error("[StreamOrchestrator] Error in execution:", error);
@@ -639,6 +662,16 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					emitError(observer, errorMessage);
 				}
 
+				// Cleanup status manager on error
+				if (statusManager) {
+					statusManager.cleanup();
+				}
+
+				// Unsubscribe from token updates
+				if (tokenSubscription) {
+					tokenSubscription.unsubscribe();
+				}
+
 				observer.complete();
 			}
 		})();
@@ -673,6 +706,16 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 		// Cleanup function
 		return () => {
+			// Cleanup status manager
+			if (statusManager) {
+				statusManager.cleanup();
+			}
+
+			// Unsubscribe from token updates
+			if (tokenSubscription) {
+				tokenSubscription.unsubscribe();
+			}
+
 			// Unregister ask observer to prevent memory leak
 			if (askToolRegistered) {
 				import("../ask-queue.service.js").then(({ unregisterAskObserver }) => {
