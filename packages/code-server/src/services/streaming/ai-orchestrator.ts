@@ -398,14 +398,23 @@ export async function processAIStream(
 				}
 
 				case "error": {
-					state.currentStepParts.push({
-						type: "error",
-						error: String(chunk.error),
-						status: "completed",
-					});
-					hasError = true;
-					emitError(observer, String(chunk.error));
-					callbacks.onError?.(String(chunk.error));
+					const errorStr = String(chunk.error);
+					
+					// Check if this is an intentional abort (ESC key pressed)
+					if (state.aborted) {
+						// Already aborted, ignore error stream events
+						callbacks.onAbort?.();
+					} else {
+						// Real error - add to parts and emit
+						state.currentStepParts.push({
+							type: "error",
+							error: errorStr,
+							status: "completed",
+						});
+						hasError = true;
+						emitError(observer, errorStr);
+						callbacks.onError?.(errorStr);
+					}
 					break;
 				}
 
@@ -438,11 +447,10 @@ export async function processAIStream(
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 
-		const isAbortError =
-			(error instanceof Error && error.message.includes("No output generated")) || state.aborted;
-
-		if (isAbortError) {
-			state.aborted = true;
+		// Only treat as abort if state.aborted is already true (ESC pressed)
+		// Don't silently ignore AI SDK errors like NoOutputGeneratedError
+		if (state.aborted) {
+			// Already aborted, this error is expected
 		} else {
 			console.error("[AIOrchestrator] Stream processing error:", error);
 			state.currentStepParts.push({

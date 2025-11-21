@@ -560,7 +560,31 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					console.error("[StreamOrchestrator] Error keys:", Object.keys(error));
 					console.error("[StreamOrchestrator] Error JSON:", JSON.stringify(error, null, 2));
 				}
-				emitError(observer, error instanceof Error ? error.message : String(error));
+
+				// Check if this is an intentional abort (user pressed ESC)
+				// Don't treat AI SDK errors ("No output generated") as aborts unless state.aborted is true
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				const isAbortError = state.aborted;
+
+				if (isAbortError) {
+					// For abort errors: update message status to trigger cleanup, but don't emit error event
+					// Only if assistantMessageId was created (error occurred after message creation)
+					if (typeof assistantMessageId !== 'undefined') {
+						await updateMessageStatus(
+							assistantMessageId,
+							"abort",
+							undefined, // no finishReason
+							undefined, // no usage
+							messageRepository,
+							observer,
+						);
+					}
+					// If message not created yet, just complete silently
+				} else {
+					// Real error: emit error event for debugging
+					emitError(observer, errorMessage);
+				}
+
 				observer.complete();
 			}
 		})();
