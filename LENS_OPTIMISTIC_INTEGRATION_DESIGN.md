@@ -1,7 +1,50 @@
 # Lens + Optimistic Updates Integration Design
 
 **Date:** 2024-12-22
-**Status:** 🚧 Design Phase
+**Status:** ✅ Design Complete (Research-Based)
+
+**See also:** `OPTIMISTIC_UPDATES_RESEARCH.md` - Comprehensive industry research and analysis
+
+---
+
+## 🎯 Research Summary & Optimal Approach
+
+**Research Conducted:** Analyzed React Query, Apollo Client, SWR, React 19 useOptimistic, and optimistic UI best practices.
+
+**Key Finding:** ALL successful frameworks use **mutation-centric co-location**, NOT centralized configuration.
+
+**Optimal Pattern:**
+```typescript
+// ✅ Inline optimistic config (co-located with mutation)
+export const updateSessionTitle = mutation({
+  input: z.object({ sessionId: z.string(), title: z.string() }),
+  output: SessionSchema,
+  resolve: async (input, ctx) => { ... },
+
+  // Optimistic config lives HERE (not in separate file)
+  optimistic: {
+    apply: (input) => ({
+      type: 'update-session-title',
+      sessionId: input.sessionId,
+      title: input.title
+    })
+  }
+});
+```
+
+**Why This Is Optimal:**
+- ✅ 簡單輕型 (Simple & Lightweight) - No centralized config, minimal API
+- ✅ 高效強大 (Efficient & Powerful) - Leverages existing effect system
+- ✅ Fine-grained - Per-mutation control
+- ✅ Best UX - Immediate updates, smooth rollback
+- ✅ Best DX - Type-safe, co-located, easy to maintain
+
+**Rejected Approaches:**
+- ❌ Centralized config file (becomes huge, hard to maintain)
+- ❌ Convention-based auto-generation (can't generate handlers)
+- ❌ Client-side config (duplicates mutation definitions)
+
+---
 
 ## Context
 
