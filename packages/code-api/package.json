@@ -1,0 +1,33 @@
+{
+	"name": "@sylphx/code-api",
+	"version": "1.0.0",
+	"description": "Sylphx Code API - Lens-based type-safe API definitions",
+	"type": "module",
+	"main": "./src/index.ts",
+	"module": "./src/index.ts",
+	"types": "./src/index.ts",
+	"exports": {
+		".": {
+			"import": "./src/index.ts",
+			"types": "./src/index.ts"
+		}
+	},
+	"files": ["dist", "src"],
+	"scripts": {
+		"build": "tsc --noEmit",
+		"type-check": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@sylphx/code-core": "workspace:*",
+		"@sylphx/lens-core": "workspace:*",
+		"rxjs": "^7.8.2",
+		"zod": "^4.1.12"
+	},
+	"devDependencies": {
+		"@types/node": "^24.9.2",
+		"typescript": "^5.9.3"
+	},
+	"keywords": ["api", "lens", "type-safe"],
+	"author": "SylphxAI",
+	"license": "MIT"
+}
