@@ -111,16 +111,6 @@ export function createSessionStatusManager(
 			isActive,
 		};
 
-		console.log("[SessionStatusManager] Emitting status:", {
-			sessionId,
-			text: statusText,
-			duration,
-			tokenUsage,
-			isActive,
-			currentTool,
-			todosCount: todos?.length || 0,
-		});
-
 		emitSessionStatusUpdated(observer, sessionId, status);
 	}
 
