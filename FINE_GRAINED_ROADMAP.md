@@ -1,48 +1,128 @@
 # Fine-Grained Frontend-Driven Architecture - Roadmap
 
-## Vision: 最終目標
+## Framework Principles: 核心哲學
 
-**Frontend 控制到最細粒度 (Fine-Grained Control)**
+### What vs How: The Fundamental Separation
+
+**Fine-Grained ≠ Frontend Controls Everything**
+
+Fine-grained means: **Frontend has precise control of WHAT it needs, not HOW it's implemented**
 
 ```typescript
-// 最終理想狀態
+// ✅ What (Frontend Requirement)
 lensClient.session.getById.subscribe(
   { sessionId: 'abc' },
   {
-    // 1. FIELD-LEVEL: Frontend 控制要邊啲 fields
+    select: {              // What data I need
+      id: true,
+      title: true,
+      status: true,
+    }
+  }
+);
+
+// ❌ How (Implementation Detail - Backend's job)
+{
+  updateMode: 'delta',     // HOW to transmit
+  throttle: 1000,          // HOW often to emit
+  compression: 'gzip',     // HOW to compress
+  serialization: 'msgpack' // HOW to serialize
+}
+```
+
+### Principle 1: Frontend-Driven Requirements (Not Implementation)
+
+**Frontend expresses needs. Backend optimizes implementation.**
+
+- ✅ Frontend: "I want these fields"
+- ✅ Backend: Auto-selects delta/patch/value based on field type
+- ✅ Backend: Auto-throttles if emitting too frequently
+- ✅ Backend: Auto-compresses if payload too large
+
+**Inspiration: GraphQL**
+- Frontend specifies: which resource, which fields
+- Frontend doesn't specify: HTTP/2, serialization, batching, caching
+
+### Principle 2: TypeScript-First Intelligence
+
+**Type inference replaces manual configuration.**
+
+```typescript
+// ✅ Type system does the work
+const session = await lensClient.session.getById.query(
+  { sessionId: 'abc' },
+  {
+    select: { id: true, title: true }
+    // ^ TypeScript narrows return type automatically
+  }
+);
+// session.id ✅ Available
+// session.title ✅ Available
+// session.messages ❌ Type error - not selected
+```
+
+### Principle 3: Fine-Grained Reactivity
+
+**Event-driven server push. Not polling. Not throttling.**
+
+- Server emits when state changes (meaningful updates)
+- Frontend receives updates reactively
+- No need for frontend throttle/debounce (if server emits too much → fix server)
+
+**Anti-pattern:** Client-side throttle/debounce violates reactive principle
+
+### Principle 4: Zero Configuration Default
+
+**Best practices are automatic, not configured.**
+
+- Backend auto-optimizes transmission strategy
+- Backend auto-optimizes emission frequency
+- Backend auto-compresses large payloads
+- Frontend only configures when truly needed (rare)
+
+---
+
+## Vision: 最終目標
+
+**Frontend-Driven Requirements (Frontend specifies What, Backend optimizes How)**
+
+```typescript
+// 最終理想狀態 (Corrected based on principles)
+lensClient.session.getById.subscribe(
+  { sessionId: 'abc' },
+  {
+    // ✅ FIELD-LEVEL: Frontend specifies WHAT data needed
     select: {
       id: true,
       title: true,
       status: {          // Nested selection
         text: true,
         duration: true,
-        // tokenUsage: false  ← 唔要呢個 field
+        // tokenUsage: false  ← Don't need this field
       },
-      // messages: false  ← 唔要成個 messages array
+      // messages: false  ← Don't need entire messages array
     },
 
-    // 2. STRATEGY-LEVEL: Frontend 控制點樣傳輸每個 field
-    updateMode: 'auto',  // 自動選擇最優策略
-    // OR per-field strategies:
-    fieldStrategies: {
-      title: 'delta',    // Title 用 delta (incremental text)
-      status: 'patch',   // Status 用 patch (JSON Patch operations)
-      todos: 'value',    // Todos 用 value (full array)
-    },
-
-    // 3. FREQUENCY-LEVEL: Frontend 控制幾密更新
-    throttle: 1000,      // 最多 1 秒 1 次更新
-    debounce: 100,       // 100ms 內既更新 batch 埋
+    // Backend automatically optimizes:
+    // - Transmission strategy (delta for strings, patch for objects)
+    // - Emission frequency (debounce rapid updates)
+    // - Compression (gzip if payload >1KB)
+    // - Serialization (msgpack for binary efficiency)
   }
 );
 ```
 
 **Benefits:**
-- ✅ **No Over-Fetching** - 只傳 frontend 要既 fields
-- ✅ **Optimal Transmission** - 每個 field 用最優策略
-- ✅ **Bandwidth Control** - Frontend 控制傳輸量 (57%-99% savings)
+- ✅ **No Over-Fetching** - Only selected fields transmitted
+- ✅ **Auto-Optimized Transmission** - Backend chooses best strategy (57%-99% savings)
 - ✅ **Type-Safe** - Full TypeScript inference + autocomplete
-- ✅ **GraphQL-like Flexibility** - 但無需 codegen
+- ✅ **GraphQL-like Flexibility** - But with full type safety
+- ✅ **Zero Configuration** - Best practices automatic
+
+**What Changed from Original Vision:**
+- ❌ Removed `updateMode` - Implementation detail, backend auto-optimizes
+- ❌ Removed `fieldStrategies` - Backend knows field types, chooses strategy
+- ❌ Removed `throttle`/`debounce` - Violates reactive principle, backend handles if needed
 
 ---
 
@@ -261,97 +341,176 @@ useLensSessionSubscription({
 
 ---
 
-### Phase 6: Update Strategies (Planned)
+### Phase 6: Update Strategies (Complete ✅ - Under Review)
 
-**Goal:** Frontend 控制點樣傳輸 (Transmission optimization)
+**Goal:** Optimize transmission bandwidth
 
-#### Step 6a: Strategy Selection
+**Status:** ✅ Infrastructure complete (was already in Lens framework!)
 
+**Discovery:** Lens framework ALREADY implements all update strategies:
+- ✅ ValueStrategy (full value) - lens-core/update-strategy/value.ts
+- ✅ DeltaStrategy (incremental text, 57% savings) - lens-core/update-strategy/delta.ts
+- ✅ PatchStrategy (JSON Patch, 99% savings) - lens-core/update-strategy/patch.ts
+- ✅ AutoStrategy (intelligent selection) - lens-core/update-strategy/auto.ts
+- ✅ Server handlers (SSE/WebSocket) already use strategies
+
+**What we added:**
+- ✅ Updated lens-client to pass `updateMode` parameter to transport
+- ✅ Updated `useLensSessionSubscription` to accept `updateMode` parameter
+- ✅ Wired through all layers (Hook → Client → Transport)
+
+**Example (Currently implemented):**
 ```typescript
 useLensSessionSubscription({
   select: { id: true, title: true, status: true },
-  updateMode: 'auto',  // Intelligent strategy selection
-  // OR
-  updateMode: 'delta', // All fields use delta
-  // OR
-  updateMode: 'patch', // All fields use JSON Patch
+  updateMode: 'auto',  // Backend intelligently chooses delta/patch/value
 });
 ```
 
-**Implementation:**
-- Already exists in Lens core (ValueStrategy, DeltaStrategy, PatchStrategy, AutoStrategy)
-- Need to wire up to subscription pipeline
+**⚠️ CRITICAL PHILOSOPHICAL QUESTION:**
 
-#### Step 6b: Per-Field Strategies (Advanced)
+**Is `updateMode` a frontend requirement or implementation detail?**
 
+**Analysis:**
+- Frontend real need: "I want this data" ✅ (`select`)
+- NOT frontend need: "Use delta transmission" ❌ (`updateMode`)
+- Backend knows: Field type (string → delta, object → patch)
+- Backend knows: Update pattern (rapid → debounce)
+- Backend knows: Payload size (large → compression)
+
+**Three Options:**
+
+**Option 1: Remove `updateMode` (Recommended)**
 ```typescript
 useLensSessionSubscription({
-  select: { id: true, title: true, status: true, todos: true },
-  fieldStrategies: {
-    title: 'delta',    // Incremental text (57% savings)
-    status: 'patch',   // JSON Patch (99% savings)
-    todos: 'value',    // Full array (safest for arrays)
-  }
+  select: { id: true, title: true }
+  // Backend auto-optimizes based on field types
+  // - string fields → delta (57% savings)
+  // - object fields → patch (99% savings)
+  // - primitive fields → value
 });
 ```
+**Rationale:** Backend can intelligently select strategy based on field types in `select`
 
-**Benefits:**
-- ✅ Optimal transmission for each field type
-- ✅ 57%-99% bandwidth savings
-- ✅ Frontend controls optimization strategy
-- ✅ Unique to Lens (not in GraphQL/tRPC)
+**Option 2: Change to Performance Preference**
+```typescript
+useLensSessionSubscription({
+  select: { title: true },
+  priority: 'bandwidth' | 'latency' | 'balanced'
+  // Express preference, not implementation
+});
+```
+**Rationale:** Frontend expresses goal, backend decides how
+
+**Option 3: Keep as Override (Advanced)**
+```typescript
+useLensSessionSubscription({
+  select: { title: true },
+  updateMode: 'delta'  // Override auto-selection (rare cases)
+});
+```
+**Rationale:** Keep for advanced users, but auto is default
+
+**🎯 DECISION NEEDED:** Which option aligns best with framework principles?
 
 ---
 
-### Phase 7: Frequency Control (Future)
+### Phase 7: Frequency Control (❌ CANCELLED)
 
-**Goal:** Frontend 控制更新頻率
+**Goal (Original):** Frontend controls update frequency
 
+**Original Plan:**
 ```typescript
 useLensSessionSubscription({
   select: { status: true },
-  throttle: 1000,      // 最多 1 秒 1 次
-  debounce: 100,       // 100ms batch
+  throttle: 1000,      // Max 1 update per second
+  debounce: 100,       // Batch updates within 100ms
 });
 ```
 
-**Use Cases:**
-- Status updates: 1 second throttle (smooth progress bar)
-- Title streaming: No throttle (real-time typing)
-- Token updates: 500ms debounce (batch rapid updates)
+**❌ PHILOSOPHICAL VIOLATION:**
+
+**Phase 7 violates Principle 3: Fine-Grained Reactivity**
+
+**Why this is wrong:**
+1. **Violates Reactive Principle**: We're fine-grained reactive, not polling
+2. **Server Responsibility**: If server emits too frequently → fix server logic
+3. **Implementation Detail**: Frequency control is HOW, not WHAT
+4. **Wrong Layer**: Throttling belongs in server event emission, not client subscription
+
+**Correct Approach:**
+- Server emits only meaningful updates (not every keystroke)
+- Server debounces rapid changes before emitting
+- Frontend receives updates reactively
+- No need for client-side throttle/debounce
+
+**Example - Server Side (Correct):**
+```typescript
+// Server: Debounce before emitting
+const emitSessionUpdate = debounce((session) => {
+  eventStream.emit('session-updated', session);
+}, 100);
+```
+
+**Example - Client Side (Wrong):**
+```typescript
+// ❌ Don't throttle reactive updates
+useLensSessionSubscription({
+  select: { status: true },
+  throttle: 1000  // Violates reactive principle
+});
+```
+
+**Decision:** Phase 7 cancelled. Frequency control is server responsibility.
 
 ---
 
-## Principles: Fine-Grained 既核心原則
+## Principles: Fine-Grained 既核心原則 (Updated)
 
-### 1. **Frontend-Driven** (前端驅動)
+### 1. **Frontend-Driven Requirements** (前端驅動需求，唔係實現)
 ```
 ❌ Backend decides what to send
-✅ Frontend decides what to receive
+❌ Frontend controls all implementation details
+✅ Frontend expresses requirements (What)
+✅ Backend optimizes implementation (How)
 ```
 
 ### 2. **Field-Level Selection** (Field 級別選擇)
 ```
 ❌ All or nothing (full model or no model)
 ✅ Pick exact fields (id, title, status only)
+✅ Type-safe with autocomplete
 ```
 
-### 3. **Optimal Transmission** (最優傳輸)
+### 3. **Auto-Optimized Transmission** (自動優化傳輸)
 ```
 ❌ Always full value (wasteful)
-✅ Delta/Patch/Value per field (57%-99% savings)
+❌ Frontend manually configures strategies
+✅ Backend auto-selects delta/patch/value
+✅ Based on field types (57%-99% savings)
 ```
 
-### 4. **Type-Safe** (類型安全)
+### 4. **Type-Safe Intelligence** (類型安全智能)
 ```
 ❌ String-based queries (GraphQL)
+❌ Manual configuration
 ✅ TypeScript inference (autocomplete)
+✅ Type system does the work
 ```
 
-### 5. **Progressive Enhancement** (漸進增強)
+### 5. **Reactive Event-Driven** (響應式事件驅動)
+```
+❌ Polling (wasteful)
+❌ Client-side throttle/debounce
+✅ Server push on state changes
+✅ Server debounces before emit
+```
+
+### 6. **Progressive Enhancement** (漸進增強)
 ```
 ❌ Big bang migration (risky)
 ✅ Step-by-step refinement (safe)
+✅ Each phase builds on previous
 ```
 
 ---
@@ -399,16 +558,19 @@ useLensSessionSubscription({
 - [ ] Bandwidth savings measurable (pending real-world testing)
 - [ ] Enabled in production (currently using full model)
 
-### Phase 6: Update Strategies ⏳
-- [ ] Auto strategy selection works
-- [ ] Per-field strategies configurable
-- [ ] Delta/Patch/Value all tested
-- [ ] Bandwidth savings documented (57%-99%)
+### Phase 6: Update Strategies ✅ COMPLETE (Under Philosophical Review)
+- [x] Infrastructure complete (already in Lens)
+- [x] Auto strategy selection exists (AutoStrategy)
+- [x] Delta/Patch/Value all implemented
+- [x] Hook updated to accept updateMode parameter
+- [x] Wired through all layers (Hook → Client → Transport)
+- [ ] **DECISION NEEDED**: Remove updateMode, change to priority, or keep as override?
 
-### Phase 7: Frequency Control ⏳
-- [ ] Throttle/debounce implemented
-- [ ] Configurable per subscription
-- [ ] Performance improvement measurable
+### Phase 7: Frequency Control ❌ CANCELLED
+- [x] Analysis complete
+- [x] Determined to violate Principle 3 (Reactive Event-Driven)
+- [x] Decision: Server responsibility, not frontend control
+- [x] Phase cancelled - frequency control belongs in server emission logic
 
 ---
 
@@ -428,39 +590,60 @@ useLensSessionSubscription({
 
 ---
 
-## Current Focus: Phase 5 Complete → Phase 6 Preparation
+## Current Focus: Philosophical Re-alignment → Decision Point
 
-**Phase 5 Completed ✅:**
-1. ✅ Discovered Lens already implements full field selection
-2. ✅ Created ADR-013 documenting design
-3. ✅ Updated useLensSessionSubscription with select parameter
-4. ✅ Added comprehensive documentation and examples
-5. ⏳ Ready for production testing
+**Phases 4-6 Technically Complete ✅:**
+1. ✅ Phase 4: Lens Subscriptions - useLensSessionSubscription hook integrated
+2. ✅ Phase 5: Field Selection - select parameter wired through all layers
+3. ✅ Phase 6: Update Strategies - updateMode parameter wired through all layers
+4. ✅ Phase 7: CANCELLED - Violates reactive principles
 
-**Major Discovery:**
-Lens framework already implemented GraphQL-like field selection at all layers!
-- Type system, transport, client, type inference all complete
-- We only needed to wire it up in the hooks
+**Major Philosophical Discovery:**
+Fine-grained ≠ Frontend controls everything. Fine-grained = Precise control of WHAT, not HOW.
 
-**Next: Phase 6 Preparation (Update Strategies)**
-- Test Phase 5 field selection in real usage
-- Monitor bandwidth savings
-- Research Phase 6: Update strategies (delta/patch/auto)
-- Plan per-field strategy configuration
+**Framework Principles Established:**
+1. Frontend-Driven Requirements (Not Implementation)
+2. TypeScript-First Intelligence
+3. Fine-Grained Reactivity
+4. Zero Configuration Default
+
+**Critical Question - Phase 6 updateMode Parameter:**
+
+Is `updateMode` a frontend requirement or implementation detail?
+
+**Three Options:**
+1. **Remove updateMode** (Recommended) - Backend auto-optimizes based on field types
+2. **Change to priority** - Frontend expresses preference, backend decides
+3. **Keep as override** - Advanced users can override auto-selection
+
+**🎯 DECISION NEEDED:** Which option aligns best with framework principles?
+
+**Next Steps:**
+1. ⏳ User decides on Phase 6 updateMode parameter
+2. ⏳ Implement chosen option
+3. ⏳ Update ADR-013 and hook documentation
+4. ⏳ Test field selection + optimizations in production
+5. ⏳ Measure bandwidth savings
 
 ---
 
 ## Remember: 記住核心目標
 
-> **Fine-Grained Frontend-Driven Architecture**
+> **Fine-Grained Frontend-Driven Architecture (Corrected)**
 >
-> Frontend 控制：
+> **Frontend 表達需求 (What):**
 > - ✅ Which resource to subscribe (session, message, etc.)
-> - ⏳ Which fields to receive (id, title, status only)
-> - ⏳ How to transmit each field (delta, patch, value)
-> - ⏳ How often to update (throttle, debounce)
+> - ✅ Which fields to receive (id, title, status only)
+> - ✅ Type-safe selection with autocomplete
 >
-> 所有野都係 fine-grained，Frontend 完全控制。
+> **Backend 自動優化 (How):**
+> - ✅ Transmission strategy (delta for strings, patch for objects)
+> - ✅ Emission frequency (debounce rapid updates)
+> - ✅ Compression (gzip for large payloads)
+> - ✅ Serialization (msgpack for binary)
+>
+> Fine-Grained = Precise control of WHAT, not HOW.
+> Frontend-Driven = Express requirements, not control implementation.
 
 ---
 
@@ -490,5 +673,6 @@ BREAKING: [Yes/No and why]
 ---
 
 **Last Updated:** 2024-12-22
-**Current Phase:** Phase 4 Complete ✅
-**Next Milestone:** Phase 5 - Field Selection
+**Current State:** Phases 4-6 Complete ✅ | Phase 7 Cancelled ❌
+**Status:** Philosophical Re-alignment Complete - Awaiting Decision on Phase 6 updateMode
+**Next Milestone:** Decide updateMode approach (Remove, Priority, or Override)
