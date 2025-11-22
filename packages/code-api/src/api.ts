@@ -405,11 +405,34 @@ export const messageAPI = lens.object({
 });
 
 /**
+ * Todo API
+ */
+export const todoAPI = lens.object({
+	/**
+	 * Update todos for session
+	 * Atomically replaces all todos
+	 */
+	update: lens.mutation({
+		input: z.object({
+			sessionId: z.string(),
+			todos: z.array(TodoSchema),
+			nextTodoId: z.number(),
+		}),
+		output: z.void(),
+		resolve: async ({ sessionId, todos, nextTodoId }: { sessionId: string; todos: Todo[]; nextTodoId: number }, ctx?: any) => {
+			await ctx.todoRepository.updateTodos(sessionId, todos, nextTodoId);
+			// Note: Todos are stored per-session, no real-time sync needed
+		},
+	}),
+});
+
+/**
  * Root API
  */
 export const api = lens.object({
 	session: sessionAPI,
 	message: messageAPI,
+	todo: todoAPI,
 });
 
 export type API = typeof api;
