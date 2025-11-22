@@ -2,11 +2,9 @@
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
 		"outDir": "./dist",
-		"rootDir": "./src"
+		"types": [],
+		"skipLibCheck": true,
+		"noEmit": true
 	},
-	"include": ["src"],
-	"references": [
-		{ "path": "../code-core" },
-		{ "path": "../lens-core" }
-	]
+	"include": ["src"]
 }

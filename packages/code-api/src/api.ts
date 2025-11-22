@@ -52,7 +52,7 @@ export const sessionAPI = lens.object({
 			cursor: z.number().optional(),
 		}),
 		output: PaginatedSessionsSchema,
-		resolve: async ({ limit, cursor }, ctx?: any) => {
+		resolve: async ({ limit, cursor }: { limit: number; cursor?: number }, ctx?: any) => {
 			return await ctx.sessionRepository.getRecentSessionsMetadata(limit, cursor);
 		},
 	}),
@@ -64,7 +64,7 @@ export const sessionAPI = lens.object({
 	getById: lens.query({
 		input: z.object({ sessionId: z.string() }),
 		output: SessionSchema.nullable(),
-		resolve: async ({ sessionId }, ctx?: any) => {
+		resolve: async ({ sessionId }: { sessionId: string }, ctx?: any) => {
 			const session = await ctx.sessionRepository.getSessionById(sessionId);
 			if (!session) {
 				return null;
@@ -102,7 +102,7 @@ export const sessionAPI = lens.object({
 	getCount: lens.query({
 		input: z.object({}),
 		output: z.number(),
-		resolve: async (_input, ctx?: any) => {
+		resolve: async (_input: Record<string, never>, ctx?: any) => {
 			return await ctx.sessionRepository.getSessionCount();
 		},
 	}),
@@ -113,7 +113,7 @@ export const sessionAPI = lens.object({
 	getLast: lens.query({
 		input: z.object({}),
 		output: SessionSchema.nullable(),
-		resolve: async (_input, ctx?: any) => {
+		resolve: async (_input: Record<string, never>, ctx?: any) => {
 			return await ctx.sessionRepository.getLastSession();
 		},
 	}),
@@ -128,7 +128,7 @@ export const sessionAPI = lens.object({
 			cursor: z.number().optional(),
 		}),
 		output: PaginatedSessionsSchema,
-		resolve: async ({ query, limit, cursor }, ctx?: any) => {
+		resolve: async ({ query, limit, cursor }: { query: string; limit: number; cursor?: number }, ctx?: any) => {
 			return await ctx.sessionRepository.searchSessionsMetadata(query, limit, cursor);
 		},
 	}),
@@ -145,7 +145,7 @@ export const sessionAPI = lens.object({
 			enabledRuleIds: z.array(z.string()).optional(),
 		}),
 		output: SessionSchema,
-		resolve: async ({ provider, model, agentId, enabledRuleIds }, ctx?: any) => {
+		resolve: async ({ provider, model, agentId, enabledRuleIds }: { provider: string; model: string; agentId?: string; enabledRuleIds?: string[] }, ctx?: any) => {
 			// Load global config for defaults
 			const cwd = process.cwd();
 			const { loadAIConfig, loadAllRules } = await import("@sylphx/code-core");
@@ -200,10 +200,10 @@ export const sessionAPI = lens.object({
 			title: z.string(),
 		}),
 		output: z.void(),
-		resolve: async ({ sessionId, title }, ctx?: any) => {
+		resolve: async ({ sessionId, title }: { sessionId: string; title: string }, ctx?: any) => {
 			await ctx.sessionRepository.updateSessionTitle(sessionId, title);
 
-			await ctx.pubsub.publish("session-events", {
+			await ctx.appContext.eventStream.publish("session-events", {
 				type: "session-title-updated",
 				sessionId,
 				title,
@@ -212,18 +212,162 @@ export const sessionAPI = lens.object({
 	}),
 
 	/**
+	 * Update session model
+	 */
+	updateModel: lens.mutation({
+		input: z.object({
+			sessionId: z.string(),
+			model: z.string(),
+		}),
+		output: z.void(),
+		resolve: async ({ sessionId, model }: { sessionId: string; model: string }, ctx?: any) => {
+			await ctx.sessionRepository.updateSessionModel(sessionId, model);
+
+			await ctx.appContext.eventStream.publish("session-events", {
+				type: "session-model-updated",
+				sessionId,
+				model,
+			});
+		},
+	}),
+
+	/**
+	 * Update session provider and model
+	 */
+	updateProvider: lens.mutation({
+		input: z.object({
+			sessionId: z.string(),
+			provider: z.string(),
+			model: z.string(),
+		}),
+		output: z.void(),
+		resolve: async ({ sessionId, provider, model }: { sessionId: string; provider: string; model: string }, ctx?: any) => {
+			await ctx.sessionRepository.updateSessionProvider(sessionId, provider, model);
+
+			await ctx.appContext.eventStream.publish("session-events", {
+				type: "session-provider-updated",
+				sessionId,
+				provider,
+				model,
+			});
+		},
+	}),
+
+	/**
+	 * Update session enabled rules
+	 */
+	updateRules: lens.mutation({
+		input: z.object({
+			sessionId: z.string(),
+			enabledRuleIds: z.array(z.string()),
+		}),
+		output: z.void(),
+		resolve: async ({ sessionId, enabledRuleIds }: { sessionId: string; enabledRuleIds: string[] }, ctx?: any) => {
+			await ctx.sessionRepository.updateSession(sessionId, {
+				enabledRuleIds,
+			});
+		},
+	}),
+
+	/**
+	 * Update session agent
+	 */
+	updateAgent: lens.mutation({
+		input: z.object({
+			sessionId: z.string(),
+			agentId: z.string(),
+		}),
+		output: z.void(),
+		resolve: async ({ sessionId, agentId }: { sessionId: string; agentId: string }, ctx?: any) => {
+			await ctx.sessionRepository.updateSession(sessionId, {
+				agentId,
+			});
+
+			await ctx.appContext.eventStream.publish("session-events", {
+				type: "session-updated",
+				sessionId,
+				field: "agentId",
+				value: agentId,
+			});
+		},
+	}),
+
+	/**
 	 * Delete session
+	 * CASCADE: Automatically deletes all messages, todos, attachments
 	 */
 	delete: lens.mutation({
 		input: z.object({ sessionId: z.string() }),
 		output: z.void(),
-		resolve: async ({ sessionId }, ctx?: any) => {
+		resolve: async ({ sessionId }: { sessionId: string }, ctx?: any) => {
 			await ctx.sessionRepository.deleteSession(sessionId);
 
-			await ctx.pubsub.publish("session-events", {
+			await ctx.appContext.eventStream.publish("session-events", {
 				type: "session-deleted",
 				sessionId,
 			});
+		},
+	}),
+
+	/**
+	 * Compact session: Summarize conversation and create new session
+	 */
+	compact: lens.mutation({
+		input: z.object({ sessionId: z.string() }),
+		output: z.object({
+			success: z.boolean(),
+			error: z.string().optional(),
+			newSessionId: z.string().optional(),
+			summary: z.string().optional(),
+			messageCount: z.number().optional(),
+		}),
+		resolve: async ({ sessionId }: { sessionId: string }, ctx?: any) => {
+			const { compactSession, getProviderConfigWithApiKey } = await import("@sylphx/code-core");
+
+			const session = await ctx.sessionRepository.getSessionById(sessionId);
+			if (!session) {
+				return { success: false, error: "Session not found" };
+			}
+
+			const providerConfig = await getProviderConfigWithApiKey(ctx.aiConfig, session.provider);
+
+			if (!providerConfig) {
+				return {
+					success: false,
+					error: `Provider ${session.provider} is not configured`,
+				};
+			}
+
+			const result = await compactSession(
+				ctx.sessionRepository,
+				sessionId,
+				providerConfig,
+				(status: string, detail?: string) => {
+					console.log(`[Compact] ${status}: ${detail || ""}`);
+				},
+			);
+
+			if (!result.success) {
+				return { success: false, error: result.error };
+			}
+
+			// Emit events for multi-client sync
+			await ctx.appContext.eventStream.publish("session-events", {
+				type: "session-compacted",
+				oldSessionId: sessionId,
+				newSessionId: result.newSessionId!,
+				summary: result.summary!,
+				messageCount: result.messageCount!,
+			});
+
+			await ctx.appContext.eventStream.publish("session-events", {
+				type: "session-created",
+				sessionId: result.newSessionId!,
+				provider: session.provider,
+				model: session.model,
+			});
+
+			return result;
 		},
 	}),
 });
@@ -242,12 +386,10 @@ export const messageAPI = lens.object({
 			userMessageContent: z.string().nullable(),
 		}),
 		output: StreamEventSchema,
-		resolve: async ({ sessionId, userMessageContent }, ctx?: any) => {
-			// This will be an Observable in practice
-			// For now, return placeholder
+		resolve: async ({ sessionId, userMessageContent }: { sessionId: string; userMessageContent: string | null }, ctx?: any) => {
 			throw new Error("Use subscribe() method for streaming");
 		},
-		subscribe: ({ sessionId, userMessageContent }, ctx?: any): Observable<StreamEvent> => {
+		subscribe: ({ sessionId, userMessageContent }: { sessionId: string; userMessageContent: string | null }, ctx?: any): Observable<StreamEvent> => {
 			const { streamAIResponse } = require("../../code-server/src/services/streaming.service.js");
 
 			return streamAIResponse({

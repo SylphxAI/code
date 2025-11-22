@@ -74,9 +74,10 @@ export class LensServer {
 
 		await initializeAppContext(this.appContext);
 
-		// Create InProcessTransport with context
+		// Create InProcessTransport with context injection
 		this.inProcessTransport = new InProcessTransport({
 			api,
+			context: this.appContext,
 		});
 
 		console.log(`[LensServer] Initialized (db: ${this.config.dbPath})`);

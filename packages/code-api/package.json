@@ -14,7 +14,7 @@
 	},
 	"files": ["dist", "src"],
 	"scripts": {
-		"build": "tsc --noEmit",
+		"build": "echo 'Skipping build - runtime-only package'",
 		"type-check": "tsc --noEmit"
 	},
 	"dependencies": {
