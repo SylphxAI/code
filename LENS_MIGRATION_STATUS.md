@@ -14,6 +14,8 @@
   - Mutations: `create`, `updateTitle`, `updateModel`, `updateProvider`, `updateRules`, `updateAgent`, `delete`, `compact`
 - **messageAPI** ✅ - Streaming subscription migrated
   - Subscription: `streamResponse` with Observable<StreamEvent>
+- **todoAPI** ✅ - Todo management migrated
+  - Mutation: `update` with atomic todo replacement
 
 ### Phase 3: Server Integration (DONE)
 - **LensServer class** - Integrates InProcessTransport and HTTP/SSE handlers
@@ -25,10 +27,7 @@
 ### Remaining Router Migrations
 These routers still use tRPC and need Lens migration:
 
-1. **todoRouter** (40 lines)
-   - `update` mutation - Updates todos for session
-
-2. **configRouter** (753 lines) - Complex, many endpoints
+1. **configRouter** (753 lines) - Complex, many endpoints
    - Queries: `load`, `getPaths`, `getProviders`, `getProviderSchema`, `getTokenizerInfo`, `countTokens`, `countFileTokens`, `scanProjectFiles`, `getModelDetails`, `fetchModels`
    - Mutations: `updateDefaultProvider`, `updateDefaultModel`, `updateProviderConfig`, `setProviderSecret`, `removeProvider`, `save`, `updateRules`
 
@@ -50,8 +49,8 @@ These routers still use tRPC and need Lens migration:
 ### Next Steps (Priority Order)
 
 1. **Migrate remaining routers** to Lens API
-   - Start with simple: todoRouter (40 lines)
-   - Then fileRouter (138 lines)
+   - ✅ Simple: todoRouter (DONE)
+   - Next: fileRouter (138 lines)
    - Save complex for last: configRouter (753 lines)
 
 2. **Update TUI client** to use Lens client with InProcessTransport
@@ -174,3 +173,4 @@ getRecent: lens.query({
 
 1. `c3661a7` - feat(lens): Add context injection to InProcessTransport and complete sessionAPI migration
 2. `a821fae` - feat(lens): Add context injection to lens-server HTTP/SSE handlers
+3. `94ee4a6` - feat(lens): Migrate todoAPI to Lens framework
