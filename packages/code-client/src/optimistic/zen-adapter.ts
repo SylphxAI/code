@@ -14,11 +14,10 @@
  * ```
  */
 
+import type { Effect, StatePatch, EffectRunnerConfig } from "@sylphx/optimistic";
+import { runEffects } from "@sylphx/optimistic";
 import { eventBus } from "../lib/event-bus.js";
 import { currentSession, setCurrentSession } from "../signals/domain/session/index.js";
-import type { Effect, StatePatch } from "./effects.js";
-import type { EffectRunnerConfig } from "./effect-runner.js";
-import { runEffects } from "./effect-runner.js";
 
 /**
  * Apply state patch to zen signals

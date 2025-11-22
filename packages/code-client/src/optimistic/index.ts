@@ -4,19 +4,23 @@
  * Exports all public APIs for optimistic updates
  */
 
-// Core managers
-export { optimisticManager, OptimisticManager } from "./manager.js";
-export { optimisticManagerV2, OptimisticManagerV2 } from "./manager-v2.js";
+// V2 Effect System (from standalone package)
+export type { Effect, EffectResult, StatePatch, EffectRunnerConfig } from "@sylphx/optimistic";
+export {
+	optimisticManagerV2,
+	OptimisticManagerV2,
+	runEffects,
+	applyOperation,
+	applyInverse,
+	applyPendingOperations,
+	patchState,
+	scheduleTimeout,
+	cancelTimeout,
+	emitEvent,
+	log,
+} from "@sylphx/optimistic";
 
-// Effect System (V2)
-export type { Effect, EffectResult, StatePatch } from "./effects.js";
-export { runEffects } from "./effect-runner.js";
-export { runOptimisticEffects } from "./zen-adapter.js";
-
-// Operations (for custom operations)
-export { applyOperation, applyInverse, applyPendingOperations } from "./operations.js";
-
-// Types
+// Types (from standalone package)
 export type {
 	Message,
 	SessionStatus,
@@ -24,7 +28,15 @@ export type {
 	PendingOperation,
 	ServerEvent,
 	SessionState,
-} from "./types.js";
+	FileAttachment,
+	QueuedMessage,
+} from "@sylphx/optimistic";
+
+// Zen Signal Adapter (framework-specific, kept in code-client)
+export { runOptimisticEffects } from "./zen-adapter.js";
+
+// V1 Legacy (deprecated - will be removed in future)
+export { optimisticManager, OptimisticManager } from "./manager.js";
 
 // Integration (main API for clients) - V1 (legacy)
 export {
