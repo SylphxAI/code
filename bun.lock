@@ -247,6 +247,7 @@
       "name": "@sylphx/lens-react",
       "version": "0.1.0",
       "dependencies": {
+        "@sylphx/lens-client": "workspace:*",
         "@sylphx/lens-core": "workspace:*",
       },
       "devDependencies": {

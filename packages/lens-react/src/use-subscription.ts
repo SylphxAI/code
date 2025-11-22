@@ -2,7 +2,7 @@
  * useSubscription hook for Lens
  */
 
-import type { LensRequest } from "@sylphx/lens-core";
+import type { LensRequest, FieldSelection, UpdateMode } from "@sylphx/lens-core";
 import { useEffect, useState } from "react";
 import { useLensContext } from "./provider.js";
 
@@ -15,6 +15,10 @@ export interface UseSubscriptionOptions<TData> {
 	onError?: (error: Error) => void;
 	/** Callback on complete */
 	onComplete?: () => void;
+	/** Field selection - control which fields to fetch */
+	select?: FieldSelection;
+	/** Update mode - minimize transmission (delta, patch, value, auto) */
+	updateMode?: UpdateMode;
 }
 
 export interface UseSubscriptionResult<TData> {
@@ -25,17 +29,36 @@ export interface UseSubscriptionResult<TData> {
 }
 
 /**
- * Hook for real-time subscriptions
+ * Hook for real-time subscriptions with update strategies
  *
  * @example
  * ```tsx
+ * // Basic usage
  * const { data, isConnected } = useSubscription({
  *   type: 'subscription',
  *   path: ['user', 'get'],
- *   input: { id: '123' },
- *   updateMode: 'auto'
+ *   input: { id: '123' }
  * }, {
  *   onData: (data) => console.log('Update:', data)
+ * });
+ *
+ * // With patch strategy for minimal transmission
+ * const { data } = useSubscription({
+ *   type: 'subscription',
+ *   path: ['session', 'getById'],
+ *   input: { sessionId: 'abc' }
+ * }, {
+ *   select: ['id', 'title', 'updatedAt'],
+ *   updateMode: 'patch' // Only send JSON Patch
+ * });
+ *
+ * // With delta strategy for text streaming
+ * const { data } = useSubscription({
+ *   type: 'subscription',
+ *   path: ['message', 'streamResponse'],
+ *   input: { sessionId: 'abc', content: 'Hello' }
+ * }, {
+ *   updateMode: 'delta' // Only send text differences
  * });
  * ```
  */
@@ -53,7 +76,11 @@ export function useSubscription<TData>(
 			return;
 		}
 
-		const observable = transport.subscribe<TData>(request);
+		const observable = transport.subscribe<TData>({
+			...request,
+			select: options.select,
+			updateMode: options.updateMode
+		});
 		setIsConnected(true);
 
 		const subscription = observable.subscribe({
@@ -76,7 +103,12 @@ export function useSubscription<TData>(
 			subscription.unsubscribe();
 			setIsConnected(false);
 		};
-	}, [JSON.stringify(request), options.enabled]);
+	}, [
+		JSON.stringify(request),
+		options.enabled,
+		JSON.stringify(options.select),
+		options.updateMode,
+	]);
 
 	return {
 		data,
