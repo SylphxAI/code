@@ -66,7 +66,7 @@ export const sessionAPI = lens.object({
 			cursor: z.number().optional(),
 		}),
 		output: PaginatedSessionsSchema,
-		resolve: async ({ limit, cursor }: { limit: number; cursor?: number }, ctx) => {
+		resolve: async ({ limit, cursor }, ctx) => {
 			return await ctx.sessionRepository.getRecentSessionsMetadata(limit, cursor);
 		},
 	}),
@@ -83,7 +83,7 @@ export const sessionAPI = lens.object({
 		output: SessionSchema.nullable(),
 
 		// Query: One-time fetch
-		resolve: async ({ sessionId }: { sessionId: string }, ctx) => {
+		resolve: async ({ sessionId }, ctx) => {
 			const session = await ctx.sessionRepository.getSessionById(sessionId);
 			if (!session) {
 				return null;
@@ -115,7 +115,7 @@ export const sessionAPI = lens.object({
 		},
 
 		// Subscribe: Real-time updates
-		subscribe: ({ sessionId }: { sessionId: string }, ctx): Observable<Session | null> => {
+		subscribe: ({ sessionId }, ctx): Observable<Session | null> => {
 			const { Observable: RxObservable } = require("rxjs");
 			const { startWith, map, filter } = require("rxjs/operators");
 
@@ -165,7 +165,7 @@ export const sessionAPI = lens.object({
 			cursor: z.number().optional(),
 		}),
 		output: PaginatedSessionsSchema,
-		resolve: async ({ query, limit, cursor }: { query: string; limit: number; cursor?: number }, ctx) => {
+		resolve: async ({ query, limit, cursor }, ctx) => {
 			return await ctx.sessionRepository.searchSessionsMetadata(query, limit, cursor);
 		},
 	}),
@@ -182,7 +182,7 @@ export const sessionAPI = lens.object({
 			enabledRuleIds: z.array(z.string()).optional(),
 		}),
 		output: SessionSchema,
-		resolve: async ({ provider, model, agentId, enabledRuleIds }: { provider: string; model: string; agentId?: string; enabledRuleIds?: string[] }, ctx) => {
+		resolve: async ({ provider, model, agentId, enabledRuleIds }, ctx) => {
 			// Load global config for defaults
 			const cwd = process.cwd();
 			const { loadAIConfig, loadAllRules } = await import("@sylphx/code-core");
@@ -240,7 +240,7 @@ export const sessionAPI = lens.object({
 			title: z.string(),
 		}),
 		output: SessionSchema,
-		resolve: async ({ sessionId, title }: { sessionId: string; title: string }, ctx) => {
+		resolve: async ({ sessionId, title }, ctx) => {
 			// 1. Update database
 			await ctx.sessionRepository.updateSessionTitle(sessionId, title);
 
@@ -267,7 +267,7 @@ export const sessionAPI = lens.object({
 			model: z.string(),
 		}),
 		output: SessionSchema,
-		resolve: async ({ sessionId, model }: { sessionId: string; model: string }, ctx) => {
+		resolve: async ({ sessionId, model }, ctx) => {
 			await ctx.sessionRepository.updateSessionModel(sessionId, model);
 			const session = await ctx.sessionRepository.getSessionById(sessionId);
 
@@ -291,7 +291,7 @@ export const sessionAPI = lens.object({
 			model: z.string(),
 		}),
 		output: SessionSchema,
-		resolve: async ({ sessionId, provider, model }: { sessionId: string; provider: string; model: string }, ctx) => {
+		resolve: async ({ sessionId, provider, model }, ctx) => {
 			await ctx.sessionRepository.updateSessionProvider(sessionId, provider, model);
 			const session = await ctx.sessionRepository.getSessionById(sessionId);
 
@@ -314,7 +314,7 @@ export const sessionAPI = lens.object({
 			enabledRuleIds: z.array(z.string()),
 		}),
 		output: SessionSchema,
-		resolve: async ({ sessionId, enabledRuleIds }: { sessionId: string; enabledRuleIds: string[] }, ctx) => {
+		resolve: async ({ sessionId, enabledRuleIds }, ctx) => {
 			await ctx.sessionRepository.updateSession(sessionId, {
 				enabledRuleIds,
 			});
@@ -339,7 +339,7 @@ export const sessionAPI = lens.object({
 			agentId: z.string(),
 		}),
 		output: SessionSchema,
-		resolve: async ({ sessionId, agentId }: { sessionId: string; agentId: string }, ctx) => {
+		resolve: async ({ sessionId, agentId }, ctx) => {
 			await ctx.sessionRepository.updateSession(sessionId, {
 				agentId,
 			});
@@ -362,7 +362,7 @@ export const sessionAPI = lens.object({
 	delete: lens.mutation({
 		input: z.object({ sessionId: z.string() }),
 		output: z.object({ success: z.boolean(), sessionId: z.string() }),
-		resolve: async ({ sessionId }: { sessionId: string }, ctx) => {
+		resolve: async ({ sessionId }, ctx) => {
 			await ctx.sessionRepository.deleteSession(sessionId);
 
 			// Publish to session-specific channel (for getById subscribers)
@@ -393,7 +393,7 @@ export const sessionAPI = lens.object({
 			summary: z.string().optional(),
 			messageCount: z.number().optional(),
 		}),
-		resolve: async ({ sessionId }: { sessionId: string }, ctx) => {
+		resolve: async ({ sessionId }, ctx) => {
 			const { compactSession, getProviderConfigWithApiKey } = await import("@sylphx/code-core");
 
 			const session = await ctx.sessionRepository.getSessionById(sessionId);
@@ -468,10 +468,10 @@ export const messageAPI = lens.object({
 			userMessageContent: z.string().nullable(),
 		}),
 		output: StreamEventSchema,
-		resolve: async ({ sessionId, userMessageContent }: { sessionId: string; userMessageContent: string | null }, ctx) => {
+		resolve: async ({ sessionId, userMessageContent }, ctx) => {
 			throw new Error("Use subscribe() method for streaming");
 		},
-		subscribe: ({ sessionId, userMessageContent }: { sessionId: string; userMessageContent: string | null }, ctx): Observable<StreamEvent> => {
+		subscribe: ({ sessionId, userMessageContent }, ctx): Observable<StreamEvent> => {
 			const { streamAIResponse } = require("../../code-server/src/services/streaming.service.js");
 
 			return streamAIResponse({
@@ -501,7 +501,7 @@ export const todoAPI = lens.object({
 			nextTodoId: z.number(),
 		}),
 		output: z.void(),
-		resolve: async ({ sessionId, todos, nextTodoId }: { sessionId: string; todos: Todo[]; nextTodoId: number }, ctx) => {
+		resolve: async ({ sessionId, todos, nextTodoId }, ctx) => {
 			await ctx.todoRepository.updateTodos(sessionId, todos, nextTodoId);
 			// Note: Todos are stored per-session, no real-time sync needed
 		},
@@ -539,7 +539,7 @@ export const fileAPI = lens.object({
 			sha256: z.string(),
 			url: z.string(),
 		}),
-		resolve: async ({ relativePath, mediaType, size, content }: { relativePath: string; mediaType: string; size: number; content: string }, ctx) => {
+		resolve: async ({ relativePath, mediaType, size, content }, ctx) => {
 			const { createHash } = await import("node:crypto");
 
 			// Get FileRepository via MessageRepository
@@ -598,7 +598,7 @@ export const fileAPI = lens.object({
 			sha256: z.string(),
 			createdAt: z.number(),
 		}),
-		resolve: async ({ fileId }: { fileId: string }, ctx) => {
+		resolve: async ({ fileId }, ctx) => {
 			// Get FileRepository via MessageRepository
 			const fileRepo = ctx.messageRepository.getFileRepository();
 
@@ -637,7 +637,7 @@ export const fileAPI = lens.object({
 			sha256: z.string(),
 			createdAt: z.number(),
 		}),
-		resolve: async ({ fileId }: { fileId: string }, ctx) => {
+		resolve: async ({ fileId }, ctx) => {
 			const fileRepo = ctx.messageRepository.getFileRepository();
 			const file = await fileRepo.getFileContent(fileId);
 
@@ -681,7 +681,7 @@ export const bashAPI = lens.object({
 			command: z.string(),
 			mode: z.enum(["active", "background"]),
 		}),
-		resolve: async ({ command, mode, cwd, timeout }: { command: string; mode: "active" | "background"; cwd?: string; timeout?: number }, ctx) => {
+		resolve: async ({ command, mode, cwd, timeout }, ctx) => {
 			const { bashManagerV2 } = ctx.appContext;
 
 			const bashId = await bashManagerV2.execute(command, {
@@ -730,7 +730,7 @@ export const bashAPI = lens.object({
 			stdout: z.string(),
 			stderr: z.string(),
 		}),
-		resolve: async ({ bashId }: { bashId: string }, ctx) => {
+		resolve: async ({ bashId }, ctx) => {
 			const { bashManagerV2 } = ctx.appContext;
 			const proc = bashManagerV2.get(bashId);
 
@@ -766,7 +766,7 @@ export const bashAPI = lens.object({
 			success: z.boolean(),
 			bashId: z.string(),
 		}),
-		resolve: async ({ bashId }: { bashId: string }, ctx) => {
+		resolve: async ({ bashId }, ctx) => {
 			const { bashManagerV2 } = ctx.appContext;
 			const success = bashManagerV2.kill(bashId);
 
@@ -790,7 +790,7 @@ export const bashAPI = lens.object({
 			bashId: z.string(),
 			mode: z.literal("background"),
 		}),
-		resolve: async ({ bashId }: { bashId: string }, ctx) => {
+		resolve: async ({ bashId }, ctx) => {
 			const { bashManagerV2 } = ctx.appContext;
 			const success = bashManagerV2.demote(bashId);
 
@@ -814,7 +814,7 @@ export const bashAPI = lens.object({
 			bashId: z.string(),
 			mode: z.literal("active"),
 		}),
-		resolve: async ({ bashId }: { bashId: string }, ctx) => {
+		resolve: async ({ bashId }, ctx) => {
 			const { bashManagerV2 } = ctx.appContext;
 			const success = await bashManagerV2.promote(bashId);
 
@@ -896,7 +896,7 @@ export const adminAPI = lens.object({
 			deletedCount: z.number(),
 			message: z.string(),
 		}),
-		resolve: async ({ confirm }: { confirm: true }, ctx) => {
+		resolve: async ({ confirm }, ctx) => {
 			// Get all sessions
 			const sessions = await ctx.sessionRepository.getRecentSessionsMetadata(1000);
 
@@ -1039,7 +1039,7 @@ export const adminAPI = lens.object({
 			format: z.enum(["json", "markdown"]).default("json"),
 		}),
 		output: z.any(), // String (markdown) or object (json)
-		resolve: async ({ format }: { format: "json" | "markdown" }, ctx) => {
+		resolve: async ({ format }, ctx) => {
 			const { getAPIInventory, generateMarkdownDocs } = await import("../../code-server/src/utils/api-inventory.js");
 
 			if (format === "markdown") {
@@ -1097,10 +1097,10 @@ export const eventsAPI = lens.object({
 			timestamp: z.number(),
 			payload: z.any(),
 		}),
-		resolve: async ({ channel, fromCursor }: { channel: string; fromCursor?: { timestamp: number; sequence: number } }, ctx) => {
+		resolve: async ({ channel, fromCursor }, ctx) => {
 			throw new Error("Use subscribe() method for event streaming");
 		},
-		subscribe: ({ channel, fromCursor }: { channel: string; fromCursor?: { timestamp: number; sequence: number } }, ctx): Observable<any> => {
+		subscribe: ({ channel, fromCursor }, ctx): Observable<any> => {
 			return ctx.appContext.eventStream.subscribe(channel, fromCursor);
 		},
 	}),
@@ -1127,10 +1127,10 @@ export const eventsAPI = lens.object({
 			timestamp: z.number(),
 			payload: z.any(),
 		}),
-		resolve: async ({ sessionId, replayLast }: { sessionId: string; replayLast: number }, ctx) => {
+		resolve: async ({ sessionId, replayLast }, ctx) => {
 			throw new Error("Use subscribe() method for event streaming");
 		},
-		subscribe: ({ sessionId, replayLast }: { sessionId: string; replayLast: number }, ctx): Observable<any> => {
+		subscribe: ({ sessionId, replayLast }, ctx): Observable<any> => {
 			const channel = `session:${sessionId}`;
 			return ctx.appContext.eventStream.subscribeWithHistory(channel, replayLast);
 		},
@@ -1158,10 +1158,10 @@ export const eventsAPI = lens.object({
 			timestamp: z.number(),
 			payload: z.any(),
 		}),
-		resolve: async ({ replayLast }: { replayLast: number }, ctx) => {
+		resolve: async ({ replayLast }, ctx) => {
 			throw new Error("Use subscribe() method for event streaming");
 		},
-		subscribe: ({ replayLast }: { replayLast: number }, ctx): Observable<any> => {
+		subscribe: ({ replayLast }, ctx): Observable<any> => {
 			const channel = "sessions";
 			return ctx.appContext.eventStream.subscribeWithHistory(channel, replayLast);
 		},
@@ -1180,7 +1180,7 @@ export const eventsAPI = lens.object({
 			channel: z.string(),
 		}),
 		output: z.any(), // Channel info structure
-		resolve: async ({ channel }: { channel: string }, ctx) => {
+		resolve: async ({ channel }, ctx) => {
 			return await ctx.appContext.eventStream.info(channel);
 		},
 	}),
@@ -1197,7 +1197,7 @@ export const eventsAPI = lens.object({
 		output: z.object({
 			success: z.boolean(),
 		}),
-		resolve: async ({ channel, keepLast }: { channel: string; keepLast: number }, ctx) => {
+		resolve: async ({ channel, keepLast }, ctx) => {
 			await ctx.appContext.eventStream.cleanupChannel(channel, keepLast);
 			return { success: true };
 		},
@@ -1228,7 +1228,7 @@ export const configAPI = lens.object({
 			success: z.literal(true),
 			config: z.any(), // AIConfig structure (sanitized)
 		}),
-		resolve: async ({ cwd }: { cwd: string }, ctx) => {
+		resolve: async ({ cwd }, ctx) => {
 			const { loadAIConfig } = await import("@sylphx/code-core");
 
 			// Sanitize config helper
@@ -1294,7 +1294,7 @@ export const configAPI = lens.object({
 			cwd: z.string().default(process.cwd()),
 		}),
 		output: z.any(), // Path info structure
-		resolve: async ({ cwd }: { cwd: string }, ctx) => {
+		resolve: async ({ cwd }, ctx) => {
 			const { getAIConfigPaths } = await import("@sylphx/code-core");
 			return getAIConfigPaths(cwd);
 		},
@@ -1315,7 +1315,7 @@ export const configAPI = lens.object({
 			description: z.string(),
 			isConfigured: z.boolean(),
 		})),
-		resolve: async ({ cwd }: { cwd: string }, ctx) => {
+		resolve: async ({ cwd }, ctx) => {
 			const { loadAIConfig, AI_PROVIDERS, getProvider } = await import("@sylphx/code-core");
 
 			const configResult = await loadAIConfig(cwd);
@@ -1364,7 +1364,7 @@ export const configAPI = lens.object({
 				error: z.string(),
 			}),
 		]),
-		resolve: async ({ providerId }: { providerId: string }, ctx) => {
+		resolve: async ({ providerId }, ctx) => {
 			try {
 				const { getProvider } = await import("@sylphx/code-core");
 				const provider = getProvider(providerId);
@@ -1388,7 +1388,7 @@ export const configAPI = lens.object({
 			model: z.string(),
 		}),
 		output: z.any(), // Tokenizer info structure
-		resolve: async ({ model }: { model: string }, ctx) => {
+		resolve: async ({ model }, ctx) => {
 			const { getTokenizerInfo } = await import("@sylphx/code-core");
 			return getTokenizerInfo(model);
 		},
@@ -1406,7 +1406,7 @@ export const configAPI = lens.object({
 		output: z.object({
 			count: z.number(),
 		}),
-		resolve: async ({ text, model }: { text: string; model?: string }, ctx) => {
+		resolve: async ({ text, model }, ctx) => {
 			const { countTokens } = await import("@sylphx/code-core");
 			const count = await countTokens(text, model);
 			return { count };
@@ -1433,7 +1433,7 @@ export const configAPI = lens.object({
 				error: z.string(),
 			}),
 		]),
-		resolve: async ({ filePath, model }: { filePath: string; model?: string }, ctx) => {
+		resolve: async ({ filePath, model }, ctx) => {
 			const { readFile } = await import("node:fs/promises");
 			const { countTokens } = await import("@sylphx/code-core");
 
@@ -1462,7 +1462,7 @@ export const configAPI = lens.object({
 		output: z.object({
 			files: z.array(z.string()),
 		}),
-		resolve: async ({ cwd, query }: { cwd: string; query?: string }, ctx) => {
+		resolve: async ({ cwd, query }, ctx) => {
 			const { scanProjectFiles } = await import("@sylphx/code-core");
 			const files = await scanProjectFiles(cwd, query);
 			return { files };
@@ -1489,7 +1489,7 @@ export const configAPI = lens.object({
 				error: z.string(),
 			}),
 		]),
-		resolve: async ({ providerId, modelId, cwd }: { providerId: string; modelId: string; cwd: string }, ctx) => {
+		resolve: async ({ providerId, modelId, cwd }, ctx) => {
 			try {
 				const { getProvider, loadAIConfig, getProviderConfigWithApiKey, enrichModelDetails, enrichCapabilities } = await import("@sylphx/code-core");
 				const provider = getProvider(providerId);
@@ -1565,7 +1565,7 @@ export const configAPI = lens.object({
 				error: z.string(),
 			}),
 		]),
-		resolve: async ({ providerId, cwd }: { providerId: string; cwd: string }, ctx) => {
+		resolve: async ({ providerId, cwd }, ctx) => {
 			try {
 				const { loadAIConfig, fetchModels } = await import("@sylphx/code-core");
 
@@ -1623,7 +1623,7 @@ export const configAPI = lens.object({
 			z.object({ success: z.literal(true) }),
 			z.object({ success: z.literal(false), error: z.string() }),
 		]),
-		resolve: async ({ provider, cwd }: { provider: string; cwd: string }, ctx) => {
+		resolve: async ({ provider, cwd }, ctx) => {
 			const { loadAIConfig, saveAIConfig } = await import("@sylphx/code-core");
 
 			const result = await loadAIConfig(cwd);
@@ -1654,7 +1654,7 @@ export const configAPI = lens.object({
 			z.object({ success: z.literal(true) }),
 			z.object({ success: z.literal(false), error: z.string() }),
 		]),
-		resolve: async ({ model, cwd }: { model: string; cwd: string }, ctx) => {
+		resolve: async ({ model, cwd }, ctx) => {
 			const { loadAIConfig, saveAIConfig } = await import("@sylphx/code-core");
 
 			const result = await loadAIConfig(cwd);
@@ -1691,7 +1691,7 @@ export const configAPI = lens.object({
 			z.object({ success: z.literal(true) }),
 			z.object({ success: z.literal(false), error: z.string() }),
 		]),
-		resolve: async ({ providerId, config, cwd }: { providerId: string; config: Record<string, any>; cwd: string }, ctx) => {
+		resolve: async ({ providerId, config, cwd }, ctx) => {
 			const { loadAIConfig, saveAIConfig, getProvider } = await import("@sylphx/code-core");
 
 			const result = await loadAIConfig(cwd);
@@ -1757,7 +1757,7 @@ export const configAPI = lens.object({
 			z.object({ success: z.literal(true) }),
 			z.object({ success: z.literal(false), error: z.string() }),
 		]),
-		resolve: async ({ providerId, fieldName, value, cwd }: { providerId: string; fieldName: string; value: string; cwd: string }, ctx) => {
+		resolve: async ({ providerId, fieldName, value, cwd }, ctx) => {
 			const { loadAIConfig, saveAIConfig, getProvider, createCredential, getDefaultCredential, updateCredential } = await import("@sylphx/code-core");
 
 			const result = await loadAIConfig(cwd);
@@ -1845,7 +1845,7 @@ export const configAPI = lens.object({
 			z.object({ success: z.literal(true) }),
 			z.object({ success: z.literal(false), error: z.string() }),
 		]),
-		resolve: async ({ providerId, cwd }: { providerId: string; cwd: string }, ctx) => {
+		resolve: async ({ providerId, cwd }, ctx) => {
 			const { loadAIConfig, saveAIConfig } = await import("@sylphx/code-core");
 
 			const result = await loadAIConfig(cwd);
@@ -1885,7 +1885,7 @@ export const configAPI = lens.object({
 			z.object({ success: z.literal(true) }),
 			z.object({ success: z.literal(false), error: z.string() }),
 		]),
-		resolve: async ({ config, cwd }: { config: any; cwd: string }, ctx) => {
+		resolve: async ({ config, cwd }, ctx) => {
 			const { loadAIConfig, saveAIConfig, getProvider } = await import("@sylphx/code-core");
 
 			// Load current config from disk to get secrets
@@ -1953,7 +1953,7 @@ export const configAPI = lens.object({
 			z.object({ success: z.literal(true), scope: z.enum(["session", "global"]) }),
 			z.object({ success: z.literal(false), error: z.string() }),
 		]),
-		resolve: async ({ ruleIds, sessionId, cwd }: { ruleIds: string[]; sessionId?: string; cwd: string }, ctx) => {
+		resolve: async ({ ruleIds, sessionId, cwd }, ctx) => {
 			if (sessionId) {
 				// Session-specific rules → persist to session table
 				await ctx.sessionRepository.updateSession(sessionId, {
