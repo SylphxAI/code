@@ -59,11 +59,16 @@ export const sessionAPI = lens.object({
 
 	/**
 	 * Get session by ID with full data
-	 * LAZY LOADING: Only called when user opens a specific session
+	 * FRONTEND-DRIVEN:
+	 * - Client controls field selection via `select`
+	 * - Can subscribe for real-time updates
+	 * - Lazy loading: Only called when user opens session
 	 */
 	getById: lens.query({
 		input: z.object({ sessionId: z.string() }),
 		output: SessionSchema.nullable(),
+
+		// Query: One-time fetch
 		resolve: async ({ sessionId }: { sessionId: string }, ctx?: any) => {
 			const session = await ctx.sessionRepository.getSessionById(sessionId);
 			if (!session) {
@@ -93,6 +98,26 @@ export const sessionAPI = lens.object({
 				...session,
 				modelStatus,
 			};
+		},
+
+		// Subscribe: Real-time updates
+		subscribe: ({ sessionId }: { sessionId: string }, ctx?: any): Observable<Session | null> => {
+			const { Observable: RxObservable } = require("rxjs");
+			const { startWith, map, filter } = require("rxjs/operators");
+
+			return ctx.appContext.eventStream
+				.subscribe(`session:${sessionId}`)
+				.pipe(
+					startWith(null), // Will trigger initial fetch via resolve
+					map((event: any) => {
+						if (!event) return null;
+						if (event.type === 'session-updated') {
+							return event.payload.session;
+						}
+						return null;
+					}),
+					filter((session: Session | null) => session !== null)
+				);
 		},
 	}),
 
@@ -194,45 +219,60 @@ export const sessionAPI = lens.object({
 	/**
 	 * Update session title
 	 */
+	/**
+	 * Update session title
+	 * REACTIVE: Publishes to session:{id} channel
+	 * Frontend receives via subscription (using patch strategy for minimal transmission)
+	 */
 	updateTitle: lens.mutation({
 		input: z.object({
 			sessionId: z.string(),
 			title: z.string(),
 		}),
-		output: z.void(),
+		output: SessionSchema,
 		resolve: async ({ sessionId, title }: { sessionId: string; title: string }, ctx?: any) => {
+			// 1. Update database
 			await ctx.sessionRepository.updateSessionTitle(sessionId, title);
 
-			await ctx.appContext.eventStream.publish("session-events", {
-				type: "session-title-updated",
-				sessionId,
-				title,
+			// 2. Get updated session
+			const session = await ctx.sessionRepository.getSessionById(sessionId);
+
+			// 3. Publish model-level event (subscriptions auto-update)
+			await ctx.appContext.eventStream.publish(`session:${sessionId}`, {
+				type: 'session-updated',
+				payload: { session },
 			});
+
+			return session;
 		},
 	}),
 
 	/**
 	 * Update session model
+	 * REACTIVE: Publishes to session:{id} channel
 	 */
 	updateModel: lens.mutation({
 		input: z.object({
 			sessionId: z.string(),
 			model: z.string(),
 		}),
-		output: z.void(),
+		output: SessionSchema,
 		resolve: async ({ sessionId, model }: { sessionId: string; model: string }, ctx?: any) => {
 			await ctx.sessionRepository.updateSessionModel(sessionId, model);
+			const session = await ctx.sessionRepository.getSessionById(sessionId);
 
-			await ctx.appContext.eventStream.publish("session-events", {
-				type: "session-model-updated",
-				sessionId,
-				model,
+			await ctx.appContext.eventStream.publish(`session:${sessionId}`, {
+				type: 'session-updated',
+				payload: { session },
 			});
+
+			return session;
 		},
 	}),
 
 	/**
 	 * Update session provider and model
+	 * REACTIVE: Publishes to session:{id} channel
 	 */
 	updateProvider: lens.mutation({
 		input: z.object({
@@ -240,72 +280,87 @@ export const sessionAPI = lens.object({
 			provider: z.string(),
 			model: z.string(),
 		}),
-		output: z.void(),
+		output: SessionSchema,
 		resolve: async ({ sessionId, provider, model }: { sessionId: string; provider: string; model: string }, ctx?: any) => {
 			await ctx.sessionRepository.updateSessionProvider(sessionId, provider, model);
+			const session = await ctx.sessionRepository.getSessionById(sessionId);
 
-			await ctx.appContext.eventStream.publish("session-events", {
-				type: "session-provider-updated",
-				sessionId,
-				provider,
-				model,
+			await ctx.appContext.eventStream.publish(`session:${sessionId}`, {
+				type: 'session-updated',
+				payload: { session },
 			});
+
+			return session;
 		},
 	}),
 
 	/**
 	 * Update session enabled rules
+	 * REACTIVE: Publishes to session:{id} channel
 	 */
 	updateRules: lens.mutation({
 		input: z.object({
 			sessionId: z.string(),
 			enabledRuleIds: z.array(z.string()),
 		}),
-		output: z.void(),
+		output: SessionSchema,
 		resolve: async ({ sessionId, enabledRuleIds }: { sessionId: string; enabledRuleIds: string[] }, ctx?: any) => {
 			await ctx.sessionRepository.updateSession(sessionId, {
 				enabledRuleIds,
 			});
+			const session = await ctx.sessionRepository.getSessionById(sessionId);
+
+			await ctx.appContext.eventStream.publish(`session:${sessionId}`, {
+				type: 'session-updated',
+				payload: { session },
+			});
+
+			return session;
 		},
 	}),
 
 	/**
 	 * Update session agent
+	 * REACTIVE: Publishes to session:{id} channel
 	 */
 	updateAgent: lens.mutation({
 		input: z.object({
 			sessionId: z.string(),
 			agentId: z.string(),
 		}),
-		output: z.void(),
+		output: SessionSchema,
 		resolve: async ({ sessionId, agentId }: { sessionId: string; agentId: string }, ctx?: any) => {
 			await ctx.sessionRepository.updateSession(sessionId, {
 				agentId,
 			});
+			const session = await ctx.sessionRepository.getSessionById(sessionId);
 
-			await ctx.appContext.eventStream.publish("session-events", {
-				type: "session-updated",
-				sessionId,
-				field: "agentId",
-				value: agentId,
+			await ctx.appContext.eventStream.publish(`session:${sessionId}`, {
+				type: 'session-updated',
+				payload: { session },
 			});
+
+			return session;
 		},
 	}),
 
 	/**
 	 * Delete session
 	 * CASCADE: Automatically deletes all messages, todos, attachments
+	 * REACTIVE: Publishes deletion event to session:{id} channel
 	 */
 	delete: lens.mutation({
 		input: z.object({ sessionId: z.string() }),
-		output: z.void(),
+		output: z.object({ success: z.boolean(), sessionId: z.string() }),
 		resolve: async ({ sessionId }: { sessionId: string }, ctx?: any) => {
 			await ctx.sessionRepository.deleteSession(sessionId);
 
-			await ctx.appContext.eventStream.publish("session-events", {
-				type: "session-deleted",
-				sessionId,
+			await ctx.appContext.eventStream.publish(`session:${sessionId}`, {
+				type: 'session-deleted',
+				payload: { sessionId },
 			});
+
+			return { success: true, sessionId };
 		},
 	}),
 
