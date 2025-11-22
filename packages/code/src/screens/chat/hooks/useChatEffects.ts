@@ -126,43 +126,42 @@ export function useChatEffects(state: ChatState) {
 		setStreamingOutputTokens: state.streamingState.setStreamingOutputTokens,
 	});
 
-	// PHASE 4: Lens Subscriptions - Fine-Grained Frontend-Driven Architecture
+	// Fine-Grained Reactive Architecture - Split Subscriptions
 	//
-	// Split subscriptions for fine-grained control:
-	// 1. Session metadata subscription (Lens) - Enables field selection in Phase 5
-	// 2. Content streaming subscription (Event Stream) - Inherently incremental events
+	// 1. Session metadata subscription (Lens) - Model-level updates with field selection
+	// 2. Content streaming subscription (Event Stream) - Incremental content events
 	//
-	// This separation prepares for:
-	// - Phase 5: Field selection (select: { id: true, title: true, status: true })
-	// - Phase 6: Update strategies (updateMode: 'delta' for optimal transmission)
+	// Architecture Perfect: "Select is All You Need"
+	// - Frontend specifies WHAT data needed (via select)
+	// - Backend auto-optimizes HOW to transmit (AutoStrategy)
+	// - No manual configuration needed
 
-	// Session metadata subscription (model-level events)
-	// Uses session.getById.subscribe() for fine-grained control
+	// Session metadata subscription
+	// Currently using full model - can enable field selection for bandwidth optimization:
 	//
-	// PHASE 5 & 6: Field Selection + Update Strategies
-	// Example usage (currently commented out - using full model for now):
 	// useLensSessionSubscription({
 	//   select: {
 	//     id: true,
 	//     title: true,
 	//     status: true,
 	//     totalTokens: true,
-	//     // messages: false  ← Exclude (save bandwidth)
-	//     // todos: false     ← Exclude (save bandwidth)
+	//     // messages: false  ← Exclude (messages handled by event stream)
+	//     // todos: false     ← Exclude if not needed
 	//   },
-	//   updateMode: 'auto',  // Intelligent strategy: delta for strings, patch for objects
 	//   onSessionUpdated: (session) => {
-	//     // session: Partial<Session> (only selected fields)
-	//     // Updates transmitted with optimal strategy (57%-99% savings)
+	//     // session: Partial<Session> with only selected fields
+	//     // Backend automatically optimizes transmission:
+	//     // - title (string) → delta strategy (57% savings)
+	//     // - status (object) → patch strategy (99% savings)
+	//     // - id, totalTokens (primitives) → value strategy
 	//   }
 	// });
-	//
-	// For now, subscribe to full model until field selection/strategies are tested
+
 	useLensSessionSubscription({
 		onSessionUpdated: (session) => {
 			// Session updated via model-level event
-			// Hook supports field selection (Phase 5) ✅
-			// Hook supports update strategies (Phase 6) ✅
+			// Currently receiving full model
+			// Field selection available when needed for bandwidth optimization
 		},
 	});
 

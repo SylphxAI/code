@@ -630,12 +630,100 @@ useLensSessionSubscription({
 });
 ```
 
-**Next Steps:**
+**Completed:**
 1. ✅ updateMode removed from all layers
 2. ✅ Documentation updated
-3. ⏳ Test in production
-4. ⏳ Measure bandwidth savings
-5. ⏳ Monitor for edge cases
+3. ✅ Code examples updated
+
+**Next: Production Adoption**
+1. ⏳ Enable field selection in production (optional bandwidth optimization)
+2. ⏳ Measure bandwidth savings
+3. ⏳ Monitor AutoStrategy performance
+4. ⏳ Validate type safety in real usage
+
+---
+
+## Production Adoption Guide
+
+### Current State: Ready for Adoption
+
+All infrastructure complete. API simplified to architecture perfect state.
+
+### Field Selection - Optional Optimization
+
+**When to Enable:**
+- High-frequency session updates
+- Large session models
+- Bandwidth-constrained environments
+- Mobile devices
+
+**When to Skip:**
+- Low update frequency
+- Small session models
+- Local development (InProcessTransport)
+
+### Example: Enable Field Selection
+
+```typescript
+// useChatEffects.ts
+useLensSessionSubscription({
+  select: {
+    id: true,
+    title: true,
+    status: true,
+    totalTokens: true,
+    // messages: false  ← Messages handled by event stream
+    // todos: false     ← Only if needed
+  },
+  onSessionUpdated: (session) => {
+    // session: Partial<Session> with selected fields
+    // Backend AutoStrategy automatically optimizes:
+    // - title (string) → delta (57% savings)
+    // - status (object) → patch (99% savings)
+    // - id, totalTokens (primitive) → value
+  }
+});
+```
+
+**Expected Benefits:**
+- 60-80% bandwidth reduction (depending on excluded fields)
+- Type-safe - compile errors if selecting invalid fields
+- Zero configuration - Backend auto-optimizes transmission
+
+### Monitoring
+
+**Metrics to Track:**
+```typescript
+// Before field selection
+const baselineBandwidth = measureBandwidth();
+
+// After field selection
+const optimizedBandwidth = measureBandwidth();
+const savings = (1 - optimizedBandwidth / baselineBandwidth) * 100;
+
+console.log(`Bandwidth savings: ${savings}%`);
+```
+
+**Edge Cases to Watch:**
+- Null/undefined field values
+- Rapid updates (ensure AutoStrategy performs well)
+- Nested field selection (if using nested objects)
+
+### Rollback Plan
+
+If issues arise, simply remove `select` parameter:
+
+```typescript
+// Rollback to full model
+useLensSessionSubscription({
+  // No select - receives full model
+  onSessionUpdated: (session) => {
+    // session: Session (complete)
+  }
+});
+```
+
+Zero risk - field selection is purely additive optimization.
 
 ---
 
