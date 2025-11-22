@@ -8,7 +8,7 @@
 - **lens-server** - Added `context` field to LensServerConfig
 - **lens-server handlers** - All handlers (HTTP, WebSocket, SSE) pass context to resolvers
 
-### Phase 2: API Migration (MOSTLY COMPLETE - Only config remaining)
+### Phase 2: API Migration (✅ COMPLETE - All 7 routers migrated)
 - **sessionAPI** ✅ - All queries and mutations migrated to Lens
   - Queries: `getRecent`, `getById`, `getCount`, `getLast`, `search`
   - Mutations: `create`, `updateTitle`, `updateModel`, `updateProvider`, `updateRules`, `updateAgent`, `delete`, `compact`
@@ -30,42 +30,39 @@
   - Subscriptions: `subscribe`, `subscribeToSession`, `subscribeToAllSessions` - Observable-based with cursor replay
   - Queries: `getChannelInfo`
   - Mutations: `cleanupChannel`
+- **configAPI** ✅ - Configuration management migrated (753 lines - most complex)
+  - Queries: `load`, `getPaths`, `getProviders`, `getProviderSchema`, `getTokenizerInfo`, `countTokens`, `countFileTokens`, `scanProjectFiles`, `getModelDetails`, `fetchModels`
+  - Mutations: `updateDefaultProvider`, `updateDefaultModel`, `updateProviderConfig`, `setProviderSecret`, `removeProvider`, `save`, `updateRules`
+  - Security: Zero-knowledge API key handling, secret sanitization, GitHub/Vercel-style blind updates
 
 ### Phase 3: Server Integration (DONE)
 - **LensServer class** - Integrates InProcessTransport and HTTP/SSE handlers
 - **code-server integration** - Uses `createLensServer` with AppContext
 - **All builds passing** ✅
 
-## 🔄 In Progress
+## 🎉 API Migration Complete
 
-### Remaining Router Migrations
-
-1. **configRouter** (753 lines) - Complex, many endpoints (ONLY ONE LEFT)
-   - Queries: `load`, `getPaths`, `getProviders`, `getProviderSchema`, `getTokenizerInfo`, `countTokens`, `countFileTokens`, `scanProjectFiles`, `getModelDetails`, `fetchModels`
-   - Mutations: `updateDefaultProvider`, `updateDefaultModel`, `updateProviderConfig`, `setProviderSecret`, `removeProvider`, `save`, `updateRules`
+All 7 routers successfully migrated from tRPC to Lens framework:
+- Total: ~1,876 lines of API definitions
+- Pattern: Consistent type annotations, context injection, explicit schemas
+- Security: Zero-knowledge architecture for secrets
+- Subscriptions: Observable-based with cursor replay
+- Build status: ✅ All passing
 
 ## 📋 TODO
 
 ### Next Steps (Priority Order)
 
-1. **Migrate remaining routers** to Lens API
-   - ✅ todoRouter (40 lines) - DONE
-   - ✅ fileRouter (138 lines) - DONE
-   - ✅ bashRouter (200 lines) - DONE
-   - ✅ adminRouter (128 lines) - DONE
-   - ✅ eventsRouter (201 lines) - DONE
-   - 🔄 configRouter (753 lines) - IN PROGRESS (most complex, saved for last)
-
-2. **Update TUI client** to use Lens client with InProcessTransport
+1. **Update TUI client** to use Lens client with InProcessTransport
    - Replace tRPC client calls with Lens client
    - Test in-process communication
 
-3. **End-to-end testing**
+2. **End-to-end testing**
    - Test all migrated endpoints
    - Verify context injection works
    - Test streaming subscriptions
 
-4. **Remove tRPC dependencies** (after all migrations complete)
+3. **Remove tRPC dependencies** (after client migration and testing)
    - Remove @trpc/server
    - Remove @trpc/client
    - Remove tRPC router definitions
@@ -177,5 +174,8 @@ getRecent: lens.query({
 1. `c3661a7` - feat(lens): Add context injection to InProcessTransport and complete sessionAPI migration
 2. `a821fae` - feat(lens): Add context injection to lens-server HTTP/SSE handlers
 3. `94ee4a6` - feat(lens): Migrate todoAPI to Lens framework
-4. `6a5809c` - feat(lens): Migrate fileAPI to Lens framework
-5. `0ff7220` - feat(lens): Migrate bashAPI, adminAPI, eventsAPI to Lens framework
+4. `f2d3ff9` - docs: Update migration status - todoAPI complete
+5. `6a5809c` - feat(lens): Migrate fileAPI to Lens framework
+6. `0ff7220` - feat(lens): Migrate bashAPI, adminAPI, eventsAPI to Lens framework
+7. `caefbf1` - docs: Update migration status - bash, admin, events complete
+8. `4645234` - feat(lens): Migrate configAPI to Lens framework - COMPLETE ALL ROUTER MIGRATIONS
