@@ -341,11 +341,11 @@ useLensSessionSubscription({
 
 ---
 
-### Phase 6: Update Strategies (Complete ✅ - Under Review)
+### Phase 6: Update Strategies (Complete ✅ - Architecture Perfect)
 
-**Goal:** Optimize transmission bandwidth
+**Goal:** Optimize transmission bandwidth with zero configuration
 
-**Status:** ✅ Infrastructure complete (was already in Lens framework!)
+**Status:** ✅ Complete - updateMode parameter removed
 
 **Discovery:** Lens framework ALREADY implements all update strategies:
 - ✅ ValueStrategy (full value) - lens-core/update-strategy/value.ts
@@ -354,64 +354,64 @@ useLensSessionSubscription({
 - ✅ AutoStrategy (intelligent selection) - lens-core/update-strategy/auto.ts
 - ✅ Server handlers (SSE/WebSocket) already use strategies
 
-**What we added:**
-- ✅ Updated lens-client to pass `updateMode` parameter to transport
-- ✅ Updated `useLensSessionSubscription` to accept `updateMode` parameter
-- ✅ Wired through all layers (Hook → Client → Transport)
+**🎯 ARCHITECTURAL DECISION: Complete Removal of updateMode**
 
-**Example (Currently implemented):**
+**Rationale - Select is All You Need:**
+
+```typescript
+// Frontend specifies WHAT data needed
+useLensSessionSubscription({
+  select: {
+    id: true,          // primitive → Backend auto: value
+    title: true,       // string → Backend auto: delta (57% savings)
+    status: true,      // object → Backend auto: patch (99% savings)
+  }
+});
+
+// Backend automatically optimizes HOW based on field types
+// - String fields: AutoStrategy detects growth pattern → delta
+// - Object fields: AutoStrategy calculates patch size → patch if >50% savings
+// - Primitive fields: AutoStrategy → value (simple, fast)
+```
+
+**Why This is Perfect:**
+
+1. **Select Already Controls Optimization**
+   - Frontend selects fields → specifies field types
+   - Backend knows types → auto-selects best strategy
+   - No manual configuration needed
+
+2. **Backend Has Better Information**
+   - Knows current and next values
+   - Can analyze update patterns
+   - Can measure payload sizes
+   - Frontend doesn't know and shouldn't need to
+
+3. **YAGNI Principle**
+   - No real scenario needs manual strategy selection
+   - AutoStrategy covers all cases intelligently
+   - Adding parameter would be premature optimization
+
+4. **True Fine-Grained Architecture**
+   - Fine-grained = Precise control of WHAT (data)
+   - Not fine-grained = Control of HOW (transmission)
+   - Correct abstraction layer
+
+**Implementation Changes:**
+- ✅ Removed `updateMode` from `UseLensSessionSubscriptionOptions`
+- ✅ Removed `updateMode` from `QueryOptions` (lens-client)
+- ✅ Removed `updateMode` from `LensRequest` (lens-core)
+- ✅ Backend always uses AutoStrategy
+- ✅ Updated documentation to reflect auto-optimization
+
+**Final API (Architecture Perfect):**
 ```typescript
 useLensSessionSubscription({
   select: { id: true, title: true, status: true },
-  updateMode: 'auto',  // Backend intelligently chooses delta/patch/value
+  // Backend automatically optimizes everything
+  // No configuration needed - just works
 });
 ```
-
-**⚠️ CRITICAL PHILOSOPHICAL QUESTION:**
-
-**Is `updateMode` a frontend requirement or implementation detail?**
-
-**Analysis:**
-- Frontend real need: "I want this data" ✅ (`select`)
-- NOT frontend need: "Use delta transmission" ❌ (`updateMode`)
-- Backend knows: Field type (string → delta, object → patch)
-- Backend knows: Update pattern (rapid → debounce)
-- Backend knows: Payload size (large → compression)
-
-**Three Options:**
-
-**Option 1: Remove `updateMode` (Recommended)**
-```typescript
-useLensSessionSubscription({
-  select: { id: true, title: true }
-  // Backend auto-optimizes based on field types
-  // - string fields → delta (57% savings)
-  // - object fields → patch (99% savings)
-  // - primitive fields → value
-});
-```
-**Rationale:** Backend can intelligently select strategy based on field types in `select`
-
-**Option 2: Change to Performance Preference**
-```typescript
-useLensSessionSubscription({
-  select: { title: true },
-  priority: 'bandwidth' | 'latency' | 'balanced'
-  // Express preference, not implementation
-});
-```
-**Rationale:** Frontend expresses goal, backend decides how
-
-**Option 3: Keep as Override (Advanced)**
-```typescript
-useLensSessionSubscription({
-  select: { title: true },
-  updateMode: 'delta'  // Override auto-selection (rare cases)
-});
-```
-**Rationale:** Keep for advanced users, but auto is default
-
-**🎯 DECISION NEEDED:** Which option aligns best with framework principles?
 
 ---
 
@@ -558,13 +558,14 @@ useLensSessionSubscription({
 - [ ] Bandwidth savings measurable (pending real-world testing)
 - [ ] Enabled in production (currently using full model)
 
-### Phase 6: Update Strategies ✅ COMPLETE (Under Philosophical Review)
+### Phase 6: Update Strategies ✅ COMPLETE (Architecture Perfect)
 - [x] Infrastructure complete (already in Lens)
 - [x] Auto strategy selection exists (AutoStrategy)
 - [x] Delta/Patch/Value all implemented
-- [x] Hook updated to accept updateMode parameter
-- [x] Wired through all layers (Hook → Client → Transport)
-- [ ] **DECISION NEEDED**: Remove updateMode, change to priority, or keep as override?
+- [x] **DECISION MADE**: Removed updateMode - Backend auto-optimizes
+- [x] Removed updateMode from all layers (Hook → Client → Core)
+- [x] Updated documentation to reflect zero-config philosophy
+- [x] API simplified to architectural perfection
 
 ### Phase 7: Frequency Control ❌ CANCELLED
 - [x] Analysis complete
@@ -590,40 +591,51 @@ useLensSessionSubscription({
 
 ---
 
-## Current Focus: Philosophical Re-alignment → Decision Point
+## Current Focus: Architecture Perfect - Zero Configuration
 
-**Phases 4-6 Technically Complete ✅:**
-1. ✅ Phase 4: Lens Subscriptions - useLensSessionSubscription hook integrated
-2. ✅ Phase 5: Field Selection - select parameter wired through all layers
-3. ✅ Phase 6: Update Strategies - updateMode parameter wired through all layers
+**All Phases Complete ✅:**
+1. ✅ Phase 4: Lens Subscriptions - useLensSessionSubscription hook
+2. ✅ Phase 5: Field Selection - Type-safe select with autocomplete
+3. ✅ Phase 6: Auto-Optimization - Backend AutoStrategy (updateMode removed)
 4. ✅ Phase 7: CANCELLED - Violates reactive principles
 
-**Major Philosophical Discovery:**
-Fine-grained ≠ Frontend controls everything. Fine-grained = Precise control of WHAT, not HOW.
+**Major Architectural Achievement:**
+**Select is All You Need** - Perfect abstraction achieved
 
-**Framework Principles Established:**
-1. Frontend-Driven Requirements (Not Implementation)
-2. TypeScript-First Intelligence
-3. Fine-Grained Reactivity
-4. Zero Configuration Default
+**Framework Principles Realized:**
+1. ✅ Frontend-Driven Requirements (Not Implementation)
+2. ✅ TypeScript-First Intelligence
+3. ✅ Fine-Grained Reactivity
+4. ✅ Zero Configuration Default
 
-**Critical Question - Phase 6 updateMode Parameter:**
+**Phase 6 Decision - IMPLEMENTED:**
 
-Is `updateMode` a frontend requirement or implementation detail?
+✅ **Removed updateMode completely** - Architecture perfect
 
-**Three Options:**
-1. **Remove updateMode** (Recommended) - Backend auto-optimizes based on field types
-2. **Change to priority** - Frontend expresses preference, backend decides
-3. **Keep as override** - Advanced users can override auto-selection
+**Rationale:**
+- `select` already specifies field types
+- Backend AutoStrategy intelligently optimizes based on types
+- No manual configuration needed
+- True fine-grained = precise control of WHAT, not HOW
 
-**🎯 DECISION NEEDED:** Which option aligns best with framework principles?
+**Final API:**
+```typescript
+useLensSessionSubscription({
+  select: {
+    id: true,       // primitive → auto value
+    title: true,    // string → auto delta (57% savings)
+    status: true,   // object → auto patch (99% savings)
+  }
+  // Backend handles everything - zero config
+});
+```
 
 **Next Steps:**
-1. ⏳ User decides on Phase 6 updateMode parameter
-2. ⏳ Implement chosen option
-3. ⏳ Update ADR-013 and hook documentation
-4. ⏳ Test field selection + optimizations in production
-5. ⏳ Measure bandwidth savings
+1. ✅ updateMode removed from all layers
+2. ✅ Documentation updated
+3. ⏳ Test in production
+4. ⏳ Measure bandwidth savings
+5. ⏳ Monitor for edge cases
 
 ---
 
@@ -673,6 +685,6 @@ BREAKING: [Yes/No and why]
 ---
 
 **Last Updated:** 2024-12-22
-**Current State:** Phases 4-6 Complete ✅ | Phase 7 Cancelled ❌
-**Status:** Philosophical Re-alignment Complete - Awaiting Decision on Phase 6 updateMode
-**Next Milestone:** Decide updateMode approach (Remove, Priority, or Override)
+**Current State:** All Phases Complete ✅ | Architecture Perfect 🎯
+**Status:** updateMode Removed - Zero Configuration Default Achieved
+**Achievement:** Select is All You Need - Perfect Abstraction Layer

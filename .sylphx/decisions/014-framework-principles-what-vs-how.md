@@ -129,11 +129,15 @@ Implementation details change. Requirements don't.
 
 ### Action Items
 
-1. **Phase 6 Decision**: Remove `updateMode` parameter or change to `priority` preference
-2. **Phase 7 Cancelled**: Throttle/debounce violates reactive principle
-3. **Documentation**: Update FINE_GRAINED_ROADMAP.md ✅ Complete
-4. **Hook API**: Review `useLensSessionSubscription` parameters
-5. **ADR-013**: Update if field selection philosophy clarified
+1. **Phase 6 Decision**: ✅ Removed `updateMode` parameter completely
+   - Removed from `UseLensSessionSubscriptionOptions` (hook)
+   - Removed from `QueryOptions` (lens-client)
+   - Removed from `LensRequest` (lens-core)
+   - Backend always uses AutoStrategy
+2. **Phase 7 Cancelled**: ✅ Throttle/debounce violates reactive principle
+3. **Documentation**: ✅ Updated FINE_GRAINED_ROADMAP.md
+4. **Hook API**: ✅ Simplified to architecture perfect state
+5. **Implementation**: ✅ "Select is All You Need" - zero configuration achieved
 
 ## References
 

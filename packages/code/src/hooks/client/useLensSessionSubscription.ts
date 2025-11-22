@@ -17,10 +17,10 @@
  * - ✅ Uses existing Lens subscription implementation
  * - ✅ Same event payload structure (no breaking changes)
  *
- * Future Enhancements (when Lens transport layer supports):
- * - Field selection (select: { id: true, title: true })
- * - Update strategies (updateMode: 'delta' | 'patch' | 'auto')
- * - Transmission optimization (57%-99% bandwidth savings)
+ * Fine-Grained Control:
+ * - ✅ Field selection (select: { id: true, title: true })
+ * - ✅ Auto-optimized transmission (57%-99% bandwidth savings)
+ * - ✅ Backend AutoStrategy handles everything (no manual config)
  */
 
 import { useEffect, useRef } from "react";
@@ -32,42 +32,27 @@ export interface UseLensSessionSubscriptionOptions {
 	/**
 	 * Field selection - controls which session fields to receive
 	 *
+	 * Backend automatically optimizes transmission based on field types:
+	 * - String fields (e.g., title) → Delta strategy (57% savings for streaming)
+	 * - Object fields (e.g., status) → Patch strategy (99% savings for updates)
+	 * - Primitive fields (e.g., id) → Value strategy (simple, fast)
+	 *
+	 * No manual strategy configuration needed - AutoStrategy handles everything.
+	 *
 	 * @example
 	 * ```tsx
 	 * // Only subscribe to title and status updates
 	 * useLensSessionSubscription({
 	 *   select: {
 	 *     id: true,
-	 *     title: true,
-	 *     status: true,
+	 *     title: true,       // string → auto delta
+	 *     status: true,      // object → auto patch
 	 *     // messages: false  ← Explicitly exclude (no bandwidth waste)
 	 *   }
 	 * });
 	 * ```
 	 */
 	select?: Select<Session>;
-
-	/**
-	 * Update strategy - controls how updates are transmitted
-	 *
-	 * Strategies:
-	 * - 'value': Send full value (default, safest)
-	 * - 'delta': Send only text differences (for streaming text, 57% savings)
-	 * - 'patch': Send JSON Patch operations (for object updates, 99% savings)
-	 * - 'auto': Intelligently select best strategy
-	 *
-	 * Note: Primarily useful for network transports (HTTP, WebSocket, SSE).
-	 * InProcessTransport (used in TUI) may not apply strategies.
-	 *
-	 * @example
-	 * ```tsx
-	 * useLensSessionSubscription({
-	 *   updateMode: 'auto',  // Intelligent strategy selection
-	 *   select: { title: true, status: true }
-	 * });
-	 * ```
-	 */
-	updateMode?: "value" | "delta" | "patch" | "auto";
 
 	/**
 	 * Callback when session updates
@@ -93,7 +78,7 @@ export interface UseLensSessionSubscriptionOptions {
  * ```
  */
 export function useLensSessionSubscription(options: UseLensSessionSubscriptionOptions = {}) {
-	const { onSessionUpdated, select, updateMode } = options;
+	const { onSessionUpdated, select } = options;
 
 	const currentSessionId = useCurrentSessionId();
 
@@ -123,16 +108,19 @@ export function useLensSessionSubscription(options: UseLensSessionSubscriptionOp
 			return;
 		}
 
-		// Subscribe to session updates using Lens with field selection and update strategies
+		// Subscribe to session updates using Lens with field selection
 		// This uses the existing session.getById.subscribe() implementation
 		// which subscribes to 'session:${sessionId}' channel and filters for session-updated events
 		//
 		// Field selection (if provided) reduces bandwidth by only transmitting selected fields
-		// Update strategies (if provided) optimize how updates are transmitted (delta/patch/auto)
+		// Backend AutoStrategy automatically optimizes transmission:
+		// - String fields → Delta strategy (57% savings for incremental text)
+		// - Object fields → Patch strategy (99% savings for partial updates)
+		// - Primitive fields → Value strategy (simple, fast)
 		const subscription = lensClient.session.getById
 			.subscribe(
 				{ sessionId: currentSessionId },
-				(select || updateMode) ? { select, updateMode } : undefined
+				select ? { select } : undefined
 			)
 			.subscribe({
 				next: (session: any) => {
@@ -169,7 +157,7 @@ export function useLensSessionSubscription(options: UseLensSessionSubscriptionOp
 			subscription.unsubscribe();
 			subscriptionRef.current = null;
 		};
-	}, [currentSessionId, select, updateMode]);
+	}, [currentSessionId, select]);
 	// NOTE: onSessionUpdated NOT in dependency array to avoid infinite loop
-	// NOTE: select and updateMode ARE in dependency array - stable objects defined at call site
+	// NOTE: select IS in dependency array - stable object defined at call site
 }
