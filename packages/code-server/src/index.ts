@@ -14,6 +14,10 @@ export {
 // ============================================================================
 export { CodeServer, type ServerConfig } from "./server.js";
 // ============================================================================
+// LensServer Class (Lens framework)
+// ============================================================================
+export { LensServer, type LensServerConfig } from "./lens-server.js";
+// ============================================================================
 // Ask Queue Service
 // ============================================================================
 export { enqueueAsk, registerAskObserver } from "./services/ask-queue.service.js";
@@ -26,6 +30,10 @@ export { type Context, createContext } from "./trpc/context.js";
 // tRPC Router & Context (for in-process use)
 // ============================================================================
 export { type AppRouter, appRouter } from "./trpc/routers/index.js";
+// ============================================================================
+// Lens API (for type inference)
+// ============================================================================
+export { api, type API } from "@sylphx/code-api";
 
 // ============================================================================
 // Version

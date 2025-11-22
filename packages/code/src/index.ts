@@ -61,8 +61,10 @@ import {
 	createInProcessClient,
 	TRPCProvider,
 	type TypedTRPCClient,
+	LensProvider,
+	createInProcessLensClient,
 } from "@sylphx/code-client";
-import { CodeServer } from "@sylphx/code-server";
+import { CodeServer, LensServer, api } from "@sylphx/code-server";
 import chalk from "chalk";
 import { Command } from "commander";
 import { checkServer } from "./trpc-client.js";
@@ -75,25 +77,34 @@ const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
 const VERSION = packageJson.version;
 
 /**
- * Global embedded server instance
+ * Global embedded servers
  * Used for in-process mode
  */
 let embeddedServer: CodeServer | null = null;
+let lensServer: LensServer | null = null;
 
 /**
- * Initialize embedded server for in-process use
+ * Initialize embedded servers for in-process use
  */
-async function initEmbeddedServer(_options: { quiet?: boolean } = {}): Promise<CodeServer> {
-	if (embeddedServer) {
-		return embeddedServer;
+async function initEmbeddedServers(_options: { quiet?: boolean } = {}): Promise<{
+	codeServer: CodeServer;
+	lensServer: LensServer;
+}> {
+	if (embeddedServer && lensServer) {
+		return { codeServer: embeddedServer, lensServer };
 	}
 
+	// Initialize tRPC server (legacy, will be removed)
 	embeddedServer = new CodeServer();
 	await embeddedServer.initialize();
 
 	// Register embedded server for context access (TUI only)
 	const { setEmbeddedServer } = await import("./embedded-context.js");
 	setEmbeddedServer(embeddedServer);
+
+	// Initialize Lens server (new)
+	lensServer = new LensServer();
+	await lensServer.initialize();
 
 	// Auto-connect to enabled MCP servers (async, don't wait)
 	const { getMCPManager } = await import("@sylphx/code-core");
@@ -102,7 +113,7 @@ async function initEmbeddedServer(_options: { quiet?: boolean } = {}): Promise<C
 		console.error(chalk.red("Failed to auto-connect MCP servers:"), error);
 	});
 
-	return embeddedServer;
+	return { codeServer: embeddedServer, lensServer };
 }
 
 /**
@@ -160,25 +171,28 @@ async function main() {
 
 				client = createHTTPClientFromLib(options.serverUrl);
 			} else {
-				// In-process mode (default): Embed server
+				// In-process mode (default): Embed servers
 				// Headless mode should be quiet by default (unless --verbose)
 				const isHeadless = Boolean(prompt || options.print);
 				const shouldBeQuiet = isHeadless ? !options.verbose : options.quiet;
 
-				const server = await initEmbeddedServer({ quiet: shouldBeQuiet });
+				const { codeServer, lensServer: lens } = await initEmbeddedServers({ quiet: shouldBeQuiet });
 
-				// Create in-process tRPC client (zero overhead)
+				// Create in-process tRPC client (legacy, for compatibility)
 				client = createInProcessClient({
-					router: server.getRouter(),
-					createContext: server.getContext(),
+					router: codeServer.getRouter(),
+					createContext: codeServer.getContext(),
 				});
+
+				// Store lens server globally for TUI
+				lensServer = lens;
 
 				// If --web flag, start HTTP server
 				if (options.web) {
 					if (!options.quiet) {
 						console.error(chalk.dim("Starting HTTP server for Web GUI..."));
 					}
-					await server.startHTTP(3000);
+					await codeServer.startHTTP(3000);
 
 					// Open browser
 					const { launchWeb } = await import("./web-launcher.js");
@@ -215,8 +229,24 @@ async function main() {
 			// const { initializeSignals } = await import('./signal-init.js');
 			// initializeSignals();
 
-			// Wrap App with TRPCProvider
-			render(React.createElement(TRPCProvider, { client }, React.createElement(App)));
+			if (!lensServer) {
+				throw new Error("Lens server not initialized");
+			}
+
+			// Wrap App with both providers (dual-mode during migration)
+			// tRPC provider for legacy code, Lens provider for new code
+			const appContext = lensServer.getAppContext();
+			render(
+				React.createElement(
+					TRPCProvider,
+					{ client },
+					React.createElement(
+						LensProvider,
+						{ api, context: appContext, optimistic: true },
+						React.createElement(App)
+					)
+				)
+			);
 		});
 
 	try {
