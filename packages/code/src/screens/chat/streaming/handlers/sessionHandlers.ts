@@ -222,8 +222,16 @@ export function handleSessionStatusUpdated(
 	const currentSessionId = getCurrentSessionId();
 	const currentSessionValue = currentSession.value;
 
+	console.log("[handleSessionStatusUpdated] Received event:", {
+		eventSessionId: event.sessionId,
+		currentSessionId,
+		hasSession: !!currentSessionValue,
+		status: event.status,
+	});
+
 	// Only handle if this is the current session
 	if (event.sessionId !== currentSessionId || !currentSessionValue) {
+		console.log("[handleSessionStatusUpdated] Skipping - session mismatch or no session");
 		return;
 	}
 
@@ -237,4 +245,6 @@ export function handleSessionStatusUpdated(
 		...currentSessionValue,
 		status: event.status,
 	});
+
+	console.log("[handleSessionStatusUpdated] Session updated with status:", event.status.text);
 }
