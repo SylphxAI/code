@@ -25,8 +25,28 @@
 
 import { useEffect, useRef } from "react";
 import { currentSession, setCurrentSession, lensClient, useCurrentSessionId } from "@sylphx/code-client";
+import type { Select } from "@sylphx/lens-core";
+import type { Session } from "@sylphx/code-core";
 
 export interface UseLensSessionSubscriptionOptions {
+	/**
+	 * Field selection - controls which session fields to receive
+	 *
+	 * @example
+	 * ```tsx
+	 * // Only subscribe to title and status updates
+	 * useLensSessionSubscription({
+	 *   select: {
+	 *     id: true,
+	 *     title: true,
+	 *     status: true,
+	 *     // messages: false  ← Explicitly exclude (no bandwidth waste)
+	 *   }
+	 * });
+	 * ```
+	 */
+	select?: Select<Session>;
+
 	/**
 	 * Callback when session updates
 	 */
@@ -51,7 +71,7 @@ export interface UseLensSessionSubscriptionOptions {
  * ```
  */
 export function useLensSessionSubscription(options: UseLensSessionSubscriptionOptions = {}) {
-	const { onSessionUpdated } = options;
+	const { onSessionUpdated, select } = options;
 
 	const currentSessionId = useCurrentSessionId();
 
@@ -81,11 +101,16 @@ export function useLensSessionSubscription(options: UseLensSessionSubscriptionOp
 			return;
 		}
 
-		// Subscribe to session updates using Lens
+		// Subscribe to session updates using Lens with field selection
 		// This uses the existing session.getById.subscribe() implementation
 		// which subscribes to 'session:${sessionId}' channel and filters for session-updated events
+		//
+		// Field selection (if provided) reduces bandwidth by only transmitting selected fields
 		const subscription = lensClient.session.getById
-			.subscribe({ sessionId: currentSessionId })
+			.subscribe(
+				{ sessionId: currentSessionId },
+				select ? { select } : undefined
+			)
 			.subscribe({
 				next: (session: any) => {
 					if (!session) return;
@@ -121,6 +146,7 @@ export function useLensSessionSubscription(options: UseLensSessionSubscriptionOp
 			subscription.unsubscribe();
 			subscriptionRef.current = null;
 		};
-	}, [currentSessionId]);
+	}, [currentSessionId, select]);
 	// NOTE: onSessionUpdated NOT in dependency array to avoid infinite loop
+	// NOTE: select IS in dependency array - stable object defined at call site
 }

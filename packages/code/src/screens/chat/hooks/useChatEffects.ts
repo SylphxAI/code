@@ -138,11 +138,29 @@ export function useChatEffects(state: ChatState) {
 
 	// Session metadata subscription (model-level events)
 	// Uses session.getById.subscribe() for fine-grained control
+	//
+	// PHASE 5: Field Selection - Frontend controls which fields to receive
+	// Example usage (currently commented out - using full model for now):
+	// useLensSessionSubscription({
+	//   select: {
+	//     id: true,
+	//     title: true,
+	//     status: true,
+	//     totalTokens: true,
+	//     // messages: false  ← Exclude (save bandwidth)
+	//     // todos: false     ← Exclude (save bandwidth)
+	//   },
+	//   onSessionUpdated: (session) => {
+	//     // session now contains only selected fields (Partial<Session>)
+	//   }
+	// });
+	//
+	// For now, subscribe to full model until field selection is tested
 	useLensSessionSubscription({
 		onSessionUpdated: (session) => {
 			// Session updated via model-level event
-			// In Phase 5, this will support field selection
-			// In Phase 6, this will support update strategies (delta/patch/auto)
+			// Hook already supports field selection (Phase 5) ✅
+			// Will support update strategies in Phase 6 (delta/patch/auto)
 		},
 	});
 
