@@ -8,7 +8,8 @@ import {
 	getCurrentSessionId,
 	setCurrentSessionId,
 	setCurrentSession,
-	handleSessionStatusUpdatedWithOptimistic,
+	optimisticManagerV2,
+	runOptimisticEffects,
 } from "@sylphx/code-client";
 import { createLogger } from "@sylphx/code-core";
 import type { StreamEvent } from "@sylphx/code-server";
@@ -216,10 +217,11 @@ export function handleSessionTokensUpdated(
  * Server controls unified progress indicator (status text, duration, tokens)
  * Client is pure UI - directly display data from server
  *
- * ARCHITECTURE: Uses optimistic update system for reconciliation
- * - Optimistic: trackOptimisticSessionStatus() on user action
+ * ARCHITECTURE: Uses V2 Effect System for single source of truth
+ * - Optimistic: optimisticManagerV2.apply() on user action
  * - Server: This handler reconciles with backend confirmation
  * - Rollback: Automatic if server rejects or timeout
+ * - State updates: Via effects (optimistic system owns zen signals)
  */
 export function handleSessionStatusUpdated(
 	event: Extract<StreamEvent, { type: "session-status-updated" }>,
@@ -238,16 +240,15 @@ export function handleSessionStatusUpdated(
 		status: event.status,
 	});
 
-	// OPTIMISTIC RECONCILIATION: Use optimistic system for state management
-	// This will reconcile optimistic status with server confirmation
-	handleSessionStatusUpdatedWithOptimistic({
+	// V2 EFFECT SYSTEM: Reconcile optimistic update with server confirmation
+	// Manager will find pending operation, confirm it, and generate effects
+	// Effects will update zen signals, cancel timeout, and emit events
+	const result = optimisticManagerV2.reconcile(event.sessionId, {
+		type: "session-status-updated",
 		sessionId: event.sessionId,
 		status: event.status,
 	});
 
-	// Also update zen signals directly (optimistic system doesn't own zen signals)
-	setCurrentSession({
-		...currentSessionValue,
-		status: event.status,
-	});
+	// Run effects (updates zen signals via Effect System)
+	runOptimisticEffects(result.effects);
 }

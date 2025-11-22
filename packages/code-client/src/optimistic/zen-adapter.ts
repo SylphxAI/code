@@ -14,8 +14,8 @@
  * ```
  */
 
-import { eventBus } from "../../signals/event-bus.js";
-import { currentSession, setCurrentSession } from "../../signals/domain/session/index.js";
+import { eventBus } from "../lib/event-bus.js";
+import { currentSession, setCurrentSession } from "../signals/domain/session/index.js";
 import type { Effect, StatePatch } from "./effects.js";
 import type { EffectRunnerConfig } from "./effect-runner.js";
 import { runEffects } from "./effect-runner.js";

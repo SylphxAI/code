@@ -128,6 +128,29 @@ export class OptimisticManagerV2 {
 		const effects: Effect[] = [];
 
 		switch (event.type) {
+			case "session-status-updated": {
+				// Find pending status update for this session
+				const pending = state.pending.find(
+					(p) =>
+						p.operation.type === "update-session-status" &&
+						p.operation.sessionId === sessionId,
+				);
+
+				if (pending) {
+					// Confirm the operation with server data
+					const confirmResult = this.confirm(sessionId, pending.id, event.status);
+					effects.push(...confirmResult.effects);
+
+					// Update server state
+					this.updateServerState(sessionId, { serverStatus: event.status });
+				} else {
+					// No pending operation, just update server state
+					// This might happen if event arrives before optimistic update
+					this.updateServerState(sessionId, { serverStatus: event.status });
+				}
+				break;
+			}
+
 			case "queue-message-added": {
 				// Check if we have pending add-message that should be add-to-queue
 				const conflicting = state.pending.find(

@@ -28,8 +28,9 @@ import {
 	parseUserInput,
 	setCurrentSessionId,
 	setCurrentSession,
-	trackOptimisticSessionStatus,
 	trackOptimisticMessage,
+	optimisticManagerV2,
+	runOptimisticEffects,
 } from "@sylphx/code-client";
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
@@ -171,7 +172,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		setIsStreaming(true);
 
 		// OPTIMISTIC: Set status indicator immediately (don't wait for backend)
-		// Uses generic optimistic update system for reconciliation
+		// Uses V2 Effect System - pure functional, single source of truth
 		const currentSessionValue = currentSession.value;
 		if (currentSessionValue) {
 			const newStatus = {
@@ -181,19 +182,16 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				isActive: true,
 			};
 
-			// Update zen signals for immediate UI update
-			const updatedSession = {
-				...currentSessionValue,
-				status: newStatus,
-			};
-			setCurrentSession(updatedSession);
-
-			// Track optimistic operation for server reconciliation
-			trackOptimisticSessionStatus({
+			// Apply optimistic update via Effect System
+			const result = optimisticManagerV2.apply(currentSessionValue.id, {
+				type: "update-session-status",
 				sessionId: currentSessionValue.id,
 				status: newStatus,
 				previousStatus: currentSessionValue.status,
 			});
+
+			// Run effects (updates zen signals, schedules timeout, emits events)
+			runOptimisticEffects(result.effects);
 		}
 
 		// Create abort controller for this stream
@@ -405,6 +403,13 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 					// For new sessions or no current session, create temporary session for display
 					logSession("Creating temporary session for optimistic display");
 
+					const newStatus = {
+						text: "Thinking...",
+						duration: 0,
+						tokenUsage: 0,
+						isActive: true,
+					};
+
 					setCurrentSessionId("temp-session");
 					setCurrentSession({
 						id: "temp-session",
@@ -431,25 +436,19 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 							},
 						],
 						todos: [],
-						status: {
-							text: "Thinking...",
-							duration: 0,
-							tokenUsage: 0,
-							isActive: true,
-						},
+						status: newStatus,
 					});
 
-					// Track optimistic status for server reconciliation
-					trackOptimisticSessionStatus({
+					// Apply optimistic update via Effect System
+					const result = optimisticManagerV2.apply("temp-session", {
+						type: "update-session-status",
 						sessionId: "temp-session",
-						status: {
-							text: "Thinking...",
-							duration: 0,
-							tokenUsage: 0,
-							isActive: true,
-						},
+						status: newStatus,
 						// No previous status for new temp-session
 					});
+
+					// Run effects (updates zen signals, schedules timeout, emits events)
+					runOptimisticEffects(result.effects);
 
 					// Track optimistic assistant message ID for reconciliation
 					streamingMessageIdRef.current = optimisticAssistantId;
