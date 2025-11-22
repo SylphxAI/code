@@ -1266,7 +1266,7 @@ export const configAPI = lens.object({
 			const { loadAIConfig } = await import("@sylphx/code-core");
 
 			// Sanitize config helper
-			const sanitizeAIConfig = (config: any): any => {
+			const sanitizeAIConfig = async (config: any): Promise<any> => {
 				if (!config.providers) {
 					return config;
 				}
@@ -1311,7 +1311,7 @@ export const configAPI = lens.object({
 			const result = await loadAIConfig(cwd);
 			if (result.success) {
 				// Sanitize config: REMOVE sensitive fields
-				const sanitizedConfig = sanitizeAIConfig(result.data);
+				const sanitizedConfig = await sanitizeAIConfig(result.data);
 				return { success: true as const, config: sanitizedConfig };
 			}
 			// No config yet - return empty
@@ -1344,7 +1344,7 @@ export const configAPI = lens.object({
 		input: z.object({
 			cwd: z.string().default(process.cwd()),
 		}),
-		output: z.record(z.object({
+		output: z.record(z.string(), z.object({
 			id: z.string(),
 			name: z.string(),
 			description: z.string(),
@@ -1404,7 +1404,7 @@ export const configAPI = lens.object({
 			const { providerId } = input;
 			try {
 				const { getProvider } = await import("@sylphx/code-core");
-				const provider = getProvider(providerId);
+				const provider = getProvider(providerId as any);
 				const schema = provider.getConfigSchema();
 				return { success: true as const, schema };
 			} catch (error) {
@@ -1504,8 +1504,9 @@ export const configAPI = lens.object({
 		}),
 		resolve: async (input, ctx) => {
 			const { cwd, query } = input;
-			const { scanProjectFiles } = await import("@sylphx/code-core");
-			const files = await scanProjectFiles(cwd, query);
+			const { scanProjectFiles, filterFiles } = await import("@sylphx/code-core");
+			const fileInfos = await scanProjectFiles(cwd);
+			const files = query ? filterFiles(fileInfos, query).map(f => f.relativePath) : fileInfos.map(f => f.relativePath);
 			return { files };
 		},
 	}),
@@ -1534,7 +1535,7 @@ export const configAPI = lens.object({
 			const { providerId, modelId, cwd } = input;
 			try {
 				const { getProvider, loadAIConfig, getProviderConfigWithApiKey, enrichModelDetails, enrichCapabilities } = await import("@sylphx/code-core");
-				const provider = getProvider(providerId);
+				const provider = getProvider(providerId as any);
 
 				// Try to get provider config with API key (optional)
 				let config: any;
@@ -1542,7 +1543,7 @@ export const configAPI = lens.object({
 					const aiConfigResult = await loadAIConfig(cwd);
 					if (aiConfigResult.success) {
 						const aiConfig = aiConfigResult.data;
-						config = await getProviderConfigWithApiKey(aiConfig, providerId);
+						config = await getProviderConfigWithApiKey(aiConfig, providerId as any);
 					}
 				} catch {
 					// Config not available - continue without it
@@ -1565,7 +1566,7 @@ export const configAPI = lens.object({
 				const enrichedCapabilities = enrichCapabilities(
 					modelId,
 					providerCapabilities,
-					modelsDevData,
+					modelsDevData as any,
 				);
 
 				return {
@@ -1729,7 +1730,7 @@ export const configAPI = lens.object({
 	updateProviderConfig: lens.mutation({
 		input: z.object({
 			providerId: z.string(),
-			config: z.record(z.any()),
+			config: z.record(z.string(), z.any()),
 			cwd: z.string().default(process.cwd()),
 		}),
 		output: z.union([
@@ -1950,7 +1951,7 @@ export const configAPI = lens.object({
 				for (const [providerId, incomingProviderConfig] of Object.entries(config.providers)) {
 					const currentProviderConfig = currentConfig.providers[providerId] || {};
 					const mergedProviderConfig: Record<string, any> = {
-						...incomingProviderConfig,
+						...(incomingProviderConfig as Record<string, any>),
 					};
 
 					// Get provider schema to identify secret fields
