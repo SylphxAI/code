@@ -31,6 +31,7 @@ export interface EventStreamCallbacks {
 		baseContextTokens: number,
 		outputTokens?: number,
 	) => void;
+	onSessionStatusUpdated?: (sessionId: string, status: any) => void;
 
 	// Message events
 	onUserMessageCreated?: (messageId: string, content: string) => void;
@@ -203,6 +204,10 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 								event.baseContextTokens,
 								event.outputTokens,
 							);
+							break;
+
+						case "session-status-updated":
+							callbacksRef.current.onSessionStatusUpdated?.(event.sessionId, event.status);
 							break;
 
 						case "user-message-created":

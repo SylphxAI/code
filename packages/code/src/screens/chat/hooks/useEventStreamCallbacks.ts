@@ -162,6 +162,11 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 				);
 			},
 
+			// ENABLED: Session status updates (backend-controlled status indicator)
+			onSessionStatusUpdated: (sessionId: string, status: any) => {
+				handleStreamEvent({ type: "session-status-updated", sessionId, status }, eventContextParams);
+			},
+
 			// Ask tool events
 			onAskQuestionStart: (
 				sessionId: string,
