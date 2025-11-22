@@ -1,10 +1,11 @@
 /**
  * Session API
- * Client-side functions for interacting with sessions via tRPC
+ * Client-side functions for interacting with sessions via Lens
  */
 
 import type { Session, SessionMetadata } from "@sylphx/code-core";
-import { getTRPCClient } from "../trpc-provider.js";
+import { getLensClient } from "../lens-provider.js";
+import type { API } from "@sylphx/code-api";
 
 /**
  * Get recent sessions from server
@@ -12,8 +13,7 @@ import { getTRPCClient } from "../trpc-provider.js";
  * @returns Array of session metadata (lightweight, no messages/todos)
  */
 export async function getRecentSessions(limit: number = 100): Promise<SessionMetadata[]> {
-	const client = getTRPCClient();
-	// @ts-expect-error - tRPC router type inference issue
+	const client = getLensClient<API>();
 	const result = await client.session.getRecent.query({ limit });
 	return result.sessions;
 }
@@ -23,7 +23,6 @@ export async function getRecentSessions(limit: number = 100): Promise<SessionMet
  * @returns Last session or null if no sessions exist
  */
 export async function getLastSession(): Promise<Session | null> {
-	const client = getTRPCClient();
-	// @ts-expect-error - tRPC router type inference issue
-	return await client.session.getLast.query();
+	const client = getLensClient<API>();
+	return await client.session.getLast.query({});
 }

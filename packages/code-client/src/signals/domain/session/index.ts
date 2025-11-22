@@ -7,7 +7,8 @@ import type { ProviderId, Session, SessionMessage } from "@sylphx/code-core";
 import { zen, computed } from "@sylphx/zen";
 import { useZen } from "../../react-bridge.js";
 import { eventBus } from "../../../lib/event-bus.js";
-import { getTRPCClient } from "../../../trpc-provider.js";
+import { getLensClient } from "../../../lens-provider.js";
+import type { API } from "@sylphx/code-api";
 
 // Core session signals
 export const currentSessionId = zen<string | null>(null);
@@ -101,8 +102,7 @@ export const createSession = async (
 	agentId?: string,
 	enabledRuleIds?: string[],
 ) => {
-	const client = getTRPCClient();
-	// @ts-expect-error - tRPC router types not fully resolved
+	const client = getLensClient<API>();
 	const session = await client.session.create.mutate({
 		provider,
 		model,
@@ -123,8 +123,7 @@ export const createSession = async (
 };
 
 export const updateSessionModel = async (sessionId: string, model: string) => {
-	const client = getTRPCClient();
-	// @ts-expect-error - tRPC router types not fully resolved
+	const client = getLensClient<API>();
 	await client.session.updateModel.mutate({ sessionId, model });
 };
 
@@ -133,35 +132,28 @@ export const updateSessionProvider = async (
 	provider: ProviderId,
 	model: string,
 ) => {
-	const client = getTRPCClient();
-	// @ts-expect-error - tRPC router types not fully resolved
+	const client = getLensClient<API>();
 	await client.session.updateProvider.mutate({ sessionId, provider, model });
 };
 
 export const updateSessionAgent = async (sessionId: string, agentId: string) => {
-	const client = getTRPCClient();
-	// @ts-expect-error - tRPC router types not fully resolved
+	const client = getLensClient<API>();
 	await client.session.updateAgent.mutate({ sessionId, agentId });
 };
 
 export const updateSessionTitle = async (sessionId: string, title: string) => {
-	const client = getTRPCClient();
-	// @ts-expect-error - tRPC router types not fully resolved
-	await client.session.updateTitle.mutate({ sessionId, title });
+	const client = getLensClient<API>();
+	const updatedSession = await client.session.updateTitle.mutate({ sessionId, title });
 
 	// Update local state if this is the current session
 	const session = currentSession.value;
 	if (session && session.id === sessionId) {
-		updateCurrentSession({
-			...session,
-			title,
-		});
+		updateCurrentSession(updatedSession);
 	}
 };
 
 export const updateSessionRules = async (sessionId: string, enabledRuleIds: string[]) => {
-	const client = getTRPCClient();
-	// @ts-expect-error - tRPC router types not fully resolved
+	const client = getLensClient<API>();
 	await client.session.updateRules.mutate({ sessionId, enabledRuleIds });
 
 	// Emit event for other stores to react (if current session)
@@ -176,9 +168,8 @@ export const deleteSession = async (sessionId: string) => {
 		(currentSessionId as any).value = null;
 	}
 
-	// Delete from database via tRPC
-	const client = getTRPCClient();
-	// @ts-expect-error - tRPC router types not fully resolved
+	// Delete from database via Lens
+	const client = getLensClient<API>();
 	await client.session.delete.mutate({ sessionId });
 };
 
@@ -196,16 +187,15 @@ export const addMessageAsync = async (params: {
 	provider?: ProviderId;
 	model?: string;
 }) => {
-	const client = getTRPCClient();
+	const client = getLensClient<API>();
 
-	// Normalize content for tRPC wire format
+	// Normalize content for wire format
 	const wireContent =
 		typeof params.content === "string"
 			? [{ type: "text", content: params.content }]
 			: params.content;
 
-	// Persist via tRPC
-	// @ts-expect-error - tRPC router types not fully resolved
+	// Persist via Lens
 	const result = await client.message.add.mutate({
 		sessionId: params.sessionId || undefined,
 		provider: params.provider,

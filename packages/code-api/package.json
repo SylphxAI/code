@@ -19,7 +19,6 @@
 	},
 	"dependencies": {
 		"@sylphx/code-core": "workspace:*",
-		"@sylphx/lens-core": "workspace:*",
 		"rxjs": "^7.8.2",
 		"zod": "^4.1.12"
 	},

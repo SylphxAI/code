@@ -72,6 +72,21 @@ export * from "./signals/effects/index.js";
 // Event system
 export * from "./signals/events/index.js";
 // ============================================================================
+// Lens Provider (React Context API)
+// ============================================================================
+export {
+	_initGlobalClient as _initGlobalLensClient,
+	// Client factories
+	createInProcessClient as createInProcessLensClient,
+	// Internal API for Zen signals (DO NOT USE in React components)
+	getLensClient,
+	// React Context API
+	LensProvider,
+	type LensProviderProps,
+	type TypedLensClient,
+	useLensClient,
+} from "./lens-provider.js";
+// ============================================================================
 // tRPC Links (Low-level, use createInProcessClient instead)
 // ============================================================================
 export {

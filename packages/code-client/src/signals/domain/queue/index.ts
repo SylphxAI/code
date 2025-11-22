@@ -138,7 +138,7 @@ export const useSessionQueues = () => {
 
 /**
  * Client Actions
- * These call tRPC mutations which emit events back to all clients
+ * These call Lens mutations which emit events back to all clients
  */
 
 /**
@@ -155,11 +155,11 @@ export async function enqueueMessage(
 		mimeType?: string;
 	}> = [],
 ): Promise<QueuedMessage> {
-	const { getTRPCClient } = await import("../../../trpc-provider.js");
-	const caller = await getTRPCClient();
+	const { getLensClient } = await import("../../../lens-provider.js");
+	const { API } = await import("@sylphx/code-api");
+	const client = getLensClient<typeof API>();
 
-	// @ts-expect-error - tRPC router types not fully resolved
-	return await caller.message.enqueueMessage.mutate({
+	return await client.message.enqueueMessage.mutate({
 		sessionId,
 		content,
 		attachments,
@@ -171,11 +171,11 @@ export async function enqueueMessage(
  * Removes all queued messages from server queue, emits queue-cleared event
  */
 export async function clearQueue(sessionId: string): Promise<void> {
-	const { getTRPCClient } = await import("../../../trpc-provider.js");
-	const caller = await getTRPCClient();
+	const { getLensClient } = await import("../../../lens-provider.js");
+	const { API } = await import("@sylphx/code-api");
+	const client = getLensClient<typeof API>();
 
-	// @ts-expect-error - tRPC router types not fully resolved
-	await caller.message.clearQueue.mutate({ sessionId });
+	await client.message.clearQueue.mutate({ sessionId });
 }
 
 /**
@@ -193,11 +193,11 @@ export async function updateQueuedMessage(
 		mimeType?: string;
 	}> = [],
 ): Promise<QueuedMessage> {
-	const { getTRPCClient } = await import("../../../trpc-provider.js");
-	const caller = await getTRPCClient();
+	const { getLensClient } = await import("../../../lens-provider.js");
+	const { API } = await import("@sylphx/code-api");
+	const client = getLensClient<typeof API>();
 
-	// @ts-expect-error - tRPC router types not fully resolved
-	return await caller.message.updateQueuedMessage.mutate({
+	return await client.message.updateQueuedMessage.mutate({
 		sessionId,
 		messageId,
 		content,
@@ -210,11 +210,11 @@ export async function updateQueuedMessage(
  * Removes message by ID from server queue, emits queue-message-removed event
  */
 export async function removeQueuedMessage(sessionId: string, messageId: string): Promise<void> {
-	const { getTRPCClient } = await import("../../../trpc-provider.js");
-	const caller = await getTRPCClient();
+	const { getLensClient } = await import("../../../lens-provider.js");
+	const { API } = await import("@sylphx/code-api");
+	const client = getLensClient<typeof API>();
 
-	// @ts-expect-error - tRPC router types not fully resolved
-	await caller.message.removeQueuedMessage.mutate({
+	await client.message.removeQueuedMessage.mutate({
 		sessionId,
 		messageId,
 	});
