@@ -5,21 +5,22 @@
  */
 
 import {
-	useTRPCClient,
+	useLensClient,
 	useBackgroundBashCount as useBackgroundBashCountSignal,
 	setBackgroundBashCount as setBackgroundBashCountSignal,
 } from "@sylphx/code-client";
+import type { API } from "@sylphx/code-api";
 import { useEffect, useRef } from "react";
 
 export function useBackgroundBashCount(): number {
-	const trpc = useTRPCClient();
+	const client = useLensClient<API>();
 	const count = useBackgroundBashCountSignal();
 	const subscriptionRef = useRef<any>(null);
 
 	useEffect(() => {
 		const updateCount = async () => {
 			try {
-				const processes = await trpc.bash.list.query();
+				const processes = await client.bash.list.query({});
 				// Count background processes (not active, still running)
 				const bgCount = processes.filter(
 					(p: any) => !p.isActive && p.status === "running",
@@ -33,19 +34,19 @@ export function useBackgroundBashCount(): number {
 		// Initial load
 		updateCount();
 
-		// Subscribe to bash:all for event-driven updates
+		// Subscribe to bash:all for event-driven updates using Lens
 		try {
-			subscriptionRef.current = trpc.events.subscribe.subscribe(
-				{ channel: "bash:all", fromCursor: undefined },
+			subscriptionRef.current = client.events.subscribe.subscribe(
+				{ channel: "bash:all" },
 				{
-					onData: (event: any) => {
+					next: (event: any) => {
 						const eventType = event.payload?.type;
 						// Update count on events that affect background bash count
 						if (["started", "completed", "failed", "killed", "demoted", "promoted"].includes(eventType)) {
 							updateCount();
 						}
 					},
-					onError: (err: any) => {
+					error: (err: any) => {
 						console.error("[useBackgroundBashCount] Subscription error:", err);
 					},
 				},
@@ -59,7 +60,7 @@ export function useBackgroundBashCount(): number {
 				subscriptionRef.current.unsubscribe();
 			}
 		};
-	}, [trpc]);
+	}, [client]);
 
 	return count;
 }

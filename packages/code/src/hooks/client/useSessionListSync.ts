@@ -31,7 +31,8 @@
  */
 
 import { useEffect, useRef } from "react";
-import { getTRPCClient } from "@sylphx/code-client";
+import { getLensClient } from "@sylphx/code-client";
+import type { API } from "@sylphx/code-api";
 
 export interface SessionListSyncCallbacks {
 	/**
@@ -104,18 +105,18 @@ export function useSessionListSync(options: UseSessionListSyncOptions = {}) {
 			subscriptionRef.current = null;
 		}
 
-		// Subscribe to all session events
-		const setupSubscription = async () => {
+		// Subscribe to all session events using Lens
+		const setupSubscription = () => {
 			try {
-				const client = await getTRPCClient();
+				const client = getLensClient<API>();
 
 				const subscription = client.events.subscribeToAllSessions.subscribe(
 					{ replayLast },
 					{
-						onData: (storedEvent: any) => {
+						next: (storedEvent: any) => {
 							const event = storedEvent.payload;
 
-							// Handle session CRUD events
+							// Handle session CRUD events (model-level)
 							switch (event.type) {
 								case "session-created":
 									callbacks.onSessionCreated?.(event.sessionId, event.provider, event.model);
@@ -125,36 +126,41 @@ export function useSessionListSync(options: UseSessionListSyncOptions = {}) {
 									callbacks.onSessionDeleted?.(event.sessionId);
 									break;
 
-								case "session-title-updated":
-									callbacks.onSessionTitleUpdated?.(event.sessionId, event.title);
+								case "session-updated":
+									// Model-level event with partial session
+									// Extract what changed and call appropriate callback
+									if (event.session.title !== undefined) {
+										callbacks.onSessionTitleUpdated?.(event.sessionId, event.session.title);
+									}
+									if (event.session.model !== undefined && event.session.provider === undefined) {
+										// Model updated independently
+										callbacks.onSessionModelUpdated?.(event.sessionId, event.session.model);
+									}
+									if (event.session.provider !== undefined && event.session.model !== undefined) {
+										// Provider + model updated together
+										callbacks.onSessionProviderUpdated?.(
+											event.sessionId,
+											event.session.provider,
+											event.session.model,
+										);
+									}
 									break;
 
-								case "session-title-updated-end":
-									// Streaming title completed
-									callbacks.onSessionTitleUpdated?.(event.sessionId, event.title);
-									break;
-
-								case "session-model-updated":
-									callbacks.onSessionModelUpdated?.(event.sessionId, event.model);
-									break;
-
-								case "session-provider-updated":
-									callbacks.onSessionProviderUpdated?.(
-										event.sessionId,
-										event.provider,
-										event.model,
-									);
+								case "session-compacted":
+									// Session compacted - treat old session as deleted, new session as created
+									callbacks.onSessionDeleted?.(event.oldSessionId);
+									// Note: session-created event will be emitted separately for new session
 									break;
 
 								default:
-									// Ignore other event types (text-delta, tool-call, etc.)
+									// Ignore other event types (not session list events)
 									break;
 							}
 						},
-						onError: (error: any) => {
+						error: (error: any) => {
 							console.error("[useSessionListSync] Error:", error.message || String(error));
 						},
-						onComplete: () => {
+						complete: () => {
 							// Subscription completed
 						},
 					},
