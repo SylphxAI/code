@@ -160,7 +160,7 @@ export const sessionAPI = lens.object({
 
 	/**
 	 * Create new session
-	 * REACTIVE: Emits session-created event via pubsub
+	 * REACTIVE: Publishes to 'sessions' channel for session list updates
 	 */
 	create: lens.mutation({
 		input: z.object({
@@ -204,12 +204,10 @@ export const sessionAPI = lens.object({
 				finalEnabledRuleIds,
 			);
 
-			// Publish event
-			await ctx.pubsub.publish("session-events", {
+			// Publish to global sessions channel for session list updates
+			await ctx.appContext.eventStream.publish("sessions", {
 				type: "session-created",
-				sessionId: session.id,
-				provider,
-				model,
+				payload: { session },
 			});
 
 			return session;
@@ -347,7 +345,7 @@ export const sessionAPI = lens.object({
 	/**
 	 * Delete session
 	 * CASCADE: Automatically deletes all messages, todos, attachments
-	 * REACTIVE: Publishes deletion event to session:{id} channel
+	 * REACTIVE: Publishes to both session:{id} and sessions channels
 	 */
 	delete: lens.mutation({
 		input: z.object({ sessionId: z.string() }),
@@ -355,7 +353,14 @@ export const sessionAPI = lens.object({
 		resolve: async ({ sessionId }: { sessionId: string }, ctx?: any) => {
 			await ctx.sessionRepository.deleteSession(sessionId);
 
+			// Publish to session-specific channel (for getById subscribers)
 			await ctx.appContext.eventStream.publish(`session:${sessionId}`, {
+				type: 'session-deleted',
+				payload: { sessionId },
+			});
+
+			// Publish to global sessions channel (for session list subscribers)
+			await ctx.appContext.eventStream.publish("sessions", {
 				type: 'session-deleted',
 				payload: { sessionId },
 			});
@@ -406,20 +411,30 @@ export const sessionAPI = lens.object({
 				return { success: false, error: result.error };
 			}
 
-			// Emit events for multi-client sync
-			await ctx.appContext.eventStream.publish("session-events", {
-				type: "session-compacted",
-				oldSessionId: sessionId,
-				newSessionId: result.newSessionId!,
-				summary: result.summary!,
-				messageCount: result.messageCount!,
+			// Get new session for publishing
+			const newSession = await ctx.sessionRepository.getSessionById(result.newSessionId!);
+
+			// Publish session-deleted for old session
+			await ctx.appContext.eventStream.publish(`session:${sessionId}`, {
+				type: 'session-deleted',
+				payload: { sessionId },
 			});
 
-			await ctx.appContext.eventStream.publish("session-events", {
+			// Publish session-created for new session
+			await ctx.appContext.eventStream.publish("sessions", {
 				type: "session-created",
-				sessionId: result.newSessionId!,
-				provider: session.provider,
-				model: session.model,
+				payload: { session: newSession },
+			});
+
+			// Also publish compacted event to sessions channel for special handling
+			await ctx.appContext.eventStream.publish("sessions", {
+				type: "session-compacted",
+				payload: {
+					oldSessionId: sessionId,
+					newSessionId: result.newSessionId!,
+					summary: result.summary!,
+					messageCount: result.messageCount!,
+				},
 			});
 
 			return result;
@@ -1035,18 +1050,23 @@ export const adminAPI = lens.object({
  * Generic event stream subscriptions with cursor-based replay
  *
  * Architecture:
- * - Channel-based routing (session-events, session:{id}, config:*, app:*)
+ * - Channel-based routing (sessions, session:{id}, config:*, app:*)
  * - Exact channel matching subscriptions
  * - Cursor-based replay from database
  * - Real-time push via observables
+ *
+ * Channel Structure (Model-Level Events):
+ * - 'sessions' - Global session list updates (create, delete, compact)
+ * - 'session:{id}' - Specific session updates (title, model, provider, rules, agent)
+ * - Update strategies (delta, patch, auto) handle transmission optimization
  */
 export const eventsAPI = lens.object({
 	/**
 	 * Subscribe to events by channel
 	 *
 	 * Channel examples:
-	 * - 'session:abc123' - Specific session
-	 * - 'session-events' - All session CRUD events
+	 * - 'session:abc123' - Specific session (session-updated, session-deleted)
+	 * - 'sessions' - All session list events (session-created, session-deleted, session-compacted)
 	 * - 'config:ai' - AI config changes
 	 *
 	 * Cursor-based replay:
@@ -1114,8 +1134,9 @@ export const eventsAPI = lens.object({
 	/**
 	 * Subscribe to all session events (session list sync)
 	 *
-	 * Subscribes to session-events channel for multi-client session list sync.
-	 * Receives events: session-created, session-deleted, session-title-updated, etc.
+	 * Subscribes to 'sessions' channel for multi-client session list sync.
+	 * Receives events: session-created, session-deleted, session-compacted
+	 * Model-level events only (no field-level events)
 	 */
 	subscribeToAllSessions: lens.query({
 		input: z.object({
@@ -1136,7 +1157,7 @@ export const eventsAPI = lens.object({
 			throw new Error("Use subscribe() method for event streaming");
 		},
 		subscribe: ({ replayLast }: { replayLast: number }, ctx?: any): Observable<any> => {
-			const channel = "session-events";
+			const channel = "sessions";
 			return ctx.appContext.eventStream.subscribeWithHistory(channel, replayLast);
 		},
 	}),
