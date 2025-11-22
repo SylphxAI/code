@@ -27,7 +27,7 @@
 		"jsx": "react-jsx",
 		"jsxImportSource": "react",
 
-		"types": ["bun-types"],
+		"types": ["bun"],
 
 		"paths": {
 			"@sylphx/code-core": ["./packages/code-core/src"],

@@ -29,6 +29,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@sylphx/code-api": "workspace:*",
 		"@sylphx/code-core": "workspace:*",
 		"@trpc/server": "^11.7.1",
 		"express": "^5.1.0",

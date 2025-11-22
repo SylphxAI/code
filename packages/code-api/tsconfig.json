@@ -4,7 +4,9 @@
 		"outDir": "./dist",
 		"types": [],
 		"skipLibCheck": true,
-		"noEmit": true
+		"noEmit": true,
+		"composite": false,
+		"incremental": false
 	},
 	"include": ["src"]
 }
