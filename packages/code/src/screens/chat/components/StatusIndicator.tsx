@@ -15,7 +15,8 @@ import Spinner from "../../../components/Spinner.js";
 
 export function StatusIndicator() {
 	const isCompacting = useIsCompacting();
-	const { currentSession } = useCurrentSession();
+	const currentSessionData = useCurrentSession();
+	const currentSession = currentSessionData?.currentSession;
 	const colors = useThemeColors();
 
 	// Format duration display (milliseconds to seconds)
