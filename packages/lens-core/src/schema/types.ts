@@ -37,25 +37,33 @@ export type Selected<T, S> = S extends string[]
 
 /**
  * Query definition with Zod schemas
+ *
+ * Resolvers receive (input, context) parameters:
+ * - input: Validated input from Zod schema
+ * - context: Application context (e.g., database, services, user session)
  */
 export interface LensQuery<TInput, TOutput> {
 	type: "query";
 	path: string[];
 	input: z.ZodType<TInput>;
 	output: z.ZodType<TOutput>;
-	resolve: (input: TInput) => Promise<TOutput>;
-	subscribe?: (input: TInput) => Observable<TOutput>;
+	resolve: (input: TInput, ctx?: any) => Promise<TOutput>;
+	subscribe?: (input: TInput, ctx?: any) => Observable<TOutput>;
 }
 
 /**
  * Mutation definition with Zod schemas
+ *
+ * Resolvers receive (input, context) parameters:
+ * - input: Validated input from Zod schema
+ * - context: Application context (e.g., database, services, user session)
  */
 export interface LensMutation<TInput, TOutput> {
 	type: "mutation";
 	path: string[];
 	input: z.ZodType<TInput>;
 	output: z.ZodType<TOutput>;
-	resolve: (input: TInput) => Promise<TOutput>;
+	resolve: (input: TInput, ctx?: any) => Promise<TOutput>;
 }
 
 /**

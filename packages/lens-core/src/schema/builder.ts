@@ -32,20 +32,20 @@ import type {
 /**
  * Query builder configuration
  */
-export interface QueryConfig<TInput, TOutput> {
+export interface QueryConfig<TInput, TOutput, TContext = any> {
 	input: z.ZodType<TInput>;
 	output: z.ZodType<TOutput>;
-	resolve: (input: TInput) => Promise<TOutput>;
-	subscribe?: (input: TInput) => Observable<TOutput>;
+	resolve: (input: TInput, ctx: TContext) => Promise<TOutput>;
+	subscribe?: (input: TInput, ctx: TContext) => Observable<TOutput>;
 }
 
 /**
  * Mutation builder configuration
  */
-export interface MutationConfig<TInput, TOutput> {
+export interface MutationConfig<TInput, TOutput, TContext = any> {
 	input: z.ZodType<TInput>;
 	output: z.ZodType<TOutput>;
-	resolve: (input: TInput) => Promise<TOutput>;
+	resolve: (input: TInput, ctx: TContext) => Promise<TOutput>;
 }
 
 /**
@@ -60,21 +60,21 @@ class LensBuilder {
 	 * const getUser = lens.query({
 	 *   input: z.object({ id: z.string() }),
 	 *   output: UserSchema,
-	 *   resolve: async ({ id }) => db.users.findOne({ id }),
-	 *   subscribe: ({ id }) => eventStream.subscribe(`user:${id}`)
+	 *   resolve: async ({ id }, ctx) => ctx.db.users.findOne({ id }),
+	 *   subscribe: ({ id }, ctx) => ctx.eventStream.subscribe(`user:${id}`)
 	 * });
 	 * ```
 	 */
-	query<TInput, TOutput>(
-		config: QueryConfig<TInput, TOutput>
+	query<TInput, TOutput, TContext = any>(
+		config: QueryConfig<TInput, TOutput, TContext>
 	): LensQuery<TInput, TOutput> {
 		return {
 			type: "query" as const,
 			path: [],
 			input: config.input,
 			output: config.output,
-			resolve: config.resolve,
-			subscribe: config.subscribe,
+			resolve: config.resolve as any,
+			subscribe: config.subscribe as any,
 		};
 	}
 
@@ -86,19 +86,19 @@ class LensBuilder {
 	 * const updateUser = lens.mutation({
 	 *   input: z.object({ id: z.string(), data: UpdateSchema }),
 	 *   output: UserSchema,
-	 *   resolve: async ({ id, data }) => db.users.update({ id }, data)
+	 *   resolve: async ({ id, data }, ctx) => ctx.db.users.update({ id }, data)
 	 * });
 	 * ```
 	 */
-	mutation<TInput, TOutput>(
-		config: MutationConfig<TInput, TOutput>
+	mutation<TInput, TOutput, TContext = any>(
+		config: MutationConfig<TInput, TOutput, TContext>
 	): LensMutation<TInput, TOutput> {
 		return {
 			type: "mutation" as const,
 			path: [],
 			input: config.input,
 			output: config.output,
-			resolve: config.resolve,
+			resolve: config.resolve as any,
 		};
 	}
 

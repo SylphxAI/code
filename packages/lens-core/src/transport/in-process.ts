@@ -16,17 +16,30 @@ import type { LensObject } from "../schema/types.js";
 /**
  * In-process transport configuration
  */
-export interface InProcessTransportConfig {
+export interface InProcessTransportConfig<TContext = any> {
 	api: LensObject<any>;
-	/** Optional context passed to resolvers as second parameter */
-	context?: any;
+	/** Context passed to resolvers as second parameter */
+	context?: TContext;
 }
 
 /**
  * In-process transport implementation
+ *
+ * Generic context type enables full type safety:
+ * ```ts
+ * interface AppContext {
+ *   db: Database;
+ *   userId: string;
+ * }
+ *
+ * const transport = new InProcessTransport<AppContext>({
+ *   api,
+ *   context: { db, userId: 'abc' }
+ * });
+ * ```
  */
-export class InProcessTransport implements LensTransport {
-	constructor(private readonly config: InProcessTransportConfig) {}
+export class InProcessTransport<TContext = any> implements LensTransport {
+	constructor(private readonly config: InProcessTransportConfig<TContext>) {}
 
 	query<T>(request: LensRequest): Promise<T> {
 		return this.executeRequest(request, "query");
