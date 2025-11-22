@@ -2,80 +2,100 @@
 
 ## Progress
 
-**Completed:** 4 files ✅
-**Remaining:** 28 files 🔄
+**Completed:** 9 files ✅ (28.1%)
+**Remaining:** 23 files 🔄
 
 ### ✅ Migrated Files
-1. `hooks/client/useSessionListSync.ts` - Lens events (Phase 4)
-2. `hooks/client/useBackgroundBashCount.ts` - Lens events (Phase 4)
+
+**Phase 4 (Events):**
+1. `hooks/client/useSessionListSync.ts` - Lens events subscription
+2. `hooks/client/useBackgroundBashCount.ts` - Lens events subscription
+
+**Phase 5 Batch 1 (Core Hooks):**
 3. `hooks/client/useCurrentSession.ts` - session.getById.query
 4. `hooks/client/useChat.ts` - message.streamResponse.subscribe
 
+**Phase 5 Batch 2 (High-Priority Hooks - TypeScript-First):**
+5. `hooks/client/useEventStream.ts` - ✅ Using `lensClient` singleton
+6. `hooks/client/useAskToolHandler.ts` - ✅ Using `lensClient` singleton
+7. `hooks/client/useAIConfig.ts` - ✅ Using `useLensClient()` with void input
+8. `hooks/client/useProviders.ts` - ✅ Using `useLensClient()` with void input
+9. `hooks/client/useModels.ts` - ✅ Using `useLensClient()` auto-inferred
+
 ---
 
-## Migration Pattern
+## Migration Pattern (Updated - TypeScript-First Design)
 
 ### Pattern 1: Import Changes
 
-**Before:**
+**Before (tRPC):**
 ```typescript
 import { getTRPCClient } from "@sylphx/code-client";
 // or
 import { useTRPCClient } from "@sylphx/code-client";
 ```
 
-**After:**
+**After (Lens - TypeScript-First):**
 ```typescript
-import { getLensClient } from "@sylphx/code-client";
-import type { API } from "@sylphx/code-api";
+// No type imports needed! Type is baked into client
+import { lensClient } from "@sylphx/code-client";  // Non-React
 // or
-import { useLensClient } from "@sylphx/code-client";
-import type { API } from "@sylphx/code-api";
+import { useLensClient } from "@sylphx/code-client";  // React hook
 ```
+
+**Benefits:**
+- ✅ Zero manual type annotations
+- ✅ Auto-inferred API type (like tRPC)
+- ✅ Cleaner imports
+- ✅ Impossible to use wrong API type
 
 ---
 
 ### Pattern 2: Client Initialization
 
-**Before (Non-React):**
+**Before (tRPC - Non-React):**
 ```typescript
 const client = getTRPCClient();
 ```
 
-**After (Non-React):**
+**After (Lens - Non-React):**
 ```typescript
-const client = getLensClient<API>();
+// Direct singleton - no function call, no type parameter
+const client = lensClient;  // ✅ Type-safe, auto-inferred
 ```
 
-**Before (React Hook):**
+**Before (tRPC - React Hook):**
 ```typescript
 const trpc = useTRPCClient();
 ```
 
-**After (React Hook):**
+**After (Lens - React Hook):**
 ```typescript
-const client = useLensClient<API>();
+const client = useLensClient();  // ✅ No <API> needed, fully typed
 ```
 
 ---
 
 ### Pattern 3: Query Calls
 
-**Before:**
+**Before (tRPC):**
 ```typescript
 const session = await client.session.getById.query({ sessionId });
-const processes = await client.bash.list.query();
+const processes = await client.bash.list.query();  // No params
 const config = await client.config.load.query({ cwd: process.cwd() });
 ```
 
-**After:**
+**After (Lens - Improved with void input):**
 ```typescript
 const session = await client.session.getById.query({ sessionId });
-const processes = await client.bash.list.query({});  // Empty object required
+const processes = await client.bash.list.query();  // ✅ Clean! No empty {}
 const config = await client.config.load.query({ cwd: process.cwd() });
 ```
 
-**Note:** Lens requires input object even if empty `{}`.
+**Benefits:**
+- ✅ Parameterless operations use `void` input (no empty `{}`)
+- ✅ Clean API like tRPC
+- ✅ Type-safe field selection with autocomplete
 
 ---
 
@@ -156,17 +176,17 @@ client.events.subscribe.subscribe(
 
 ---
 
-## Remaining Files (28)
+## Remaining Files (23)
 
 ### Hooks (Priority: High)
-- [ ] `hooks/client/useEventStream.ts` - Event streaming (critical)
-- [ ] `hooks/client/useAskToolHandler.ts` - Ask tool handler
+- [x] `hooks/client/useEventStream.ts` - Event streaming (critical) ✅
+- [x] `hooks/client/useAskToolHandler.ts` - Ask tool handler ✅
+- [x] `hooks/client/useAIConfig.ts` - AI config ✅
+- [x] `hooks/client/useProviders.ts` - Providers ✅
+- [x] `hooks/client/useModels.ts` - Models ✅
 - [ ] `hooks/client/useSessionInitialization.ts` - Session init
 - [ ] `hooks/client/useProjectFiles.ts` - Project files
 - [ ] `hooks/client/useFileAttachments.ts` - File attachments
-- [ ] `hooks/client/useAIConfig.ts` - AI config
-- [ ] `hooks/client/useProviders.ts` - Providers
-- [ ] `hooks/client/useModels.ts` - Models
 - [ ] `hooks/client/useModelDetails.ts` - Model details
 
 ### Screens (Priority: Medium)
@@ -198,19 +218,19 @@ client.events.subscribe.subscribe(
 
 ---
 
-## Migration Checklist (Per File)
+## Migration Checklist (Per File - TypeScript-First)
 
 1. [ ] Update imports:
-   - Replace `getTRPCClient` with `getLensClient`
-   - Replace `useTRPCClient` with `useLensClient`
-   - Add `import type { API } from "@sylphx/code-api"`
+   - Replace `getTRPCClient` with `lensClient` (singleton)
+   - Replace `useTRPCClient` with `useLensClient` (hook)
+   - **Remove** `import type { API } from "@sylphx/code-api"` (not needed!)
 
 2. [ ] Update client initialization:
-   - `getTRPCClient()` → `getLensClient<API>()`
-   - `useTRPCClient()` → `useLensClient<API>()`
+   - `getTRPCClient()` → `lensClient` (direct use, no call)
+   - `useTRPCClient()` → `useLensClient()` (no `<API>` needed)
 
 3. [ ] Update API calls:
-   - Check for empty input: `.query()` → `.query({})`
+   - ✅ Parameterless calls stay clean: `.query()` (void input support)
    - Update param names if changed (check Lens API definition)
 
 4. [ ] Update subscriptions (if any):
@@ -231,20 +251,16 @@ client.events.subscribe.subscribe(
 
 ## Common Issues
 
-### Issue 1: Empty Input Required
+### ~~Issue 1: Empty Input Required~~ (FIXED ✅)
 
-**Error:**
-```
-Expected 1 argument, but got 0
-```
+**Status:** This issue has been resolved with void input support.
 
-**Fix:**
+**Now works cleanly:**
 ```typescript
-// Before
-client.bash.list.query()
-
-// After
-client.bash.list.query({})
+// ✅ Parameterless operations use void input
+client.bash.list.query()          // No {} needed
+client.session.getCount.query()   // No {} needed
+client.config.getProviders.query() // No {} needed
 ```
 
 ---
