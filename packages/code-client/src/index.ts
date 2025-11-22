@@ -72,19 +72,26 @@ export * from "./signals/effects/index.js";
 // Event system
 export * from "./signals/events/index.js";
 // ============================================================================
-// Lens Provider (React Context API)
+// Lens Client (Type-safe, pre-configured with API)
+// ============================================================================
+export {
+	// Type-safe client (API type baked in)
+	lensClient,
+	getLensClient,  // Legacy backward compat
+	useLensClient,
+} from "./lens-client.js";
+
+// ============================================================================
+// Lens Provider (React Context API - Low-level, use lensClient/useLensClient instead)
 // ============================================================================
 export {
 	_initGlobalClient as _initGlobalLensClient,
 	// Client factories
 	createInProcessClient as createInProcessLensClient,
-	// Internal API for Zen signals (DO NOT USE in React components)
-	getLensClient,
 	// React Context API
 	LensProvider,
 	type LensProviderProps,
 	type TypedLensClient,
-	useLensClient,
 } from "./lens-provider.js";
 // ============================================================================
 // tRPC Links (Low-level, use createInProcessClient instead)
