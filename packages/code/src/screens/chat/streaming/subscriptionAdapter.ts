@@ -169,6 +169,21 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		setStreamingOutputTokens(0);
 		setIsStreaming(true);
 
+		// OPTIMISTIC: Set status indicator immediately (don't wait for backend)
+		// This gives instant feedback to the user
+		const currentSessionValue = currentSession.value;
+		if (currentSessionValue) {
+			setCurrentSession({
+				...currentSessionValue,
+				status: {
+					text: "Thinking...",
+					duration: 0,
+					tokenUsage: 0,
+					isActive: true,
+				},
+			});
+		}
+
 		// Create abort controller for this stream
 		abortControllerRef.current = new AbortController();
 
@@ -404,6 +419,12 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 							},
 						],
 						todos: [],
+						status: {
+							text: "Thinking...",
+							duration: 0,
+							tokenUsage: 0,
+							isActive: true,
+						},
 					});
 
 					// Track optimistic assistant message ID for reconciliation
