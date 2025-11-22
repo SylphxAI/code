@@ -1124,6 +1124,785 @@ export const eventsAPI = lens.object({
 });
 
 /**
+ * Config API
+ * Backend-only configuration management (file system access)
+ * REACTIVE: Emits events for all state changes
+ * SECURITY: Protected mutations (OWASP API2) + Rate limiting (OWASP API4)
+ */
+export const configAPI = lens.object({
+	/**
+	 * Load AI config from file system
+	 * Backend reads files, UI stays clean
+	 *
+	 * SECURITY: Removes sensitive fields (API keys) before returning to client
+	 * - API keys REMOVED entirely (not masked)
+	 * - Client never sees keys (zero-knowledge)
+	 * - Server merges keys from disk during save operations
+	 */
+	load: lens.query({
+		input: z.object({
+			cwd: z.string().default(process.cwd()),
+		}),
+		output: z.object({
+			success: z.literal(true),
+			config: z.any(), // AIConfig structure (sanitized)
+		}),
+		resolve: async ({ cwd }: { cwd: string }, ctx?: any) => {
+			const { loadAIConfig } = await import("@sylphx/code-core");
+
+			// Sanitize config helper
+			const sanitizeAIConfig = (config: any): any => {
+				if (!config.providers) {
+					return config;
+				}
+
+				const { getProvider } = await import("@sylphx/code-core");
+				const sanitizedProviders: Record<string, any> = {};
+
+				for (const [providerId, providerConfig] of Object.entries(config.providers)) {
+					const sanitizedProvider: Record<string, any> = {};
+
+					// Get provider schema to know which fields are secret
+					let secretFields: Set<string>;
+					try {
+						const provider = getProvider(providerId as any);
+						const configSchema = provider.getConfigSchema();
+						// Extract field keys marked as secret
+						secretFields = new Set(
+							configSchema.filter((field: any) => field.secret === true).map((field: any) => field.key),
+						);
+					} catch (_error) {
+						// Fallback: if provider not found, remove nothing
+						console.warn(`Provider ${providerId} not found for config sanitization`);
+						secretFields = new Set();
+					}
+
+					for (const [fieldName, fieldValue] of Object.entries(providerConfig as any)) {
+						if (!secretFields.has(fieldName)) {
+							// Keep non-secret field as-is
+							sanitizedProvider[fieldName] = fieldValue;
+						}
+					}
+
+					sanitizedProviders[providerId] = sanitizedProvider;
+				}
+
+				return {
+					...config,
+					providers: sanitizedProviders,
+				};
+			};
+
+			const result = await loadAIConfig(cwd);
+			if (result.success) {
+				// Sanitize config: REMOVE sensitive fields
+				const sanitizedConfig = sanitizeAIConfig(result.data);
+				return { success: true as const, config: sanitizedConfig };
+			}
+			// No config yet - return empty
+			return { success: true as const, config: { providers: {} } };
+		},
+	}),
+
+	/**
+	 * Get config file paths
+	 * Useful for debugging
+	 */
+	getPaths: lens.query({
+		input: z.object({
+			cwd: z.string().default(process.cwd()),
+		}),
+		output: z.any(), // Path info structure
+		resolve: async ({ cwd }: { cwd: string }, ctx?: any) => {
+			const { getAIConfigPaths } = await import("@sylphx/code-core");
+			return getAIConfigPaths(cwd);
+		},
+	}),
+
+	/**
+	 * Get all available providers
+	 * Returns provider metadata (id, name, description, isConfigured)
+	 * SECURITY: No sensitive data exposed
+	 */
+	getProviders: lens.query({
+		input: z.object({
+			cwd: z.string().default(process.cwd()),
+		}),
+		output: z.record(z.object({
+			id: z.string(),
+			name: z.string(),
+			description: z.string(),
+			isConfigured: z.boolean(),
+		})),
+		resolve: async ({ cwd }: { cwd: string }, ctx?: any) => {
+			const { loadAIConfig, AI_PROVIDERS, getProvider } = await import("@sylphx/code-core");
+
+			const configResult = await loadAIConfig(cwd);
+
+			if (!configResult.success) {
+				throw new Error("Failed to load AI config");
+			}
+
+			const config = configResult.data;
+
+			const providersWithStatus: Record<string, any> = {};
+
+			for (const [id, providerInfo] of Object.entries(AI_PROVIDERS)) {
+				const provider = getProvider(id as any);
+				const providerConfig = config.providers?.[id] || {};
+				const isConfigured = provider.isConfigured(providerConfig);
+
+				providersWithStatus[id] = {
+					id,
+					name: providerInfo.name,
+					description: providerInfo.description,
+					isConfigured,
+				};
+			}
+
+			return providersWithStatus;
+		},
+	}),
+
+	/**
+	 * Get provider config schema
+	 * Returns the configuration fields required for a provider
+	 * SECURITY: No sensitive data - just schema definition
+	 */
+	getProviderSchema: lens.query({
+		input: z.object({
+			providerId: z.string(),
+		}),
+		output: z.union([
+			z.object({
+				success: z.literal(true),
+				schema: z.array(z.any()),
+			}),
+			z.object({
+				success: z.literal(false),
+				error: z.string(),
+			}),
+		]),
+		resolve: async ({ providerId }: { providerId: string }, ctx?: any) => {
+			try {
+				const { getProvider } = await import("@sylphx/code-core");
+				const provider = getProvider(providerId);
+				const schema = provider.getConfigSchema();
+				return { success: true as const, schema };
+			} catch (error) {
+				return {
+					success: false as const,
+					error: error instanceof Error ? error.message : "Failed to get provider schema",
+				};
+			}
+		},
+	}),
+
+	/**
+	 * Get tokenizer info for a model
+	 * Returns tokenizer name and status
+	 */
+	getTokenizerInfo: lens.query({
+		input: z.object({
+			model: z.string(),
+		}),
+		output: z.any(), // Tokenizer info structure
+		resolve: async ({ model }: { model: string }, ctx?: any) => {
+			const { getTokenizerInfo } = await import("@sylphx/code-core");
+			return getTokenizerInfo(model);
+		},
+	}),
+
+	/**
+	 * Count tokens for text
+	 * Uses model-specific tokenizer
+	 */
+	countTokens: lens.query({
+		input: z.object({
+			text: z.string(),
+			model: z.string().optional(),
+		}),
+		output: z.object({
+			count: z.number(),
+		}),
+		resolve: async ({ text, model }: { text: string; model?: string }, ctx?: any) => {
+			const { countTokens } = await import("@sylphx/code-core");
+			const count = await countTokens(text, model);
+			return { count };
+		},
+	}),
+
+	/**
+	 * Count tokens for file
+	 * Reads file from disk and counts tokens using model-specific tokenizer
+	 * ARCHITECTURE: Server reads file, client should never read files directly
+	 */
+	countFileTokens: lens.query({
+		input: z.object({
+			filePath: z.string(),
+			model: z.string().optional(),
+		}),
+		output: z.union([
+			z.object({
+				success: z.literal(true),
+				count: z.number(),
+			}),
+			z.object({
+				success: z.literal(false),
+				error: z.string(),
+			}),
+		]),
+		resolve: async ({ filePath, model }: { filePath: string; model?: string }, ctx?: any) => {
+			const { readFile } = await import("node:fs/promises");
+			const { countTokens } = await import("@sylphx/code-core");
+
+			try {
+				const content = await readFile(filePath, "utf8");
+				const count = await countTokens(content, model);
+				return { success: true as const, count };
+			} catch (error) {
+				return {
+					success: false as const,
+					error: error instanceof Error ? error.message : "Failed to read file",
+				};
+			}
+		},
+	}),
+
+	/**
+	 * Scan project files
+	 * Returns filtered file list
+	 */
+	scanProjectFiles: lens.query({
+		input: z.object({
+			cwd: z.string().default(process.cwd()),
+			query: z.string().optional(),
+		}),
+		output: z.object({
+			files: z.array(z.string()),
+		}),
+		resolve: async ({ cwd, query }: { cwd: string; query?: string }, ctx?: any) => {
+			const { scanProjectFiles } = await import("@sylphx/code-core");
+			const files = await scanProjectFiles(cwd, query);
+			return { files };
+		},
+	}),
+
+	/**
+	 * Get model details (context length, pricing, capabilities, etc.)
+	 * SECURITY: No API keys needed - uses hardcoded metadata
+	 */
+	getModelDetails: lens.query({
+		input: z.object({
+			providerId: z.string(),
+			modelId: z.string(),
+			cwd: z.string().default(process.cwd()),
+		}),
+		output: z.union([
+			z.object({
+				success: z.literal(true),
+				details: z.any(), // Model details structure
+			}),
+			z.object({
+				success: z.literal(false),
+				error: z.string(),
+			}),
+		]),
+		resolve: async ({ providerId, modelId, cwd }: { providerId: string; modelId: string; cwd: string }, ctx?: any) => {
+			try {
+				const { getProvider, loadAIConfig, getProviderConfigWithApiKey, enrichModelDetails, enrichCapabilities } = await import("@sylphx/code-core");
+				const provider = getProvider(providerId);
+
+				// Try to get provider config with API key (optional)
+				let config: any;
+				try {
+					const aiConfigResult = await loadAIConfig(cwd);
+					if (aiConfigResult.success) {
+						const aiConfig = aiConfigResult.data;
+						config = await getProviderConfigWithApiKey(aiConfig, providerId);
+					}
+				} catch {
+					// Config not available - continue without it
+				}
+
+				// Get model details and capabilities from provider
+				const details = await provider.getModelDetails(modelId, config);
+				const providerCapabilities = provider.getModelCapabilities(modelId);
+
+				// Enrich with models.dev fallback
+				const enrichedDetails = await enrichModelDetails(modelId, details);
+
+				// Fetch models.dev data for capabilities enrichment
+				const modelsDevData = await fetch("https://models.dev/api.json", {
+					signal: AbortSignal.timeout(10000),
+				})
+					.then((res) => (res.ok ? res.json() : null))
+					.catch(() => null);
+
+				const enrichedCapabilities = enrichCapabilities(
+					modelId,
+					providerCapabilities,
+					modelsDevData,
+				);
+
+				return {
+					success: true as const,
+					details: {
+						...enrichedDetails,
+						capabilities: enrichedCapabilities,
+					},
+				};
+			} catch (error) {
+				return {
+					success: false as const,
+					error: error instanceof Error ? error.message : "Failed to get model details",
+				};
+			}
+		},
+	}),
+
+	/**
+	 * Fetch models from provider API
+	 * SERVER-SIDE: Loads config with API keys, calls provider API
+	 * ARCHITECTURE: Client = Pure UI, Server = Business logic + File access
+	 */
+	fetchModels: lens.query({
+		input: z.object({
+			providerId: z.string(),
+			cwd: z.string().default(process.cwd()),
+		}),
+		output: z.union([
+			z.object({
+				success: z.literal(true),
+				models: z.array(z.object({
+					id: z.string(),
+					name: z.string(),
+				})),
+			}),
+			z.object({
+				success: z.literal(false),
+				error: z.string(),
+			}),
+		]),
+		resolve: async ({ providerId, cwd }: { providerId: string; cwd: string }, ctx?: any) => {
+			try {
+				const { loadAIConfig, fetchModels } = await import("@sylphx/code-core");
+
+				// Load config with API keys (server-side only)
+				const aiConfigResult = await loadAIConfig(cwd);
+				if (!aiConfigResult.success) {
+					return {
+						success: false as const,
+						error: aiConfigResult.error.message,
+					};
+				}
+
+				const aiConfig = aiConfigResult.data;
+				const providerConfig = aiConfig.providers?.[providerId];
+
+				if (!providerConfig) {
+					return {
+						success: false as const,
+						error: `Provider ${providerId} is not configured. Please configure it using /provider first.`,
+					};
+				}
+
+				// Fetch models from provider API (server-side)
+				const models = await fetchModels(providerId as any, providerConfig);
+
+				// Transform to completion format
+				const modelList = models.map((m: any) => ({
+					id: m.id,
+					name: m.name,
+				}));
+
+				return {
+					success: true as const,
+					models: modelList,
+				};
+			} catch (error) {
+				return {
+					success: false as const,
+					error: error instanceof Error ? error.message : "Failed to fetch models",
+				};
+			}
+		},
+	}),
+
+	/**
+	 * Update default provider
+	 * REACTIVE: Emits config:default-provider-updated event
+	 */
+	updateDefaultProvider: lens.mutation({
+		input: z.object({
+			provider: z.string(),
+			cwd: z.string().default(process.cwd()),
+		}),
+		output: z.union([
+			z.object({ success: z.literal(true) }),
+			z.object({ success: z.literal(false), error: z.string() }),
+		]),
+		resolve: async ({ provider, cwd }: { provider: string; cwd: string }, ctx?: any) => {
+			const { loadAIConfig, saveAIConfig } = await import("@sylphx/code-core");
+
+			const result = await loadAIConfig(cwd);
+			if (!result.success) {
+				return { success: false as const, error: result.error.message };
+			}
+
+			const updated = { ...result.data, defaultProvider: provider };
+			const saveResult = await saveAIConfig(updated, cwd);
+
+			if (saveResult.success) {
+				return { success: true as const };
+			}
+			return { success: false as const, error: saveResult.error.message };
+		},
+	}),
+
+	/**
+	 * Update default model
+	 * REACTIVE: Emits config:default-model-updated event
+	 */
+	updateDefaultModel: lens.mutation({
+		input: z.object({
+			model: z.string(),
+			cwd: z.string().default(process.cwd()),
+		}),
+		output: z.union([
+			z.object({ success: z.literal(true) }),
+			z.object({ success: z.literal(false), error: z.string() }),
+		]),
+		resolve: async ({ model, cwd }: { model: string; cwd: string }, ctx?: any) => {
+			const { loadAIConfig, saveAIConfig } = await import("@sylphx/code-core");
+
+			const result = await loadAIConfig(cwd);
+			if (!result.success) {
+				return { success: false as const, error: result.error.message };
+			}
+
+			const updated = { ...result.data, defaultModel: model };
+			const saveResult = await saveAIConfig(updated, cwd);
+
+			if (saveResult.success) {
+				return { success: true as const };
+			}
+			return { success: false as const, error: saveResult.error.message };
+		},
+	}),
+
+	/**
+	 * Update provider configuration
+	 * REACTIVE: Emits config:provider-updated or config:provider-added event
+	 *
+	 * ZERO-KNOWLEDGE: Client never sends secrets
+	 * - Client only sends non-secret fields (model, etc)
+	 * - Server auto-merges ALL secret fields from disk
+	 * - To update secrets, use dedicated setProviderSecret mutation
+	 */
+	updateProviderConfig: lens.mutation({
+		input: z.object({
+			providerId: z.string(),
+			config: z.record(z.any()),
+			cwd: z.string().default(process.cwd()),
+		}),
+		output: z.union([
+			z.object({ success: z.literal(true) }),
+			z.object({ success: z.literal(false), error: z.string() }),
+		]),
+		resolve: async ({ providerId, config, cwd }: { providerId: string; config: Record<string, any>; cwd: string }, ctx?: any) => {
+			const { loadAIConfig, saveAIConfig, getProvider } = await import("@sylphx/code-core");
+
+			const result = await loadAIConfig(cwd);
+			if (!result.success) {
+				return { success: false as const, error: result.error.message };
+			}
+
+			const currentProviderConfig = result.data.providers?.[providerId] || {};
+			const mergedProviderConfig: Record<string, any> = { ...config };
+
+			// Always merge ALL secret fields from disk (client never sends them)
+			try {
+				const provider = getProvider(providerId as any);
+				const configSchema = provider.getConfigSchema();
+				const secretFields = new Set(
+					configSchema.filter((field: any) => field.secret === true).map((field: any) => field.key),
+				);
+
+				// Preserve all secrets from disk
+				for (const fieldName of secretFields) {
+					const currentValue = currentProviderConfig[fieldName];
+					if (currentValue !== undefined) {
+						mergedProviderConfig[fieldName] = currentValue;
+					}
+				}
+			} catch (_error) {
+				console.warn(`Provider ${providerId} not found during config merge`);
+			}
+
+			const updated = {
+				...result.data,
+				providers: {
+					...result.data.providers,
+					[providerId]: mergedProviderConfig,
+				},
+			};
+
+			const saveResult = await saveAIConfig(updated, cwd);
+
+			if (saveResult.success) {
+				return { success: true as const };
+			}
+			return { success: false as const, error: saveResult.error.message };
+		},
+	}),
+
+	/**
+	 * Set a provider secret field (API key, token, etc)
+	 *
+	 * Dedicated endpoint for updating secrets
+	 * - Client can set new secret without seeing existing value
+	 * - Follows GitHub/Vercel pattern: blind update
+	 * - Only way to update secret fields
+	 */
+	setProviderSecret: lens.mutation({
+		input: z.object({
+			providerId: z.string(),
+			fieldName: z.string(),
+			value: z.string(),
+			cwd: z.string().default(process.cwd()),
+		}),
+		output: z.union([
+			z.object({ success: z.literal(true) }),
+			z.object({ success: z.literal(false), error: z.string() }),
+		]),
+		resolve: async ({ providerId, fieldName, value, cwd }: { providerId: string; fieldName: string; value: string; cwd: string }, ctx?: any) => {
+			const { loadAIConfig, saveAIConfig, getProvider, createCredential, getDefaultCredential, updateCredential } = await import("@sylphx/code-core");
+
+			const result = await loadAIConfig(cwd);
+			if (!result.success) {
+				return { success: false as const, error: result.error.message };
+			}
+
+			// Verify field is actually a secret field
+			try {
+				const provider = getProvider(providerId as any);
+				const configSchema = provider.getConfigSchema();
+				const field = configSchema.find((f: any) => f.key === fieldName);
+
+				if (!field) {
+					return {
+						success: false as const,
+						error: `Field ${fieldName} not found in provider ${providerId} schema`,
+					};
+				}
+
+				if (!field.secret) {
+					return {
+						success: false as const,
+						error: `Field ${fieldName} is not a secret field. Use updateProviderConfig instead.`,
+					};
+				}
+			} catch (_error) {
+				return {
+					success: false as const,
+					error: `Provider ${providerId} not found`,
+				};
+			}
+
+			// Create or update credential in registry
+			const credential =
+				getDefaultCredential(providerId) ||
+				createCredential({
+					providerId,
+					label: `${providerId} API key`,
+					apiKey: value,
+					scope: "global",
+					isDefault: true,
+				});
+
+			// Update credential with new API key if it already exists
+			if (!credential.isDefault) {
+				updateCredential(credential.id, { apiKey: value });
+			}
+
+			// Update provider config to reference the credential
+			const currentProviderConfig = result.data.providers?.[providerId] || {};
+			const { apiKey: _removed, ...configWithoutApiKey } = currentProviderConfig;
+			const updatedProviderConfig = {
+				...configWithoutApiKey,
+				credentialId: credential.id,
+			};
+
+			const updated = {
+				...result.data,
+				providers: {
+					...result.data.providers,
+					[providerId]: updatedProviderConfig,
+				},
+			};
+
+			const saveResult = await saveAIConfig(updated, cwd);
+
+			if (saveResult.success) {
+				return { success: true as const };
+			}
+			return { success: false as const, error: saveResult.error.message };
+		},
+	}),
+
+	/**
+	 * Remove provider configuration
+	 * REACTIVE: Emits config:provider-removed event
+	 */
+	removeProvider: lens.mutation({
+		input: z.object({
+			providerId: z.string(),
+			cwd: z.string().default(process.cwd()),
+		}),
+		output: z.union([
+			z.object({ success: z.literal(true) }),
+			z.object({ success: z.literal(false), error: z.string() }),
+		]),
+		resolve: async ({ providerId, cwd }: { providerId: string; cwd: string }, ctx?: any) => {
+			const { loadAIConfig, saveAIConfig } = await import("@sylphx/code-core");
+
+			const result = await loadAIConfig(cwd);
+			if (!result.success) {
+				return { success: false as const, error: result.error.message };
+			}
+
+			const providers = { ...result.data.providers };
+			delete providers[providerId];
+
+			const updated = { ...result.data, providers };
+			const saveResult = await saveAIConfig(updated, cwd);
+
+			if (saveResult.success) {
+				return { success: true as const };
+			}
+			return { success: false as const, error: saveResult.error.message };
+		},
+	}),
+
+	/**
+	 * Save AI config to file system
+	 * Backend writes files, UI stays clean
+	 * REACTIVE: Emits config-updated event
+	 *
+	 * ZERO-KNOWLEDGE: Client never sends secrets
+	 * - Client only sends non-secret fields
+	 * - Server auto-merges ALL secret fields from disk
+	 * - To update secrets, use dedicated setProviderSecret mutation
+	 */
+	save: lens.mutation({
+		input: z.object({
+			config: z.any(), // AIConfig structure
+			cwd: z.string().default(process.cwd()),
+		}),
+		output: z.union([
+			z.object({ success: z.literal(true) }),
+			z.object({ success: z.literal(false), error: z.string() }),
+		]),
+		resolve: async ({ config, cwd }: { config: any; cwd: string }, ctx?: any) => {
+			const { loadAIConfig, saveAIConfig, getProvider } = await import("@sylphx/code-core");
+
+			// Load current config from disk to get secrets
+			const currentResult = await loadAIConfig(cwd);
+			const currentConfig = currentResult.success ? currentResult.data : { providers: {} };
+
+			// Merge incoming config with current config
+			const mergedConfig = { ...config };
+
+			if (config.providers && currentConfig.providers) {
+				const mergedProviders: Record<string, any> = {};
+
+				for (const [providerId, incomingProviderConfig] of Object.entries(config.providers)) {
+					const currentProviderConfig = currentConfig.providers[providerId] || {};
+					const mergedProviderConfig: Record<string, any> = {
+						...incomingProviderConfig,
+					};
+
+					// Get provider schema to identify secret fields
+					try {
+						const provider = getProvider(providerId as any);
+						const configSchema = provider.getConfigSchema();
+						const secretFields = new Set(
+							configSchema.filter((field: any) => field.secret === true).map((field: any) => field.key),
+						);
+
+						// Preserve ALL secrets from disk (client never sends them)
+						for (const fieldName of secretFields) {
+							const currentValue = currentProviderConfig[fieldName];
+							if (currentValue !== undefined) {
+								mergedProviderConfig[fieldName] = currentValue;
+							}
+						}
+					} catch (_error) {
+						// Provider not found - just use incoming config as-is
+						console.warn(`Provider ${providerId} not found during config merge`);
+					}
+
+					mergedProviders[providerId] = mergedProviderConfig;
+				}
+
+				mergedConfig.providers = mergedProviders;
+			}
+
+			const result = await saveAIConfig(mergedConfig, cwd);
+			if (result.success) {
+				return { success: true as const };
+			}
+			return { success: false as const, error: result.error.message };
+		},
+	}),
+
+	/**
+	 * Update enabled rules
+	 * SERVER DECIDES: If sessionId provided → session table, else → global config
+	 * MULTI-CLIENT SYNC: Changes propagate to all clients via event stream
+	 */
+	updateRules: lens.mutation({
+		input: z.object({
+			ruleIds: z.array(z.string()),
+			sessionId: z.string().optional(),
+			cwd: z.string().default(process.cwd()),
+		}),
+		output: z.union([
+			z.object({ success: z.literal(true), scope: z.enum(["session", "global"]) }),
+			z.object({ success: z.literal(false), error: z.string() }),
+		]),
+		resolve: async ({ ruleIds, sessionId, cwd }: { ruleIds: string[]; sessionId?: string; cwd: string }, ctx?: any) => {
+			if (sessionId) {
+				// Session-specific rules → persist to session table
+				await ctx.sessionRepository.updateSession(sessionId, {
+					enabledRuleIds: ruleIds,
+				});
+				return { success: true as const, scope: "session" as const };
+			} else {
+				// Global rules → persist to config file
+				const { loadAIConfig, saveAIConfig } = await import("@sylphx/code-core");
+				const result = await loadAIConfig(cwd);
+				if (!result.success) {
+					return { success: false as const, error: result.error.message };
+				}
+
+				const updated = {
+					...result.data,
+					defaultEnabledRuleIds: ruleIds,
+				};
+				const saveResult = await saveAIConfig(updated, cwd);
+
+				if (saveResult.success) {
+					return { success: true as const, scope: "global" as const };
+				}
+				return { success: false as const, error: saveResult.error.message };
+			}
+		},
+	}),
+});
+
+/**
  * Root API
  */
 export const api = lens.object({
@@ -1134,6 +1913,7 @@ export const api = lens.object({
 	bash: bashAPI,
 	admin: adminAPI,
 	events: eventsAPI,
+	config: configAPI,
 });
 
 export type API = typeof api;
