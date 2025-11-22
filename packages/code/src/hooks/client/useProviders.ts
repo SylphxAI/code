@@ -5,7 +5,7 @@
 
 import { useEffect } from "react";
 import {
-	useTRPCClient,
+	useLensClient,
 	useProviders as useProvidersSignal,
 	useProvidersLoading,
 	useProvidersError,
@@ -14,6 +14,7 @@ import {
 	setProvidersError as setProvidersErrorSignal,
 	type Provider,
 } from "@sylphx/code-client";
+import type { API } from "@sylphx/code-api";
 
 /**
  * Hook to fetch all available AI providers
@@ -21,7 +22,7 @@ import {
  * Data stored in Zen signals for global access
  */
 export function useProviders() {
-	const trpc = useTRPCClient();
+	const client = useLensClient<API>();
 	const providers = useProvidersSignal();
 	const loading = useProvidersLoading();
 	const error = useProvidersError();
@@ -33,7 +34,7 @@ export function useProviders() {
 			try {
 				setProvidersLoadingSignal(true);
 				setProvidersErrorSignal(null);
-				const data = await trpc.config.getProviders.query();
+				const data = await client.config.getProviders.query({});
 				if (mounted) {
 					setProvidersSignal(data);
 				}
@@ -53,7 +54,7 @@ export function useProviders() {
 		return () => {
 			mounted = false;
 		};
-	}, [trpc]);
+	}, [client]);
 
 	return { providers, loading, error };
 }

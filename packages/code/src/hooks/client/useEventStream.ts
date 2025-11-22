@@ -16,7 +16,8 @@
  */
 
 import { useEffect, useRef } from "react";
-import { currentSession, setCurrentSession, getTRPCClient, setError, useCurrentSessionId } from "@sylphx/code-client";
+import { currentSession, setCurrentSession, getLensClient, setError, useCurrentSessionId } from "@sylphx/code-client";
+import type { API } from "@sylphx/code-api";
 
 export interface EventStreamCallbacks {
 	// Session events
@@ -149,16 +150,18 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 			return;
 		}
 
-		// Subscribe to strongly-typed session events
-		const client = getTRPCClient();
+		// Subscribe to strongly-typed session events using Lens
+		const client = getLensClient<API>();
 
-		const subscription = client.message.subscribe.subscribe(
+		const subscription = client.events.subscribeToSession.subscribe(
 			{
 				sessionId: currentSessionId,
 				replayLast,
 			},
-			{
-				onData: (event: any) => {
+		).subscribe({
+			next: (storedEvent: any) => {
+				// Extract event from stored event payload
+				const event = storedEvent.payload;
 					// Event is directly SessionEvent (no need to unwrap payload)
 
 					// Handle all event types
@@ -328,16 +331,15 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 							break;
 					}
 				},
-				onError: (error: any) => {
-					const errorMessage = error instanceof Error ? error.message : "Event stream error";
-					callbacksRef.current.onError?.(errorMessage);
-					setError(errorMessage);
-				},
-				onComplete: () => {
-					// Stream completed
-				},
+			error: (error: any) => {
+				const errorMessage = error instanceof Error ? error.message : "Event stream error";
+				callbacksRef.current.onError?.(errorMessage);
+				setError(errorMessage);
 			},
-		);
+			complete: () => {
+				// Stream completed
+			},
+		});
 
 		subscriptionRef.current = subscription;
 

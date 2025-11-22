@@ -5,7 +5,7 @@
 
 import { useEffect } from "react";
 import {
-	useTRPCClient,
+	useLensClient,
 	useModelsByProvider,
 	useModelsLoading,
 	useModelsError,
@@ -14,6 +14,7 @@ import {
 	setModelsError as setModelsErrorSignal,
 	type ModelInfo,
 } from "@sylphx/code-client";
+import type { API } from "@sylphx/code-api";
 
 /**
  * Hook to fetch models for a specific provider
@@ -26,7 +27,7 @@ import {
  * - Client shouldn't need updates when new providers are added
  */
 export function useModels(providerId: string | null) {
-	const trpc = useTRPCClient();
+	const client = useLensClient<API>();
 	const modelsByProvider = useModelsByProvider();
 	const loading = useModelsLoading();
 	const error = useModelsError();
@@ -45,7 +46,7 @@ export function useModels(providerId: string | null) {
 			try {
 				setModelsLoadingSignal(true);
 				setModelsErrorSignal(null);
-				const result = await trpc.config.fetchModels.query({ providerId });
+				const result = await client.config.fetchModels.query({ providerId });
 				if (mounted) {
 					if (result.success) {
 						setModelsForProviderSignal(providerId, result.models);
@@ -69,7 +70,7 @@ export function useModels(providerId: string | null) {
 		return () => {
 			mounted = false;
 		};
-	}, [trpc, providerId]);
+	}, [client, providerId]);
 
 	return { models, loading, error };
 }

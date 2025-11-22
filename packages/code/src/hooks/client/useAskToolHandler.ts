@@ -1,6 +1,6 @@
 /**
  * Ask Tool Handler Hook
- * Handles Ask tool in client-server architecture via tRPC streaming
+ * Handles Ask tool in client-server architecture via Lens streaming
  *
  * Flow:
  * 1. Server sends 'ask-question' streaming event
@@ -11,7 +11,8 @@
  */
 
 import { useCallback } from "react";
-import { getTRPCClient } from "@sylphx/code-client";
+import { getLensClient } from "@sylphx/code-client";
+import type { API } from "@sylphx/code-api";
 import type {  WaitForInputOptions  } from "@sylphx/code-client";
 
 interface UseAskToolHandlerProps {
@@ -64,7 +65,7 @@ export function useAskToolHandler({
 					throw new Error("No active session");
 				}
 
-				const client = getTRPCClient();
+				const client = getLensClient<API>();
 
 				// Convert string answer to Record format if needed
 				const answerRecord = typeof answers === "string" ? { "0": answers } : answers;

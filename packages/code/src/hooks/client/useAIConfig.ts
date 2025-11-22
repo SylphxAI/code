@@ -1,14 +1,15 @@
 /**
  * AI Config Hook
- * Load and save AI configuration via tRPC (backend handles file system)
+ * Load and save AI configuration via Lens (backend handles file system)
  */
 
 import type { AIConfig } from "@sylphx/code-core";
 import { useCallback } from "react";
-import { setAIConfig, setError, setLoading, useTRPCClient } from "@sylphx/code-client";
+import { setAIConfig, setError, setLoading, useLensClient } from "@sylphx/code-client";
+import type { API } from "@sylphx/code-api";
 
 export function useAIConfig() {
-	const client = useTRPCClient();
+	const client = useLensClient<API>();
 
 	const loadConfig = useCallback(async () => {
 		setLoading(true);
