@@ -7,9 +7,9 @@ Multi-package TypeScript monorepo for AI-powered CLI development assistant.
 **Key architectural decision**: Event-driven reactive state with Zen signals (preact signals wrapper) for fine-grained reactivity and optimal performance.
 
 ```
-User Input → CLI (ink) → tRPC Client → Server → AI Providers
+User Input → CLI (ink) → Lens Client → Server → AI Providers
               ↑                                      ↓
-           Zen Signals ← Event Stream ← Tool Execution
+           Zen Signals ← Model Events ← Tool Execution
 ```
 
 ## Package Structure
@@ -20,13 +20,13 @@ User Input → CLI (ink) → tRPC Client → Server → AI Providers
 - **State**: Zen signals via `useZen()` hook
 
 ### `@sylphx/code-client` (Client Logic)
-- **Tech**: Zen signals, tRPC client
-- **Role**: Client-side state, server communication
+- **Tech**: Zen signals, Lens client
+- **Role**: Client-side state, server communication, type-safe field selection
 - **State**: All global state in `signals/domain/`
 
 ### `@sylphx/code-server` (Backend)
-- **Tech**: tRPC server, Node.js
-- **Role**: AI orchestration, tool execution, event streaming
+- **Tech**: Lens server, Node.js
+- **Role**: AI orchestration, tool execution, model-level event streaming
 - **State**: Stateless (emits events)
 
 ### `@sylphx/code-core` (Shared Types)
@@ -66,23 +66,43 @@ const session = useZen(currentSession); // Auto re-renders on change
 
 **Architecture**:
 ```
-Server Event Emitter → SSE Stream → Client Event Bus → Signal Updates
+Server Event Emitter → Lens Subscriptions → Client Event Bus → Signal Updates
 ```
 
+**Event Granularity**: Model-level only (ADR-009)
+- **WHY**: Consistent granularity, frontend-driven field selection, unified optimistic updates
+- **Trade-off**: Added model-level abstraction vs fine-grained control and type safety
+
 **Event Types**:
-- `session-*`: Session lifecycle, status updates
-- `message-*`: Message updates
+- `session-updated`: Partial session updates (replaces field-level: status, tokens, title events)
+- `message-updated`: Partial message updates (replaces field-level: status updates)
 - `step-*`: Streaming steps
 - `tool-*`: Tool execution
 - `ask-question-*`: User input requests
-- `session-status-updated`: Real-time session progress updates
 
-### Client → Server (tRPC)
-
-Mutations for user actions:
+**Field Selection**: Client controls what fields to receive
 ```ts
-trpc.message.sendMessage.mutate({ ... })
-trpc.session.create.mutate()
+client.session.getById.subscribe(
+  { sessionId },
+  {
+    select: { id: true, title: true, status: true },
+    updateMode: 'delta'  // Only changed fields transmitted
+  }
+)
+```
+
+### Client → Server (Lens)
+
+Type-safe queries and mutations with field selection:
+```ts
+// Query with field selection
+const session = await client.session.getById.query(
+  { sessionId },
+  { select: { id: true, title: true, totalTokens: true } }
+);
+
+// Mutation
+await client.message.send.mutate({ sessionId, content })
 ```
 
 ## Component Patterns
@@ -145,20 +165,22 @@ interface SessionStatus {
 ```
 Tool Execution / Token Updates / Todo Changes (Publishers)
                     ↓
-        Emit tool-call, tool-result, session-tokens-updated (Raw Events)
+        Emit tool-call, tool-result (Raw Events)
                     ↓
         Session Status Manager (Subscriber)
           - Listens to relevant events
           - Maintains internal state (currentTool, startTime, tokenUsage)
           - Determines status text via determineStatusText()
-          - Emits session-status-updated when state changes
+          - Emits session-updated with partial session (model-level)
                     ↓
-        Client updates session.status signal
+        Client merges partial session update into session signal
                     ↓
         UI components re-render (StatusIndicator, SessionList)
 ```
 
 **Why Pub-Sub**: Separation of concerns. Tool execution logic doesn't know about session status. Status manager reacts to events and maintains its own state.
+
+**Model-level emission**: Status manager emits `session-updated` with partial session object containing all changed fields (status, tokens, updatedAt) in single event.
 
 ### Display Locations
 
@@ -175,10 +197,11 @@ Tool Execution / Token Updates / Todo Changes (Publishers)
 ```
 
 ### Integration Points
-- **Token Tracking**: Session Status Manager subscribes to `session-tokens-updated` events
-- **Todo System**: Manager receives initial todos, updates when todos change
+- **Token Tracking**: Session Status Manager emits tokens in `session-updated` partial session
+- **Todo System**: Manager receives full session with todos, emits updates when todos change
 - **Tool Execution**: Manager subscribes to `tool-call` and `tool-result` events
 - **Duration Tracking**: Manager tracks elapsed time since streaming started
+- **Model-level updates**: All changes emitted as partial session via `session-updated` event
 
 ### Implementation: Session Status Manager
 **Module**: `packages/code-server/src/services/streaming/session-status-manager.ts`
@@ -187,20 +210,20 @@ Tool Execution / Token Updates / Todo Changes (Publishers)
 
 **Lifecycle**:
 ```typescript
-// 1. Create manager at streaming start
-const statusManager = createSessionStatusManager(observer, sessionId, session.todos);
+// 1. Create manager at streaming start with full session
+const statusManager = createSessionStatusManager(observer, sessionId, session);
 
 // 2. Manager subscribes to events internally
-// 3. Manager emits session-status-updated automatically
+// 3. Manager emits session-updated with partial session automatically
 // 4. Cleanup at streaming end
 statusManager.cleanup();
 ```
 
 **Event Subscriptions**:
-- `tool-call` → Update currentTool, emit status
-- `tool-result` / `tool-error` → Clear currentTool, emit status
-- `session-tokens-updated` → Update tokenUsage, emit status
-- Todo changes → Update todos, recalculate statusText, emit status
+- `tool-call` → Update currentTool, emit `session-updated` with status
+- `tool-result` / `tool-error` → Clear currentTool, emit `session-updated` with status
+- Token updates → Update tokenUsage, emit `session-updated` with tokens + status
+- Todo changes → Update todos, recalculate statusText, emit `session-updated` with status
 
 ## Key Design Patterns
 
@@ -227,10 +250,10 @@ AI Stream → Server Orchestrator → Event Emitter → Client Handler → Signa
 addOptimisticMessage(msg);
 
 // Confirm from server
-await trpc.message.send.mutate(msg);
+await client.message.send.mutate(msg);
 
-// Update with server ID
-updateMessage(tempId, { id: serverId });
+// Reconcile optimistic state with server state
+optimisticManager.reconcile(sessionId, serverEvent);
 ```
 
 ### Pattern: Reactive Theme System
@@ -288,4 +311,6 @@ Server event → Event handler → Signal update → Components re-render
 - Dependencies: `package.json` files
 - Event types: `packages/code-core/src/types/streaming-events.types.ts`
 - Signal definitions: `packages/code-client/src/signals/domain/`
-- tRPC routes: `packages/code-server/src/trpc/routers/`
+- Lens API definition: `packages/code-api/src/api.ts`
+- Type-safe field selection: `TYPE_SAFE_LENS_INTEGRATION.md`
+- Architecture decisions: `.sylphx/decisions/009-lens-framework-integration.md`
