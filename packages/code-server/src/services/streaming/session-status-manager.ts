@@ -9,9 +9,9 @@
  * - Separation of concerns: Tool execution doesn't know about status
  */
 
-import type { SessionStatus, Todo } from "@sylphx/code-core";
+import type { Session, SessionStatus, Todo } from "@sylphx/code-core";
 import type { Observer } from "@trpc/server/observable";
-import { emitSessionStatusUpdated } from "./event-emitter.js";
+import { emitSessionUpdated } from "./event-emitter.js";
 import type { StreamEvent } from "./types.js";
 
 /**
@@ -77,28 +77,31 @@ function determineStatusText(todos: Todo[] | undefined, currentToolName?: string
 
 /**
  * Create session status manager
- * Maintains state and emits session-status-updated events
+ * Maintains state and emits session-updated events (model-level)
  *
  * @param observer - tRPC observer to emit events
  * @param sessionId - Session ID
- * @param initialTodos - Initial todos from session
+ * @param session - Full session model
  * @returns Manager instance with callbacks and cleanup function
  */
 export function createSessionStatusManager(
 	observer: Observer<StreamEvent, unknown>,
 	sessionId: string,
-	initialTodos: Todo[] | undefined,
+	session: Session,
 ): SessionStatusManager {
 	// Internal state
 	let currentTool: string | null = null;
-	let tokenUsage = 0;
+	let currentTokens = session.totalTokens || 0;
+	let baseContextTokens = session.baseContextTokens || 0;
 	let startTime = Date.now();
-	let todos = initialTodos;
+	let todos = session.todos;
 	let isActive = true;
 	let updateInterval: NodeJS.Timeout;
+	let sessionTitle = session.title;
 
 	/**
-	 * Emit session-status-updated event
+	 * Emit session-updated event (model-level)
+	 * Only includes fields managed by status manager
 	 */
 	function emitStatus() {
 		const statusText = determineStatusText(todos, currentTool ?? undefined);
@@ -107,11 +110,20 @@ export function createSessionStatusManager(
 		const status: SessionStatus = {
 			text: statusText,
 			duration,
-			tokenUsage,
+			tokenUsage: currentTokens,
 			isActive,
 		};
 
-		emitSessionStatusUpdated(observer, sessionId, status);
+		// Emit model-level event with partial session
+		// Frontend subscription will merge these changes with existing session
+		emitSessionUpdated(observer, sessionId, {
+			id: sessionId,
+			title: sessionTitle,
+			status,
+			totalTokens: currentTokens,
+			baseContextTokens,
+			updatedAt: Date.now(),
+		});
 	}
 
 	/**
@@ -134,7 +146,7 @@ export function createSessionStatusManager(
 		},
 
 		onTokenUpdate: (tokens: number) => {
-			tokenUsage = tokens;
+			currentTokens = tokens;
 			emitStatus();
 		},
 
@@ -147,6 +159,19 @@ export function createSessionStatusManager(
 			isActive = false;
 			emitStatus();
 		},
+	};
+
+	/**
+	 * Update session metadata (called when external updates occur)
+	 */
+	const updateSessionMetadata = (updates: {
+		title?: string;
+		totalTokens?: number;
+		baseContextTokens?: number;
+	}) => {
+		if (updates.title !== undefined) sessionTitle = updates.title;
+		if (updates.totalTokens !== undefined) currentTokens = updates.totalTokens;
+		if (updates.baseContextTokens !== undefined) baseContextTokens = updates.baseContextTokens;
 	};
 
 	// Emit initial status

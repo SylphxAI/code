@@ -62,36 +62,42 @@ export interface SessionStatus {
  * Discriminated union ensures type safety for event handling
  */
 export type StreamEvent =
-	// Session-level events
+	// Session-level events (model-level only)
 	| {
 			type: "session-created";
 			sessionId: string;
 			provider: string;
 			model: string;
 	  }
-	| { type: "session-updated"; sessionId: string }
 	| {
-			type: "session-tokens-updated";
+			type: "session-updated";
 			sessionId: string;
-			totalTokens: number;
-			baseContextTokens: number;
-			outputTokens?: number; // Current streaming output tokens (for status indicator)
+			session: {
+				id: string;
+				title: string;
+				status?: SessionStatus;
+				totalTokens?: number;
+				baseContextTokens?: number;
+				provider?: string;
+				model?: string;
+				updatedAt?: number;
+			};
 	  }
-	| { type: "session-title-updated-start"; sessionId: string }
-	| { type: "session-title-updated-delta"; sessionId: string; text: string }
-	| { type: "session-title-updated-end"; sessionId: string; title: string }
-	| { type: "session-status-updated"; sessionId: string; status: SessionStatus }
 
-	// Message-level events
+	// Message-level events (model-level only)
 	| { type: "user-message-created"; messageId: string; content: string }
 	| { type: "assistant-message-created"; messageId: string }
 	| { type: "system-message-created"; messageId: string; content: string }
 	| {
-			type: "message-status-updated";
+			type: "message-updated";
 			messageId: string;
-			status: "active" | "completed" | "error" | "abort";
-			usage?: TokenUsage;
-			finishReason?: string;
+			message: {
+				id: string;
+				status?: "active" | "completed" | "error" | "abort";
+				usage?: TokenUsage;
+				finishReason?: string;
+				content?: any[];
+			};
 	  }
 
 	// Step-level events

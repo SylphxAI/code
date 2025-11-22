@@ -213,18 +213,17 @@ export function handleSessionTokensUpdated(
 // ============================================================================
 
 /**
- * Handle session status updated event
- * Server controls unified progress indicator (status text, duration, tokens)
- * Client is pure UI - directly display data from server
+ * Handle session-updated event (model-level)
+ * Receives partial session with changed fields, merges with existing state
  *
- * ARCHITECTURE: Uses V2 Effect System for single source of truth
- * - Optimistic: optimisticManagerV2.apply() on user action
- * - Server: This handler reconciles with backend confirmation
- * - Rollback: Automatic if server rejects or timeout
- * - State updates: Via effects (optimistic system owns zen signals)
+ * Model-level architecture:
+ * - Server emits full/partial session model with all changed fields
+ * - Client merges changes with existing session state
+ * - Supports optimistic updates via V2 Effect System
+ * - Update strategies (delta/patch/value) handle transmission optimization
  */
-export function handleSessionStatusUpdated(
-	event: Extract<StreamEvent, { type: "session-status-updated" }>,
+export function handleSessionUpdated(
+	event: Extract<StreamEvent, { type: "session-updated" }>,
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
@@ -235,20 +234,39 @@ export function handleSessionStatusUpdated(
 		return;
 	}
 
-	logSession("Session status updated from event:", {
+	logSession("Session updated from event (model-level):", {
 		sessionId: event.sessionId,
-		status: event.status,
+		partialSession: event.session,
 	});
 
-	// V2 EFFECT SYSTEM: Reconcile optimistic update with server confirmation
-	// Manager will find pending operation, confirm it, and generate effects
-	// Effects will update zen signals, cancel timeout, and emit events
-	const result = optimisticManagerV2.reconcile(event.sessionId, {
-		type: "session-status-updated",
-		sessionId: event.sessionId,
-		status: event.status,
-	});
+	// Merge partial session with existing session
+	// Fields not included in event.session remain unchanged
+	const updatedSession = {
+		...currentSessionValue,
+		...event.session,
+		// Preserve arrays/objects if not in update
+		messages: event.session.messages || currentSessionValue.messages,
+		todos: event.session.todos || currentSessionValue.todos,
+		enabledRuleIds: event.session.enabledRuleIds || currentSessionValue.enabledRuleIds,
+	};
 
-	// Run effects (updates zen signals via Effect System)
-	runOptimisticEffects(result.effects);
+	// Update local state
+	setCurrentSession(updatedSession);
+
+	// If status changed, reconcile with optimistic system
+	if (event.session.status) {
+		const result = optimisticManagerV2.reconcile(event.sessionId, {
+			type: "session-status-updated",
+			sessionId: event.sessionId,
+			status: event.session.status,
+		});
+		runOptimisticEffects(result.effects);
+	}
+
+	logSession("Session updated successfully:", {
+		sessionId: event.sessionId,
+		title: updatedSession.title,
+		status: updatedSession.status,
+		totalTokens: updatedSession.totalTokens,
+	});
 }

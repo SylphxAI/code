@@ -6,7 +6,11 @@
 import type { EventStream } from "./event-stream.service.js";
 
 /**
- * Publish session title update to both channels
+ * Publish session title update (model-level event)
+ * Emits session-updated with partial session containing title
+ * Frontend subscriptions will merge this with existing session state
+ *
+ * Publishes to both channels:
  * - session:${sessionId} - for clients viewing that specific session
  * - session-events - for global sidebar sync across all clients
  */
@@ -18,15 +22,23 @@ export async function publishTitleUpdate(
 	await Promise.all([
 		// Session-specific channel (real-time display for current session)
 		eventStream.publish(`session:${sessionId}`, {
-			type: "session-title-updated-end" as const,
+			type: "session-updated" as const,
 			sessionId,
-			title,
+			session: {
+				id: sessionId,
+				title,
+				updatedAt: Date.now(),
+			},
 		}),
 		// Global channel (sidebar sync for all clients)
 		eventStream.publish("session-events", {
-			type: "session-title-updated" as const,
+			type: "session-updated" as const,
 			sessionId,
-			title,
+			session: {
+				id: sessionId,
+				title,
+				updatedAt: Date.now(),
+			},
 		}),
 	]);
 }

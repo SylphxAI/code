@@ -49,36 +49,33 @@ export function handleError(
 }
 
 /**
- * Handle message status update (UNIFIED STATUS CHANGE EVENT)
+ * Handle message-updated event (MODEL-LEVEL EVENT)
  *
- * Server is the source of truth for message status.
- * This handler receives status updates from the database and applies them to the UI.
+ * Receives partial message with changed fields from server.
+ * Merges changes with existing message state.
  *
- * Replaces client-side status calculation in handleComplete/handleAbort/handleError.
- *
- * Architecture:
- * - Server updates database → emits message-status-updated event
- * - All clients receive event → update UI state
- * - Multi-client sync automatically consistent
+ * Model-level architecture:
+ * - Server emits message-updated with partial message (only changed fields)
+ * - Client merges partial message with existing message
+ * - Update strategies (delta/patch/value) handle transmission optimization
+ * - All clients receive same model-level event → multi-client sync
  */
-export function handleMessageStatusUpdated(
-	event: Extract<StreamEvent, { type: "message-status-updated" }>,
+export function handleMessageUpdated(
+	event: Extract<StreamEvent, { type: "message-updated" }>,
 	context: EventHandlerContext,
 ) {
 	const currentSessionId = getCurrentSessionId();
 	const currentSessionValue = currentSession.value;
 
-	context.addLog(`[StreamEvent] Message status updated to: ${event.status}`);
+	context.addLog(`[StreamEvent] Message updated (model-level): ${event.messageId}`, event.message);
 
-	// Update message status in session (server is source of truth)
+	// Update message in session (merge partial message with existing)
 	if (currentSessionValue?.messages.some((m) => m.id === event.messageId)) {
 		const updatedMessages = currentSessionValue.messages.map((msg) =>
 			msg.id === event.messageId
 				? {
 						...msg,
-						status: event.status,
-						usage: event.usage || msg.usage,
-						finishReason: event.finishReason || msg.finishReason,
+						...event.message, // Merge partial message fields
 					}
 				: msg,
 		);
@@ -90,14 +87,14 @@ export function handleMessageStatusUpdated(
 	}
 
 	// If this is the currently streaming message, clean up streaming state
-	if (context.streamingMessageIdRef.current === event.messageId) {
+	if (context.streamingMessageIdRef.current === event.messageId && event.message.status) {
 		// Mark all active parts with the final status
 		// For reasoning parts without duration, calculate elapsed time
 		updateActiveMessageContent(currentSessionId, event.messageId, (prev) =>
 			prev.map((part) => {
 				if (part.status !== "active") return part;
 
-				const updatedPart = { ...part, status: event.status };
+				const updatedPart = { ...part, status: event.message.status! };
 
 				// If reasoning part without duration, calculate elapsed time
 				if (part.type === "reasoning" && !part.duration && part.startTime) {
@@ -108,10 +105,12 @@ export function handleMessageStatusUpdated(
 			}),
 		);
 
-		// Clear streaming state
-		context.streamingMessageIdRef.current = null;
-		context.setIsStreaming(false);
-		context.setStreamingStartTime(null);
-		context.setStreamingOutputTokens(0);
+		// Clear streaming state (only if message completed/error/abort)
+		if (["completed", "error", "abort"].includes(event.message.status!)) {
+			context.streamingMessageIdRef.current = null;
+			context.setIsStreaming(false);
+			context.setStreamingStartTime(null);
+			context.setStreamingOutputTokens(0);
+		}
 	}
 }

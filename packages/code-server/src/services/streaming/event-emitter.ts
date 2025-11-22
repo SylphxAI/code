@@ -25,6 +25,32 @@ export function emitSessionCreated(
 }
 
 /**
+ * Emit session-updated event (model-level)
+ * Sends full session model for optimistic updates and real-time sync
+ */
+export function emitSessionUpdated(
+	observer: Observer<StreamEvent, unknown>,
+	sessionId: string,
+	session: {
+		id: string;
+		title: string;
+		status?: SessionStatus;
+		totalTokens?: number;
+		baseContextTokens?: number;
+		provider?: string;
+		model?: string;
+		updatedAt?: number;
+	},
+): void {
+	observer.next({
+		type: "session-updated",
+		sessionId,
+		session,
+	});
+}
+
+/**
+ * @deprecated Use emitSessionUpdated with full session model
  * Emit session-status-updated event
  * Updates unified progress indicator (status text, duration, tokens)
  */
@@ -34,10 +60,10 @@ export function emitSessionStatusUpdated(
 	status: SessionStatus,
 ): void {
 	observer.next({
-		type: "session-status-updated",
+		type: "session-status-updated" as any,
 		sessionId,
 		status,
-	});
+	} as any);
 }
 
 /**
@@ -84,6 +110,29 @@ export function emitSystemMessageCreated(
 }
 
 /**
+ * Emit message-updated event (model-level)
+ * Sends full message model for optimistic updates and real-time sync
+ */
+export function emitMessageUpdated(
+	observer: Observer<StreamEvent, unknown>,
+	messageId: string,
+	message: {
+		id: string;
+		status?: "active" | "completed" | "error" | "abort";
+		usage?: TokenUsage;
+		finishReason?: string;
+		content?: any[];
+	},
+): void {
+	observer.next({
+		type: "message-updated",
+		messageId,
+		message,
+	});
+}
+
+/**
+ * @deprecated Use emitMessageUpdated with full message model
  * Emit message-status-updated event
  */
 export function emitMessageStatusUpdated(
@@ -94,12 +143,12 @@ export function emitMessageStatusUpdated(
 	usage?: TokenUsage,
 ): void {
 	observer.next({
-		type: "message-status-updated",
+		type: "message-status-updated" as any,
 		messageId,
 		status,
 		usage,
 		finishReason,
-	});
+	} as any);
 }
 
 /**

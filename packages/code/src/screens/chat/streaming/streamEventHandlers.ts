@@ -134,20 +134,14 @@ const eventHandlers: Record<StreamEvent["type"], EventHandler> = {
 	"session-deleted": handleSessionDeleted,
 	"session-model-updated": handleSessionModelUpdated,
 	"session-provider-updated": handleSessionProviderUpdated,
-	"session-status-updated": handleSessionStatusUpdated,
-	"session-tokens-updated": handleSessionTokensUpdated,
-
-	// Title events
-	"session-title-updated-start": handleSessionTitleUpdatedStart,
-	"session-title-updated-delta": handleSessionTitleUpdatedDelta,
-	"session-title-updated-end": handleSessionTitleUpdatedEnd,
-	"session-title-updated": handleSessionTitleUpdated,
+	// Model-level session updates (replaces field-level events)
+	"session-updated": handleSessionUpdated,
 
 	// Message events
 	"user-message-created": handleUserMessageCreated,
 	"assistant-message-created": handleAssistantMessageCreated,
 	"system-message-created": handleSystemMessageCreated,
-	"message-status-updated": handleMessageStatusUpdated,
+	"message-updated": handleMessageUpdated,
 
 	// Step events
 	"step-start": handleStepStart,

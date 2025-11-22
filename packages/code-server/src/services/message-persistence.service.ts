@@ -96,13 +96,17 @@ export async function updateMessageStatus(
 	try {
 		await messageRepository.updateMessageStatus(messageId, status, finishReason);
 
-		// Emit message-status-updated event (unified status change event)
+		// Emit message-updated event (model-level: partial message with changed fields)
+		// Frontend subscription will merge this with existing message
 		observer.next({
-			type: "message-status-updated",
+			type: "message-updated",
 			messageId: messageId,
-			status: status,
-			usage: usage,
-			finishReason: finishReason,
+			message: {
+				id: messageId,
+				status: status,
+				usage: usage,
+				finishReason: finishReason,
+			},
 		});
 	} catch (dbError) {
 		console.error("[MessagePersistence] Failed to update message status:", dbError);
