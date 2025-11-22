@@ -576,6 +576,554 @@ export const fileAPI = lens.object({
 });
 
 /**
+ * Bash API
+ * tRPC API for bash process management
+ */
+export const bashAPI = lens.object({
+	/**
+	 * Execute bash command (active/background)
+	 *
+	 * Usage:
+	 * - Active bash: blocks if slot occupied
+	 * - Background bash: spawns immediately
+	 */
+	execute: lens.mutation({
+		input: z.object({
+			command: z.string().min(1),
+			mode: z.enum(["active", "background"]).default("active"),
+			cwd: z.string().optional(),
+			timeout: z.number().min(1000).max(600000).default(120000).optional(),
+		}),
+		output: z.object({
+			bashId: z.string(),
+			command: z.string(),
+			mode: z.enum(["active", "background"]),
+		}),
+		resolve: async ({ command, mode, cwd, timeout }: { command: string; mode: "active" | "background"; cwd?: string; timeout?: number }, ctx?: any) => {
+			const { bashManagerV2 } = ctx.appContext;
+
+			const bashId = await bashManagerV2.execute(command, {
+				mode,
+				cwd,
+				timeout,
+			});
+
+			return {
+				bashId,
+				command,
+				mode,
+			};
+		},
+	}),
+
+	/**
+	 * List all bash processes
+	 */
+	list: lens.query({
+		input: z.object({}),
+		output: z.array(z.any()), // BashProcess array
+		resolve: async (_input: Record<string, never>, ctx?: any) => {
+			const { bashManagerV2 } = ctx.appContext;
+			return bashManagerV2.list();
+		},
+	}),
+
+	/**
+	 * Get bash process info
+	 */
+	get: lens.query({
+		input: z.object({
+			bashId: z.string(),
+		}),
+		output: z.object({
+			id: z.string(),
+			command: z.string(),
+			mode: z.enum(["active", "background"]),
+			status: z.enum(["running", "completed", "failed", "killed", "timeout"]),
+			isActive: z.boolean(),
+			startTime: z.number(),
+			endTime: z.number().optional(),
+			exitCode: z.number().optional(),
+			cwd: z.string().optional(),
+			duration: z.number(),
+			stdout: z.string(),
+			stderr: z.string(),
+		}),
+		resolve: async ({ bashId }: { bashId: string }, ctx?: any) => {
+			const { bashManagerV2 } = ctx.appContext;
+			const proc = bashManagerV2.get(bashId);
+
+			if (!proc) {
+				throw new Error(`Bash process not found: ${bashId}`);
+			}
+
+			return {
+				id: proc.id,
+				command: proc.command,
+				mode: proc.mode,
+				status: proc.status,
+				isActive: bashManagerV2.getActiveBashId() === proc.id,
+				startTime: proc.startTime,
+				endTime: proc.endTime,
+				exitCode: proc.exitCode,
+				cwd: proc.cwd,
+				duration: (proc.endTime || Date.now()) - proc.startTime,
+				stdout: proc.stdout,
+				stderr: proc.stderr,
+			};
+		},
+	}),
+
+	/**
+	 * Kill bash process
+	 */
+	kill: lens.mutation({
+		input: z.object({
+			bashId: z.string(),
+		}),
+		output: z.object({
+			success: z.boolean(),
+			bashId: z.string(),
+		}),
+		resolve: async ({ bashId }: { bashId: string }, ctx?: any) => {
+			const { bashManagerV2 } = ctx.appContext;
+			const success = bashManagerV2.kill(bashId);
+
+			if (!success) {
+				throw new Error(`Failed to kill bash process: ${bashId}`);
+			}
+
+			return { success: true, bashId };
+		},
+	}),
+
+	/**
+	 * Demote active bash → background (Ctrl+B)
+	 */
+	demote: lens.mutation({
+		input: z.object({
+			bashId: z.string(),
+		}),
+		output: z.object({
+			success: z.boolean(),
+			bashId: z.string(),
+			mode: z.literal("background"),
+		}),
+		resolve: async ({ bashId }: { bashId: string }, ctx?: any) => {
+			const { bashManagerV2 } = ctx.appContext;
+			const success = bashManagerV2.demote(bashId);
+
+			if (!success) {
+				throw new Error(`Failed to demote bash: ${bashId} (not active or not found)`);
+			}
+
+			return { success: true, bashId, mode: "background" as const };
+		},
+	}),
+
+	/**
+	 * Promote background bash → active (waits for slot)
+	 */
+	promote: lens.mutation({
+		input: z.object({
+			bashId: z.string(),
+		}),
+		output: z.object({
+			success: z.boolean(),
+			bashId: z.string(),
+			mode: z.literal("active"),
+		}),
+		resolve: async ({ bashId }: { bashId: string }, ctx?: any) => {
+			const { bashManagerV2 } = ctx.appContext;
+			const success = await bashManagerV2.promote(bashId);
+
+			if (!success) {
+				throw new Error(`Failed to promote bash: ${bashId} (not background, not running, or not found)`);
+			}
+
+			return { success: true, bashId, mode: "active" as const };
+		},
+	}),
+
+	/**
+	 * Get active bash info
+	 */
+	getActive: lens.query({
+		input: z.object({}),
+		output: z.object({
+			id: z.string(),
+			command: z.string(),
+			mode: z.enum(["active", "background"]),
+			status: z.enum(["running", "completed", "failed", "killed", "timeout"]),
+			startTime: z.number(),
+			cwd: z.string().optional(),
+			duration: z.number(),
+		}).nullable(),
+		resolve: async (_input: Record<string, never>, ctx?: any) => {
+			const { bashManagerV2 } = ctx.appContext;
+			const activeBashId = bashManagerV2.getActiveBashId();
+
+			if (!activeBashId) {
+				return null;
+			}
+
+			const proc = bashManagerV2.get(activeBashId);
+			if (!proc) return null;
+
+			return {
+				id: proc.id,
+				command: proc.command,
+				mode: proc.mode,
+				status: proc.status,
+				startTime: proc.startTime,
+				cwd: proc.cwd,
+				duration: (proc.endTime || Date.now()) - proc.startTime,
+			};
+		},
+	}),
+
+	/**
+	 * Get active queue length
+	 */
+	getActiveQueueLength: lens.query({
+		input: z.object({}),
+		output: z.object({
+			count: z.number(),
+		}),
+		resolve: async (_input: Record<string, never>, ctx?: any) => {
+			const { bashManagerV2 } = ctx.appContext;
+			return { count: bashManagerV2.getActiveQueueLength() };
+		},
+	}),
+});
+
+/**
+ * Admin API
+ * System management operations (admin-only)
+ * SECURITY: Function level authorization (OWASP API5) + API Inventory (OWASP API9)
+ */
+export const adminAPI = lens.object({
+	/**
+	 * Delete all sessions (admin-only)
+	 * SECURITY: Requires admin role (in-process CLI only)
+	 * Dangerous operation - removes all data
+	 */
+	deleteAllSessions: lens.mutation({
+		input: z.object({
+			confirm: z.literal(true),
+		}),
+		output: z.object({
+			success: z.boolean(),
+			deletedCount: z.number(),
+			message: z.string(),
+		}),
+		resolve: async ({ confirm }: { confirm: true }, ctx?: any) => {
+			// Get all sessions
+			const sessions = await ctx.sessionRepository.getRecentSessionsMetadata(1000);
+
+			// Clear ask queues and delete each session (cascade deletes messages, todos, attachments)
+			const { clearSessionAsks } = await import("../../code-server/src/services/ask-queue.service.js");
+			let deletedCount = 0;
+			for (const session of sessions.sessions) {
+				clearSessionAsks(session.id);
+				await ctx.sessionRepository.deleteSession(session.id);
+				deletedCount++;
+			}
+
+			return {
+				success: true,
+				deletedCount,
+				message: `Deleted ${deletedCount} sessions`,
+			};
+		},
+	}),
+
+	/**
+	 * Get system statistics (admin-only)
+	 * SECURITY: Requires admin role
+	 * Shows internal metrics not exposed to regular users
+	 */
+	getSystemStats: lens.query({
+		input: z.object({}),
+		output: z.object({
+			sessions: z.object({
+				total: z.number(),
+				avgMessagesPerSession: z.number(),
+			}),
+			messages: z.object({
+				total: z.number(),
+			}),
+			config: z.object({
+				providers: z.array(z.string()),
+				defaultProvider: z.string().optional(),
+				defaultModel: z.string().optional(),
+			}),
+		}),
+		resolve: async (_input: Record<string, never>, ctx?: any) => {
+			const sessionCount = await ctx.sessionRepository.getSessionCount();
+
+			// Get all sessions to calculate stats
+			const sessions = await ctx.sessionRepository.getRecentSessionsMetadata(1000);
+
+			// Calculate message count across all sessions
+			let totalMessages = 0;
+			for (const session of sessions.sessions) {
+				totalMessages += session.messageCount || 0;
+			}
+
+			return {
+				sessions: {
+					total: sessionCount,
+					avgMessagesPerSession: sessionCount > 0 ? totalMessages / sessionCount : 0,
+				},
+				messages: {
+					total: totalMessages,
+				},
+				config: {
+					providers: Object.keys(ctx.aiConfig.providers || {}),
+					defaultProvider: ctx.aiConfig.defaultProvider,
+					defaultModel: ctx.aiConfig.defaultModel,
+				},
+			};
+		},
+	}),
+
+	/**
+	 * Get server health (public - for monitoring)
+	 * No authorization required
+	 */
+	getHealth: lens.query({
+		input: z.object({}),
+		output: z.object({
+			status: z.literal("ok"),
+			timestamp: z.number(),
+			uptime: z.number(),
+			memory: z.object({
+				used: z.number(),
+				total: z.number(),
+			}),
+		}),
+		resolve: async (_input: Record<string, never>, ctx?: any) => {
+			return {
+				status: "ok" as const,
+				timestamp: Date.now(),
+				uptime: process.uptime(),
+				memory: {
+					used: process.memoryUsage().heapUsed,
+					total: process.memoryUsage().heapTotal,
+				},
+			};
+		},
+	}),
+
+	/**
+	 * Force garbage collection (admin-only)
+	 * SECURITY: Requires admin role
+	 * System management operation
+	 */
+	forceGC: lens.mutation({
+		input: z.object({}),
+		output: z.object({
+			success: z.boolean(),
+			message: z.string(),
+		}),
+		resolve: async (_input: Record<string, never>, ctx?: any) => {
+			if (global.gc) {
+				global.gc();
+				return { success: true, message: "Garbage collection triggered" };
+			} else {
+				return {
+					success: false,
+					message: "GC not exposed. Run with --expose-gc flag",
+				};
+			}
+		},
+	}),
+
+	/**
+	 * Get API inventory (public - for documentation)
+	 * SECURITY: OWASP API9 compliance
+	 * Shows all available endpoints, their types, and requirements
+	 */
+	getAPIInventory: lens.query({
+		input: z.object({}),
+		output: z.any(), // API inventory structure
+		resolve: async (_input: Record<string, never>, ctx?: any) => {
+			const { getAPIInventory } = await import("../../code-server/src/utils/api-inventory.js");
+			return getAPIInventory();
+		},
+	}),
+
+	/**
+	 * Get API documentation (public - for developers)
+	 * SECURITY: OWASP API9 compliance
+	 * Returns Markdown-formatted API reference
+	 */
+	getAPIDocs: lens.query({
+		input: z.object({
+			format: z.enum(["json", "markdown"]).default("json"),
+		}),
+		output: z.any(), // String (markdown) or object (json)
+		resolve: async ({ format }: { format: "json" | "markdown" }, ctx?: any) => {
+			const { getAPIInventory, generateMarkdownDocs } = await import("../../code-server/src/utils/api-inventory.js");
+
+			if (format === "markdown") {
+				return generateMarkdownDocs();
+			}
+			return getAPIInventory();
+		},
+	}),
+});
+
+/**
+ * Events API
+ * Generic event stream subscriptions with cursor-based replay
+ *
+ * Architecture:
+ * - Channel-based routing (session-events, session:{id}, config:*, app:*)
+ * - Exact channel matching subscriptions
+ * - Cursor-based replay from database
+ * - Real-time push via observables
+ */
+export const eventsAPI = lens.object({
+	/**
+	 * Subscribe to events by channel
+	 *
+	 * Channel examples:
+	 * - 'session:abc123' - Specific session
+	 * - 'session-events' - All session CRUD events
+	 * - 'config:ai' - AI config changes
+	 *
+	 * Cursor-based replay:
+	 * - If fromCursor provided, replays events AFTER that cursor from database
+	 * - Then continues with real-time events
+	 */
+	subscribe: lens.query({
+		input: z.object({
+			channel: z.string(), // Exact channel (e.g., 'session:abc123', 'session-events')
+			fromCursor: z.object({
+				timestamp: z.number(),
+				sequence: z.number(),
+			}).optional(), // Resume from cursor (undefined = only new events)
+		}),
+		output: z.object({
+			id: z.string(),
+			cursor: z.object({
+				timestamp: z.number(),
+				sequence: z.number(),
+			}),
+			channel: z.string(),
+			type: z.string(),
+			timestamp: z.number(),
+			payload: z.any(),
+		}),
+		resolve: async ({ channel, fromCursor }: { channel: string; fromCursor?: { timestamp: number; sequence: number } }, ctx?: any) => {
+			throw new Error("Use subscribe() method for event streaming");
+		},
+		subscribe: ({ channel, fromCursor }: { channel: string; fromCursor?: { timestamp: number; sequence: number } }, ctx?: any): Observable<any> => {
+			return ctx.appContext.eventStream.subscribe(channel, fromCursor);
+		},
+	}),
+
+	/**
+	 * Subscribe to specific session with auto-replay of latest N events
+	 *
+	 * Convenience wrapper around subscribe() for common use case.
+	 * Automatically replays last N events + continues with real-time.
+	 */
+	subscribeToSession: lens.query({
+		input: z.object({
+			sessionId: z.string(),
+			replayLast: z.number().min(0).max(100).default(0), // Replay last N events
+		}),
+		output: z.object({
+			id: z.string(),
+			cursor: z.object({
+				timestamp: z.number(),
+				sequence: z.number(),
+			}),
+			channel: z.string(),
+			type: z.string(),
+			timestamp: z.number(),
+			payload: z.any(),
+		}),
+		resolve: async ({ sessionId, replayLast }: { sessionId: string; replayLast: number }, ctx?: any) => {
+			throw new Error("Use subscribe() method for event streaming");
+		},
+		subscribe: ({ sessionId, replayLast }: { sessionId: string; replayLast: number }, ctx?: any): Observable<any> => {
+			const channel = `session:${sessionId}`;
+			return ctx.appContext.eventStream.subscribeWithHistory(channel, replayLast);
+		},
+	}),
+
+	/**
+	 * Subscribe to all session events (session list sync)
+	 *
+	 * Subscribes to session-events channel for multi-client session list sync.
+	 * Receives events: session-created, session-deleted, session-title-updated, etc.
+	 */
+	subscribeToAllSessions: lens.query({
+		input: z.object({
+			replayLast: z.number().min(0).max(100).default(20), // Replay last N events
+		}),
+		output: z.object({
+			id: z.string(),
+			cursor: z.object({
+				timestamp: z.number(),
+				sequence: z.number(),
+			}),
+			channel: z.string(),
+			type: z.string(),
+			timestamp: z.number(),
+			payload: z.any(),
+		}),
+		resolve: async ({ replayLast }: { replayLast: number }, ctx?: any) => {
+			throw new Error("Use subscribe() method for event streaming");
+		},
+		subscribe: ({ replayLast }: { replayLast: number }, ctx?: any): Observable<any> => {
+			const channel = "session-events";
+			return ctx.appContext.eventStream.subscribeWithHistory(channel, replayLast);
+		},
+	}),
+
+	/**
+	 * Get channel info (for debugging)
+	 *
+	 * Returns:
+	 * - inMemoryCount: Number of active subscribers
+	 * - persistedCount: Total events in database
+	 * - firstId/lastId: Range of event IDs
+	 */
+	getChannelInfo: lens.query({
+		input: z.object({
+			channel: z.string(),
+		}),
+		output: z.any(), // Channel info structure
+		resolve: async ({ channel }: { channel: string }, ctx?: any) => {
+			return await ctx.appContext.eventStream.info(channel);
+		},
+	}),
+
+	/**
+	 * Cleanup old events from a channel
+	 * Keeps last N events, deletes older ones
+	 */
+	cleanupChannel: lens.mutation({
+		input: z.object({
+			channel: z.string(),
+			keepLast: z.number().min(1).max(1000).default(100),
+		}),
+		output: z.object({
+			success: z.boolean(),
+		}),
+		resolve: async ({ channel, keepLast }: { channel: string; keepLast: number }, ctx?: any) => {
+			await ctx.appContext.eventStream.cleanupChannel(channel, keepLast);
+			return { success: true };
+		},
+	}),
+});
+
+/**
  * Root API
  */
 export const api = lens.object({
@@ -583,6 +1131,9 @@ export const api = lens.object({
 	message: messageAPI,
 	todo: todoAPI,
 	file: fileAPI,
+	bash: bashAPI,
+	admin: adminAPI,
+	events: eventsAPI,
 });
 
 export type API = typeof api;
