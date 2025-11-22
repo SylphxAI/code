@@ -16,8 +16,7 @@
  */
 
 import { useEffect, useRef } from "react";
-import { currentSession, setCurrentSession, getLensClient, setError, useCurrentSessionId } from "@sylphx/code-client";
-import type { API } from "@sylphx/code-api";
+import { currentSession, setCurrentSession, lensClient, setError, useCurrentSessionId } from "@sylphx/code-client";
 
 export interface EventStreamCallbacks {
 	// Session events
@@ -151,9 +150,7 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 		}
 
 		// Subscribe to strongly-typed session events using Lens
-		const client = getLensClient<API>();
-
-		const subscription = client.events.subscribeToSession.subscribe(
+		const subscription = lensClient.events.subscribeToSession.subscribe(
 			{
 				sessionId: currentSessionId,
 				replayLast,

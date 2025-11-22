@@ -11,8 +11,7 @@
  */
 
 import { useCallback } from "react";
-import { getLensClient } from "@sylphx/code-client";
-import type { API } from "@sylphx/code-api";
+import { lensClient } from "@sylphx/code-client";
 import type {  WaitForInputOptions  } from "@sylphx/code-client";
 
 interface UseAskToolHandlerProps {
@@ -65,14 +64,12 @@ export function useAskToolHandler({
 					throw new Error("No active session");
 				}
 
-				const client = getLensClient<API>();
-
 				// Convert string answer to Record format if needed
 				const answerRecord = typeof answers === "string" ? { "0": answers } : answers;
 
 				try {
 					// Send answer to server via mutation
-					await client.message.answerAsk.mutate({
+					await lensClient.message.answerAsk.mutate({
 						sessionId: currentSessionId,
 						questionId,
 						answers: answerRecord,

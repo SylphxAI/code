@@ -14,7 +14,6 @@ import {
 	setProvidersError as setProvidersErrorSignal,
 	type Provider,
 } from "@sylphx/code-client";
-import type { API } from "@sylphx/code-api";
 
 /**
  * Hook to fetch all available AI providers
@@ -22,7 +21,7 @@ import type { API } from "@sylphx/code-api";
  * Data stored in Zen signals for global access
  */
 export function useProviders() {
-	const client = useLensClient<API>();
+	const client = useLensClient();
 	const providers = useProvidersSignal();
 	const loading = useProvidersLoading();
 	const error = useProvidersError();
@@ -34,7 +33,7 @@ export function useProviders() {
 			try {
 				setProvidersLoadingSignal(true);
 				setProvidersErrorSignal(null);
-				const data = await client.config.getProviders.query({});
+				const data = await client.config.getProviders.query();
 				if (mounted) {
 					setProvidersSignal(data);
 				}

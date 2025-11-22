@@ -14,7 +14,6 @@ import {
 	setModelsError as setModelsErrorSignal,
 	type ModelInfo,
 } from "@sylphx/code-client";
-import type { API } from "@sylphx/code-api";
 
 /**
  * Hook to fetch models for a specific provider
@@ -27,7 +26,7 @@ import type { API } from "@sylphx/code-api";
  * - Client shouldn't need updates when new providers are added
  */
 export function useModels(providerId: string | null) {
-	const client = useLensClient<API>();
+	const client = useLensClient();
 	const modelsByProvider = useModelsByProvider();
 	const loading = useModelsLoading();
 	const error = useModelsError();

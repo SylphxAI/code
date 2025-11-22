@@ -15,7 +15,7 @@ import { useEffect, useRef } from "react";
 import {
 	eventBus,
 	currentSession,
-	getLensClient,
+	lensClient,
 	isStreaming,
 	setCurrentSession,
 	useCurrentSession as useOptimisticSession,
@@ -28,7 +28,6 @@ import {
 	setCurrentSessionLoading as setCurrentSessionLoadingSignal,
 	setCurrentSessionError as setCurrentSessionErrorSignal,
 } from "@sylphx/code-client";
-import type { API } from "@sylphx/code-api";
 
 export function useCurrentSession() {
 	const currentSessionId = useCurrentSessionId();
@@ -82,8 +81,7 @@ export function useCurrentSession() {
 		setCurrentSessionLoadingSignal(true);
 		setCurrentSessionErrorSignal(null);
 
-		const client = getLensClient<API>();
-		client.session.getById
+		lensClient.session.getById
 			.query({ sessionId: currentSessionId })
 			.then((session) => {
 				setServerSessionSignal(session);

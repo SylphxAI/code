@@ -6,15 +6,14 @@
 import type { AIConfig } from "@sylphx/code-core";
 import { useCallback } from "react";
 import { setAIConfig, setError, setLoading, useLensClient } from "@sylphx/code-client";
-import type { API } from "@sylphx/code-api";
 
 export function useAIConfig() {
-	const client = useLensClient<API>();
+	const client = useLensClient();
 
 	const loadConfig = useCallback(async () => {
 		setLoading(true);
 		try {
-			const result = await client.config.load.query({});
+			const result = await client.config.load.query();
 
 			if (result.success) {
 				// Use setAIConfig to trigger logic for loading defaultEnabledRuleIds and defaultAgentId

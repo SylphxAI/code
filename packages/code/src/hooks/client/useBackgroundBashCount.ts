@@ -9,18 +9,17 @@ import {
 	useBackgroundBashCount as useBackgroundBashCountSignal,
 	setBackgroundBashCount as setBackgroundBashCountSignal,
 } from "@sylphx/code-client";
-import type { API } from "@sylphx/code-api";
 import { useEffect, useRef } from "react";
 
 export function useBackgroundBashCount(): number {
-	const client = useLensClient<API>();
+	const client = useLensClient();
 	const count = useBackgroundBashCountSignal();
 	const subscriptionRef = useRef<any>(null);
 
 	useEffect(() => {
 		const updateCount = async () => {
 			try {
-				const processes = await client.bash.list.query({});
+				const processes = await client.bash.list.query();
 				// Count background processes (not active, still running)
 				const bgCount = processes.filter(
 					(p: any) => !p.isActive && p.status === "running",

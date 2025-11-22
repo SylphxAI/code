@@ -9,8 +9,7 @@
 
 import type { FileAttachment, TokenUsage } from "@sylphx/code-core";
 import { useCallback } from "react";
-import { getLensClient, setError } from "@sylphx/code-client";
-import type { API } from "@sylphx/code-api";
+import { lensClient, setError } from "@sylphx/code-client";
 import { useCurrentSession, useCurrentSessionId } from "./useCurrentSession.js";
 
 /**
@@ -100,10 +99,8 @@ export function useChat() {
 			}
 
 			try {
-				const client = getLensClient<API>();
-
 				// Subscribe to streaming response
-				const subscription = client.message.streamResponse.subscribe(
+				const subscription = lensClient.message.streamResponse.subscribe(
 					{
 						sessionId: currentSessionId,
 						userMessageContent: message,

@@ -31,8 +31,7 @@
  */
 
 import { useEffect, useRef } from "react";
-import { getLensClient } from "@sylphx/code-client";
-import type { API } from "@sylphx/code-api";
+import { lensClient } from "@sylphx/code-client";
 
 export interface SessionListSyncCallbacks {
 	/**
@@ -108,9 +107,7 @@ export function useSessionListSync(options: UseSessionListSyncOptions = {}) {
 		// Subscribe to all session events using Lens
 		const setupSubscription = () => {
 			try {
-				const client = getLensClient<API>();
-
-				const subscription = client.events.subscribeToAllSessions.subscribe(
+				const subscription = lensClient.events.subscribeToAllSessions.subscribe(
 					{ replayLast },
 					{
 						next: (storedEvent: any) => {
