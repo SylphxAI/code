@@ -1,9 +1,12 @@
 /**
  * Bash Management Screen
  * Real-time bash process management with streaming output
+ *
+ * Note: Migrated to Lens client for fine-grained frontend-driven architecture
+ * TODO: Implement bash output subscription using Lens subscriptions (Phase 5+)
  */
 
-import { useTRPC } from "@sylphx/code-client";
+import { lensClient } from "@sylphx/code-client";
 import { useEffect, useState } from "preact/hooks";
 
 interface BashProcess {
@@ -18,7 +21,6 @@ interface BashProcess {
 }
 
 export function BashScreen() {
-	const trpc = useTRPC();
 	const [processes, setProcesses] = useState<BashProcess[]>([]);
 	const [selectedBashId, setSelectedBashId] = useState<string | null>(null);
 	const [output, setOutput] = useState<string>("");
@@ -27,7 +29,7 @@ export function BashScreen() {
 	useEffect(() => {
 		const loadProcesses = async () => {
 			try {
-				const result = await trpc.bash.list.query();
+				const result = await lensClient.bash.list.query();
 				setProcesses(result);
 			} catch (error) {
 				console.error("[BashScreen] Failed to load processes:", error);
@@ -38,59 +40,33 @@ export function BashScreen() {
 		const interval = setInterval(loadProcesses, 2000); // Refresh every 2s
 
 		return () => clearInterval(interval);
-	}, [trpc]);
+	}, []);
 
-	// Subscribe to selected bash output
+	// TODO: Migrate bash output subscription to Lens subscriptions
+	// For now, real-time output is disabled until Lens subscription support is added
 	useEffect(() => {
 		if (!selectedBashId) {
 			setOutput("");
 			return;
 		}
 
-		const channel = `bash:${selectedBashId}`;
-		let subscription: any = null;
+		setOutput("[Real-time output subscription not yet implemented with Lens]\n");
 
-		try {
-			subscription = trpc.events.subscribe.subscribe(
-				{ channel, fromCursor: undefined },
-				{
-					onData: (event: any) => {
-						if (event.payload?.type === "output") {
-							const chunk = event.payload.output;
-							setOutput((prev) => prev + chunk.data);
-						} else if (event.payload?.type === "started") {
-							setOutput("[Started]\n");
-						} else if (
-							event.payload?.type === "completed" ||
-							event.payload?.type === "failed" ||
-							event.payload?.type === "killed"
-						) {
-							setOutput(
-								(prev) =>
-									prev +
-									`\n[${event.payload.type.toUpperCase()}${event.payload.exitCode !== undefined ? ` - Exit code: ${event.payload.exitCode}` : ""}]\n`,
-							);
-						}
-					},
-					onError: (err: any) => {
-						console.error("[BashScreen] Subscription error:", err);
-					},
-				},
-			);
-		} catch (error) {
-			console.error("[BashScreen] Failed to subscribe:", error);
-		}
+		// TODO: Replace with Lens subscription when available
+		// const subscription = lensClient.bash.getOutput.subscribe({ bashId: selectedBashId })
+		//   .subscribe({
+		//     next: (event) => { ... },
+		//     error: (err) => { ... }
+		//   });
 
 		return () => {
-			if (subscription) {
-				subscription.unsubscribe();
-			}
+			// cleanup
 		};
-	}, [selectedBashId, trpc]);
+	}, [selectedBashId]);
 
 	const handleKill = async (bashId: string) => {
 		try {
-			await trpc.bash.kill.mutate({ bashId });
+			await lensClient.bash.kill.mutate({ bashId });
 			console.log(`[BashScreen] Killed bash ${bashId}`);
 		} catch (error) {
 			console.error("[BashScreen] Failed to kill:", error);
@@ -99,7 +75,7 @@ export function BashScreen() {
 
 	const handleDemote = async (bashId: string) => {
 		try {
-			await trpc.bash.demote.mutate({ bashId });
+			await lensClient.bash.demote.mutate({ bashId });
 			console.log(`[BashScreen] Demoted bash ${bashId}`);
 		} catch (error) {
 			console.error("[BashScreen] Failed to demote:", error);
@@ -108,7 +84,7 @@ export function BashScreen() {
 
 	const handlePromote = async (bashId: string) => {
 		try {
-			await trpc.bash.promote.mutate({ bashId });
+			await lensClient.bash.promote.mutate({ bashId });
 			console.log(`[BashScreen] Promoted bash ${bashId}`);
 		} catch (error) {
 			console.error("[BashScreen] Failed to promote:", error);

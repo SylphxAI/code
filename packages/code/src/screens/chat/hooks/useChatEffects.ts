@@ -5,6 +5,7 @@
 
 import { useAIConfigActions } from "../../../hooks/client/useAIConfig.js";
 import { useEventStream } from "../../../hooks/client/useEventStream.js";
+import { useLensSessionSubscription } from "../../../hooks/client/useLensSessionSubscription.js";
 import { addMessageAsync as addMessage, setCurrentSessionId, updateSessionTitle } from "@sylphx/code-client";
 import { clearUserInputHandler, setUserInputHandler } from "@sylphx/code-core";
 import { useCallback, useEffect, useMemo } from "react";
@@ -125,8 +126,29 @@ export function useChatEffects(state: ChatState) {
 		setStreamingOutputTokens: state.streamingState.setStreamingOutputTokens,
 	});
 
-	// Event stream for multi-client sync
+	// PHASE 4: Lens Subscriptions - Fine-Grained Frontend-Driven Architecture
+	//
+	// Split subscriptions for fine-grained control:
+	// 1. Session metadata subscription (Lens) - Enables field selection in Phase 5
+	// 2. Content streaming subscription (Event Stream) - Inherently incremental events
+	//
+	// This separation prepares for:
+	// - Phase 5: Field selection (select: { id: true, title: true, status: true })
+	// - Phase 6: Update strategies (updateMode: 'delta' for optimal transmission)
+
+	// Session metadata subscription (model-level events)
+	// Uses session.getById.subscribe() for fine-grained control
+	useLensSessionSubscription({
+		onSessionUpdated: (session) => {
+			// Session updated via model-level event
+			// In Phase 5, this will support field selection
+			// In Phase 6, this will support update strategies (delta/patch/auto)
+		},
+	});
+
+	// Content streaming subscription (incremental events)
 	// IMPORTANT: replayLast > 0 required for compact auto-trigger
+	// Handles: text-delta, tool-call, tool-result, reasoning-delta, etc.
 	useEventStream({
 		replayLast: 50,
 		callbacks: eventStreamCallbacks,
