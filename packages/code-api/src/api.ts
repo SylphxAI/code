@@ -125,9 +125,9 @@ export const sessionAPI = lens.object({
 	 * Get session count
 	 */
 	getCount: lens.query({
-		input: z.object({}),
+		input: void,
 		output: z.number(),
-		resolve: async (_input: Record<string, never>, ctx?: any) => {
+		resolve: async (ctx?: any) => {
 			return await ctx.sessionRepository.getSessionCount();
 		},
 	}),
@@ -136,9 +136,9 @@ export const sessionAPI = lens.object({
 	 * Get last session (for headless mode)
 	 */
 	getLast: lens.query({
-		input: z.object({}),
+		input: void,
 		output: SessionSchema.nullable(),
-		resolve: async (_input: Record<string, never>, ctx?: any) => {
+		resolve: async (ctx?: any) => {
 			return await ctx.sessionRepository.getLastSession();
 		},
 	}),
@@ -690,9 +690,9 @@ export const bashAPI = lens.object({
 	 * List all bash processes
 	 */
 	list: lens.query({
-		input: z.object({}),
+		input: void,
 		output: z.array(z.any()), // BashProcess array
-		resolve: async (_input: Record<string, never>, ctx?: any) => {
+		resolve: async (ctx?: any) => {
 			const { bashManagerV2 } = ctx.appContext;
 			return bashManagerV2.list();
 		},
@@ -819,7 +819,7 @@ export const bashAPI = lens.object({
 	 * Get active bash info
 	 */
 	getActive: lens.query({
-		input: z.object({}),
+		input: void,
 		output: z.object({
 			id: z.string(),
 			command: z.string(),
@@ -829,7 +829,7 @@ export const bashAPI = lens.object({
 			cwd: z.string().optional(),
 			duration: z.number(),
 		}).nullable(),
-		resolve: async (_input: Record<string, never>, ctx?: any) => {
+		resolve: async (ctx?: any) => {
 			const { bashManagerV2 } = ctx.appContext;
 			const activeBashId = bashManagerV2.getActiveBashId();
 
@@ -856,11 +856,11 @@ export const bashAPI = lens.object({
 	 * Get active queue length
 	 */
 	getActiveQueueLength: lens.query({
-		input: z.object({}),
+		input: void,
 		output: z.object({
 			count: z.number(),
 		}),
-		resolve: async (_input: Record<string, never>, ctx?: any) => {
+		resolve: async (ctx?: any) => {
 			const { bashManagerV2 } = ctx.appContext;
 			return { count: bashManagerV2.getActiveQueueLength() };
 		},
@@ -914,7 +914,7 @@ export const adminAPI = lens.object({
 	 * Shows internal metrics not exposed to regular users
 	 */
 	getSystemStats: lens.query({
-		input: z.object({}),
+		input: void,
 		output: z.object({
 			sessions: z.object({
 				total: z.number(),
@@ -929,7 +929,7 @@ export const adminAPI = lens.object({
 				defaultModel: z.string().optional(),
 			}),
 		}),
-		resolve: async (_input: Record<string, never>, ctx?: any) => {
+		resolve: async (ctx?: any) => {
 			const sessionCount = await ctx.sessionRepository.getSessionCount();
 
 			// Get all sessions to calculate stats
@@ -963,7 +963,7 @@ export const adminAPI = lens.object({
 	 * No authorization required
 	 */
 	getHealth: lens.query({
-		input: z.object({}),
+		input: void,
 		output: z.object({
 			status: z.literal("ok"),
 			timestamp: z.number(),
@@ -973,7 +973,7 @@ export const adminAPI = lens.object({
 				total: z.number(),
 			}),
 		}),
-		resolve: async (_input: Record<string, never>, ctx?: any) => {
+		resolve: async (ctx?: any) => {
 			return {
 				status: "ok" as const,
 				timestamp: Date.now(),
@@ -992,12 +992,12 @@ export const adminAPI = lens.object({
 	 * System management operation
 	 */
 	forceGC: lens.mutation({
-		input: z.object({}),
+		input: void,
 		output: z.object({
 			success: z.boolean(),
 			message: z.string(),
 		}),
-		resolve: async (_input: Record<string, never>, ctx?: any) => {
+		resolve: async (ctx?: any) => {
 			if (global.gc) {
 				global.gc();
 				return { success: true, message: "Garbage collection triggered" };
@@ -1016,9 +1016,9 @@ export const adminAPI = lens.object({
 	 * Shows all available endpoints, their types, and requirements
 	 */
 	getAPIInventory: lens.query({
-		input: z.object({}),
+		input: void,
 		output: z.any(), // API inventory structure
-		resolve: async (_input: Record<string, never>, ctx?: any) => {
+		resolve: async (ctx?: any) => {
 			const { getAPIInventory } = await import("../../code-server/src/utils/api-inventory.js");
 			return getAPIInventory();
 		},
