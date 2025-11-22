@@ -48,6 +48,28 @@ export interface UseLensSessionSubscriptionOptions {
 	select?: Select<Session>;
 
 	/**
+	 * Update strategy - controls how updates are transmitted
+	 *
+	 * Strategies:
+	 * - 'value': Send full value (default, safest)
+	 * - 'delta': Send only text differences (for streaming text, 57% savings)
+	 * - 'patch': Send JSON Patch operations (for object updates, 99% savings)
+	 * - 'auto': Intelligently select best strategy
+	 *
+	 * Note: Primarily useful for network transports (HTTP, WebSocket, SSE).
+	 * InProcessTransport (used in TUI) may not apply strategies.
+	 *
+	 * @example
+	 * ```tsx
+	 * useLensSessionSubscription({
+	 *   updateMode: 'auto',  // Intelligent strategy selection
+	 *   select: { title: true, status: true }
+	 * });
+	 * ```
+	 */
+	updateMode?: "value" | "delta" | "patch" | "auto";
+
+	/**
 	 * Callback when session updates
 	 */
 	onSessionUpdated?: (session: any) => void;
@@ -71,7 +93,7 @@ export interface UseLensSessionSubscriptionOptions {
  * ```
  */
 export function useLensSessionSubscription(options: UseLensSessionSubscriptionOptions = {}) {
-	const { onSessionUpdated, select } = options;
+	const { onSessionUpdated, select, updateMode } = options;
 
 	const currentSessionId = useCurrentSessionId();
 
@@ -101,15 +123,16 @@ export function useLensSessionSubscription(options: UseLensSessionSubscriptionOp
 			return;
 		}
 
-		// Subscribe to session updates using Lens with field selection
+		// Subscribe to session updates using Lens with field selection and update strategies
 		// This uses the existing session.getById.subscribe() implementation
 		// which subscribes to 'session:${sessionId}' channel and filters for session-updated events
 		//
 		// Field selection (if provided) reduces bandwidth by only transmitting selected fields
+		// Update strategies (if provided) optimize how updates are transmitted (delta/patch/auto)
 		const subscription = lensClient.session.getById
 			.subscribe(
 				{ sessionId: currentSessionId },
-				select ? { select } : undefined
+				(select || updateMode) ? { select, updateMode } : undefined
 			)
 			.subscribe({
 				next: (session: any) => {
@@ -146,7 +169,7 @@ export function useLensSessionSubscription(options: UseLensSessionSubscriptionOp
 			subscription.unsubscribe();
 			subscriptionRef.current = null;
 		};
-	}, [currentSessionId, select]);
+	}, [currentSessionId, select, updateMode]);
 	// NOTE: onSessionUpdated NOT in dependency array to avoid infinite loop
-	// NOTE: select IS in dependency array - stable object defined at call site
+	// NOTE: select and updateMode ARE in dependency array - stable objects defined at call site
 }
