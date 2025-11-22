@@ -8,7 +8,7 @@
 - **lens-server** - Added `context` field to LensServerConfig
 - **lens-server handlers** - All handlers (HTTP, WebSocket, SSE) pass context to resolvers
 
-### Phase 2: API Migration (PARTIAL - Core Complete)
+### Phase 2: API Migration (MOSTLY COMPLETE - Only config remaining)
 - **sessionAPI** ✅ - All queries and mutations migrated to Lens
   - Queries: `getRecent`, `getById`, `getCount`, `getLast`, `search`
   - Mutations: `create`, `updateTitle`, `updateModel`, `updateProvider`, `updateRules`, `updateAgent`, `delete`, `compact`
@@ -16,6 +16,20 @@
   - Subscription: `streamResponse` with Observable<StreamEvent>
 - **todoAPI** ✅ - Todo management migrated
   - Mutation: `update` with atomic todo replacement
+- **fileAPI** ✅ - File upload/download migrated
+  - Mutation: `upload` - ChatGPT-style immediate upload with SHA256 deduplication
+  - Queries: `download`, `getMetadata` - File retrieval and metadata
+- **bashAPI** ✅ - Bash process management migrated
+  - Mutation: `execute` - Active/background execution
+  - Queries: `list`, `get`, `getActive`, `getActiveQueueLength`
+  - Mutations: `kill`, `demote`, `promote` - Process lifecycle
+- **adminAPI** ✅ - Admin operations migrated
+  - Mutations: `deleteAllSessions`, `forceGC`
+  - Queries: `getSystemStats`, `getHealth`, `getAPIInventory`, `getAPIDocs`
+- **eventsAPI** ✅ - Event streaming migrated
+  - Subscriptions: `subscribe`, `subscribeToSession`, `subscribeToAllSessions` - Observable-based with cursor replay
+  - Queries: `getChannelInfo`
+  - Mutations: `cleanupChannel`
 
 ### Phase 3: Server Integration (DONE)
 - **LensServer class** - Integrates InProcessTransport and HTTP/SSE handlers
@@ -25,33 +39,22 @@
 ## 🔄 In Progress
 
 ### Remaining Router Migrations
-These routers still use tRPC and need Lens migration:
 
-1. **configRouter** (753 lines) - Complex, many endpoints
+1. **configRouter** (753 lines) - Complex, many endpoints (ONLY ONE LEFT)
    - Queries: `load`, `getPaths`, `getProviders`, `getProviderSchema`, `getTokenizerInfo`, `countTokens`, `countFileTokens`, `scanProjectFiles`, `getModelDetails`, `fetchModels`
    - Mutations: `updateDefaultProvider`, `updateDefaultModel`, `updateProviderConfig`, `setProviderSecret`, `removeProvider`, `save`, `updateRules`
-
-3. **fileRouter** (138 lines)
-   - Queries: `download`, `getMetadata`
-   - Mutations: `upload`
-
-4. **bashRouter**
-   - Shell command execution endpoints
-
-5. **adminRouter**
-   - Administrative endpoints
-
-6. **eventsRouter**
-   - Event stream subscriptions
 
 ## 📋 TODO
 
 ### Next Steps (Priority Order)
 
 1. **Migrate remaining routers** to Lens API
-   - ✅ Simple: todoRouter (DONE)
-   - Next: fileRouter (138 lines)
-   - Save complex for last: configRouter (753 lines)
+   - ✅ todoRouter (40 lines) - DONE
+   - ✅ fileRouter (138 lines) - DONE
+   - ✅ bashRouter (200 lines) - DONE
+   - ✅ adminRouter (128 lines) - DONE
+   - ✅ eventsRouter (201 lines) - DONE
+   - 🔄 configRouter (753 lines) - IN PROGRESS (most complex, saved for last)
 
 2. **Update TUI client** to use Lens client with InProcessTransport
    - Replace tRPC client calls with Lens client
@@ -174,3 +177,5 @@ getRecent: lens.query({
 1. `c3661a7` - feat(lens): Add context injection to InProcessTransport and complete sessionAPI migration
 2. `a821fae` - feat(lens): Add context injection to lens-server HTTP/SSE handlers
 3. `94ee4a6` - feat(lens): Migrate todoAPI to Lens framework
+4. `6a5809c` - feat(lens): Migrate fileAPI to Lens framework
+5. `0ff7220` - feat(lens): Migrate bashAPI, adminAPI, eventsAPI to Lens framework
