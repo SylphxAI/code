@@ -60,17 +60,16 @@ export const sessionAPI = lens.object({
 	 * Get recent sessions with cursor-based pagination
 	 * DATA ON DEMAND: Returns only metadata (id, title, provider, model, timestamps, messageCount)
 	 */
-	getRecent: lens.query({
-		input: z.object({
+	getRecent: lens
+		.input(z.object({
 			limit: z.number().min(1).max(100).default(20),
 			cursor: z.number().optional(),
-		}),
-		output: PaginatedSessionsSchema,
-		resolve: async (input, ctx) => {
+		}))
+		.output(PaginatedSessionsSchema)
+		.query(async ({ input, ctx }) => {
 			const { limit, cursor } = input;
 			return await ctx.sessionRepository.getRecentSessionsMetadata(limit, cursor);
-		},
-	}),
+		}),
 
 	/**
 	 * Get session by ID with full data
@@ -79,114 +78,110 @@ export const sessionAPI = lens.object({
 	 * - Can subscribe for real-time updates
 	 * - Lazy loading: Only called when user opens session
 	 */
-	getById: lens.query({
-		input: z.object({ sessionId: z.string() }),
-		output: SessionSchema.nullable(),
-
-		// Query: One-time fetch
-		resolve: async (input, ctx) => {
-			const { sessionId } = input;
-			const session = await ctx.sessionRepository.getSessionById(sessionId);
-			if (!session) {
-				return null;
-			}
-
-			// Validate model availability (server-side autonomous)
-			let modelStatus: "available" | "unavailable" | "unknown" = "unknown";
-
-			try {
-				const { getProvider } = await import("@sylphx/code-core");
-				const provider = getProvider(session.provider);
-				const providerConfig = ctx.aiConfig.providers[session.provider];
-
-				if (provider && providerConfig) {
-					const models = await provider.fetchModels(providerConfig);
-					modelStatus = models.some((m: any) => m.id === session.model)
-						? "available"
-						: "unavailable";
+	getById: lens
+		.input(z.object({ sessionId: z.string() }))
+		.output(SessionSchema.nullable())
+		.query(
+			// Query: One-time fetch
+			async ({ input, ctx }) => {
+				const { sessionId } = input;
+				const session = await ctx.sessionRepository.getSessionById(sessionId);
+				if (!session) {
+					return null;
 				}
-			} catch (err) {
-				console.error("[session.getById] Failed to validate model:", err);
-				modelStatus = "unknown";
+
+				// Validate model availability (server-side autonomous)
+				let modelStatus: "available" | "unavailable" | "unknown" = "unknown";
+
+				try {
+					const { getProvider } = await import("@sylphx/code-core");
+					const provider = getProvider(session.provider);
+					const providerConfig = ctx.aiConfig.providers[session.provider];
+
+					if (provider && providerConfig) {
+						const models = await provider.fetchModels(providerConfig);
+						modelStatus = models.some((m: any) => m.id === session.model)
+							? "available"
+							: "unavailable";
+					}
+				} catch (err) {
+					console.error("[session.getById] Failed to validate model:", err);
+					modelStatus = "unknown";
+				}
+
+				return {
+					...session,
+					modelStatus,
+				};
+			},
+			// Subscribe: Real-time updates
+			({ input, ctx }): Observable<Session | null> => {
+				const { sessionId } = input;
+				const { Observable: RxObservable } = require("rxjs");
+				const { startWith, map, filter } = require("rxjs/operators");
+
+				return ctx.appContext.eventStream
+					.subscribe(`session:${sessionId}`)
+					.pipe(
+						startWith(null), // Will trigger initial fetch via resolve
+						map((event: any) => {
+							if (!event) return null;
+							if (event.type === 'session-updated') {
+								return event.payload.session;
+							}
+							return null;
+						}),
+						filter((session: Session | null) => session !== null)
+					);
 			}
-
-			return {
-				...session,
-				modelStatus,
-			};
-		},
-
-		// Subscribe: Real-time updates
-		subscribe: (input, ctx): Observable<Session | null> => {
-			const { sessionId } = input;
-			const { Observable: RxObservable } = require("rxjs");
-			const { startWith, map, filter } = require("rxjs/operators");
-
-			return ctx.appContext.eventStream
-				.subscribe(`session:${sessionId}`)
-				.pipe(
-					startWith(null), // Will trigger initial fetch via resolve
-					map((event: any) => {
-						if (!event) return null;
-						if (event.type === 'session-updated') {
-							return event.payload.session;
-						}
-						return null;
-					}),
-					filter((session: Session | null) => session !== null)
-				);
-		},
-	}),
+		),
 
 	/**
 	 * Get session count
 	 */
-	getCount: lens.query({
-		output: z.number(),
-		resolve: async (ctx) => {
+	getCount: lens
+		.output(z.number())
+		.query(async ({ ctx }) => {
 			return await ctx.sessionRepository.getSessionCount();
-		},
-	}),
+		}),
 
 	/**
 	 * Get last session (for headless mode)
 	 */
-	getLast: lens.query({
-		output: SessionSchema.nullable(),
-		resolve: async (ctx) => {
+	getLast: lens
+		.output(SessionSchema.nullable())
+		.query(async ({ ctx }) => {
 			return await ctx.sessionRepository.getLastSession();
-		},
-	}),
+		}),
 
 	/**
 	 * Search sessions by title
 	 */
-	search: lens.query({
-		input: z.object({
+	search: lens
+		.input(z.object({
 			query: z.string(),
 			limit: z.number().min(1).max(100).default(20),
 			cursor: z.number().optional(),
-		}),
-		output: PaginatedSessionsSchema,
-		resolve: async (input, ctx) => {
+		}))
+		.output(PaginatedSessionsSchema)
+		.query(async ({ input, ctx }) => {
 			const { query, limit, cursor } = input;
 			return await ctx.sessionRepository.searchSessionsMetadata(query, limit, cursor);
-		},
-	}),
+		}),
 
 	/**
 	 * Create new session
 	 * REACTIVE: Publishes to 'sessions' channel for session list updates
 	 */
-	create: lens.mutation({
-		input: z.object({
+	create: lens
+		.input(z.object({
 			provider: z.string(),
 			model: z.string(),
 			agentId: z.string().optional(),
 			enabledRuleIds: z.array(z.string()).optional(),
-		}),
-		output: SessionSchema,
-		resolve: async (input, ctx) => {
+		}))
+		.output(SessionSchema)
+		.mutation(async ({ input, ctx }) => {
 			const { provider, model, agentId, enabledRuleIds } = input;
 			// Load global config for defaults
 			const cwd = process.cwd();
@@ -228,8 +223,7 @@ export const sessionAPI = lens.object({
 			});
 
 			return session;
-		},
-	}),
+		}),
 
 	/**
 	 * Update session title
@@ -239,13 +233,13 @@ export const sessionAPI = lens.object({
 	 * REACTIVE: Publishes to session:{id} channel
 	 * Frontend receives via subscription (using patch strategy for minimal transmission)
 	 */
-	updateTitle: lens.mutation({
-		input: z.object({
+	updateTitle: lens
+		.input(z.object({
 			sessionId: z.string(),
 			title: z.string(),
-		}),
-		output: SessionSchema,
-		resolve: async (input, ctx) => {
+		}))
+		.output(SessionSchema)
+		.mutation(async ({ input, ctx }) => {
 			const { sessionId, title } = input;
 			// 1. Update database
 			await ctx.sessionRepository.updateSessionTitle(sessionId, title);
@@ -260,20 +254,19 @@ export const sessionAPI = lens.object({
 			});
 
 			return session;
-		},
-	}),
+		}),
 
 	/**
 	 * Update session model
 	 * REACTIVE: Publishes to session:{id} channel
 	 */
-	updateModel: lens.mutation({
-		input: z.object({
+	updateModel: lens
+		.input(z.object({
 			sessionId: z.string(),
 			model: z.string(),
-		}),
-		output: SessionSchema,
-		resolve: async (input, ctx) => {
+		}))
+		.output(SessionSchema)
+		.mutation(async ({ input, ctx }) => {
 			const { sessionId, model } = input;
 			await ctx.sessionRepository.updateSessionModel(sessionId, model);
 			const session = await ctx.sessionRepository.getSessionById(sessionId);
@@ -284,21 +277,20 @@ export const sessionAPI = lens.object({
 			});
 
 			return session;
-		},
-	}),
+		}),
 
 	/**
 	 * Update session provider and model
 	 * REACTIVE: Publishes to session:{id} channel
 	 */
-	updateProvider: lens.mutation({
-		input: z.object({
+	updateProvider: lens
+		.input(z.object({
 			sessionId: z.string(),
 			provider: z.string(),
 			model: z.string(),
-		}),
-		output: SessionSchema,
-		resolve: async (input, ctx) => {
+		}))
+		.output(SessionSchema)
+		.mutation(async ({ input, ctx }) => {
 			const { sessionId, provider, model } = input;
 			await ctx.sessionRepository.updateSessionProvider(sessionId, provider, model);
 			const session = await ctx.sessionRepository.getSessionById(sessionId);
@@ -309,20 +301,19 @@ export const sessionAPI = lens.object({
 			});
 
 			return session;
-		},
-	}),
+		}),
 
 	/**
 	 * Update session enabled rules
 	 * REACTIVE: Publishes to session:{id} channel
 	 */
-	updateRules: lens.mutation({
-		input: z.object({
+	updateRules: lens
+		.input(z.object({
 			sessionId: z.string(),
 			enabledRuleIds: z.array(z.string()),
-		}),
-		output: SessionSchema,
-		resolve: async (input, ctx) => {
+		}))
+		.output(SessionSchema)
+		.mutation(async ({ input, ctx }) => {
 			const { sessionId, enabledRuleIds } = input;
 			await ctx.sessionRepository.updateSession(sessionId, {
 				enabledRuleIds,
@@ -335,20 +326,19 @@ export const sessionAPI = lens.object({
 			});
 
 			return session;
-		},
-	}),
+		}),
 
 	/**
 	 * Update session agent
 	 * REACTIVE: Publishes to session:{id} channel
 	 */
-	updateAgent: lens.mutation({
-		input: z.object({
+	updateAgent: lens
+		.input(z.object({
 			sessionId: z.string(),
 			agentId: z.string(),
-		}),
-		output: SessionSchema,
-		resolve: async (input, ctx) => {
+		}))
+		.output(SessionSchema)
+		.mutation(async ({ input, ctx }) => {
 			const { sessionId, agentId } = input;
 			await ctx.sessionRepository.updateSession(sessionId, {
 				agentId,
@@ -361,18 +351,17 @@ export const sessionAPI = lens.object({
 			});
 
 			return session;
-		},
-	}),
+		}),
 
 	/**
 	 * Delete session
 	 * CASCADE: Automatically deletes all messages, todos, attachments
 	 * REACTIVE: Publishes to both session:{id} and sessions channels
 	 */
-	delete: lens.mutation({
-		input: z.object({ sessionId: z.string() }),
-		output: z.object({ success: z.boolean(), sessionId: z.string() }),
-		resolve: async (input, ctx) => {
+	delete: lens
+		.input(z.object({ sessionId: z.string() }))
+		.output(z.object({ success: z.boolean(), sessionId: z.string() }))
+		.mutation(async ({ input, ctx }) => {
 			const { sessionId } = input;
 			await ctx.sessionRepository.deleteSession(sessionId);
 
@@ -389,22 +378,21 @@ export const sessionAPI = lens.object({
 			});
 
 			return { success: true, sessionId };
-		},
-	}),
+		}),
 
 	/**
 	 * Compact session: Summarize conversation and create new session
 	 */
-	compact: lens.mutation({
-		input: z.object({ sessionId: z.string() }),
-		output: z.object({
+	compact: lens
+		.input(z.object({ sessionId: z.string() }))
+		.output(z.object({
 			success: z.boolean(),
 			error: z.string().optional(),
 			newSessionId: z.string().optional(),
 			summary: z.string().optional(),
 			messageCount: z.number().optional(),
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.mutation(async ({ input, ctx }) => {
 			const { sessionId } = input;
 			const { compactSession, getProviderConfigWithApiKey } = await import("@sylphx/code-core");
 
@@ -462,8 +450,7 @@ export const sessionAPI = lens.object({
 			});
 
 			return result;
-		},
-	}),
+		}),
 });
 
 /**
@@ -474,30 +461,31 @@ export const messageAPI = lens.object({
 	 * Stream AI response
 	 * REACTIVE: Returns Observable of streaming events
 	 */
-	streamResponse: lens.query({
-		input: z.object({
+	streamResponse: lens
+		.input(z.object({
 			sessionId: z.string(),
 			userMessageContent: z.string().nullable(),
-		}),
-		output: StreamEventSchema,
-		resolve: async (input, ctx) => {
-			const { sessionId, userMessageContent } = input;
-			throw new Error("Use subscribe() method for streaming");
-		},
-		subscribe: (input, ctx): Observable<StreamEvent> => {
-			const { sessionId, userMessageContent } = input;
-			const { streamAIResponse } = require("../../code-server/src/services/streaming.service.js");
+		}))
+		.output(StreamEventSchema)
+		.query(
+			async ({ input, ctx }) => {
+				const { sessionId, userMessageContent } = input;
+				throw new Error("Use subscribe() method for streaming");
+			},
+			({ input, ctx }): Observable<StreamEvent> => {
+				const { sessionId, userMessageContent } = input;
+				const { streamAIResponse } = require("../../code-server/src/services/streaming.service.js");
 
-			return streamAIResponse({
-				appContext: ctx.appContext,
-				sessionRepository: ctx.sessionRepository,
-				messageRepository: ctx.messageRepository,
-				aiConfig: ctx.aiConfig,
-				sessionId,
-				userMessageContent,
-			});
-		},
-	}),
+				return streamAIResponse({
+					appContext: ctx.appContext,
+					sessionRepository: ctx.sessionRepository,
+					messageRepository: ctx.messageRepository,
+					aiConfig: ctx.aiConfig,
+					sessionId,
+					userMessageContent,
+				});
+			}
+		),
 });
 
 /**
@@ -508,19 +496,18 @@ export const todoAPI = lens.object({
 	 * Update todos for session
 	 * Atomically replaces all todos
 	 */
-	update: lens.mutation({
-		input: z.object({
+	update: lens
+		.input(z.object({
 			sessionId: z.string(),
 			todos: z.array(TodoSchema),
 			nextTodoId: z.number(),
-		}),
-		output: z.void(),
-		resolve: async (input, ctx) => {
+		}))
+		.output(z.void())
+		.mutation(async ({ input, ctx }) => {
 			const { sessionId, todos, nextTodoId } = input;
 			await ctx.todoRepository.updateTodos(sessionId, todos, nextTodoId);
 			// Note: Todos are stored per-session, no real-time sync needed
-		},
-	}),
+		}),
 });
 
 /**
@@ -542,19 +529,19 @@ export const fileAPI = lens.object({
 	 *
 	 * ORPHAN HANDLING: Files uploaded but not used in messages within 24h are cleaned up
 	 */
-	upload: lens.mutation({
-		input: z.object({
+	upload: lens
+		.input(z.object({
 			relativePath: z.string(), // Display name (e.g., "image.png" or "src/app.ts")
 			mediaType: z.string(), // MIME type (e.g., "image/png")
 			size: z.number(), // File size in bytes
 			content: z.string(), // Base64 encoded file content
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			fileId: z.string(),
 			sha256: z.string(),
 			url: z.string(),
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.mutation(async ({ input, ctx }) => {
 			const { relativePath, mediaType, size, content } = input;
 			const { createHash } = await import("node:crypto");
 
@@ -591,8 +578,7 @@ export const fileAPI = lens.object({
 				sha256,
 				url: `/api/trpc/file.download?input=${encodeURIComponent(JSON.stringify({ fileId }))}`,
 			};
-		},
-	}),
+		}),
 
 	/**
 	 * Download file from object storage
@@ -601,11 +587,11 @@ export const fileAPI = lens.object({
 	 * PUBLIC: Allow clients to fetch files they have fileId for
 	 * (fileIds are UUIDs, hard to guess)
 	 */
-	download: lens.query({
-		input: z.object({
+	download: lens
+		.input(z.object({
 			fileId: z.string(),
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			fileId: z.string(),
 			relativePath: z.string(),
 			mediaType: z.string(),
@@ -613,8 +599,8 @@ export const fileAPI = lens.object({
 			content: z.string(), // Base64 encoded
 			sha256: z.string(),
 			createdAt: z.number(),
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.query(async ({ input, ctx }) => {
 			const { fileId } = input;
 			// Get FileRepository via MessageRepository
 			const fileRepo = ctx.messageRepository.getFileRepository();
@@ -635,26 +621,25 @@ export const fileAPI = lens.object({
 				sha256: file.sha256,
 				createdAt: file.createdAt,
 			};
-		},
-	}),
+		}),
 
 	/**
 	 * Get file metadata without content
 	 * Useful for checking if file exists and getting size/type
 	 */
-	getMetadata: lens.query({
-		input: z.object({
+	getMetadata: lens
+		.input(z.object({
 			fileId: z.string(),
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			fileId: z.string(),
 			relativePath: z.string(),
 			mediaType: z.string(),
 			size: z.number(),
 			sha256: z.string(),
 			createdAt: z.number(),
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.query(async ({ input, ctx }) => {
 			const { fileId } = input;
 			const fileRepo = ctx.messageRepository.getFileRepository();
 			const file = await fileRepo.getFileContent(fileId);
@@ -671,8 +656,7 @@ export const fileAPI = lens.object({
 				sha256: file.sha256,
 				createdAt: file.createdAt,
 			};
-		},
-	}),
+		}),
 });
 
 /**
@@ -687,19 +671,19 @@ export const bashAPI = lens.object({
 	 * - Active bash: blocks if slot occupied
 	 * - Background bash: spawns immediately
 	 */
-	execute: lens.mutation({
-		input: z.object({
+	execute: lens
+		.input(z.object({
 			command: z.string().min(1),
 			mode: z.enum(["active", "background"]).default("active"),
 			cwd: z.string().optional(),
 			timeout: z.number().min(1000).max(600000).default(120000).optional(),
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			bashId: z.string(),
 			command: z.string(),
 			mode: z.enum(["active", "background"]),
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.mutation(async ({ input, ctx }) => {
 			const { command, mode, cwd, timeout } = input;
 			const { bashManagerV2 } = ctx.appContext;
 
@@ -714,28 +698,26 @@ export const bashAPI = lens.object({
 				command,
 				mode,
 			};
-		},
-	}),
+		}),
 
 	/**
 	 * List all bash processes
 	 */
-	list: lens.query({
-		output: z.array(z.any()), // BashProcess array
-		resolve: async (ctx) => {
+	list: lens
+		.output(z.array(z.any())) // BashProcess array
+		.query(async ({ ctx }) => {
 			const { bashManagerV2 } = ctx.appContext;
 			return bashManagerV2.list();
-		},
-	}),
+		}),
 
 	/**
 	 * Get bash process info
 	 */
-	get: lens.query({
-		input: z.object({
+	get: lens
+		.input(z.object({
 			bashId: z.string(),
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			id: z.string(),
 			command: z.string(),
 			mode: z.enum(["active", "background"]),
@@ -748,8 +730,8 @@ export const bashAPI = lens.object({
 			duration: z.number(),
 			stdout: z.string(),
 			stderr: z.string(),
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.query(async ({ input, ctx }) => {
 			const { bashId } = input;
 			const { bashManagerV2 } = ctx.appContext;
 			const proc = bashManagerV2.get(bashId);
@@ -772,21 +754,20 @@ export const bashAPI = lens.object({
 				stdout: proc.stdout,
 				stderr: proc.stderr,
 			};
-		},
-	}),
+		}),
 
 	/**
 	 * Kill bash process
 	 */
-	kill: lens.mutation({
-		input: z.object({
+	kill: lens
+		.input(z.object({
 			bashId: z.string(),
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			success: z.boolean(),
 			bashId: z.string(),
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.mutation(async ({ input, ctx }) => {
 			const { bashId } = input;
 			const { bashManagerV2 } = ctx.appContext;
 			const success = bashManagerV2.kill(bashId);
@@ -796,22 +777,21 @@ export const bashAPI = lens.object({
 			}
 
 			return { success: true, bashId };
-		},
-	}),
+		}),
 
 	/**
 	 * Demote active bash → background (Ctrl+B)
 	 */
-	demote: lens.mutation({
-		input: z.object({
+	demote: lens
+		.input(z.object({
 			bashId: z.string(),
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			success: z.boolean(),
 			bashId: z.string(),
 			mode: z.literal("background"),
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.mutation(async ({ input, ctx }) => {
 			const { bashId } = input;
 			const { bashManagerV2 } = ctx.appContext;
 			const success = bashManagerV2.demote(bashId);
@@ -821,22 +801,21 @@ export const bashAPI = lens.object({
 			}
 
 			return { success: true, bashId, mode: "background" as const };
-		},
-	}),
+		}),
 
 	/**
 	 * Promote background bash → active (waits for slot)
 	 */
-	promote: lens.mutation({
-		input: z.object({
+	promote: lens
+		.input(z.object({
 			bashId: z.string(),
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			success: z.boolean(),
 			bashId: z.string(),
 			mode: z.literal("active"),
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.mutation(async ({ input, ctx }) => {
 			const { bashId } = input;
 			const { bashManagerV2 } = ctx.appContext;
 			const success = await bashManagerV2.promote(bashId);
@@ -846,14 +825,13 @@ export const bashAPI = lens.object({
 			}
 
 			return { success: true, bashId, mode: "active" as const };
-		},
-	}),
+		}),
 
 	/**
 	 * Get active bash info
 	 */
-	getActive: lens.query({
-		output: z.object({
+	getActive: lens
+		.output(z.object({
 			id: z.string(),
 			command: z.string(),
 			mode: z.enum(["active", "background"]),
@@ -861,8 +839,8 @@ export const bashAPI = lens.object({
 			startTime: z.number(),
 			cwd: z.string().optional(),
 			duration: z.number(),
-		}).nullable(),
-		resolve: async (ctx) => {
+		}).nullable())
+		.query(async ({ ctx }) => {
 			const { bashManagerV2 } = ctx.appContext;
 			const activeBashId = bashManagerV2.getActiveBashId();
 
@@ -882,21 +860,19 @@ export const bashAPI = lens.object({
 				cwd: proc.cwd,
 				duration: (proc.endTime || Date.now()) - proc.startTime,
 			};
-		},
-	}),
+		}),
 
 	/**
 	 * Get active queue length
 	 */
-	getActiveQueueLength: lens.query({
-		output: z.object({
+	getActiveQueueLength: lens
+		.output(z.object({
 			count: z.number(),
-		}),
-		resolve: async (ctx) => {
+		}))
+		.query(async ({ ctx }) => {
 			const { bashManagerV2 } = ctx.appContext;
 			return { count: bashManagerV2.getActiveQueueLength() };
-		},
-	}),
+		}),
 });
 
 /**
@@ -910,16 +886,16 @@ export const adminAPI = lens.object({
 	 * SECURITY: Requires admin role (in-process CLI only)
 	 * Dangerous operation - removes all data
 	 */
-	deleteAllSessions: lens.mutation({
-		input: z.object({
+	deleteAllSessions: lens
+		.input(z.object({
 			confirm: z.literal(true),
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			success: z.boolean(),
 			deletedCount: z.number(),
 			message: z.string(),
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.mutation(async ({ input, ctx }) => {
 			const { confirm } = input;
 			// Get all sessions
 			const sessions = await ctx.sessionRepository.getRecentSessionsMetadata(1000);
@@ -938,16 +914,15 @@ export const adminAPI = lens.object({
 				deletedCount,
 				message: `Deleted ${deletedCount} sessions`,
 			};
-		},
-	}),
+		}),
 
 	/**
 	 * Get system statistics (admin-only)
 	 * SECURITY: Requires admin role
 	 * Shows internal metrics not exposed to regular users
 	 */
-	getSystemStats: lens.query({
-		output: z.object({
+	getSystemStats: lens
+		.output(z.object({
 			sessions: z.object({
 				total: z.number(),
 				avgMessagesPerSession: z.number(),
@@ -960,8 +935,8 @@ export const adminAPI = lens.object({
 				defaultProvider: z.string().optional(),
 				defaultModel: z.string().optional(),
 			}),
-		}),
-		resolve: async (ctx) => {
+		}))
+		.query(async ({ ctx }) => {
 			const sessionCount = await ctx.sessionRepository.getSessionCount();
 
 			// Get all sessions to calculate stats
@@ -987,15 +962,14 @@ export const adminAPI = lens.object({
 					defaultModel: ctx.aiConfig.defaultModel,
 				},
 			};
-		},
-	}),
+		}),
 
 	/**
 	 * Get server health (public - for monitoring)
 	 * No authorization required
 	 */
-	getHealth: lens.query({
-		output: z.object({
+	getHealth: lens
+		.output(z.object({
 			status: z.literal("ok"),
 			timestamp: z.number(),
 			uptime: z.number(),
@@ -1003,8 +977,8 @@ export const adminAPI = lens.object({
 				used: z.number(),
 				total: z.number(),
 			}),
-		}),
-		resolve: async (ctx) => {
+		}))
+		.query(async ({ ctx }) => {
 			return {
 				status: "ok" as const,
 				timestamp: Date.now(),
@@ -1014,20 +988,19 @@ export const adminAPI = lens.object({
 					total: process.memoryUsage().heapTotal,
 				},
 			};
-		},
-	}),
+		}),
 
 	/**
 	 * Force garbage collection (admin-only)
 	 * SECURITY: Requires admin role
 	 * System management operation
 	 */
-	forceGC: lens.mutation({
-		output: z.object({
+	forceGC: lens
+		.output(z.object({
 			success: z.boolean(),
 			message: z.string(),
-		}),
-		resolve: async (ctx) => {
+		}))
+		.mutation(async ({ ctx }) => {
 			if (global.gc) {
 				global.gc();
 				return { success: true, message: "Garbage collection triggered" };
@@ -1037,33 +1010,31 @@ export const adminAPI = lens.object({
 					message: "GC not exposed. Run with --expose-gc flag",
 				};
 			}
-		},
-	}),
+		}),
 
 	/**
 	 * Get API inventory (public - for documentation)
 	 * SECURITY: OWASP API9 compliance
 	 * Shows all available endpoints, their types, and requirements
 	 */
-	getAPIInventory: lens.query({
-		output: z.any(), // API inventory structure
-		resolve: async (ctx) => {
+	getAPIInventory: lens
+		.output(z.any()) // API inventory structure
+		.query(async ({ ctx }) => {
 			const { getAPIInventory } = await import("../../code-server/src/utils/api-inventory.js");
 			return getAPIInventory();
-		},
-	}),
+		}),
 
 	/**
 	 * Get API documentation (public - for developers)
 	 * SECURITY: OWASP API9 compliance
 	 * Returns Markdown-formatted API reference
 	 */
-	getAPIDocs: lens.query({
-		input: z.object({
+	getAPIDocs: lens
+		.input(z.object({
 			format: z.enum(["json", "markdown"]).default("json"),
-		}),
-		output: z.any(), // String (markdown) or object (json)
-		resolve: async (input, ctx) => {
+		}))
+		.output(z.any()) // String (markdown) or object (json)
+		.query(async ({ input, ctx }) => {
 			const { format } = input;
 			const { getAPIInventory, generateMarkdownDocs } = await import("../../code-server/src/utils/api-inventory.js");
 
@@ -1071,8 +1042,7 @@ export const adminAPI = lens.object({
 				return generateMarkdownDocs();
 			}
 			return getAPIInventory();
-		},
-	}),
+		}),
 });
 
 /**
@@ -1103,15 +1073,15 @@ export const eventsAPI = lens.object({
 	 * - If fromCursor provided, replays events AFTER that cursor from database
 	 * - Then continues with real-time events
 	 */
-	subscribe: lens.query({
-		input: z.object({
+	subscribe: lens
+		.input(z.object({
 			channel: z.string(), // Exact channel (e.g., 'session:abc123', 'session-events')
 			fromCursor: z.object({
 				timestamp: z.number(),
 				sequence: z.number(),
 			}).optional(), // Resume from cursor (undefined = only new events)
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			id: z.string(),
 			cursor: z.object({
 				timestamp: z.number(),
@@ -1121,16 +1091,17 @@ export const eventsAPI = lens.object({
 			type: z.string(),
 			timestamp: z.number(),
 			payload: z.any(),
-		}),
-		resolve: async (input, ctx) => {
-			const { channel, fromCursor } = input;
-			throw new Error("Use subscribe() method for event streaming");
-		},
-		subscribe: (input, ctx): Observable<any> => {
-			const { channel, fromCursor } = input;
-			return ctx.appContext.eventStream.subscribe(channel, fromCursor);
-		},
-	}),
+		}))
+		.query(
+			async ({ input, ctx }) => {
+				const { channel, fromCursor } = input;
+				throw new Error("Use subscribe() method for event streaming");
+			},
+			({ input, ctx }): Observable<any> => {
+				const { channel, fromCursor } = input;
+				return ctx.appContext.eventStream.subscribe(channel, fromCursor);
+			}
+		),
 
 	/**
 	 * Subscribe to specific session with auto-replay of latest N events
@@ -1138,12 +1109,12 @@ export const eventsAPI = lens.object({
 	 * Convenience wrapper around subscribe() for common use case.
 	 * Automatically replays last N events + continues with real-time.
 	 */
-	subscribeToSession: lens.query({
-		input: z.object({
+	subscribeToSession: lens
+		.input(z.object({
 			sessionId: z.string(),
 			replayLast: z.number().min(0).max(100).default(0), // Replay last N events
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			id: z.string(),
 			cursor: z.object({
 				timestamp: z.number(),
@@ -1153,17 +1124,18 @@ export const eventsAPI = lens.object({
 			type: z.string(),
 			timestamp: z.number(),
 			payload: z.any(),
-		}),
-		resolve: async (input, ctx) => {
-			const { sessionId, replayLast } = input;
-			throw new Error("Use subscribe() method for event streaming");
-		},
-		subscribe: (input, ctx): Observable<any> => {
-			const { sessionId, replayLast } = input;
-			const channel = `session:${sessionId}`;
-			return ctx.appContext.eventStream.subscribeWithHistory(channel, replayLast);
-		},
-	}),
+		}))
+		.query(
+			async ({ input, ctx }) => {
+				const { sessionId, replayLast } = input;
+				throw new Error("Use subscribe() method for event streaming");
+			},
+			({ input, ctx }): Observable<any> => {
+				const { sessionId, replayLast } = input;
+				const channel = `session:${sessionId}`;
+				return ctx.appContext.eventStream.subscribeWithHistory(channel, replayLast);
+			}
+		),
 
 	/**
 	 * Subscribe to all session events (session list sync)
@@ -1172,11 +1144,11 @@ export const eventsAPI = lens.object({
 	 * Receives events: session-created, session-deleted, session-compacted
 	 * Model-level events only (no field-level events)
 	 */
-	subscribeToAllSessions: lens.query({
-		input: z.object({
+	subscribeToAllSessions: lens
+		.input(z.object({
 			replayLast: z.number().min(0).max(100).default(20), // Replay last N events
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			id: z.string(),
 			cursor: z.object({
 				timestamp: z.number(),
@@ -1186,17 +1158,18 @@ export const eventsAPI = lens.object({
 			type: z.string(),
 			timestamp: z.number(),
 			payload: z.any(),
-		}),
-		resolve: async (input, ctx) => {
-			const { replayLast } = input;
-			throw new Error("Use subscribe() method for event streaming");
-		},
-		subscribe: (input, ctx): Observable<any> => {
-			const { replayLast } = input;
-			const channel = "sessions";
-			return ctx.appContext.eventStream.subscribeWithHistory(channel, replayLast);
-		},
-	}),
+		}))
+		.query(
+			async ({ input, ctx }) => {
+				const { replayLast } = input;
+				throw new Error("Use subscribe() method for event streaming");
+			},
+			({ input, ctx }): Observable<any> => {
+				const { replayLast } = input;
+				const channel = "sessions";
+				return ctx.appContext.eventStream.subscribeWithHistory(channel, replayLast);
+			}
+		),
 
 	/**
 	 * Get channel info (for debugging)
@@ -1206,35 +1179,33 @@ export const eventsAPI = lens.object({
 	 * - persistedCount: Total events in database
 	 * - firstId/lastId: Range of event IDs
 	 */
-	getChannelInfo: lens.query({
-		input: z.object({
+	getChannelInfo: lens
+		.input(z.object({
 			channel: z.string(),
-		}),
-		output: z.any(), // Channel info structure
-		resolve: async (input, ctx) => {
+		}))
+		.output(z.any()) // Channel info structure
+		.query(async ({ input, ctx }) => {
 			const { channel } = input;
 			return await ctx.appContext.eventStream.info(channel);
-		},
-	}),
+		}),
 
 	/**
 	 * Cleanup old events from a channel
 	 * Keeps last N events, deletes older ones
 	 */
-	cleanupChannel: lens.mutation({
-		input: z.object({
+	cleanupChannel: lens
+		.input(z.object({
 			channel: z.string(),
 			keepLast: z.number().min(1).max(1000).default(100),
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			success: z.boolean(),
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.mutation(async ({ input, ctx }) => {
 			const { channel, keepLast } = input;
 			await ctx.appContext.eventStream.cleanupChannel(channel, keepLast);
 			return { success: true };
-		},
-	}),
+		}),
 });
 
 /**
@@ -1253,15 +1224,15 @@ export const configAPI = lens.object({
 	 * - Client never sees keys (zero-knowledge)
 	 * - Server merges keys from disk during save operations
 	 */
-	load: lens.query({
-		input: z.object({
+	load: lens
+		.input(z.object({
 			cwd: z.string().default(process.cwd()),
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			success: z.literal(true),
 			config: z.any(), // AIConfig structure (sanitized)
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.query(async ({ input, ctx }) => {
 			const { cwd } = input;
 			const { loadAIConfig } = await import("@sylphx/code-core");
 
@@ -1316,41 +1287,39 @@ export const configAPI = lens.object({
 			}
 			// No config yet - return empty
 			return { success: true as const, config: { providers: {} } };
-		},
-	}),
+		}),
 
 	/**
 	 * Get config file paths
 	 * Useful for debugging
 	 */
-	getPaths: lens.query({
-		input: z.object({
+	getPaths: lens
+		.input(z.object({
 			cwd: z.string().default(process.cwd()),
-		}),
-		output: z.any(), // Path info structure
-		resolve: async (input, ctx) => {
+		}))
+		.output(z.any()) // Path info structure
+		.query(async ({ input, ctx }) => {
 			const { cwd } = input;
 			const { getAIConfigPaths } = await import("@sylphx/code-core");
 			return getAIConfigPaths(cwd);
-		},
-	}),
+		}),
 
 	/**
 	 * Get all available providers
 	 * Returns provider metadata (id, name, description, isConfigured)
 	 * SECURITY: No sensitive data exposed
 	 */
-	getProviders: lens.query({
-		input: z.object({
+	getProviders: lens
+		.input(z.object({
 			cwd: z.string().default(process.cwd()),
-		}),
-		output: z.record(z.string(), z.object({
+		}))
+		.output(z.record(z.string(), z.object({
 			id: z.string(),
 			name: z.string(),
 			description: z.string(),
 			isConfigured: z.boolean(),
-		})),
-		resolve: async (input, ctx) => {
+		})))
+		.query(async ({ input, ctx }) => {
 			const { cwd } = input;
 			const { loadAIConfig, AI_PROVIDERS, getProvider } = await import("@sylphx/code-core");
 
@@ -1378,19 +1347,18 @@ export const configAPI = lens.object({
 			}
 
 			return providersWithStatus;
-		},
-	}),
+		}),
 
 	/**
 	 * Get provider config schema
 	 * Returns the configuration fields required for a provider
 	 * SECURITY: No sensitive data - just schema definition
 	 */
-	getProviderSchema: lens.query({
-		input: z.object({
+	getProviderSchema: lens
+		.input(z.object({
 			providerId: z.string(),
-		}),
-		output: z.union([
+		}))
+		.output(z.union([
 			z.object({
 				success: z.literal(true),
 				schema: z.array(z.any()),
@@ -1399,8 +1367,8 @@ export const configAPI = lens.object({
 				success: z.literal(false),
 				error: z.string(),
 			}),
-		]),
-		resolve: async (input, ctx) => {
+		]))
+		.query(async ({ input, ctx }) => {
 			const { providerId } = input;
 			try {
 				const { getProvider } = await import("@sylphx/code-core");
@@ -1413,56 +1381,53 @@ export const configAPI = lens.object({
 					error: error instanceof Error ? error.message : "Failed to get provider schema",
 				};
 			}
-		},
-	}),
+		}),
 
 	/**
 	 * Get tokenizer info for a model
 	 * Returns tokenizer name and status
 	 */
-	getTokenizerInfo: lens.query({
-		input: z.object({
+	getTokenizerInfo: lens
+		.input(z.object({
 			model: z.string(),
-		}),
-		output: z.any(), // Tokenizer info structure
-		resolve: async (input, ctx) => {
+		}))
+		.output(z.any()) // Tokenizer info structure
+		.query(async ({ input, ctx }) => {
 			const { model } = input;
 			const { getTokenizerInfo } = await import("@sylphx/code-core");
 			return getTokenizerInfo(model);
-		},
-	}),
+		}),
 
 	/**
 	 * Count tokens for text
 	 * Uses model-specific tokenizer
 	 */
-	countTokens: lens.query({
-		input: z.object({
+	countTokens: lens
+		.input(z.object({
 			text: z.string(),
 			model: z.string().optional(),
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			count: z.number(),
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.query(async ({ input, ctx }) => {
 			const { text, model } = input;
 			const { countTokens } = await import("@sylphx/code-core");
 			const count = await countTokens(text, model);
 			return { count };
-		},
-	}),
+		}),
 
 	/**
 	 * Count tokens for file
 	 * Reads file from disk and counts tokens using model-specific tokenizer
 	 * ARCHITECTURE: Server reads file, client should never read files directly
 	 */
-	countFileTokens: lens.query({
-		input: z.object({
+	countFileTokens: lens
+		.input(z.object({
 			filePath: z.string(),
 			model: z.string().optional(),
-		}),
-		output: z.union([
+		}))
+		.output(z.union([
 			z.object({
 				success: z.literal(true),
 				count: z.number(),
@@ -1471,8 +1436,8 @@ export const configAPI = lens.object({
 				success: z.literal(false),
 				error: z.string(),
 			}),
-		]),
-		resolve: async (input, ctx) => {
+		]))
+		.query(async ({ input, ctx }) => {
 			const { filePath, model } = input;
 			const { readFile } = await import("node:fs/promises");
 			const { countTokens } = await import("@sylphx/code-core");
@@ -1487,41 +1452,39 @@ export const configAPI = lens.object({
 					error: error instanceof Error ? error.message : "Failed to read file",
 				};
 			}
-		},
-	}),
+		}),
 
 	/**
 	 * Scan project files
 	 * Returns filtered file list
 	 */
-	scanProjectFiles: lens.query({
-		input: z.object({
+	scanProjectFiles: lens
+		.input(z.object({
 			cwd: z.string().default(process.cwd()),
 			query: z.string().optional(),
-		}),
-		output: z.object({
+		}))
+		.output(z.object({
 			files: z.array(z.string()),
-		}),
-		resolve: async (input, ctx) => {
+		}))
+		.query(async ({ input, ctx }) => {
 			const { cwd, query } = input;
 			const { scanProjectFiles, filterFiles } = await import("@sylphx/code-core");
 			const fileInfos = await scanProjectFiles(cwd);
 			const files = query ? filterFiles(fileInfos, query).map(f => f.relativePath) : fileInfos.map(f => f.relativePath);
 			return { files };
-		},
-	}),
+		}),
 
 	/**
 	 * Get model details (context length, pricing, capabilities, etc.)
 	 * SECURITY: No API keys needed - uses hardcoded metadata
 	 */
-	getModelDetails: lens.query({
-		input: z.object({
+	getModelDetails: lens
+		.input(z.object({
 			providerId: z.string(),
 			modelId: z.string(),
 			cwd: z.string().default(process.cwd()),
-		}),
-		output: z.union([
+		}))
+		.output(z.union([
 			z.object({
 				success: z.literal(true),
 				details: z.any(), // Model details structure
@@ -1530,8 +1493,8 @@ export const configAPI = lens.object({
 				success: z.literal(false),
 				error: z.string(),
 			}),
-		]),
-		resolve: async (input, ctx) => {
+		]))
+		.query(async ({ input, ctx }) => {
 			const { providerId, modelId, cwd } = input;
 			try {
 				const { getProvider, loadAIConfig, getProviderConfigWithApiKey, enrichModelDetails, enrichCapabilities } = await import("@sylphx/code-core");
@@ -1582,20 +1545,19 @@ export const configAPI = lens.object({
 					error: error instanceof Error ? error.message : "Failed to get model details",
 				};
 			}
-		},
-	}),
+		}),
 
 	/**
 	 * Fetch models from provider API
 	 * SERVER-SIDE: Loads config with API keys, calls provider API
 	 * ARCHITECTURE: Client = Pure UI, Server = Business logic + File access
 	 */
-	fetchModels: lens.query({
-		input: z.object({
+	fetchModels: lens
+		.input(z.object({
 			providerId: z.string(),
 			cwd: z.string().default(process.cwd()),
-		}),
-		output: z.union([
+		}))
+		.output(z.union([
 			z.object({
 				success: z.literal(true),
 				models: z.array(z.object({
@@ -1607,8 +1569,8 @@ export const configAPI = lens.object({
 				success: z.literal(false),
 				error: z.string(),
 			}),
-		]),
-		resolve: async (input, ctx) => {
+		]))
+		.query(async ({ input, ctx }) => {
 			const { providerId, cwd } = input;
 			try {
 				const { loadAIConfig, fetchModels } = await import("@sylphx/code-core");
@@ -1651,23 +1613,22 @@ export const configAPI = lens.object({
 					error: error instanceof Error ? error.message : "Failed to fetch models",
 				};
 			}
-		},
-	}),
+		}),
 
 	/**
 	 * Update default provider
 	 * REACTIVE: Emits config:default-provider-updated event
 	 */
-	updateDefaultProvider: lens.mutation({
-		input: z.object({
+	updateDefaultProvider: lens
+		.input(z.object({
 			provider: z.string(),
 			cwd: z.string().default(process.cwd()),
-		}),
-		output: z.union([
+		}))
+		.output(z.union([
 			z.object({ success: z.literal(true) }),
 			z.object({ success: z.literal(false), error: z.string() }),
-		]),
-		resolve: async (input, ctx) => {
+		]))
+		.mutation(async ({ input, ctx }) => {
 			const { provider, cwd } = input;
 			const { loadAIConfig, saveAIConfig } = await import("@sylphx/code-core");
 
@@ -1683,23 +1644,22 @@ export const configAPI = lens.object({
 				return { success: true as const };
 			}
 			return { success: false as const, error: saveResult.error.message };
-		},
-	}),
+		}),
 
 	/**
 	 * Update default model
 	 * REACTIVE: Emits config:default-model-updated event
 	 */
-	updateDefaultModel: lens.mutation({
-		input: z.object({
+	updateDefaultModel: lens
+		.input(z.object({
 			model: z.string(),
 			cwd: z.string().default(process.cwd()),
-		}),
-		output: z.union([
+		}))
+		.output(z.union([
 			z.object({ success: z.literal(true) }),
 			z.object({ success: z.literal(false), error: z.string() }),
-		]),
-		resolve: async (input, ctx) => {
+		]))
+		.mutation(async ({ input, ctx }) => {
 			const { model, cwd } = input;
 			const { loadAIConfig, saveAIConfig } = await import("@sylphx/code-core");
 
@@ -1715,8 +1675,7 @@ export const configAPI = lens.object({
 				return { success: true as const };
 			}
 			return { success: false as const, error: saveResult.error.message };
-		},
-	}),
+		}),
 
 	/**
 	 * Update provider configuration
@@ -1727,17 +1686,17 @@ export const configAPI = lens.object({
 	 * - Server auto-merges ALL secret fields from disk
 	 * - To update secrets, use dedicated setProviderSecret mutation
 	 */
-	updateProviderConfig: lens.mutation({
-		input: z.object({
+	updateProviderConfig: lens
+		.input(z.object({
 			providerId: z.string(),
 			config: z.record(z.string(), z.any()),
 			cwd: z.string().default(process.cwd()),
-		}),
-		output: z.union([
+		}))
+		.output(z.union([
 			z.object({ success: z.literal(true) }),
 			z.object({ success: z.literal(false), error: z.string() }),
-		]),
-		resolve: async (input, ctx) => {
+		]))
+		.mutation(async ({ input, ctx }) => {
 			const { providerId, config, cwd } = input;
 			const { loadAIConfig, saveAIConfig, getProvider } = await import("@sylphx/code-core");
 
@@ -1782,8 +1741,7 @@ export const configAPI = lens.object({
 				return { success: true as const };
 			}
 			return { success: false as const, error: saveResult.error.message };
-		},
-	}),
+		}),
 
 	/**
 	 * Set a provider secret field (API key, token, etc)
@@ -1793,18 +1751,18 @@ export const configAPI = lens.object({
 	 * - Follows GitHub/Vercel pattern: blind update
 	 * - Only way to update secret fields
 	 */
-	setProviderSecret: lens.mutation({
-		input: z.object({
+	setProviderSecret: lens
+		.input(z.object({
 			providerId: z.string(),
 			fieldName: z.string(),
 			value: z.string(),
 			cwd: z.string().default(process.cwd()),
-		}),
-		output: z.union([
+		}))
+		.output(z.union([
 			z.object({ success: z.literal(true) }),
 			z.object({ success: z.literal(false), error: z.string() }),
-		]),
-		resolve: async (input, ctx) => {
+		]))
+		.mutation(async ({ input, ctx }) => {
 			const { providerId, fieldName, value, cwd } = input;
 			const { loadAIConfig, saveAIConfig, getProvider, createCredential, getDefaultCredential, updateCredential } = await import("@sylphx/code-core");
 
@@ -1877,23 +1835,22 @@ export const configAPI = lens.object({
 				return { success: true as const };
 			}
 			return { success: false as const, error: saveResult.error.message };
-		},
-	}),
+		}),
 
 	/**
 	 * Remove provider configuration
 	 * REACTIVE: Emits config:provider-removed event
 	 */
-	removeProvider: lens.mutation({
-		input: z.object({
+	removeProvider: lens
+		.input(z.object({
 			providerId: z.string(),
 			cwd: z.string().default(process.cwd()),
-		}),
-		output: z.union([
+		}))
+		.output(z.union([
 			z.object({ success: z.literal(true) }),
 			z.object({ success: z.literal(false), error: z.string() }),
-		]),
-		resolve: async (input, ctx) => {
+		]))
+		.mutation(async ({ input, ctx }) => {
 			const { providerId, cwd } = input;
 			const { loadAIConfig, saveAIConfig } = await import("@sylphx/code-core");
 
@@ -1912,8 +1869,7 @@ export const configAPI = lens.object({
 				return { success: true as const };
 			}
 			return { success: false as const, error: saveResult.error.message };
-		},
-	}),
+		}),
 
 	/**
 	 * Save AI config to file system
@@ -1925,16 +1881,16 @@ export const configAPI = lens.object({
 	 * - Server auto-merges ALL secret fields from disk
 	 * - To update secrets, use dedicated setProviderSecret mutation
 	 */
-	save: lens.mutation({
-		input: z.object({
+	save: lens
+		.input(z.object({
 			config: z.any(), // AIConfig structure
 			cwd: z.string().default(process.cwd()),
-		}),
-		output: z.union([
+		}))
+		.output(z.union([
 			z.object({ success: z.literal(true) }),
 			z.object({ success: z.literal(false), error: z.string() }),
-		]),
-		resolve: async (input, ctx) => {
+		]))
+		.mutation(async ({ input, ctx }) => {
 			const { config, cwd } = input;
 			const { loadAIConfig, saveAIConfig, getProvider } = await import("@sylphx/code-core");
 
@@ -1985,25 +1941,24 @@ export const configAPI = lens.object({
 				return { success: true as const };
 			}
 			return { success: false as const, error: result.error.message };
-		},
-	}),
+		}),
 
 	/**
 	 * Update enabled rules
 	 * SERVER DECIDES: If sessionId provided → session table, else → global config
 	 * MULTI-CLIENT SYNC: Changes propagate to all clients via event stream
 	 */
-	updateRules: lens.mutation({
-		input: z.object({
+	updateRules: lens
+		.input(z.object({
 			ruleIds: z.array(z.string()),
 			sessionId: z.string().optional(),
 			cwd: z.string().default(process.cwd()),
-		}),
-		output: z.union([
+		}))
+		.output(z.union([
 			z.object({ success: z.literal(true), scope: z.enum(["session", "global"]) }),
 			z.object({ success: z.literal(false), error: z.string() }),
-		]),
-		resolve: async (input, ctx) => {
+		]))
+		.mutation(async ({ input, ctx }) => {
 			const { ruleIds, sessionId, cwd } = input;
 			if (sessionId) {
 				// Session-specific rules → persist to session table
@@ -2030,8 +1985,7 @@ export const configAPI = lens.object({
 				}
 				return { success: false as const, error: saveResult.error.message };
 			}
-		},
-	}),
+		}),
 });
 
 /**
