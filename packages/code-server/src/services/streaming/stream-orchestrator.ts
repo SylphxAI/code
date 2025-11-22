@@ -257,19 +257,12 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 				// 15. Initialize token tracking
 				const cwd = process.cwd();
-				const tokenTracker = await initializeTokenTracking(
+				const { tracker: tokenTracker, baseContextTokens } = await initializeTokenTracking(
 					sessionId,
 					session,
 					messageRepository,
 					cwd,
-				);
-
-				const { calculateBaseContextTokens } = await import("@sylphx/code-core");
-				const baseContextTokens = await calculateBaseContextTokens(
-					session.model,
-					session.agentId,
-					session.enabledRuleIds,
-					cwd,
+					opts.appContext,
 				);
 
 				const tokenContext: TokenTrackingContext = {

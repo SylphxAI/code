@@ -31,7 +31,7 @@ import type { AppContext } from "../context.js";
  * Calculates baseline (base context + existing messages)
  */
 export async function initializeTokenTracking(
-	_sessionId: string,
+	sessionId: string,
 	session: {
 		model: string;
 		agentId: string;
@@ -40,7 +40,8 @@ export async function initializeTokenTracking(
 	},
 	messageRepository: MessageRepository,
 	cwd: string,
-): Promise<StreamingTokenTracker> {
+	appContext: AppContext,
+): Promise<{ tracker: StreamingTokenTracker; baseContextTokens: number }> {
 	const calculator = new TokenCalculator(session.model);
 
 	// Calculate base context tokens (dynamic, no cache)
@@ -66,7 +67,21 @@ export async function initializeTokenTracking(
 	const baselineTotal = baseContextTokens + messagesTokens;
 	const tokenTracker = new StreamingTokenTracker(calculator, baselineTotal);
 
-	return tokenTracker;
+	// Emit initial baseline tokens immediately when streaming starts
+	// This ensures status bar shows tokens even during "Thinking..." phase
+	try {
+		await appContext.eventStream.publish(`session:${sessionId}`, {
+			type: "session-tokens-updated" as const,
+			sessionId,
+			totalTokens: baselineTotal,
+			baseContextTokens,
+			outputTokens: 0, // No output tokens yet (just baseline)
+		});
+	} catch (error) {
+		console.error("[TokenTracking] Failed to emit initial baseline:", error);
+	}
+
+	return { tracker: tokenTracker, baseContextTokens };
 }
 
 /**
