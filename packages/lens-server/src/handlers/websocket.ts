@@ -118,7 +118,7 @@ async function handleSubscription(
 	const input = endpoint.input.parse(request.input);
 
 	// Create subscription
-	let subscribe: (input: any) => any;
+	let subscribe: (input: any, ctx?: any) => any;
 
 	if (endpoint.subscribe) {
 		// Use explicit subscribe function
@@ -132,10 +132,10 @@ async function handleSubscription(
 		});
 	}
 
-	// Subscribe and track
+	// Subscribe and track (pass context to subscription)
 	let previousValue: any = undefined;
 
-	const subscription = subscribe(input).subscribe({
+	const subscription = subscribe(input, config?.context).subscribe({
 		next: (value: any) => {
 			// Apply field selection
 			const selected = applyFieldSelection(value, request.select);

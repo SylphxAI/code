@@ -129,26 +129,15 @@ export class LensServer {
 		// JSON body parser
 		this.expressApp.use(express.json());
 
-		// Create Lens HTTP handler
-		const lensHandler = createLensHTTPHandler({
-			api,
+		// Create Lens server with HTTP/SSE handlers
+		const { createLensServer } = await import("@sylphx/lens-server");
+
+		const lensServer = createLensServer(api, {
 			context: this.appContext,
 		});
 
 		// HTTP endpoint for queries/mutations
-		this.expressApp.post("/lens", async (req, res) => {
-			try {
-				const result = await lensHandler.handleHTTP(req.body);
-				res.json(result);
-			} catch (error) {
-				console.error("[LensServer] HTTP error:", error);
-				res.status(500).json({
-					error: {
-						message: error instanceof Error ? error.message : "Internal server error",
-					},
-				});
-			}
-		});
+		this.expressApp.post("/lens", lensServer.handler);
 
 		// SSE endpoint for subscriptions
 		this.expressApp.get("/lens/subscribe", (req, res) => {
@@ -165,28 +154,28 @@ export class LensServer {
 				res.setHeader("Cache-Control", "no-cache");
 				res.setHeader("Connection", "keep-alive");
 
-				const observable = lensHandler.handleSubscription(request);
-
-				const subscription = observable.subscribe({
-					next: (value) => {
-						res.write(
-							`data: ${JSON.stringify({ type: "update", payload: value })}\n\n`,
-						);
+				// Create SSE-compatible handler
+				// SSE sends server-sent events, similar to WebSocket but one-way
+				const subscription = lensServer.wsHandler({
+					send: (message: string) => {
+						res.write(`data: ${message}\n\n`);
 					},
-					error: (error) => {
-						res.write(
-							`data: ${JSON.stringify({ type: "error", payload: { message: error.message } })}\n\n`,
-						);
-						res.end();
-					},
-					complete: () => {
-						res.write(`data: ${JSON.stringify({ type: "complete" })}\n\n`);
-						res.end();
+					on: (event: string, handler: (...args: any[]) => void) => {
+						if (event === "message") {
+							// Send initial subscription request
+							handler(JSON.stringify({
+								id: "sse-subscription",
+								type: "request",
+								payload: request,
+							}));
+						} else if (event === "close") {
+							req.on("close", handler);
+						}
 					},
 				});
 
 				req.on("close", () => {
-					subscription.unsubscribe();
+					// Cleanup will be handled by wsHandler's close event
 				});
 			} catch (error) {
 				console.error("[LensServer] SSE error:", error);

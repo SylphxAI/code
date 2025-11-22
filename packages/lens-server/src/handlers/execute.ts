@@ -14,7 +14,7 @@ import { autoPublishMutation } from "../subscription/auto-subscribe.js";
  *
  * 1. Resolve query/mutation from path
  * 2. Validate input
- * 3. Execute resolver
+ * 3. Execute resolver (with context)
  * 4. Validate output
  * 5. Apply field selection
  * 6. Auto-publish if mutation
@@ -52,8 +52,8 @@ export async function executeRequest<T>(
 	// 2. Validate input
 	const input = endpoint.input.parse(request.input);
 
-	// 3. Execute resolver
-	const result = await endpoint.resolve(input);
+	// 3. Execute resolver with context
+	const result = await endpoint.resolve(input, config?.context);
 
 	// 4. Validate output
 	const validated = endpoint.output.parse(result);

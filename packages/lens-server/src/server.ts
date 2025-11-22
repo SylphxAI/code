@@ -12,6 +12,12 @@ import type { AutoSubscribeConfig } from "./subscription/auto-subscribe.js";
  */
 export interface LensServerConfig {
 	/**
+	 * Context passed to resolvers as second parameter
+	 * Contains repositories, services, config, etc.
+	 */
+	context?: any;
+
+	/**
 	 * Auto-subscription configuration
 	 *
 	 * When enabled, Lens automatically:
