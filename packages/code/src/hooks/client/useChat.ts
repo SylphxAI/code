@@ -9,7 +9,8 @@
 
 import type { FileAttachment, TokenUsage } from "@sylphx/code-core";
 import { useCallback } from "react";
-import { getTRPCClient, setError } from "@sylphx/code-client";
+import { getLensClient, setError } from "@sylphx/code-client";
+import type { API } from "@sylphx/code-api";
 import { useCurrentSession, useCurrentSessionId } from "./useCurrentSession.js";
 
 /**
@@ -99,17 +100,16 @@ export function useChat() {
 			}
 
 			try {
-				const client = getTRPCClient();
+				const client = getLensClient<API>();
 
 				// Subscribe to streaming response
 				const subscription = client.message.streamResponse.subscribe(
 					{
 						sessionId: currentSessionId,
-						userMessage: message,
-						attachments,
+						userMessageContent: message,
 					},
-					{
-						onData: (event: any) => {
+				).subscribe({
+					next: (event: any) => {
 							// Handle streaming events from server
 							switch (event.type) {
 								case "session-created":
@@ -187,16 +187,15 @@ export function useChat() {
 									break;
 							}
 						},
-						onError: (error: any) => {
-							const errorMessage = error instanceof Error ? error.message : "Streaming error";
-							onError?.(errorMessage);
-							setError(errorMessage);
-						},
-						onComplete: () => {
-							// Subscription completed
-						},
+					error: (error: any) => {
+						const errorMessage = error instanceof Error ? error.message : "Streaming error";
+						onError?.(errorMessage);
+						setError(errorMessage);
 					},
-				);
+					complete: () => {
+						// Subscription completed
+					},
+				});
 
 				// Return unsubscribe function
 				return () => subscription.unsubscribe();

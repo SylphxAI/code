@@ -15,7 +15,7 @@ import { useEffect, useRef } from "react";
 import {
 	eventBus,
 	currentSession,
-	getTRPCClient,
+	getLensClient,
 	isStreaming,
 	setCurrentSession,
 	useCurrentSession as useOptimisticSession,
@@ -28,6 +28,7 @@ import {
 	setCurrentSessionLoading as setCurrentSessionLoadingSignal,
 	setCurrentSessionError as setCurrentSessionErrorSignal,
 } from "@sylphx/code-client";
+import type { API } from "@sylphx/code-api";
 
 export function useCurrentSession() {
 	const currentSessionId = useCurrentSessionId();
@@ -81,7 +82,7 @@ export function useCurrentSession() {
 		setCurrentSessionLoadingSignal(true);
 		setCurrentSessionErrorSignal(null);
 
-		const client = getTRPCClient();
+		const client = getLensClient<API>();
 		client.session.getById
 			.query({ sessionId: currentSessionId })
 			.then((session) => {
