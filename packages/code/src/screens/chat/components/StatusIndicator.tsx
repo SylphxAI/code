@@ -9,15 +9,15 @@
  * - Multi-client sync: Backend events keep all clients in sync
  */
 
-import { useCurrentSession, useIsCompacting, useThemeColors } from "@sylphx/code-client";
+import { useIsCompacting, useThemeColors } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
 import Spinner from "../../../components/Spinner.js";
+import { useCurrentSession } from "../../../hooks/client/useCurrentSession.js";
 
 export function StatusIndicator() {
 	const isCompacting = useIsCompacting();
-	const currentSessionData = useCurrentSession();
-	const currentSession = currentSessionData?.currentSession;
+	const { currentSession } = useCurrentSession();
 	const colors = useThemeColors();
 
 	// Local duration tracking for optimistic updates
