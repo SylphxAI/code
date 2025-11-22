@@ -28,6 +28,7 @@ import {
 	parseUserInput,
 	setCurrentSessionId,
 	setCurrentSession,
+	trackOptimisticSessionStatus,
 	trackOptimisticMessage,
 } from "@sylphx/code-client";
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from "@sylphx/code-core";
@@ -170,17 +171,28 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		setIsStreaming(true);
 
 		// OPTIMISTIC: Set status indicator immediately (don't wait for backend)
-		// This gives instant feedback to the user
+		// Uses generic optimistic update system for reconciliation
 		const currentSessionValue = currentSession.value;
 		if (currentSessionValue) {
-			setCurrentSession({
+			const newStatus = {
+				text: "Thinking...",
+				duration: 0,
+				tokenUsage: 0,
+				isActive: true,
+			};
+
+			// Update zen signals for immediate UI update
+			const updatedSession = {
 				...currentSessionValue,
-				status: {
-					text: "Thinking...",
-					duration: 0,
-					tokenUsage: 0,
-					isActive: true,
-				},
+				status: newStatus,
+			};
+			setCurrentSession(updatedSession);
+
+			// Track optimistic operation for server reconciliation
+			trackOptimisticSessionStatus({
+				sessionId: currentSessionValue.id,
+				status: newStatus,
+				previousStatus: currentSessionValue.status,
 			});
 		}
 
@@ -425,6 +437,18 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 							tokenUsage: 0,
 							isActive: true,
 						},
+					});
+
+					// Track optimistic status for server reconciliation
+					trackOptimisticSessionStatus({
+						sessionId: "temp-session",
+						status: {
+							text: "Thinking...",
+							duration: 0,
+							tokenUsage: 0,
+							isActive: true,
+						},
+						// No previous status for new temp-session
 					});
 
 					// Track optimistic assistant message ID for reconciliation

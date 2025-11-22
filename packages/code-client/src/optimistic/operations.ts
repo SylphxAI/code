@@ -66,6 +66,14 @@ export function applyOperation(state: SessionState, op: Operation): SessionState
 			};
 		}
 
+		case "update-session-status": {
+			// Update session status (for status indicator)
+			return {
+				...state,
+				serverStatus: op.status,
+			};
+		}
+
 		default:
 			return state;
 	}
@@ -136,6 +144,14 @@ export function applyInverse(state: SessionState, op: Operation): SessionState {
 			// Cannot reverse status update without previous status
 			// This should only be called when server confirms
 			return state;
+		}
+
+		case "update-session-status": {
+			// Reverse: restore previous status
+			return {
+				...state,
+				serverStatus: op.previousStatus,
+			};
 		}
 
 		default:

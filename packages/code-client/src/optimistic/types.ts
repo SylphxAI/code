@@ -24,8 +24,20 @@ export interface Message {
 }
 
 /**
+ * Session Status (for status indicator)
+ */
+export interface SessionStatus {
+	text: string;
+	duration: number;
+	tokenUsage: number;
+	isActive: boolean;
+}
+
+/**
  * Operation Types
  * Each operation defines a forward mutation and its inverse
+ *
+ * Design: Generic enough to support any entity type (messages, sessions, etc.)
  */
 export type Operation =
 	// Add message to conversation (optimistic)
@@ -68,6 +80,13 @@ export type Operation =
 			sessionId: string;
 			messageId: string;
 			status: "active" | "completed" | "error" | "abort";
+	  }
+	// Update session status (for status indicator)
+	| {
+			type: "update-session-status";
+			sessionId: string;
+			status: SessionStatus;
+			previousStatus?: SessionStatus; // For rollback
 	  };
 
 /**
@@ -93,6 +112,11 @@ export type ServerEvent =
 			type: "message-status-updated";
 			messageId: string;
 			status: "active" | "completed" | "error" | "abort";
+	  }
+	| {
+			type: "session-status-updated";
+			sessionId: string;
+			status: SessionStatus;
 	  };
 
 /**
@@ -112,6 +136,7 @@ export interface SessionState {
 	// Server state (source of truth)
 	serverMessages: Message[];
 	serverQueue: QueuedMessage[];
+	serverStatus?: SessionStatus; // Session-level status (for status indicator)
 	// Optimistic operations (pending confirmation)
 	pending: PendingOperation[];
 }

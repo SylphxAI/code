@@ -238,16 +238,64 @@ export function handleMessageStatusUpdatedWithOptimistic(event: {
 	const sessionId = currentSessionId.value;
 	if (!sessionId) return;
 
-	// Update message status in session signals
+	// Update message in signals
 	updateMessage(event.messageId, { status: event.status });
 
-	// Reconcile optimistic state
 	const serverEvent: ServerEvent = {
 		type: "message-status-updated",
 		messageId: event.messageId,
 		status: event.status,
 	};
 	reconcileWithServer(sessionId, serverEvent);
+}
+
+/**
+ * Track optimistic session status update
+ *
+ * Call this AFTER setting optimistic status in session signals
+ * This tracks the operation for later reconciliation/rollback
+ *
+ * @param sessionId - Session ID
+ * @param status - New session status
+ * @param previousStatus - Previous status (for rollback)
+ */
+export function trackOptimisticSessionStatus(params: {
+	sessionId: string;
+	status: import("./types.js").SessionStatus;
+	previousStatus?: import("./types.js").SessionStatus;
+}): void {
+	const { sessionId, status, previousStatus } = params;
+
+	const operation: Operation = {
+		type: "update-session-status",
+		sessionId,
+		status,
+		previousStatus,
+	};
+
+	optimisticManager.apply(sessionId, operation);
+}
+
+/**
+ * Handle session-status-updated event with reconciliation
+ *
+ * Called when server confirms session status update
+ * This will reconcile with optimistic state
+ */
+export function handleSessionStatusUpdatedWithOptimistic(event: {
+	sessionId: string;
+	status: import("./types.js").SessionStatus;
+}): void {
+	const sessionId = currentSessionId.value;
+	if (!sessionId || sessionId !== event.sessionId) return;
+
+	// Reconcile with server event
+	const serverEvent: ServerEvent = {
+		type: "session-status-updated",
+		sessionId: event.sessionId,
+		status: event.status,
+	};
+	reconcileWithServer(event.sessionId, serverEvent);
 }
 
 /**

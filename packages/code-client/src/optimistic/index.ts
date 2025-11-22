@@ -13,6 +13,7 @@ export { applyOperation, applyInverse, applyPendingOperations } from "./operatio
 // Types
 export type {
 	Message,
+	SessionStatus,
 	Operation,
 	PendingOperation,
 	ServerEvent,
@@ -22,6 +23,7 @@ export type {
 // Integration (main API for clients)
 export {
 	trackOptimisticMessage,
+	trackOptimisticSessionStatus,
 	confirmOptimistic,
 	rollbackOptimistic,
 	reconcileWithServer,
@@ -31,5 +33,6 @@ export {
 	handleQueueClearedWithOptimistic,
 	handleUserMessageCreatedWithOptimistic,
 	handleMessageStatusUpdatedWithOptimistic,
+	handleSessionStatusUpdatedWithOptimistic,
 	initOptimisticUpdates,
 } from "./integration.js";
