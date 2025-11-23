@@ -32,7 +32,8 @@ const OptimisticManagerContext = createContext<OptimisticManager | null>(null);
  */
 export interface LensProviderProps<TApi extends LensObject<any>> {
 	api: TApi;
-	context: any;
+	context?: any; // Optional if transport is provided
+	transport?: any; // Optional pre-configured transport (use instead of creating new one)
 	optimistic?: boolean;
 	children: ReactNode;
 }
@@ -44,6 +45,7 @@ export interface LensProviderProps<TApi extends LensObject<any>> {
 export function LensProvider<TApi extends LensObject<any>>({
 	api,
 	context,
+	transport: providedTransport,
 	optimistic = true,
 	children,
 }: LensProviderProps<TApi>) {
@@ -54,14 +56,15 @@ export function LensProvider<TApi extends LensObject<any>>({
 	);
 
 	const client = useMemo(() => {
-		const transport = new InProcessTransport({ api, context });
+		// Use provided transport if available, otherwise create new one
+		const transport = providedTransport || new InProcessTransport({ api, context });
 
 		return createLensClient<TApi>({
 			transport,
 			schema: api, // Pass API schema for optimistic metadata
 			optimisticManager: optimisticManager || undefined,
 		});
-	}, [api, context, optimisticManager]);
+	}, [api, context, providedTransport, optimisticManager]);
 
 	// Initialize global client and manager for Zustand stores (cannot use React Context)
 	console.log("[LensProvider] Initializing global Lens client...");
