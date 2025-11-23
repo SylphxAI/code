@@ -114,6 +114,50 @@ export const sessionAPI = lens.object({
 					modelStatus,
 				};
 			},
+		// Subscribe: Real-time updates via fine-grained part-updated events
+		// LENS: Message-level subscription with automatic state merging
+		async ({ input, ctx }): Promise<Observable<Message | null>> => {
+			const { messageId } = input;
+			const { startWith, scan } = require("rxjs/operators");
+
+			// Initial fetch: Get message from database
+			const sessionId = messageId.split('-step-')[0].replace(/-[^-]+$/, '');
+			const session = await ctx.sessionRepository.getSessionById(sessionId);
+			const initialMessage = session?.messages?.find((m: Message) => m.id === messageId) || null;
+
+			// Subscribe to message-specific channel for fine-grained updates
+			return ctx.appContext.eventStream
+				.subscribe(`message:${messageId}`)
+				.pipe(
+					startWith({ type: 'initial', message: initialMessage }),
+					scan((currentMessage: Message | null, event: any) => {
+						if (!currentMessage) return null;
+
+						// Handle part-updated events
+						if (event.type === 'part-updated') {
+							// Merge part into message state
+							const { stepId, partIndex, part } = event;
+
+							// Deep clone to avoid mutation
+							const updatedMessage = JSON.parse(JSON.stringify(currentMessage));
+
+							// Find step and update part
+							updatedMessage.steps = updatedMessage.steps.map((step: any) => {
+								if (step.id === stepId) {
+									const updatedParts = [...step.parts];
+									updatedParts[partIndex] = part;
+									return { ...step, parts: updatedParts };
+								}
+								return step;
+							});
+
+							return updatedMessage;
+						}
+
+						return currentMessage;
+					}, initialMessage)
+				);
+		}
 			// Subscribe: Real-time updates
 			({ input, ctx }): Observable<Session | null> => {
 				const { sessionId } = input;
@@ -533,36 +577,48 @@ export const messageAPI = lens.object({
 				const message = session.messages.find((m: Message) => m.id === messageId);
 				return message || null;
 			},
-			// Subscribe: Real-time updates for streaming parts
-			// TODO (Phase 3): Replace with Lens database watching
-			({ input, ctx }): Observable<Message | null> => {
+			// Subscribe: Real-time updates via fine-grained part-updated events
+			// LENS: Message-level subscription with automatic state merging
+			async ({ input, ctx }): Promise<Observable<Message | null>> => {
 				const { messageId } = input;
-				const { Observable: RxObservable } = require("rxjs");
-				const { startWith, map, filter } = require("rxjs/operators");
+				const { startWith, scan } = require("rxjs/operators");
 
-				// Extract session ID from message ID
+				// Initial fetch: Get message from database
 				const sessionId = messageId.split('-step-')[0].replace(/-[^-]+$/, '');
+				const session = await ctx.sessionRepository.getSessionById(sessionId);
+				const initialMessage = session?.messages?.find((m: Message) => m.id === messageId) || null;
 
-				// Subscribe to session events (backward compatibility)
-				// When parts are updated, session-updated event is published
+				// Subscribe to message-specific channel for fine-grained updates
 				return ctx.appContext.eventStream
-					.subscribe(`session:${sessionId}`)
+					.subscribe(`message:${messageId}`)
 					.pipe(
-						startWith(null), // Trigger initial fetch
-						map((event: any) => {
-							if (!event) return null;
-							// Filter for message-level updates
-							// Future (Phase 3): Lens will detect step_parts changes directly
-							if (event.type === 'session-updated') {
-								// Re-fetch message to get updated parts
-								// This is temporary - Lens delta will replace this
-								return event.payload?.session?.messages?.find(
-									(m: Message) => m.id === messageId
-								) || null;
+						startWith({ type: 'initial', message: initialMessage }),
+						scan((currentMessage: Message | null, event: any) => {
+							if (!currentMessage) return null;
+
+							// Handle part-updated events
+							if (event.type === 'part-updated') {
+								// Merge part into message state
+								const { stepId, partIndex, part } = event;
+
+								// Deep clone to avoid mutation
+								const updatedMessage = JSON.parse(JSON.stringify(currentMessage));
+
+								// Find step and update part
+								updatedMessage.steps = updatedMessage.steps.map((step: any) => {
+									if (step.id === stepId) {
+										const updatedParts = [...step.parts];
+										updatedParts[partIndex] = part;
+										return { ...step, parts: updatedParts };
+									}
+									return step;
+								});
+
+								return updatedMessage;
 							}
-							return null;
-						}),
-						filter((message: Message | null) => message !== null)
+
+							return currentMessage;
+						}, initialMessage)
 					);
 			}
 		),

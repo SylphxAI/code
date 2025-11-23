@@ -125,6 +125,7 @@ export async function processAIStream(
 										state.currentTextPartIndex,
 										part,
 									);
+									await persistence.publishPartUpdate(stepId, state.currentTextPartIndex, part);
 								}
 							}
 						}
@@ -161,6 +162,7 @@ export async function processAIStream(
 										state.currentTextPartIndex,
 										part,
 									);
+									await persistence.publishPartUpdate(stepId, state.currentTextPartIndex, part);
 								}
 							}
 						}
@@ -204,6 +206,7 @@ export async function processAIStream(
 										state.currentReasoningPartIndex,
 										part,
 									);
+									await persistence.publishPartUpdate(stepId, state.currentReasoningPartIndex, part);
 								}
 							}
 						}
@@ -243,6 +246,7 @@ export async function processAIStream(
 										state.currentReasoningPartIndex,
 										part,
 									);
+									await persistence.publishPartUpdate(stepId, state.currentReasoningPartIndex, part);
 								}
 							}
 
@@ -292,6 +296,7 @@ export async function processAIStream(
 									toolPartIndex,
 									newToolPart,
 								);
+								await persistence.publishPartUpdate(stepId, toolPartIndex, newToolPart);
 							}
 						}
 					}
@@ -407,6 +412,7 @@ export async function processAIStream(
 										toolPartIndex,
 										toolPart,
 									);
+								await persistence.publishPartUpdate(stepId, toolPartIndex, toolPart);
 								}
 							}
 						}

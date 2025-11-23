@@ -412,6 +412,17 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				const persistence = {
 					messageRepository,
 					getStepId: () => stepIdMap.get(currentStepNumber) || null,
+
+					// LENS: Publish fine-grained part-updated event after upsert
+					publishPartUpdate: async (stepId: string, partIndex: number, part: MessagePart) => {
+						await opts.appContext.eventStream.publish(`message:${assistantMessageId}`, {
+							type: 'part-updated',
+							messageId: assistantMessageId,
+							stepId,
+							partIndex,
+							part
+						});
+					}
 				};
 
 				const stepResult = await processAIStream(
