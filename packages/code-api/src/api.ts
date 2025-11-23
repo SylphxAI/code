@@ -39,12 +39,7 @@ export interface CodeContext {
 	messageRepository: any;  // TODO: Import MessageRepository type from code-server
 	todoRepository: any;     // TODO: Import TodoRepository type from code-server
 	aiConfig: any;           // TODO: Import AIConfig type from code-core
-	appContext: {
-		eventStream: any;    // TODO: Import AppEventStream type
-		bashManagerV2: any;  // TODO: Import BashManagerV2 type
-		agentManager: any;   // TODO: Import AgentManager type
-		ruleManager: any;    // TODO: Import RuleManager type
-	};
+	appContext: any;         // Full AppContext with all services (database, managers, etc.)
 }
 
 /**

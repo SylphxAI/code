@@ -102,12 +102,7 @@ export class LensServer {
 			messageRepository,
 			todoRepository,
 			aiConfig,
-			appContext: {
-				eventStream: this.appContext.eventStream,
-				bashManagerV2: this.appContext.bashManagerV2,
-				agentManager: this.appContext.agentManager,
-				ruleManager: this.appContext.ruleManager,
-			},
+			appContext: this.appContext, // Pass full AppContext with all services
 		};
 
 		console.log("[LensServer] CodeContext created with providers:", Object.keys(codeContext.aiConfig.providers || {}));
@@ -197,12 +192,7 @@ export class LensServer {
 			messageRepository,
 			todoRepository,
 			aiConfig,
-			appContext: {
-				eventStream: this.appContext.eventStream,
-				bashManagerV2: this.appContext.bashManagerV2,
-				agentManager: this.appContext.agentManager,
-				ruleManager: this.appContext.ruleManager,
-			},
+			appContext: this.appContext, // Pass full AppContext with all services
 		};
 
 		const lensServer = createLensServer(api, {
