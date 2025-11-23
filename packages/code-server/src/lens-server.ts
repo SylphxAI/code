@@ -86,11 +86,15 @@ export class LensServer {
 		let aiConfig = { providers: {} };
 		try {
 			const result = await loadAIConfig();
+			console.log("[LensServer] loadAIConfig result:", result);
 			if (result.success) {
 				aiConfig = result.data;
+				console.log("[LensServer] Loaded aiConfig providers:", Object.keys(aiConfig.providers || {}));
+			} else {
+				console.error("[LensServer] loadAIConfig failed:", result);
 			}
 		} catch (error) {
-			console.error("Failed to load AI config:", error);
+			console.error("[LensServer] Failed to load AI config:", error);
 		}
 
 		const codeContext = {
@@ -103,6 +107,8 @@ export class LensServer {
 				bashManagerV2: this.appContext.bashManagerV2,
 			},
 		};
+
+		console.log("[LensServer] CodeContext created with providers:", Object.keys(codeContext.aiConfig.providers || {}));
 
 		// Create InProcessTransport with CodeContext
 		this.inProcessTransport = new InProcessTransport({
