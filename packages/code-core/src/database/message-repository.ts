@@ -218,6 +218,63 @@ export class MessageRepository {
 	}
 
 	/**
+	 * Upsert a single part in a step (for incremental streaming updates)
+	 *
+	 * This method enables true streaming by updating individual parts without replacing all:
+	 * - If part exists at ordering: UPDATE content (e.g., append text during streaming)
+	 * - If part doesn't exist: INSERT new part
+	 *
+	 * Design: Streaming-first architecture
+	 * - Text parts: content grows incrementally as AI streams
+	 * - Tool parts: input added first, result added when completed
+	 * - Status field tracks lifecycle: 'active' → 'completed'
+	 *
+	 * Example streaming flow:
+	 * 1. upsertPart(stepId, 0, { type: 'text', content: 'Hello', status: 'active' })
+	 * 2. upsertPart(stepId, 0, { type: 'text', content: 'Hello wo', status: 'active' })
+	 * 3. upsertPart(stepId, 0, { type: 'text', content: 'Hello world', status: 'completed' })
+	 *
+	 * @param stepId - Step ID
+	 * @param ordering - Part index within step (0, 1, 2, ...)
+	 * @param part - MessagePart to upsert
+	 * @returns Part ID (existing or newly created)
+	 */
+	async upsertPart(stepId: string, ordering: number, part: MessagePart): Promise<string> {
+		return await retryDatabase(async () => {
+			// Check if part exists at this position
+			const existing = await this.db
+				.select({ id: stepParts.id })
+				.from(stepParts)
+				.where(and(eq(stepParts.stepId, stepId), eq(stepParts.ordering, ordering)))
+				.limit(1);
+
+			if (existing.length > 0) {
+				// UPDATE existing part
+				const partId = existing[0].id;
+				await this.db
+					.update(stepParts)
+					.set({
+						type: part.type,
+						content: JSON.stringify(part),
+					})
+					.where(eq(stepParts.id, partId));
+				return partId;
+			} else {
+				// INSERT new part
+				const partId = randomUUID();
+				await this.db.insert(stepParts).values({
+					id: partId,
+					stepId,
+					ordering,
+					type: part.type,
+					content: JSON.stringify(part),
+				});
+				return partId;
+			}
+		});
+	}
+
+	/**
 	 * @deprecated Use updateStepParts instead
 	 * Legacy method for backward compatibility - updates step-0 parts
 	 */
