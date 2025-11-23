@@ -124,7 +124,6 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		attachments?: FileAttachment[],
 		_options?: TriggerAIOptions,
 	) => {
-		console.log("[subscriptionAdapter] ===== SEND MESSAGE CALLED =====");
 		logSession("Send user message called");
 		logSession("User message length:", userMessage.length);
 		logSession("Provider:", selectedProvider, "Model:", selectedModel);
@@ -241,14 +240,12 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		});
 
 		try {
-			console.log("[subscriptionAdapter] Getting Lens client...");
 			logSession("Getting Lens client");
 
 			// Get Lens client (in-process client)
 			let client;
 			try {
 				client = getLensClient();
-				console.log("[subscriptionAdapter] Lens client obtained successfully");
 				logSession("Lens client obtained");
 			} catch (clientError) {
 				console.error("[subscriptionAdapter] FAILED to get Lens client:", clientError);
@@ -472,7 +469,6 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				);
 			}
 
-			console.log("[subscriptionAdapter] Calling triggerStream mutation...");
 			logSession("Calling triggerStream mutation", {
 				sessionId,
 				hasProvider: !!provider,
@@ -486,12 +482,6 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			// - Server publishes all events to event bus
 			// - Client receives events via useEventStream (Chat.tsx)
 			// - No subscription callbacks needed - all handled in event handlers
-			console.log("[subscriptionAdapter] Mutation params:", {
-				sessionId: sessionId,
-				provider: sessionId ? undefined : provider,
-				model: sessionId ? undefined : model,
-				contentLength: content.length,
-			});
 			const result = await client.message.triggerStream.mutate({
 				sessionId: sessionId,
 				provider: sessionId ? undefined : provider,
@@ -499,7 +489,6 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				content, // Empty array = use existing messages, non-empty = add new user message
 			});
 
-			console.log("[subscriptionAdapter] Mutation completed:", result);
 			logSession("Mutation completed:", result);
 
 			// Store sessionId for abort handler (registered earlier)

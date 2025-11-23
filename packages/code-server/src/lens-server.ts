@@ -86,10 +86,8 @@ export class LensServer {
 		let aiConfig = { providers: {} };
 		try {
 			const result = await loadAIConfig();
-			console.log("[LensServer] loadAIConfig result:", result);
 			if (result.success) {
 				aiConfig = result.data;
-				console.log("[LensServer] Loaded aiConfig providers:", Object.keys(aiConfig.providers || {}));
 			} else {
 				console.error("[LensServer] loadAIConfig failed:", result);
 			}
@@ -104,11 +102,6 @@ export class LensServer {
 			aiConfig,
 			appContext: this.appContext, // Pass full AppContext with all services
 		};
-
-		console.log("[LensServer] CodeContext created with providers:", Object.keys(codeContext.aiConfig.providers || {}));
-		console.log("[LensServer] CodeContext keys:", Object.keys(codeContext));
-		console.log("[LensServer] CodeContext.aiConfig type:", typeof codeContext.aiConfig);
-		console.log("[LensServer] CodeContext.aiConfig.providers type:", typeof codeContext.aiConfig.providers);
 
 		// Create InProcessTransport with CodeContext
 		this.inProcessTransport = new InProcessTransport({

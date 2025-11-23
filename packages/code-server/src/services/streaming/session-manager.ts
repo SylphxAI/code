@@ -43,13 +43,7 @@ export async function ensureSession(
 		throw new Error("Provider and model required when creating new session");
 	}
 
-	console.log("[session-manager] Checking provider:", provider);
-	console.log("[session-manager] aiConfig:", aiConfig);
-	console.log("[session-manager] aiConfig.providers:", aiConfig?.providers);
-	console.log("[session-manager] Available providers:", Object.keys(aiConfig?.providers || {}));
-
 	const providerConfig = aiConfig?.providers?.[provider];
-	console.log("[session-manager] providerConfig for", provider, ":", providerConfig);
 
 	if (!providerConfig) {
 		throw new Error("Provider not configured. Please configure your provider using settings.");

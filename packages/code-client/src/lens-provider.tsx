@@ -67,10 +67,8 @@ export function LensProvider<TApi extends LensObject<any>>({
 	}, [api, context, providedTransport, optimisticManager]);
 
 	// Initialize global client and manager for Zustand stores (cannot use React Context)
-	console.log("[LensProvider] Initializing global Lens client...");
 	_initGlobalClient(client);
 	_initGlobalOptimisticManager(optimisticManager);
-	console.log("[LensProvider] Global Lens client initialized successfully");
 
 	// @ts-expect-error - JSX works with both React and Preact runtimes
 	return (
@@ -146,12 +144,9 @@ export function _initGlobalClient(client: LensClient<any>) {
  * @internal DO NOT USE in React components - use useLensClient() hook
  */
 export function getLensClient<TApi extends LensObject<any>>(): LensClient<TApi> {
-	console.log("[getLensClient] Called, global client exists:", !!_globalClientForStores);
 	if (!_globalClientForStores) {
-		console.error("[getLensClient] ERROR: Global client not initialized!");
 		throw new Error("Lens client not initialized. Ensure LensProvider wraps your app.");
 	}
-	console.log("[getLensClient] Returning global client");
 	return _globalClientForStores as LensClient<TApi>;
 }
 
