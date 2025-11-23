@@ -64,7 +64,10 @@ export function createLensDatabaseAdapter(
 						cursor,
 					);
 
-					return result.items;
+					// Adapt format: { sessions, nextCursor } -> sessions array
+					// getRecentSessionsMetadata returns { sessions: SessionMetadata[], nextCursor: number | null }
+					// Lens expects an array of entities
+					return result.sessions;
 				}
 
 				case "messages":
