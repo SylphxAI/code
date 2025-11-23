@@ -234,7 +234,10 @@ async function main() {
 			// Initialize global Lens client from LensServer's InProcessTransport
 			// This transport was created with full CodeContext (repositories + aiConfig)
 			const transport = lensServer.createInProcessTransport();
-			const { createLensClient, _initGlobalLensClient, OptimisticManager, _initGlobalOptimisticManager } = await import("@sylphx/code-client");
+
+			// Import from correct packages
+			const { createLensClient, OptimisticManager } = await import("@sylphx/lens-client");
+			const { _initGlobalLensClient, _initGlobalOptimisticManager } = await import("@sylphx/code-client");
 
 			// Create optimistic manager
 			const optimisticManager = new OptimisticManager({ debug: false });
