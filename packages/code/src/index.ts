@@ -61,8 +61,6 @@ import {
 	createInProcessClient,
 	TRPCProvider,
 	type TypedTRPCClient,
-	LensProvider,
-	createInProcessLensClient,
 } from "@sylphx/code-client";
 import { CodeServer, LensServer, api } from "@sylphx/code-server";
 import chalk from "chalk";
@@ -233,18 +231,31 @@ async function main() {
 				throw new Error("Lens server not initialized");
 			}
 
-			// Wrap App with both providers (dual-mode during migration)
-			// tRPC provider for legacy code, Lens provider for new code
-			const appContext = lensServer.getAppContext();
+			// Initialize global Lens client from LensServer's InProcessTransport
+			// This transport was created with full CodeContext (repositories + aiConfig)
+			const transport = lensServer.createInProcessTransport();
+			const { createLensClient, _initGlobalLensClient, OptimisticManager, _initGlobalOptimisticManager } = await import("@sylphx/code-client");
+
+			// Create optimistic manager
+			const optimisticManager = new OptimisticManager({ debug: false });
+
+			// Create Lens client with transport from server
+			const lensClient = createLensClient({
+				transport,
+				schema: api,
+				optimisticManager,
+			});
+
+			// Initialize global client for use in non-React contexts (Zustand stores, etc.)
+			_initGlobalLensClient(lensClient);
+			_initGlobalOptimisticManager(optimisticManager);
+
+			// Wrap App with tRPC provider (legacy, for compatibility during migration)
 			render(
 				React.createElement(
 					TRPCProvider,
 					{ client },
-					React.createElement(
-						LensProvider,
-						{ api, context: { appContext }, optimistic: true },
-						React.createElement(App)
-					)
+					React.createElement(App)
 				)
 			);
 		});
