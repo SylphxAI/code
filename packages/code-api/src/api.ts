@@ -140,7 +140,6 @@ export const sessionAPI = lens.object({
 	 * Get session count
 	 */
 	getCount: lens
-		.input(z.void())
 		.output(z.number())
 		.query(async ({ ctx }) => {
 			return await ctx.sessionRepository.getSessionCount();
@@ -150,7 +149,6 @@ export const sessionAPI = lens.object({
 	 * Get last session (for headless mode)
 	 */
 	getLast: lens
-		.input(z.void())
 		.output(SessionSchema.nullable())
 		.query(async ({ ctx }) => {
 			return await ctx.sessionRepository.getLastSession();
@@ -758,7 +756,6 @@ export const bashAPI = lens.object({
 	 * List all bash processes
 	 */
 	list: lens
-		.input(z.void())
 		.output(z.array(z.any())) // BashProcess array
 		.query(async ({ ctx }) => {
 			const { bashManagerV2 } = ctx.appContext;
@@ -886,7 +883,6 @@ export const bashAPI = lens.object({
 	 * Get active bash info
 	 */
 	getActive: lens
-		.input(z.void())
 		.output(z.object({
 			id: z.string(),
 			command: z.string(),
@@ -922,7 +918,6 @@ export const bashAPI = lens.object({
 	 * Get active queue length
 	 */
 	getActiveQueueLength: lens
-		.input(z.void())
 		.output(z.object({
 			count: z.number(),
 		}))
@@ -1026,7 +1021,6 @@ export const adminAPI = lens.object({
 	 * No authorization required
 	 */
 	getHealth: lens
-		.input(z.void())
 		.output(z.object({
 			status: z.literal("ok"),
 			timestamp: z.number(),
@@ -1054,7 +1048,6 @@ export const adminAPI = lens.object({
 	 * System management operation
 	 */
 	forceGC: lens
-		.input(z.void())
 		.output(z.object({
 			success: z.boolean(),
 			message: z.string(),
@@ -1077,7 +1070,6 @@ export const adminAPI = lens.object({
 	 * Shows all available endpoints, their types, and requirements
 	 */
 	getAPIInventory: lens
-		.input(z.void())
 		.output(z.any()) // API inventory structure
 		.query(async ({ ctx }) => {
 			const { getAPIInventory } = await import("../../code-server/src/utils/api-inventory.js");
