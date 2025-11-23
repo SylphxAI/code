@@ -13,7 +13,7 @@ export function useAIConfig() {
 	const loadConfig = useCallback(async () => {
 		setLoading(true);
 		try {
-			const result = await client.config.load.query();
+			const result = await client.config.load.query({ cwd: process.cwd() });
 
 			if (result.success) {
 				// Use setAIConfig to trigger logic for loading defaultEnabledRuleIds and defaultAgentId
