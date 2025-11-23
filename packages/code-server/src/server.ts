@@ -20,6 +20,8 @@ import {
 } from "./context.js";
 import { type Context, createContext } from "./trpc/context.js";
 import { type AppRouter, appRouter } from "./trpc/routers/index.js";
+import { initializeLensAPI } from "./lens/index.js";
+import { createLensHTTPHandler } from "./lens/http-handler.js";
 
 export interface ServerConfig {
 	/**
@@ -143,6 +145,19 @@ export class CodeServer {
 					createContext: ({ req, res }) => createContext({ appContext: appContext!, req, res }),
 				}),
 			);
+
+			// Lens HTTP middleware
+			// Initialize Lens API with AppContext (context is pre-bound)
+			const lensAPI = initializeLensAPI(appContext!);
+			const lensHandler = createLensHTTPHandler(lensAPI);
+
+			// Parse JSON body for Lens requests
+			this.expressApp.use("/lens", express.json());
+			this.expressApp.post("/lens", lensHandler);
+
+			console.log("✅ Lens HTTP handler initialized");
+			console.log("   - Endpoint: POST /lens");
+			console.log("   - Context: Pre-bound with AppContext");
 
 			// Static files for Web UI
 			await this.setupStaticFiles();
