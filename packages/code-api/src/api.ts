@@ -532,6 +532,15 @@ export const messageAPI = lens.object({
 			queued: z.boolean().optional(),
 		}))
 		.mutation(async ({ input, ctx }) => {
+			// Debug logging to see what context is received
+			console.log("[api.triggerStream] ===== MUTATION HANDLER CALLED =====");
+			console.log("[api.triggerStream] ctx keys:", Object.keys(ctx));
+			console.log("[api.triggerStream] ctx.aiConfig exists:", !!ctx.aiConfig);
+			console.log("[api.triggerStream] ctx.aiConfig:", ctx.aiConfig);
+			console.log("[api.triggerStream] ctx.sessionRepository exists:", !!ctx.sessionRepository);
+			console.log("[api.triggerStream] ctx.messageRepository exists:", !!ctx.messageRepository);
+			console.log("[api.triggerStream] ctx.appContext exists:", !!ctx.appContext);
+
 			// Import streaming orchestration (implemented in code-server)
 			const { triggerStreamMutation } = await import("../../code-server/src/services/streaming-mutations.service.js");
 
