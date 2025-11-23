@@ -43,6 +43,7 @@ export interface CodeContext {
 		eventStream: any;    // TODO: Import AppEventStream type
 		bashManagerV2: any;  // TODO: Import BashManagerV2 type
 		agentManager: any;   // TODO: Import AgentManager type
+		ruleManager: any;    // TODO: Import RuleManager type
 	};
 }
 

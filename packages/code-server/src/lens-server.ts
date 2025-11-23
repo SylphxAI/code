@@ -106,6 +106,7 @@ export class LensServer {
 				eventStream: this.appContext.eventStream,
 				bashManagerV2: this.appContext.bashManagerV2,
 				agentManager: this.appContext.agentManager,
+				ruleManager: this.appContext.ruleManager,
 			},
 		};
 
@@ -200,6 +201,7 @@ export class LensServer {
 				eventStream: this.appContext.eventStream,
 				bashManagerV2: this.appContext.bashManagerV2,
 				agentManager: this.appContext.agentManager,
+				ruleManager: this.appContext.ruleManager,
 			},
 		};
 
