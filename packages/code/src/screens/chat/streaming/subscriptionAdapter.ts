@@ -124,6 +124,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		attachments?: FileAttachment[],
 		_options?: TriggerAIOptions,
 	) => {
+		console.log("[subscriptionAdapter] ===== SEND MESSAGE CALLED =====");
 		logSession("Send user message called");
 		logSession("User message length:", userMessage.length);
 		logSession("Provider:", selectedProvider, "Model:", selectedModel);
@@ -240,9 +241,11 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		});
 
 		try {
+			console.log("[subscriptionAdapter] Getting Lens client...");
 			logSession("Getting Lens client");
 			// Get Lens client (in-process client)
 			const client = getLensClient();
+			console.log("[subscriptionAdapter] Lens client obtained");
 			logSession("Lens client obtained");
 
 			// Parse user input into ordered content parts
