@@ -345,9 +345,12 @@ If migration causes issues:
 - ✅ Phase 0: Design and documentation
 - ✅ Phase 1: Complete (database writes added - commit 3531152)
 - ✅ Phase 2: Testing Phase 1 - works, parts written to database
-- ⏳ Phase 3: Pending (blocked - see note below)
+- ✅ Phase 3: Fine-grained event implementation complete (commit 5bb1950)
+  - publishPartUpdate() added to persistence context
+  - All 6 upsertPart() locations now publish part-updated events
+  - message.getById subscription updated with scan() operator
 - ✅ Phase 4: Complete (message.getById endpoint added)
-- 🚧 Phase 5: In progress (client investigation)
+- ⏳ Phase 5: Testing pending (need to verify streaming works end-to-end)
 
 ## Critical Finding
 
