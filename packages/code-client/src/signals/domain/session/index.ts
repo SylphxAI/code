@@ -229,6 +229,25 @@ export const useCurrentSessionLoading = () => useZen(currentSessionLoading);
 export const useCurrentSessionError = () => useZen(currentSessionError);
 export const useServerSession = () => useZen(serverSession);
 
+// Load recent sessions from server via Lens
+export const loadRecentSessions = async (limit = 20) => {
+	updateSessionsLoading(true);
+	(sessionsError as any).value = null;
+
+	try {
+		const client = getLensClient<API>();
+		const sessions = await client.session.list.query({ limit });
+
+		// Update signal
+		updateRecentSessions(sessions);
+	} catch (error) {
+		console.error("[loadRecentSessions] Failed to load:", error);
+		(sessionsError as any).value = error instanceof Error ? error.message : "Failed to load sessions";
+	} finally {
+		updateSessionsLoading(false);
+	}
+};
+
 // Setup event listeners
 eventBus.on("streaming:started", () => {
 	updateStreamingStatus(true);

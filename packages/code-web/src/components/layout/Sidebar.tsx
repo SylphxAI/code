@@ -3,8 +3,8 @@
  * Navigation sidebar with session list and menu
  */
 
-import { currentScreen, recentSessions } from '@sylphx/code-client';
-import { useState } from 'preact/hooks';
+import { currentScreen, recentSessions, loadRecentSessions } from '@sylphx/code-client';
+import { useState, useEffect } from 'preact/hooks';
 import type { Screen } from '@sylphx/code-client';
 import type { VNode } from 'preact';
 import styles from '../../styles/components/sidebar.module.css';
@@ -103,6 +103,11 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const screen = currentScreen.value;
   const sessions = recentSessions.value.slice(0, 10);
+
+  // Load recent sessions on mount
+  useEffect(() => {
+    loadRecentSessions(20);
+  }, []);
 
   const handleNavClick = (screenId: Screen) => {
     // TODO: Navigate to screen
