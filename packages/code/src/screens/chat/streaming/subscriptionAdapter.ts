@@ -24,7 +24,7 @@
 
 import {
 	currentSession,
-	useLensClient,
+	getLensClient,
 	parseUserInput,
 	setCurrentSessionId,
 	setCurrentSession,
@@ -213,7 +213,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
 				if (abortSessionId) {
 					try {
-						const client = useLensClient();
+						const client = getLensClient();
 						await client.message.abortStream.mutate({
 							sessionId: abortSessionId,
 						});
@@ -242,7 +242,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		try {
 			logSession("Getting Lens client");
 			// Get Lens client (in-process client)
-			const client = useLensClient();
+			const client = getLensClient();
 			logSession("Lens client obtained");
 
 			// Parse user input into ordered content parts
