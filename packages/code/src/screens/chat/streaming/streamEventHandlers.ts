@@ -28,7 +28,7 @@ export {
 } from "./handlers/contentHandlers.js";
 export {
 	handleError,
-	handleMessageStatusUpdated,
+	handleMessageUpdated,
 } from "./handlers/errorHandlers.js";
 
 export {
@@ -44,12 +44,12 @@ export {
 	handleSessionDeleted,
 	handleSessionModelUpdated,
 	handleSessionProviderUpdated,
-	handleSessionStatusUpdated,
 	handleSessionTitleUpdated,
 	handleSessionTitleUpdatedDelta,
 	handleSessionTitleUpdatedEnd,
 	handleSessionTitleUpdatedStart,
 	handleSessionTokensUpdated,
+	handleSessionUpdated,
 } from "./handlers/sessionHandlers.js";
 
 export {
@@ -82,7 +82,7 @@ import {
 	handleTextEnd,
 	handleTextStart,
 } from "./handlers/contentHandlers.js";
-import { handleError, handleMessageStatusUpdated } from "./handlers/errorHandlers.js";
+import { handleError, handleMessageUpdated } from "./handlers/errorHandlers.js";
 import {
 	handleAssistantMessageCreated,
 	handleStepComplete,
@@ -96,12 +96,12 @@ import {
 	handleSessionDeleted,
 	handleSessionModelUpdated,
 	handleSessionProviderUpdated,
-	handleSessionStatusUpdated,
 	handleSessionTitleUpdated,
 	handleSessionTitleUpdatedDelta,
 	handleSessionTitleUpdatedEnd,
 	handleSessionTitleUpdatedStart,
 	handleSessionTokensUpdated,
+	handleSessionUpdated,
 } from "./handlers/sessionHandlers.js";
 import {
 	handleQueueClearedEvent,
