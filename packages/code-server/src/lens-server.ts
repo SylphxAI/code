@@ -109,6 +109,9 @@ export class LensServer {
 		};
 
 		console.log("[LensServer] CodeContext created with providers:", Object.keys(codeContext.aiConfig.providers || {}));
+		console.log("[LensServer] CodeContext keys:", Object.keys(codeContext));
+		console.log("[LensServer] CodeContext.aiConfig type:", typeof codeContext.aiConfig);
+		console.log("[LensServer] CodeContext.aiConfig.providers type:", typeof codeContext.aiConfig.providers);
 
 		// Create InProcessTransport with CodeContext
 		this.inProcessTransport = new InProcessTransport({
