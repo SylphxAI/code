@@ -131,10 +131,18 @@ export function createSessionStatusManager(
 
 		// CRITICAL: Also publish to Lens EventStream for useEventStream hook
 		// This enables optimistic reconciliation in handleSessionUpdated
+		console.log("[session-status-manager] Publishing to EventStream:", {
+			channel: `session:${sessionId}`,
+			statusText: status.text,
+			hasStatus: !!sessionUpdate.status,
+			isActive,
+		});
 		appContext.eventStream.publish(`session:${sessionId}`, {
 			type: "session-updated",
 			sessionId,
 			session: sessionUpdate,
+		}).then(() => {
+			console.log("[session-status-manager] EventStream publish SUCCESS");
 		}).catch((err) => {
 			console.error("[session-status-manager] Failed to publish to event stream:", err);
 		});
