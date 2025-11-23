@@ -501,6 +501,73 @@ export const sessionAPI = lens.object({
  */
 export const messageAPI = lens.object({
 	/**
+	 * Get message by ID with full data including steps and parts
+	 * FRONTEND-DRIVEN:
+	 * - Client controls field selection via `select`
+	 * - Can subscribe for real-time updates as parts stream in
+	 * - Supports nested selection: message.steps.parts
+	 *
+	 * LENS ARCHITECTURE (Phase 4):
+	 * - Database writes via upsertPart() during streaming (Phase 1 ✅)
+	 * - Future: Lens watches database and streams deltas (Phase 3 - pending)
+	 * - Current: Uses event stream for backward compatibility
+	 */
+	getById: lens
+		.input(z.object({ messageId: z.string() }))
+		.output(MessageSchema.nullable())
+		.query(
+			// Query: One-time fetch
+			async ({ input, ctx }) => {
+				const { messageId } = input;
+
+				// Get message by finding the session that contains it
+				// TODO: Add messageRepository.getById() for direct lookup
+				const sessionId = messageId.split('-step-')[0].replace(/-[^-]+$/, ''); // Extract session ID
+				const session = await ctx.sessionRepository.getSessionById(sessionId);
+
+				if (!session) {
+					return null;
+				}
+
+				// Find the message
+				const message = session.messages.find((m: Message) => m.id === messageId);
+				return message || null;
+			},
+			// Subscribe: Real-time updates for streaming parts
+			// TODO (Phase 3): Replace with Lens database watching
+			({ input, ctx }): Observable<Message | null> => {
+				const { messageId } = input;
+				const { Observable: RxObservable } = require("rxjs");
+				const { startWith, map, filter } = require("rxjs/operators");
+
+				// Extract session ID from message ID
+				const sessionId = messageId.split('-step-')[0].replace(/-[^-]+$/, '');
+
+				// Subscribe to session events (backward compatibility)
+				// When parts are updated, session-updated event is published
+				return ctx.appContext.eventStream
+					.subscribe(`session:${sessionId}`)
+					.pipe(
+						startWith(null), // Trigger initial fetch
+						map((event: any) => {
+							if (!event) return null;
+							// Filter for message-level updates
+							// Future (Phase 3): Lens will detect step_parts changes directly
+							if (event.type === 'session-updated') {
+								// Re-fetch message to get updated parts
+								// This is temporary - Lens delta will replace this
+								return event.payload?.session?.messages?.find(
+									(m: Message) => m.id === messageId
+								) || null;
+							}
+							return null;
+						}),
+						filter((message: Message | null) => message !== null)
+					);
+			}
+		),
+
+	/**
 	 * Trigger AI streaming
 	 * MUTATION: Starts streaming in background, returns sessionId
 	 *
