@@ -74,10 +74,23 @@ export class LensServer {
 
 		await initializeAppContext(this.appContext);
 
-		// Create InProcessTransport with context injection
+		// Create CodeContext for Lens API (transforms AppContext to expected shape)
+		const { getSessionRepository, getMessageRepository, getTodoRepository, getAIConfig } = await import("@sylphx/code-core");
+		const codeContext = {
+			sessionRepository: getSessionRepository(),
+			messageRepository: getMessageRepository(),
+			todoRepository: getTodoRepository(),
+			aiConfig: getAIConfig(),
+			appContext: {
+				eventStream: this.appContext.eventStream,
+				bashManagerV2: this.appContext.bashManagerV2,
+			},
+		};
+
+		// Create InProcessTransport with CodeContext
 		this.inProcessTransport = new InProcessTransport({
 			api,
-			context: this.appContext,
+			context: codeContext,
 		});
 
 		console.log(`[LensServer] Initialized (db: ${this.config.dbPath})`);
@@ -132,8 +145,21 @@ export class LensServer {
 		// Create Lens server with HTTP/SSE handlers
 		const { createLensServer } = await import("@sylphx/lens-server");
 
+		// Create CodeContext for Lens API (transforms AppContext to expected shape)
+		const { getSessionRepository, getMessageRepository, getTodoRepository, getAIConfig } = await import("@sylphx/code-core");
+		const codeContext = {
+			sessionRepository: getSessionRepository(),
+			messageRepository: getMessageRepository(),
+			todoRepository: getTodoRepository(),
+			aiConfig: getAIConfig(),
+			appContext: {
+				eventStream: this.appContext.eventStream,
+				bashManagerV2: this.appContext.bashManagerV2,
+			},
+		};
+
 		const lensServer = createLensServer(api, {
-			context: this.appContext,
+			context: codeContext,
 		});
 
 		// HTTP endpoint for queries/mutations
