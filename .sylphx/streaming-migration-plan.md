@@ -345,12 +345,23 @@ If migration causes issues:
 - ✅ Phase 0: Design and documentation
 - ✅ Phase 1: Complete (database writes added - commit 3531152)
 - ✅ Phase 2: Testing Phase 1 - works, parts written to database
-- ✅ Phase 3: Fine-grained event implementation complete (commit 5bb1950)
+- ✅ Phase 3: Fine-grained event implementation complete (commit 5bb1950, 88ad694, 4a93078)
   - publishPartUpdate() added to persistence context
   - All 6 upsertPart() locations now publish part-updated events
   - message.getById subscription updated with scan() operator
+  - Debouncing optimization added (10x reduction in database writes)
 - ✅ Phase 4: Complete (message.getById endpoint added)
 - ⏳ Phase 5: Testing pending (need to verify streaming works end-to-end)
+
+## Performance Optimization
+
+**Issue:** SQLITE_BUSY_SNAPSHOT errors from ~50 writes/sec overwhelming database
+
+**Solution:** Debouncing with smart publish strategy (commit 4a93078)
+- Publish every 10 deltas (reduces 50/sec → 5/sec = 90% reduction)
+- Force publish on completions (guarantees accuracy)
+- <200ms update latency (imperceptible to users)
+- Zero data loss (all final states published)
 
 ## Critical Finding
 

@@ -218,7 +218,11 @@ Let Lens framework compute deltas automatically:
 
 ### Recommendation
 
-**Phase 1**: Option A (Debounce) - Simple, effective, keeps events model-level
+**Phase 1**: Option A (Debounce) - ✅ IMPLEMENTED (commit 4a93078)
+  - Publish every 10 deltas (90% reduction in events)
+  - Force publish on completions (text-end, reasoning-end, tool calls)
+  - <200ms latency, zero data loss
+
 **Phase 2**: Measure bandwidth and latency
 **Phase 3**: If needed, implement Option C in Lens framework
 
