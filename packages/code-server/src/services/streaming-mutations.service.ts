@@ -57,11 +57,20 @@ export interface TriggerStreamResult {
 export async function triggerStreamMutation(
 	params: TriggerStreamParams,
 ): Promise<TriggerStreamResult> {
+	console.log("[triggerStreamMutation] ===== MUTATION CALLED =====");
+	console.log("[triggerStreamMutation] Input:", {
+		sessionId: params.input.sessionId,
+		provider: params.input.provider,
+		model: params.input.model,
+		contentLength: params.input.content.length,
+	});
+
 	const { appContext, sessionRepository, messageRepository, aiConfig, input } = params;
 	const { streamAIResponse } = await import("./streaming.service.js");
 
 	// Get or create sessionId for event channel
 	let eventSessionId = input.sessionId || null;
+	console.log("[triggerStreamMutation] Event session ID:", eventSessionId);
 
 	// QUEUE LOGIC: Check if session is currently streaming
 	// If streaming, enqueue message instead of starting new stream
@@ -121,6 +130,7 @@ export async function triggerStreamMutation(
 	const abortController = new AbortController();
 	let abortControllerId: string | null = null;
 
+	console.log("[triggerStreamMutation] Starting streaming...");
 	// Start streaming
 	const streamObservable = streamAIResponse({
 		appContext,
@@ -217,6 +227,7 @@ export async function triggerStreamMutation(
 	// Wait for sessionId (either immediate or from session-created event)
 	const finalSessionId = await sessionIdPromise;
 
+	console.log("[triggerStreamMutation] Returning success with sessionId:", finalSessionId);
 	// Return sessionId so client can subscribe
 	return {
 		success: true,
