@@ -164,6 +164,18 @@ export async function triggerStreamMutation(
 		const subscription = streamObservable.subscribe({
 			next: (event) => {
 				console.log("[triggerStreamMutation] Stream event received:", event.type);
+
+				// Handle error events from the stream (streaming.service emits these as events)
+				if (event.type === "error") {
+					console.error("[triggerStreamMutation] Stream emitted error event:", event);
+					// Reject promise if not already resolved
+					if (!hasResolved) {
+						reject(new Error(event.error || "Unknown streaming error"));
+						hasResolved = true;
+					}
+					return;
+				}
+
 				// Capture sessionId from session-created event (lazy sessions only)
 				if (event.type === "session-created" && !hasResolved) {
 					eventSessionId = event.sessionId;
