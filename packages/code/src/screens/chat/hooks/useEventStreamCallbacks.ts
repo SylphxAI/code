@@ -127,6 +127,21 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 				);
 			},
 
+			// ENABLED: Session updates (for optimistic update reconciliation)
+			onSessionUpdated: (sessionId: string, session?: any) => {
+				// Receives full session data from event stream including status field
+				// This triggers optimistic reconciliation in handleSessionUpdated
+				// which confirms optimistic status updates when server sends status changes
+				const currentSessionId = getCurrentSessionId();
+				if (sessionId === currentSessionId && session) {
+					// Pass full session data to handleStreamEvent for reconciliation
+					handleStreamEvent(
+						{ type: "session-updated", sessionId, session },
+						eventContextParams,
+					);
+				}
+			},
+
 			// ENABLED: Title streaming (independent channel, no loop issues)
 			onSessionTitleStart: (sessionId: string) => {
 				const currentSessionId = getCurrentSessionId();

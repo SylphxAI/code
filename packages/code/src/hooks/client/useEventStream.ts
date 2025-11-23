@@ -21,7 +21,7 @@ import { currentSession, setCurrentSession, lensClient, setError, useCurrentSess
 export interface EventStreamCallbacks {
 	// Session events
 	onSessionCreated?: (sessionId: string, provider: string, model: string) => void;
-	onSessionUpdated?: (sessionId: string) => void;
+	onSessionUpdated?: (sessionId: string, session?: any) => void;
 	onSessionTitleStart?: (sessionId: string) => void;
 	onSessionTitleDelta?: (sessionId: string, text: string) => void;
 	onSessionTitleComplete?: (sessionId: string, title: string) => void;
@@ -169,8 +169,9 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 							break;
 
 						case "session-updated":
-							// Reload session data when updated (e.g., system messages inserted)
-							callbacksRef.current.onSessionUpdated?.(event.sessionId);
+							// Pass full event to onSessionUpdated callback
+							// Callback needs session data (especially status) for optimistic reconciliation
+							callbacksRef.current.onSessionUpdated?.(event.sessionId, event.session);
 							break;
 
 						case "session-title-updated-start":
