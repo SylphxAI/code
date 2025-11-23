@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lens HTTP Client Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin: 0 0 30px 0;
+            color: #333;
+        }
+        .test {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .test h3 {
+            margin: 0 0 15px 0;
+            color: #007bff;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        .status.pending {
+            background: #ffc107;
+            color: #000;
+        }
+        .status.success {
+            background: #28a745;
+            color: white;
+        }
+        .status.error {
+            background: #dc3545;
+            color: white;
+        }
+        pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Lens HTTP Client Test</h1>
+
+        <div class="test" id="test-getCount">
+            <h3>Test 1: Session.getCount()</h3>
+            <div class="status pending">Pending</div>
+            <pre id="result-getCount">Waiting to run...</pre>
+        </div>
+
+        <div class="test" id="test-list">
+            <h3>Test 2: Session.list.query({ limit: 5 })</h3>
+            <div class="status pending">Pending</div>
+            <pre id="result-list">Waiting to run...</pre>
+        </div>
+
+        <div class="test" id="test-get">
+            <h3>Test 3: Session.get.query({ id })</h3>
+            <div class="status pending">Pending</div>
+            <pre id="result-get">Waiting to run...</pre>
+        </div>
+
+        <button id="run-tests">Run All Tests</button>
+    </div>
+
+    <script type="module">
+        // Simple HTTPTransport implementation
+        class HTTPTransport {
+            constructor(config) {
+                this.url = config.url;
+                this.headers = config.headers || {};
+                this.timeout = config.timeout || 30000;
+            }
+
+            async query(request) {
+                return this.executeRequest(request);
+            }
+
+            async mutate(request) {
+                return this.executeRequest(request);
+            }
+
+            async executeRequest(request) {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+                try {
+                    const response = await fetch(this.url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...this.headers
+                        },
+                        body: JSON.stringify(request),
+                        signal: controller.signal
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({
+                            error: { message: response.statusText }
+                        }));
+                        throw new Error(error.error?.message || 'Request failed');
+                    }
+
+                    // Parse response as LensResponse and unwrap data field
+                    const lensResponse = await response.json();
+
+                    // Check for errors in response
+                    if (lensResponse.error) {
+                        throw new Error(lensResponse.error.message || 'Request failed');
+                    }
+
+                    // Unwrap and return data
+                    if (lensResponse.data === undefined) {
+                        throw new Error('Response missing data field');
+                    }
+
+                    return lensResponse.data;
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        throw new Error(`Request timeout after ${this.timeout}ms`);
+                    }
+                    throw error;
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+            }
+        }
+
+        // Create transport
+        const transport = new HTTPTransport({
+            url: 'http://localhost:3000/lens',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // Helper functions
+        function updateStatus(testId, status, result) {
+            const testEl = document.getElementById(testId);
+            const statusEl = testEl.querySelector('.status');
+            const resultEl = document.getElementById(`result-${testId.replace('test-', '')}`);
+
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = status === 'success' ? '✅ Success' : status === 'error' ? '❌ Error' : '⏳ Running...';
+            resultEl.textContent = typeof result === 'object' ? JSON.stringify(result, null, 2) : result;
+        }
+
+        async function runTest(testId, request, description) {
+            console.log(`\n=== ${description} ===`);
+            updateStatus(testId, 'pending', '⏳ Running...');
+
+            try {
+                const result = await transport.query(request);
+                console.log('Result:', result);
+                updateStatus(testId, 'success', result);
+                return result;
+            } catch (error) {
+                console.error('Error:', error);
+                updateStatus(testId, 'error', error.message);
+                throw error;
+            }
+        }
+
+        async function runAllTests() {
+            document.getElementById('run-tests').disabled = true;
+
+            try {
+                // Test 1: getCount
+                await runTest('test-getCount', {
+                    type: 'query',
+                    path: ['Session', 'getCount'],
+                    input: {}
+                }, 'Test 1: Session.getCount()');
+
+                await new Promise(r => setTimeout(r, 500));
+
+                // Test 2: list.query
+                const sessions = await runTest('test-list', {
+                    type: 'query',
+                    path: ['Session', 'list', 'query'],
+                    input: { limit: 5 }
+                }, 'Test 2: Session.list.query({ limit: 5 })');
+
+                await new Promise(r => setTimeout(r, 500));
+
+                // Test 3: get.query (use first session from list)
+                if (sessions && sessions.length > 0) {
+                    await runTest('test-get', {
+                        type: 'query',
+                        path: ['Session', 'get', 'query'],
+                        input: { id: sessions[0].id }
+                    }, `Test 3: Session.get.query({ id: "${sessions[0].id}" })`);
+                } else {
+                    updateStatus('test-get', 'error', 'No sessions available to test');
+                }
+
+                console.log('\n✅ All tests completed!');
+            } catch (error) {
+                console.error('❌ Tests failed:', error);
+            } finally {
+                document.getElementById('run-tests').disabled = false;
+            }
+        }
+
+        // Setup button
+        document.getElementById('run-tests').addEventListener('click', runAllTests);
+
+        // Auto-run tests on load
+        console.log('🧪 Lens HTTP Client Test Ready');
+        console.log('Click "Run All Tests" button or wait for auto-run...');
+
+        // Auto-run after 1 second
+        setTimeout(runAllTests, 1000);
+    </script>
+</body>
+</html>
