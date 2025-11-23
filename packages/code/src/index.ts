@@ -242,7 +242,7 @@ async function main() {
 					{ client },
 					React.createElement(
 						LensProvider,
-						{ api, context: { appContext }, optimistic: true },
+						{ api, context: appContext, optimistic: true },
 						React.createElement(App)
 					)
 				)
