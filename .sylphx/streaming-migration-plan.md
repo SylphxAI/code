@@ -49,28 +49,30 @@ AI SDK streams → processAIStream() → Update state.currentStepParts (in memor
 
 ## Implementation Steps
 
-### Phase 1: Add Database Writes (Keep Events) ✅ Current
+### Phase 1: Add Database Writes (Keep Events) ✅ Complete
 
 **Goal:** Write parts to database during streaming while keeping event emissions
 
 **Changes:**
-1. ✅ Add `messageRepository.upsertPart()` method
-2. Add stepId and messageRepository to `processAIStream()` parameters
-3. Call `upsertPart()` when parts are created/updated:
-   - `text-delta`: Update text part content
-   - `tool-call`: Insert new tool part
-   - `tool-result`: Update tool part with result
-   - `reasoning-delta`: Update reasoning part content
-4. Keep event emissions (backward compatibility)
+1. ✅ Add `messageRepository.upsertPart()` method (commit 0c4060a)
+2. ✅ Add PersistenceContext to `processAIStream()` parameters (commit 3531152)
+3. ✅ Call `upsertPart()` when parts are created/updated:
+   - ✅ `text-delta`: Update text part content
+   - ✅ `text-end`: Update text part status to completed
+   - ✅ `tool-call`: Insert new tool part
+   - ✅ `tool-result`: Update tool part with result and duration
+   - ✅ `reasoning-delta`: Update reasoning part content
+   - ✅ `reasoning-end`: Update reasoning part status and duration
+4. ✅ Keep event emissions (backward compatibility)
 
-**Files to modify:**
-- `ai-orchestrator.ts` - Add upsertPart() calls
-- `stream-orchestrator.ts` - Pass messageRepository and stepId to processAIStream
+**Files modified:**
+- ✅ `ai-orchestrator.ts` - Added upsertPart() calls in all streaming handlers
+- ✅ `stream-orchestrator.ts` - Created persistence context and passed to processAIStream
 
 **Testing:**
-- Verify parts are written to database during streaming
-- Verify events still emit (existing clients still work)
-- Check database after each chunk
+- ⏳ Verify parts are written to database during streaming
+- ⏳ Verify events still emit (existing clients still work)
+- ⏳ Check database after each chunk
 
 ### Phase 2: Configure Lens Watching
 
@@ -341,8 +343,8 @@ If migration causes issues:
 ## Current Status
 
 - ✅ Phase 0: Design and documentation
-- 🚧 Phase 1: In progress (adding database writes)
-- ⏳ Phase 2: Pending
+- ✅ Phase 1: Complete (database writes added - commit 3531152)
+- 🚧 Phase 2: Testing Phase 1
 - ⏳ Phase 3: Pending
 - ⏳ Phase 4: Pending
 - ⏳ Phase 5: Pending
