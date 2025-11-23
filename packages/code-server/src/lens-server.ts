@@ -75,12 +75,29 @@ export class LensServer {
 		await initializeAppContext(this.appContext);
 
 		// Create CodeContext for Lens API (transforms AppContext to expected shape)
-		const { getSessionRepository, getMessageRepository, getTodoRepository, getAIConfig } = await import("@sylphx/code-core");
+		const { loadAIConfig } = await import("@sylphx/code-core");
+
+		// Get repositories from database
+		const sessionRepository = this.appContext.database.getRepository();
+		const messageRepository = this.appContext.database.getMessageRepository();
+		const todoRepository = this.appContext.database.getTodoRepository();
+
+		// Load AI config
+		let aiConfig = { providers: {} };
+		try {
+			const result = await loadAIConfig();
+			if (result.success) {
+				aiConfig = result.data;
+			}
+		} catch (error) {
+			console.error("Failed to load AI config:", error);
+		}
+
 		const codeContext = {
-			sessionRepository: getSessionRepository(),
-			messageRepository: getMessageRepository(),
-			todoRepository: getTodoRepository(),
-			aiConfig: getAIConfig(),
+			sessionRepository,
+			messageRepository,
+			todoRepository,
+			aiConfig,
 			appContext: {
 				eventStream: this.appContext.eventStream,
 				bashManagerV2: this.appContext.bashManagerV2,
@@ -146,12 +163,29 @@ export class LensServer {
 		const { createLensServer } = await import("@sylphx/lens-server");
 
 		// Create CodeContext for Lens API (transforms AppContext to expected shape)
-		const { getSessionRepository, getMessageRepository, getTodoRepository, getAIConfig } = await import("@sylphx/code-core");
+		const { loadAIConfig } = await import("@sylphx/code-core");
+
+		// Get repositories from database
+		const sessionRepository = this.appContext.database.getRepository();
+		const messageRepository = this.appContext.database.getMessageRepository();
+		const todoRepository = this.appContext.database.getTodoRepository();
+
+		// Load AI config
+		let aiConfig = { providers: {} };
+		try {
+			const result = await loadAIConfig();
+			if (result.success) {
+				aiConfig = result.data;
+			}
+		} catch (error) {
+			console.error("Failed to load AI config:", error);
+		}
+
 		const codeContext = {
-			sessionRepository: getSessionRepository(),
-			messageRepository: getMessageRepository(),
-			todoRepository: getTodoRepository(),
-			aiConfig: getAIConfig(),
+			sessionRepository,
+			messageRepository,
+			todoRepository,
+			aiConfig,
 			appContext: {
 				eventStream: this.appContext.eventStream,
 				bashManagerV2: this.appContext.bashManagerV2,
