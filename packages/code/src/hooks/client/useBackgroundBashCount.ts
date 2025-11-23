@@ -34,25 +34,27 @@ export function useBackgroundBashCount(): number {
 		updateCount();
 
 		// Subscribe to bash:all for event-driven updates using Lens
+		// TODO: Fix events.subscribe.subscribe() - Lens client doesn't expose subscribe on query endpoints yet
+		// For now, polling on initial load is sufficient
+		/*
 		try {
-			subscriptionRef.current = client.events.subscribe.subscribe(
-				{ channel: "bash:all" },
-				{
-					next: (event: any) => {
-						const eventType = event.payload?.type;
-						// Update count on events that affect background bash count
-						if (["started", "completed", "failed", "killed", "demoted", "promoted"].includes(eventType)) {
-							updateCount();
-						}
-					},
-					error: (err: any) => {
-						console.error("[useBackgroundBashCount] Subscription error:", err);
-					},
+			const observable = client.events.subscribe.subscribe({ channel: "bash:all" });
+			subscriptionRef.current = observable.subscribe({
+				next: (event: any) => {
+					const eventType = event.payload?.type;
+					// Update count on events that affect background bash count
+					if (["started", "completed", "failed", "killed", "demoted", "promoted"].includes(eventType)) {
+						updateCount();
+					}
 				},
-			);
+				error: (err: any) => {
+					console.error("[useBackgroundBashCount] Subscription error:", err);
+				},
+			});
 		} catch (error) {
 			console.error("[useBackgroundBashCount] Failed to subscribe:", error);
 		}
+		*/
 
 		return () => {
 			if (subscriptionRef.current) {
