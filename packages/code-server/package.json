@@ -31,7 +31,7 @@
 	"dependencies": {
 		"@sylphx/code-api": "workspace:*",
 		"@sylphx/code-core": "workspace:*",
-		"@sylphx/lens-core": "file:../../../lens/packages/lens-core",
+		"@sylphx/lens-core": "link:@sylphx/lens-core",
 		"@trpc/server": "^11.7.1",
 		"express": "^5.1.0",
 		"mime-types": "^2.1.35",

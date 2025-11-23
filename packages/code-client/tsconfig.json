@@ -2,12 +2,17 @@
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
 		"outDir": "./dist",
-		"rootDir": "./src",
+		"rootDir": "../../../",
 		"jsx": "react-jsx",
 		"declaration": true,
 		"declarationMap": true
 	},
-	"include": ["src/**/*"],
+	"include": [
+		"src/**/*",
+		"../../../lens/packages/lens-core/src/**/*",
+		"../../../lens/packages/lens-client/src/**/*",
+		"../../../lens/packages/lens-transport-http/src/**/*"
+	],
 	"exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"],
 	"references": [{ "path": "../code-core" }, { "path": "../code-server" }]
 }

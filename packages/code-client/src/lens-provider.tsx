@@ -70,7 +70,6 @@ export function LensProvider<TApi extends LensObject<any>>({
 	_initGlobalClient(client);
 	_initGlobalOptimisticManager(optimisticManager);
 
-	// @ts-expect-error - JSX works with both React and Preact runtimes
 	return (
 		<LensContext.Provider value={client}>
 			<OptimisticManagerContext.Provider value={optimisticManager}>

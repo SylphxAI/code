@@ -99,7 +99,7 @@ export {
 // ============================================================================
 // Lens HTTP Transport (for Web UI)
 // ============================================================================
-export { createHTTPTransport, SimpleHTTPTransport } from "./lens-http-client.js";
+export { createHTTPTransport } from "./lens-http-client.js";
 // ============================================================================
 // tRPC Links (Low-level, use createInProcessClient instead)
 // ============================================================================
