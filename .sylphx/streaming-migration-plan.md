@@ -344,7 +344,24 @@ If migration causes issues:
 
 - ✅ Phase 0: Design and documentation
 - ✅ Phase 1: Complete (database writes added - commit 3531152)
-- 🚧 Phase 2: Testing Phase 1
-- ⏳ Phase 3: Pending
-- ⏳ Phase 4: Pending
-- ⏳ Phase 5: Pending
+- ✅ Phase 2: Testing Phase 1 - works, parts written to database
+- ⏳ Phase 3: Pending (blocked - see note below)
+- ✅ Phase 4: Complete (message.getById endpoint added)
+- 🚧 Phase 5: In progress (client investigation)
+
+## Critical Finding
+
+**UI Already Model-Based!**
+- `MessageList` already renders from `msg.steps.parts` model structure
+- `useLensSessionSubscription` already updates session in real-time
+- UI path: subscription → currentSession signal → Chat → MessageList → parts
+- No event handlers in rendering components!
+
+**Gap: Part-level Events Not Included in Session Updates**
+- `session-updated` events published for: title, status, metadata
+- `text-delta`, `tool-call` events published separately
+- Session subscription doesn't receive part updates (messages not included in session-updated events)
+- Need to either:
+  1. Add messages to session-updated events (expensive - full session each time)
+  2. Implement message-level subscriptions (Phase 5)
+  3. Keep dual subscription model (session metadata + streaming events)
