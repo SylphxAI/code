@@ -18,6 +18,7 @@ import { calculateFinalTokens, initializeTokenTracking } from "../token-tracking
 import {
 	createStreamState,
 	orchestrateAIStream,
+	type PersistenceContext,
 	processAIStream,
 	type TokenTrackingContext,
 } from "./ai-orchestrator.js";
@@ -406,12 +407,20 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				}
 
 				// 2. Process stream and emit events
+				// LENS: Create persistence context for incremental database writes
+				const currentStepNumber = lastCompletedStepNumber + 1;
+				const persistence = {
+					messageRepository,
+					getStepId: () => stepIdMap.get(currentStepNumber) || null,
+				};
+
 				const stepResult = await processAIStream(
 					fullStream,
 					observer,
 					state,
 					tokenContext,
 					callbacks,
+					persistence, // LENS: Pass persistence for incremental writes
 				);
 
 				// Update final results from this step

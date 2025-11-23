@@ -64,8 +64,22 @@ export interface OrchestrateStreamOptions {
 }
 
 /**
+ * Persistence context for writing parts to database during streaming
+ */
+export interface PersistenceContext {
+	messageRepository: import("@sylphx/code-core").MessageRepository;
+	getStepId: () => string | null; // Get current step ID
+}
+
+/**
  * Process AI stream and emit events
  * Returns final usage and finish reason
+ *
+ * LENS ARCHITECTURE: Now writes parts to database incrementally during streaming
+ * - Each text-delta updates the part in database immediately
+ * - Each tool-call inserts a new part in database
+ * - Lens watches database and streams delta updates to subscribers
+ * - Events still emitted for backward compatibility (will be removed in Phase 5)
  */
 export async function processAIStream(
 	fullStream: AsyncIterable<TextStreamPart<any>>,
@@ -73,6 +87,7 @@ export async function processAIStream(
 	state: StreamState,
 	tokenContext: TokenTrackingContext | null,
 	callbacks: StreamCallbacks,
+	persistence?: PersistenceContext, // NEW: Optional persistence during migration
 ): Promise<{ finalUsage: any; finalFinishReason: string | undefined; hasError: boolean }> {
 	let finalUsage: any;
 	let finalFinishReason: string | undefined;
@@ -100,6 +115,18 @@ export async function processAIStream(
 						const part = state.currentStepParts[state.currentTextPartIndex];
 						if (part && part.type === "text") {
 							part.content += chunk.text;
+
+							// LENS: Write to database immediately (incremental streaming)
+							if (persistence) {
+								const stepId = persistence.getStepId();
+								if (stepId) {
+									await persistence.messageRepository.upsertPart(
+										stepId,
+										state.currentTextPartIndex,
+										part,
+									);
+								}
+							}
 						}
 						state.hasEmittedAnyEvent = true;
 						// NOTE: Only use callback - emitTextDelta() is called in callback
@@ -124,6 +151,18 @@ export async function processAIStream(
 						const part = state.currentStepParts[state.currentTextPartIndex];
 						if (part && part.type === "text") {
 							part.status = "completed";
+
+							// LENS: Write status update to database
+							if (persistence) {
+								const stepId = persistence.getStepId();
+								if (stepId) {
+									await persistence.messageRepository.upsertPart(
+										stepId,
+										state.currentTextPartIndex,
+										part,
+									);
+								}
+							}
 						}
 						state.currentTextPartIndex = null;
 					}
@@ -155,6 +194,18 @@ export async function processAIStream(
 						const part = state.currentStepParts[state.currentReasoningPartIndex];
 						if (part && part.type === "reasoning") {
 							part.content += chunk.text;
+
+							// LENS: Write to database immediately (incremental streaming)
+							if (persistence) {
+								const stepId = persistence.getStepId();
+								if (stepId) {
+									await persistence.messageRepository.upsertPart(
+										stepId,
+										state.currentReasoningPartIndex,
+										part,
+									);
+								}
+							}
 						}
 						state.hasEmittedAnyEvent = true;
 						// NOTE: Only use callback - emitReasoningDelta() is called in callback
@@ -182,6 +233,19 @@ export async function processAIStream(
 							const duration = part.startTime ? Date.now() - part.startTime : 0;
 							part.duration = duration;
 							delete part.startTime;
+
+							// LENS: Write status update to database
+							if (persistence) {
+								const stepId = persistence.getStepId();
+								if (stepId) {
+									await persistence.messageRepository.upsertPart(
+										stepId,
+										state.currentReasoningPartIndex,
+										part,
+									);
+								}
+							}
+
 							// NOTE: Only use callback - emitReasoningEnd() is called in callback
 							callbacks.onReasoningEnd?.(duration);
 						}
@@ -196,24 +260,40 @@ export async function processAIStream(
 						(p) => p.type === "tool" && p.toolId === chunk.toolCallId,
 					);
 
+					let toolPartIndex = -1;
 					if (existingToolPart && existingToolPart.type === "tool") {
 						existingToolPart.name = chunk.toolName;
+						toolPartIndex = state.currentStepParts.indexOf(existingToolPart);
 					} else {
 						const toolStartTime = Date.now();
-						state.currentStepParts.push({
-							type: "tool",
+						const newToolPart = {
+							type: "tool" as const,
 							toolId: chunk.toolCallId,
 							name: chunk.toolName,
-							status: "active",
+							status: "active" as const,
 							input: "input" in chunk ? chunk.input : undefined,
 							startTime: toolStartTime,
-						});
+						};
+						state.currentStepParts.push(newToolPart);
+						toolPartIndex = state.currentStepParts.length - 1;
 
 						state.activeTools.set(chunk.toolCallId, {
 							name: chunk.toolName,
 							startTime: toolStartTime,
 							input: "input" in chunk ? chunk.input : undefined,
 						});
+
+						// LENS: Write new tool part to database
+						if (persistence) {
+							const stepId = persistence.getStepId();
+							if (stepId) {
+								await persistence.messageRepository.upsertPart(
+									stepId,
+									toolPartIndex,
+									newToolPart,
+								);
+							}
+						}
 					}
 
 					state.hasEmittedAnyEvent = true;
@@ -316,6 +396,19 @@ export async function processAIStream(
 							toolPart.status = "completed";
 							toolPart.duration = duration;
 							toolPart.result = "output" in chunk ? chunk.output : undefined;
+
+							// LENS: Write tool result to database
+							if (persistence) {
+								const stepId = persistence.getStepId();
+								if (stepId) {
+									const toolPartIndex = state.currentStepParts.indexOf(toolPart);
+									await persistence.messageRepository.upsertPart(
+										stepId,
+										toolPartIndex,
+										toolPart,
+									);
+								}
+							}
 						}
 
 						state.hasEmittedAnyEvent = true;
