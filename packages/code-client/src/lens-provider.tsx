@@ -8,9 +8,9 @@ import { InProcessTransport } from "@sylphx/lens-core";
 import {
 	createLensClient,
 	type LensClient,
-	OptimisticManager,
 } from "@sylphx/lens-client";
 import { createContext, type ReactNode, useContext, useMemo } from "react";
+import { optimisticManagerV2, type OptimisticManagerV2 } from "./optimistic/index.js";
 
 /**
  * Lens Client type (typed with API)
@@ -23,9 +23,9 @@ export type TypedLensClient<TApi extends LensObject<any>> = LensClient<TApi>;
 const LensContext = createContext<LensClient<any> | null>(null);
 
 /**
- * React Context for OptimisticManager
+ * React Context for OptimisticManagerV2
  */
-const OptimisticManagerContext = createContext<OptimisticManager | null>(null);
+const OptimisticManagerContext = createContext<OptimisticManagerV2 | null>(null);
 
 /**
  * Provider props
@@ -49,11 +49,10 @@ export function LensProvider<TApi extends LensObject<any>>({
 	optimistic = true,
 	children,
 }: LensProviderProps<TApi>) {
-	// Create OptimisticManager once (stable across renders)
-	const optimisticManager = useMemo(
-		() => (optimistic ? new OptimisticManager({ debug: false }) : null),
-		[optimistic],
-	);
+	// Use global OptimisticManagerV2 singleton (same instance used everywhere)
+	// This ensures optimistic updates created in mutations are reconciled correctly
+	// when server events arrive through subscriptions
+	const optimisticManager = optimistic ? optimisticManagerV2 : null;
 
 	const client = useMemo(() => {
 		// Use provided transport if available, otherwise create new one
@@ -157,33 +156,33 @@ export function getLensClient<TApi extends LensObject<any>>(): LensClient<TApi> 
 // This is INTERNAL API - React components should use useOptimisticManager() hook
 
 /**
- * Global OptimisticManager instance for Zustand stores
+ * Global OptimisticManagerV2 instance for Zustand stores
  * @internal DO NOT USE in React components - use useOptimisticManager() hook
  */
-let _globalOptimisticManager: OptimisticManager | null = null;
+let _globalOptimisticManager: OptimisticManagerV2 | null = null;
 
 /**
- * Initialize global OptimisticManager for Zustand stores
+ * Initialize global OptimisticManagerV2 for Zustand stores
  * Called automatically by LensProvider
  * @internal
  */
-export function _initGlobalOptimisticManager(manager: OptimisticManager | null) {
+export function _initGlobalOptimisticManager(manager: OptimisticManagerV2 | null) {
 	_globalOptimisticManager = manager;
 }
 
 /**
- * Get OptimisticManager for Zustand stores
+ * Get OptimisticManagerV2 for Zustand stores
  * @internal DO NOT USE in React components - use useOptimisticManager() hook
  */
-export function getOptimisticManager(): OptimisticManager | null {
+export function getOptimisticManager(): OptimisticManagerV2 | null {
 	return _globalOptimisticManager;
 }
 
 /**
- * Hook to access OptimisticManager
+ * Hook to access OptimisticManagerV2
  * Must be used within LensProvider
  * Returns null if optimistic updates are disabled
  */
-export function useOptimisticManager(): OptimisticManager | null {
+export function useOptimisticManager(): OptimisticManagerV2 | null {
 	return useContext(OptimisticManagerContext);
 }
