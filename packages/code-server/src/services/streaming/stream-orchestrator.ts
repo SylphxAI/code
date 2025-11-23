@@ -117,7 +117,8 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 				// 3. Create Session Status Manager (Pub-Sub pattern)
 				// Pass full session for model-level event emission
-				statusManager = createSessionStatusManager(observer, sessionId, session);
+				// Pass appContext to enable publishing to Lens EventStream
+				statusManager = createSessionStatusManager(observer, sessionId, session, opts.appContext);
 
 				// Subscribe to token updates from app event stream
 				tokenSubscription = opts.appContext.eventStream

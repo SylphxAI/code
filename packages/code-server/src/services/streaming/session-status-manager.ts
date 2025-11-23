@@ -13,6 +13,7 @@ import type { Session, SessionStatus, Todo } from "@sylphx/code-core";
 import type { Observer } from "@trpc/server/observable";
 import { emitSessionUpdated } from "./event-emitter.js";
 import type { StreamEvent } from "./types.js";
+import type { AppContext } from "../../context.js";
 
 /**
  * Callbacks for stream-orchestrator to invoke
@@ -82,12 +83,14 @@ function determineStatusText(todos: Todo[] | undefined, currentToolName?: string
  * @param observer - tRPC observer to emit events
  * @param sessionId - Session ID
  * @param session - Full session model
+ * @param appContext - App context for event stream publishing
  * @returns Manager instance with callbacks and cleanup function
  */
 export function createSessionStatusManager(
 	observer: Observer<StreamEvent, unknown>,
 	sessionId: string,
 	session: Session,
+	appContext: AppContext,
 ): SessionStatusManager {
 	// Internal state
 	let currentTool: string | null = null;
@@ -114,15 +117,26 @@ export function createSessionStatusManager(
 			isActive,
 		};
 
-		// Emit model-level event with partial session
-		// Frontend subscription will merge these changes with existing session
-		emitSessionUpdated(observer, sessionId, {
+		const sessionUpdate = {
 			id: sessionId,
 			title: sessionTitle,
 			status,
 			totalTokens: currentTokens,
 			baseContextTokens,
 			updatedAt: Date.now(),
+		};
+
+		// Emit to tRPC observable (mutation subscribers)
+		emitSessionUpdated(observer, sessionId, sessionUpdate);
+
+		// CRITICAL: Also publish to Lens EventStream for useEventStream hook
+		// This enables optimistic reconciliation in handleSessionUpdated
+		appContext.eventStream.publish(`session:${sessionId}`, {
+			type: "session-updated",
+			sessionId,
+			session: sessionUpdate,
+		}).catch((err) => {
+			console.error("[session-status-manager] Failed to publish to event stream:", err);
 		});
 	}
 
