@@ -243,10 +243,18 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		try {
 			console.log("[subscriptionAdapter] Getting Lens client...");
 			logSession("Getting Lens client");
+
 			// Get Lens client (in-process client)
-			const client = getLensClient();
-			console.log("[subscriptionAdapter] Lens client obtained");
-			logSession("Lens client obtained");
+			let client;
+			try {
+				client = getLensClient();
+				console.log("[subscriptionAdapter] Lens client obtained successfully");
+				logSession("Lens client obtained");
+			} catch (clientError) {
+				console.error("[subscriptionAdapter] FAILED to get Lens client:", clientError);
+				logSession("FAILED to get Lens client:", clientError);
+				throw clientError;
+			}
 
 			// Parse user input into ordered content parts
 			const { parts: content } = parseUserInput(userMessage, attachments || []);
