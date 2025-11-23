@@ -97,6 +97,10 @@ export {
 	useOptimisticManager,
 } from "./lens-provider.js";
 // ============================================================================
+// Lens HTTP Transport (for Web UI)
+// ============================================================================
+export { createHTTPTransport, SimpleHTTPTransport } from "./lens-http-client.js";
+// ============================================================================
 // tRPC Links (Low-level, use createInProcessClient instead)
 // ============================================================================
 export {

@@ -1,18 +1,27 @@
 /**
  * Root App Component (Preact)
- * Sets up tRPC provider and renders main UI
+ * Sets up Lens provider and renders main UI
+ *
+ * MIGRATED: tRPC → Lens (2025-01-23)
+ * - TRPCProvider → LensProvider
+ * - HTTP transport (port 3100 → 3000)
+ * - Field-level subscriptions enabled
  */
 
-import { TRPCProvider, createHTTPClient } from "@sylphx/code-client";
+import { LensProvider, createHTTPTransport } from "@sylphx/code-client";
+import { api } from "@sylphx/code-api";
 import { useEffect, useState } from "preact/hooks";
 import { ChatScreen } from "./screens/ChatScreen";
 import { BashScreen } from "./screens/BashScreen";
 import { Header, Sidebar, StatusBar } from "./components/layout";
 import { useGlobalKeyboard } from "./hooks/useGlobalKeyboard";
 
-// ASSUMPTION: HTTP client connecting to local server
-// For web UI, we use HTTP transport instead of in-process
-const trpcClient = createHTTPClient("http://localhost:3100");
+// Lens HTTP transport connecting to LensServer (port 3000)
+// Provides:
+// - Type-safe API
+// - Field-level subscriptions
+// - Automatic optimistic updates
+const lensTransport = createHTTPTransport("http://localhost:3000");
 
 function AppContent() {
 	const [currentScreen, setCurrentScreen] = useState<"chat" | "bash">("chat");
@@ -66,9 +75,9 @@ export function App() {
 	}
 
 	return (
-		<TRPCProvider client={trpcClient}>
-			{/* @ts-expect-error - TRPCProvider uses React ReactNode but Preact VNode is compatible */}
+		<LensProvider api={api} transport={lensTransport} optimistic={true}>
+			{/* @ts-expect-error - LensProvider uses React ReactNode but Preact VNode is compatible */}
 			<AppContent />
-		</TRPCProvider>
+		</LensProvider>
 	);
 }

@@ -25,6 +25,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
+		"@sylphx/code-api": "workspace:*",
 		"@sylphx/code-core": "workspace:*",
 		"@sylphx/code-server": "workspace:*",
 		"@sylphx/optimistic": "workspace:*",

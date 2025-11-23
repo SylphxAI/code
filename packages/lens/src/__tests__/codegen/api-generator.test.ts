@@ -64,8 +64,8 @@ describe('API Generator', () => {
 			const api = generateResourceAPI(Message.definition);
 
 			// Query handlers should have query and subscribe methods
-			expect(api.getById).toHaveProperty('query');
-			expect(api.getById).toHaveProperty('subscribe');
+			expect(api.get).toHaveProperty('query');
+			expect(api.get).toHaveProperty('subscribe');
 			expect(api.list).toHaveProperty('query');
 			expect(api.list).toHaveProperty('subscribe');
 		});
@@ -142,7 +142,7 @@ describe('API Generator', () => {
 				role: 'user',
 			});
 
-			const result = await api.getById.query({ id: 'msg-1' }, {}, ctx);
+			const result = await api.get.query({ id: 'msg-1' }, {}, ctx);
 
 			expect(result).toEqual({
 				id: 'msg-1',

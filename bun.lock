@@ -107,6 +107,7 @@
       "name": "@sylphx/code-client",
       "version": "1.0.0",
       "dependencies": {
+        "@sylphx/code-api": "workspace:*",
         "@sylphx/code-core": "workspace:*",
         "@sylphx/code-server": "workspace:*",
         "@sylphx/optimistic": "workspace:*",
