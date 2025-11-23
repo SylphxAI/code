@@ -25,6 +25,25 @@ export const SessionSchema = SessionMetadataSchema.extend({
 
 export type Session = z.infer<typeof SessionSchema>;
 
+// Partial session (for real-time subscription updates)
+// Only id is required, all other fields are optional since updates may be partial
+export const PartialSessionSchema = z.object({
+	id: z.string(),
+	title: z.string().optional(),
+	provider: z.string().optional() as z.ZodType<ProviderId | undefined>,
+	model: z.string().optional(),
+	agentId: z.string().optional(),
+	enabledRuleIds: z.array(z.string()).optional(),
+	createdAt: z.number().optional(),
+	updatedAt: z.number().optional(),
+	messageCount: z.number().optional(),
+	messages: z.array(z.any()).optional(),
+	todos: z.array(z.any()).optional(),
+	modelStatus: z.enum(["available", "unavailable", "unknown"]).optional(),
+});
+
+export type PartialSession = z.infer<typeof PartialSessionSchema>;
+
 // Paginated response
 export const PaginatedSessionsSchema = z.object({
 	sessions: z.array(SessionMetadataSchema),

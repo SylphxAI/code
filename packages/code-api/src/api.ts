@@ -11,6 +11,7 @@ import { z } from "zod";
 import {
 	MessageSchema,
 	PaginatedSessionsSchema,
+	PartialSessionSchema,
 	ParsedContentPartSchema,
 	SessionMetadataSchema,
 	SessionSchema,
@@ -18,6 +19,7 @@ import {
 	TodoSchema,
 	type Message,
 	type PaginatedSessions,
+	type PartialSession,
 	type Session,
 	type SessionMetadata,
 	type StreamEvent,
@@ -78,7 +80,7 @@ export const sessionAPI = lens.object({
 	 */
 	getById: lens
 		.input(z.object({ sessionId: z.string() }))
-		.output(SessionSchema.nullable())
+		.output(PartialSessionSchema.nullable()) // Use PartialSessionSchema to allow partial updates from subscriptions
 		.query(
 			// Query: One-time fetch
 			async ({ input, ctx }) => {
