@@ -265,6 +265,7 @@ export const sessionAPI = lens.object({
 	/**
 	 * Update session model
 	 * REACTIVE: Publishes to session:{id} channel
+	 * OPTIMISTIC: UI updates immediately, confirms on success, rolls back on error
 	 */
 	updateModel: lens
 		.input(z.object({
@@ -272,6 +273,14 @@ export const sessionAPI = lens.object({
 			model: z.string(),
 		}))
 		.output(SessionSchema)
+		.optimistic((opt) => opt
+			.entity('Session')
+			.id($ => $.sessionId)
+			.apply((draft, input, t) => {
+				draft.model = input.model;
+				draft.updatedAt = t.now();
+			})
+		)
 		.mutation(async ({ input, ctx }) => {
 			const { sessionId, model } = input;
 			await ctx.sessionRepository.updateSessionModel(sessionId, model);
@@ -288,6 +297,7 @@ export const sessionAPI = lens.object({
 	/**
 	 * Update session provider and model
 	 * REACTIVE: Publishes to session:{id} channel
+	 * OPTIMISTIC: UI updates immediately, confirms on success, rolls back on error
 	 */
 	updateProvider: lens
 		.input(z.object({
@@ -296,6 +306,15 @@ export const sessionAPI = lens.object({
 			model: z.string(),
 		}))
 		.output(SessionSchema)
+		.optimistic((opt) => opt
+			.entity('Session')
+			.id($ => $.sessionId)
+			.apply((draft, input, t) => {
+				draft.provider = input.provider as any;
+				draft.model = input.model;
+				draft.updatedAt = t.now();
+			})
+		)
 		.mutation(async ({ input, ctx }) => {
 			const { sessionId, provider, model } = input;
 			await ctx.sessionRepository.updateSessionProvider(sessionId, provider, model);
@@ -312,6 +331,7 @@ export const sessionAPI = lens.object({
 	/**
 	 * Update session enabled rules
 	 * REACTIVE: Publishes to session:{id} channel
+	 * OPTIMISTIC: UI updates immediately, confirms on success, rolls back on error
 	 */
 	updateRules: lens
 		.input(z.object({
@@ -319,6 +339,14 @@ export const sessionAPI = lens.object({
 			enabledRuleIds: z.array(z.string()),
 		}))
 		.output(SessionSchema)
+		.optimistic((opt) => opt
+			.entity('Session')
+			.id($ => $.sessionId)
+			.apply((draft, input, t) => {
+				draft.enabledRuleIds = input.enabledRuleIds;
+				draft.updatedAt = t.now();
+			})
+		)
 		.mutation(async ({ input, ctx }) => {
 			const { sessionId, enabledRuleIds } = input;
 			await ctx.sessionRepository.updateSession(sessionId, {
@@ -337,6 +365,7 @@ export const sessionAPI = lens.object({
 	/**
 	 * Update session agent
 	 * REACTIVE: Publishes to session:{id} channel
+	 * OPTIMISTIC: UI updates immediately, confirms on success, rolls back on error
 	 */
 	updateAgent: lens
 		.input(z.object({
@@ -344,6 +373,14 @@ export const sessionAPI = lens.object({
 			agentId: z.string(),
 		}))
 		.output(SessionSchema)
+		.optimistic((opt) => opt
+			.entity('Session')
+			.id($ => $.sessionId)
+			.apply((draft, input, t) => {
+				draft.agentId = input.agentId;
+				draft.updatedAt = t.now();
+			})
+		)
 		.mutation(async ({ input, ctx }) => {
 			const { sessionId, agentId } = input;
 			await ctx.sessionRepository.updateSession(sessionId, {
@@ -501,6 +538,7 @@ export const todoAPI = lens.object({
 	/**
 	 * Update todos for session
 	 * Atomically replaces all todos
+	 * OPTIMISTIC: UI updates immediately, confirms on success, rolls back on error
 	 */
 	update: lens
 		.input(z.object({
@@ -509,6 +547,14 @@ export const todoAPI = lens.object({
 			nextTodoId: z.number(),
 		}))
 		.output(z.void())
+		.optimistic((opt) => opt
+			.entity('Session')
+			.id($ => $.sessionId)
+			.apply((draft, input, t) => {
+				draft.todos = input.todos as any;
+				draft.updatedAt = t.now();
+			})
+		)
 		.mutation(async ({ input, ctx }) => {
 			const { sessionId, todos, nextTodoId } = input;
 			await ctx.todoRepository.updateTodos(sessionId, todos, nextTodoId);
