@@ -160,8 +160,16 @@ export function useChatEffects(state: ChatState) {
 	useLensSessionSubscription({
 		onSessionUpdated: (session) => {
 			// Session updated via model-level event
-			// Currently receiving full model
-			// Field selection available when needed for bandwidth optimization
+			// Trigger optimistic reconciliation if status changed
+			if (session?.id && session?.status) {
+				const { optimisticManagerV2, runOptimisticEffects } = require("@sylphx/code-client");
+				const result = optimisticManagerV2.reconcile(session.id, {
+					type: "session-status-updated",
+					sessionId: session.id,
+					status: session.status,
+				});
+				runOptimisticEffects(result.effects);
+			}
 		},
 	});
 
