@@ -44,16 +44,40 @@ export function generateGetById<T extends ResourceDefinition>(
 			return entity;
 		},
 
-		// Subscription handler (implemented in Phase 5)
+		// Subscription handler
 		subscribe: (input, options, handlers, ctx) => {
-			console.warn(
-				`[CodeGen] Subscription for ${resource.name}.getById - Implementation pending (Phase 5)`
-			);
+			// Import at runtime to avoid circular dependencies
+			const { SubscriptionManager } = require('../subscription/manager.js');
+			const manager = new SubscriptionManager();
 
-			// PLACEHOLDER: Return mock subscription
+			// Create subscription
+			manager
+				.subscribeToResource(resource, input.id, options, ctx)
+				.then((observable) => {
+					const subscription = observable.subscribe({
+						next: (data) => {
+							if (handlers.onData) handlers.onData(data);
+						},
+						error: (error) => {
+							if (handlers.onError) handlers.onError(error);
+						},
+						complete: () => {
+							if (handlers.onComplete) handlers.onComplete();
+						},
+					});
+
+					// Store for cleanup
+					(ctx as any)._subscription = subscription;
+				})
+				.catch((error) => {
+					if (handlers.onError) handlers.onError(error);
+				});
+
 			return {
 				unsubscribe: () => {
-					console.log(`[CodeGen] Unsubscribed from ${resource.name}.getById`);
+					if ((ctx as any)._subscription) {
+						(ctx as any)._subscription.unsubscribe();
+					}
 				},
 			};
 		},
@@ -97,16 +121,40 @@ export function generateList<T extends ResourceDefinition>(
 			return [];
 		},
 
-		// Subscription handler (implemented in Phase 5)
+		// Subscription handler
 		subscribe: (input, options, handlers, ctx) => {
-			console.warn(
-				`[CodeGen] Subscription for ${resource.name}.list - Implementation pending (Phase 5)`
-			);
+			// Import at runtime to avoid circular dependencies
+			const { SubscriptionManager } = require('../subscription/manager.js');
+			const manager = new SubscriptionManager();
 
-			// PLACEHOLDER: Return mock subscription
+			// Create subscription
+			manager
+				.subscribeToList(resource, { ...input, ...options }, ctx)
+				.then((observable) => {
+					const subscription = observable.subscribe({
+						next: (data) => {
+							if (handlers.onData) handlers.onData(data);
+						},
+						error: (error) => {
+							if (handlers.onError) handlers.onError(error);
+						},
+						complete: () => {
+							if (handlers.onComplete) handlers.onComplete();
+						},
+					});
+
+					// Store for cleanup
+					(ctx as any)._subscription = subscription;
+				})
+				.catch((error) => {
+					if (handlers.onError) handlers.onError(error);
+				});
+
 			return {
 				unsubscribe: () => {
-					console.log(`[CodeGen] Unsubscribed from ${resource.name}.list`);
+					if ((ctx as any)._subscription) {
+						(ctx as any)._subscription.unsubscribe();
+					}
 				},
 			};
 		},
