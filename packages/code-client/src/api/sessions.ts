@@ -4,7 +4,7 @@
  */
 
 import type { Session, SessionMetadata } from "@sylphx/code-core";
-import { getLensClient } from "../lens-provider.js";
+import { getLensClientGlobal as getLensClient } from "../lens-client-global.js";
 import type { API } from "@sylphx/code-api";
 
 /**

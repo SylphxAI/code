@@ -20,11 +20,18 @@ export default defineConfig({
 		outDir: "dist",
 		sourcemap: true,
 		rollupOptions: {
-			// Suppress warnings about preact/jsx-runtime imports from dependencies
+			// Suppress warnings about imports from workspace dependencies
 			onwarn(warning, warn) {
 				// Ignore unresolved imports from workspace dependencies (they're transpiled)
-				if (warning.code === 'UNRESOLVED_IMPORT' && warning.message.includes('preact/jsx-runtime')) {
-					return;
+				if (warning.code === 'UNRESOLVED_IMPORT') {
+					// Ignore preact/jsx-runtime (aliased to preact/jsx-runtime via resolve.alias)
+					// Ignore @sylphx/code-api (server-side only)
+					if (
+						warning.message?.includes('preact/jsx-runtime') ||
+						warning.message?.includes('@sylphx/code-api')
+					) {
+						return;
+					}
 				}
 				warn(warning);
 			},

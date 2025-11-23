@@ -176,6 +176,7 @@
         "@sylphx/code-api": "workspace:*",
         "@sylphx/code-core": "workspace:*",
         "@sylphx/lens-core": "link:@sylphx/lens-core",
+        "@sylphx/lens-server": "link:@sylphx/lens-server",
         "@trpc/server": "^11.7.1",
         "express": "^5.1.0",
         "mime-types": "^2.1.35",
@@ -738,6 +739,8 @@
     "@sylphx/lens-client": ["@sylphx/lens-client@link:@sylphx/lens-client", {}],
 
     "@sylphx/lens-core": ["@sylphx/lens-core@link:@sylphx/lens-core", {}],
+
+    "@sylphx/lens-server": ["@sylphx/lens-server@link:@sylphx/lens-server", {}],
 
     "@sylphx/lens-transport-http": ["@sylphx/lens-transport-http@link:@sylphx/lens-transport-http", {}],
 

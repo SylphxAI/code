@@ -7,7 +7,7 @@ import type { ProviderId, Session, SessionMessage } from "@sylphx/code-core";
 import { zen, computed } from "@sylphx/zen";
 import { useZen } from "../../react-bridge.js";
 import { eventBus } from "../../../lib/event-bus.js";
-import { getLensClient } from "../../../lens-provider.js";
+import { getLensClientGlobal as getLensClient } from "../../../lens-client-global.js";
 import type { API } from "@sylphx/code-api";
 
 // Core session signals

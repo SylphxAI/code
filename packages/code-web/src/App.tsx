@@ -3,25 +3,23 @@
  * Sets up Lens provider and renders main UI
  *
  * MIGRATED: tRPC → Lens (2025-01-23)
- * - TRPCProvider → LensProvider
+ * - TRPCProvider → LensProvider (TEMP DISABLED - bundling issue)
  * - HTTP transport (port 3100 → 3000)
  * - Field-level subscriptions enabled
+ *
+ * TODO: Fix @sylphx/code-api bundling issue to re-enable LensProvider
+ * For now: using direct signal access (signals init on import)
  */
 
-import { LensProvider, createHTTPTransport } from "@sylphx/code-client";
-import { api } from "@sylphx/code-api";
 import { useEffect, useState } from "preact/hooks";
 import { ChatScreen } from "./screens/ChatScreen";
 import { BashScreen } from "./screens/BashScreen";
 import { Header, Sidebar, StatusBar } from "./components/layout";
 import { useGlobalKeyboard } from "./hooks/useGlobalKeyboard";
 
-// Lens HTTP transport connecting to LensServer (port 3000)
-// Provides:
-// - Type-safe API
-// - Field-level subscriptions
-// - Automatic optimistic updates
-const lensTransport = createHTTPTransport("http://localhost:3000");
+// Initialize Lens HTTP client (side effect on import)
+// This sets up the global client for signals to use
+import "./lens-init.js";
 
 function AppContent() {
 	const [currentScreen, setCurrentScreen] = useState<"chat" | "bash">("chat");
@@ -74,10 +72,7 @@ export function App() {
 		return <div>Loading...</div>;
 	}
 
-	return (
-		<LensProvider api={api} transport={lensTransport} optimistic={true}>
-			{/* @ts-expect-error - LensProvider uses React ReactNode but Preact VNode is compatible */}
-			<AppContent />
-		</LensProvider>
-	);
+	// TODO: Re-enable LensProvider after fixing @sylphx/code-api bundling issue
+	// For now: Zen signals work without provider (global state)
+	return <AppContent />;
 }
