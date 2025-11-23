@@ -162,7 +162,7 @@ export async function processAIStream(
 										state.currentTextPartIndex,
 										part,
 									);
-									await persistence.publishPartUpdate(stepId, state.currentTextPartIndex, part);
+									await persistence.publishPartUpdate(stepId, state.currentTextPartIndex, part, true); // Force publish on completion
 								}
 							}
 						}
@@ -246,7 +246,7 @@ export async function processAIStream(
 										state.currentReasoningPartIndex,
 										part,
 									);
-									await persistence.publishPartUpdate(stepId, state.currentReasoningPartIndex, part);
+									await persistence.publishPartUpdate(stepId, state.currentReasoningPartIndex, part, true); // Force publish on completion
 								}
 							}
 
@@ -296,7 +296,7 @@ export async function processAIStream(
 									toolPartIndex,
 									newToolPart,
 								);
-								await persistence.publishPartUpdate(stepId, toolPartIndex, newToolPart);
+								await persistence.publishPartUpdate(stepId, toolPartIndex, newToolPart, true); // Force publish when tool created
 							}
 						}
 					}
@@ -412,7 +412,7 @@ export async function processAIStream(
 										toolPartIndex,
 										toolPart,
 									);
-								await persistence.publishPartUpdate(stepId, toolPartIndex, toolPart);
+								await persistence.publishPartUpdate(stepId, toolPartIndex, toolPart, true); // Force publish on tool completion
 								}
 							}
 						}

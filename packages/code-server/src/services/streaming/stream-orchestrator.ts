@@ -407,14 +407,23 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				}
 
 				// 2. Process stream and emit events
-				// LENS: Create persistence context for incremental database writes
-				const currentStepNumber = lastCompletedStepNumber + 1;
-				const persistence = {
-					messageRepository,
-					getStepId: () => stepIdMap.get(currentStepNumber) || null,
+			// LENS: Create persistence context for incremental database writes
+			const currentStepNumber = lastCompletedStepNumber + 1;
 
-					// LENS: Publish fine-grained part-updated event after upsert
-					publishPartUpdate: async (stepId: string, partIndex: number, part: MessagePart) => {
+			// LENS: Debouncing - publish every N deltas to reduce database contention
+			let deltasSinceLastPublish = 0;
+			const PUBLISH_INTERVAL = 10; // Publish every 10 deltas
+
+			const persistence = {
+				messageRepository,
+				getStepId: () => stepIdMap.get(currentStepNumber) || null,
+
+				// LENS: Publish fine-grained part-updated event after upsert
+				// Debounced: only publishes every PUBLISH_INTERVAL deltas or when forced
+				publishPartUpdate: async (stepId: string, partIndex: number, part: MessagePart, forcePublish = false) => {
+					deltasSinceLastPublish++;
+
+					if (forcePublish || deltasSinceLastPublish >= PUBLISH_INTERVAL) {
 						await opts.appContext.eventStream.publish(`message:${assistantMessageId}`, {
 							type: 'part-updated',
 							messageId: assistantMessageId,
@@ -422,8 +431,10 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 							partIndex,
 							part
 						});
+						deltasSinceLastPublish = 0;
 					}
-				};
+				}
+			};
 
 				const stepResult = await processAIStream(
 					fullStream,
