@@ -7,9 +7,9 @@
  * Architecture:
  * - Subscribes directly to session.getById.subscribe()
  * - Receives model-level events (session-updated) from backend
- * - Merges server state with optimistic updates from OptimisticManager
- * - Simple reactive pattern: Observable → merge optimistic → update local state
+ * - Simple reactive pattern: Observable → update local state
  * - No large switch statements for event dispatch
+ * - Optimistic reconciliation handled by event stream handlers (handleSessionUpdated)
  *
  * Benefits over legacy useEventStream:
  * - ✅ Simpler code (no switch statement)
@@ -17,18 +17,17 @@
  * - ✅ Model-level events only (consistent granularity)
  * - ✅ Uses existing Lens subscription implementation
  * - ✅ Same event payload structure (no breaking changes)
- * - ✅ Optimistic updates (UI updates immediately)
  *
  * Fine-Grained Control:
  * - ✅ Field selection (select: { id: true, title: true })
  * - ✅ Auto-optimized transmission (57%-99% bandwidth savings)
  * - ✅ Backend AutoStrategy handles everything (no manual config)
- * - ✅ Optimistic updates (mutations update UI immediately)
+ *
+ * Note: Optimistic updates are handled separately by subscriptionAdapter + event stream handlers
  */
 
 import { useEffect, useRef } from "react";
-import { currentSession, setCurrentSession, lensClient, useCurrentSessionId, useOptimisticManager } from "@sylphx/code-client";
-import { subscribeWithOptimistic } from "@sylphx/lens-client";
+import { currentSession, setCurrentSession, lensClient, useCurrentSessionId } from "@sylphx/code-client";
 import type { Select } from "@sylphx/lens-core";
 import type { Session } from "@sylphx/code-core";
 
@@ -85,7 +84,6 @@ export function useLensSessionSubscription(options: UseLensSessionSubscriptionOp
 	const { onSessionUpdated, select } = options;
 
 	const currentSessionId = useCurrentSessionId();
-	const optimisticManager = useOptimisticManager();
 
 	// Ref to track subscription
 	const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
@@ -133,7 +131,7 @@ export function useLensSessionSubscription(options: UseLensSessionSubscriptionOp
 			select ? { select } : undefined
 		);
 
-		// Handle update callback (shared for both optimistic and non-optimistic paths)
+		// Handle update callback
 		const handleUpdate = (session: any) => {
 			if (!session) return;
 
@@ -153,25 +151,20 @@ export function useLensSessionSubscription(options: UseLensSessionSubscriptionOp
 			callbackRef.current?.(session);
 		};
 
-		// If OptimisticManager available, wrap subscription with optimistic updates
-		// Otherwise, use direct subscription
-		const subscription = optimisticManager
-			? subscribeWithOptimistic(serverSubscription, optimisticManager, {
-					entityType: "Session",
-					entityId: currentSessionId,
-					debug: false,
-					onUpdate: handleUpdate,
-			  })
-			: serverSubscription.subscribe({
-					next: handleUpdate,
-					error: (error: any) => {
-						console.error("[useLensSessionSubscription] Error:", error);
-					},
-					complete: () => {
-						// Subscription completed (e.g., session deleted)
-						console.log("[useLensSessionSubscription] Subscription completed");
-					},
-			  });
+		// Direct subscription (no optimistic wrapper)
+		// Optimistic updates are handled by subscriptionAdapter.ts + event stream handlers
+		// Using subscribeWithOptimistic here would require OptimisticManager with subscribe() method
+		// which OptimisticManagerV2 doesn't have (effect-based architecture)
+		const subscription = serverSubscription.subscribe({
+			next: handleUpdate,
+			error: (error: any) => {
+				console.error("[useLensSessionSubscription] Error:", error);
+			},
+			complete: () => {
+				// Subscription completed (e.g., session deleted)
+				console.log("[useLensSessionSubscription] Subscription completed");
+			},
+		});
 
 		subscriptionRef.current = subscription;
 
@@ -180,8 +173,7 @@ export function useLensSessionSubscription(options: UseLensSessionSubscriptionOp
 			subscription.unsubscribe();
 			subscriptionRef.current = null;
 		};
-	}, [currentSessionId, select, optimisticManager]);
+	}, [currentSessionId, select]);
 	// NOTE: onSessionUpdated NOT in dependency array to avoid infinite loop
 	// NOTE: select IS in dependency array - stable object defined at call site
-	// NOTE: optimisticManager IS in dependency array - stable instance from provider
 }
