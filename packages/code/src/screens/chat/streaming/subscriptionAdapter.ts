@@ -1,5 +1,5 @@
 /**
- * Streaming Trigger Adapter for tRPC
+ * Streaming Trigger Adapter for Lens
  * Triggers AI streaming via mutation and handles optimistic updates
  *
  * MUTATION + EVENT STREAM ARCHITECTURE:
@@ -9,8 +9,8 @@
  * - All event handling in streamEventHandlers.ts
  *
  * Architecture:
- * - TUI: Uses in-process tRPC (zero overhead)
- * - Web: Will use HTTP tRPC (over network)
+ * - TUI: Uses in-process Lens (zero overhead)
+ * - Web: Will use HTTP Lens (over network)
  * - Same interface for both!
  *
  * OPTIMISTIC UPDATE + PASSIVE EVENT MODEL:
@@ -24,7 +24,7 @@
 
 import {
 	currentSession,
-	getTRPCClient,
+	useLensClient,
 	parseUserInput,
 	setCurrentSessionId,
 	setCurrentSession,
@@ -198,7 +198,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		abortControllerRef.current = new AbortController();
 
 		// CRITICAL: Register abort handler IMMEDIATELY after creating AbortController
-		// Must register before any async operations (getTRPCClient, mutation, etc.)
+		// Must register before any async operations (Lens client, mutation, etc.)
 		// Otherwise, if user presses ESC during async operation, handler won't be registered yet
 		let mutationSessionId: string | null = null; // Will be set after mutation completes
 
@@ -213,8 +213,8 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
 				if (abortSessionId) {
 					try {
-						const caller = await getTRPCClient();
-						await caller.message.abortStream.mutate({
+						const client = useLensClient();
+						await client.message.abortStream.mutate({
 							sessionId: abortSessionId,
 						});
 						logSession("Server notified of abort");
@@ -240,10 +240,10 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		});
 
 		try {
-			logSession("Getting tRPC client");
-			// Get tRPC caller (in-process client)
-			const caller = await getTRPCClient();
-			logSession("tRPC client obtained");
+			logSession("Getting Lens client");
+			// Get Lens client (in-process client)
+			const client = useLensClient();
+			logSession("Lens client obtained");
 
 			// Parse user input into ordered content parts
 			const { parts: content } = parseUserInput(userMessage, attachments || []);
@@ -474,7 +474,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			// - Server publishes all events to event bus
 			// - Client receives events via useEventStream (Chat.tsx)
 			// - No subscription callbacks needed - all handled in event handlers
-			const result = await caller.message.triggerStream.mutate({
+			const result = await client.message.triggerStream.mutate({
 				sessionId: sessionId,
 				provider: sessionId ? undefined : provider,
 				model: sessionId ? undefined : model,

@@ -11,6 +11,7 @@ import { z } from "zod";
 import {
 	MessageSchema,
 	PaginatedSessionsSchema,
+	ParsedContentPartSchema,
 	SessionMetadataSchema,
 	SessionSchema,
 	StreamEventSchema,
@@ -501,7 +502,69 @@ export const sessionAPI = lens.object({
  */
 export const messageAPI = lens.object({
 	/**
-	 * Stream AI response
+	 * Trigger AI streaming
+	 * MUTATION: Starts streaming in background, returns sessionId
+	 *
+	 * Architecture:
+	 * - Client calls this mutation to trigger streaming
+	 * - Server streams in background and publishes events to event bus
+	 * - Client receives events via events.subscribeToSession
+	 *
+	 * Queue Logic:
+	 * - If session is already streaming, enqueues message instead
+	 * - Returns { sessionId, queued: true }
+	 *
+	 * Lazy Sessions:
+	 * - If sessionId is null, creates new session
+	 * - Returns new sessionId
+	 */
+	triggerStream: lens
+		.input(z.object({
+			sessionId: z.string().nullish(),
+			agentId: z.string().optional(),
+			provider: z.string().optional(), // Required if sessionId is null
+			model: z.string().optional(), // Required if sessionId is null
+			content: z.array(ParsedContentPartSchema), // User message content
+		}))
+		.output(z.object({
+			success: z.boolean(),
+			sessionId: z.string(),
+			queued: z.boolean().optional(),
+		}))
+		.mutation(async ({ input, ctx }) => {
+			// Import streaming orchestration (implemented in code-server)
+			const { triggerStreamMutation } = await import("../../code-server/src/services/streaming-mutations.service.js");
+
+			return await triggerStreamMutation({
+				appContext: ctx.appContext,
+				sessionRepository: ctx.sessionRepository,
+				messageRepository: ctx.messageRepository,
+				aiConfig: ctx.aiConfig,
+				input,
+			});
+		}),
+
+	/**
+	 * Abort active stream
+	 * MUTATION: Aborts server-side streaming for a session
+	 */
+	abortStream: lens
+		.input(z.object({
+			sessionId: z.string(),
+		}))
+		.output(z.object({
+			success: z.boolean(),
+			message: z.string(),
+		}))
+		.mutation(async ({ input }) => {
+			// Import abort logic (implemented in code-server)
+			const { abortStreamMutation } = await import("../../code-server/src/services/streaming-mutations.service.js");
+
+			return await abortStreamMutation(input.sessionId);
+		}),
+
+	/**
+	 * Stream AI response (DEPRECATED - use triggerStream + events.subscribeToSession)
 	 * REACTIVE: Returns Observable of streaming events
 	 */
 	streamResponse: lens

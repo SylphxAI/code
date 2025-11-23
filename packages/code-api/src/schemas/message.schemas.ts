@@ -1,5 +1,20 @@
 import { z } from "zod";
 
+// Parsed content part (from frontend parseUserInput)
+// Used for user message input before conversion to MessagePart
+export const ParsedContentPartSchema = z.discriminatedUnion("type", [
+	z.object({ type: z.literal("text"), content: z.string() }),
+	z.object({
+		type: z.literal("file"),
+		fileId: z.string(), // Reference to uploaded file in object storage
+		relativePath: z.string(),
+		size: z.number(),
+		mimeType: z.string(),
+	}),
+]);
+
+export type ParsedContentPart = z.infer<typeof ParsedContentPartSchema>;
+
 // Message part types
 export const MessagePartSchema = z.union([
 	z.object({ type: z.literal("text"), content: z.string() }),
