@@ -6,12 +6,14 @@
  * Features:
  * - Channel-based routing (session-events, session:{id}, config:*, app:*)
  * - Exact channel subscriptions
+ * - Pattern-based subscriptions (session:*:field:*, session:123:field:*)
  * - Cursor-based replay from database
  * - Auto-cleanup of old events
  * - In-memory + optional persistence
  */
 
-import { Observable, ReplaySubject } from "rxjs";
+import { Observable, ReplaySubject, merge } from "rxjs";
+import { filter } from "rxjs/operators";
 import type { EventCursor, EventPersistence, StoredEvent } from "./event-persistence.service.js";
 
 /**
@@ -35,6 +37,12 @@ function compareCursors(a: EventCursor, b: EventCursor): number {
 export class AppEventStream {
 	// Per-channel subjects (in-memory buffers)
 	private subjects = new Map<string, ReplaySubject<StoredEvent>>();
+
+	// Track all channels that have been published to (for pattern matching)
+	private activeChannels = new Set<string>();
+
+	// Pattern subscription master subject (emits all events from all channels)
+	private masterSubject = new ReplaySubject<StoredEvent>(100, 5 * 60 * 1000);
 
 	// Sequence counters per timestamp
 	private sequenceCounters = new Map<number, number>();
@@ -90,11 +98,17 @@ export class AppEventStream {
 			payload: event,
 		};
 
-		// 1. Publish to in-memory stream (instant, non-blocking)
+		// 1. Track channel for pattern matching
+		this.activeChannels.add(channel);
+
+		// 2. Publish to channel-specific subject (exact subscriptions)
 		const subject = this.getOrCreateSubject(channel);
 		subject.next(storedEvent);
 
-		// 2. Persist to database (async, non-blocking)
+		// 3. Publish to master subject (pattern subscriptions)
+		this.masterSubject.next(storedEvent);
+
+		// 4. Persist to database (async, non-blocking)
 		if (this.persistence) {
 			this.persistence.save(channel, storedEvent).catch((err) => {
 				console.error("[AppEventStream] Persistence error:", err);
@@ -250,6 +264,31 @@ export class AppEventStream {
 	}
 
 	/**
+	 * Subscribe to channel pattern (NEW for Lens integration)
+	 *
+	 * Enables pattern-based subscriptions for field-level updates.
+	 *
+	 * Examples:
+	 * - /^session:.*:field:.*$/ - All field updates for all sessions
+	 * - /^session:123:field:.*$/ - All field updates for session 123
+	 * - /^session:.*:field:title$/ - Title updates for all sessions
+	 *
+	 * Architecture:
+	 * - Uses masterSubject which receives ALL events from ALL channels
+	 * - Filters events by pattern matching on channel name
+	 * - Efficient: No need to subscribe to each channel individually
+	 * - Real-time: Automatically receives events from new channels
+	 *
+	 * @param pattern - RegExp pattern to match channel names
+	 * @returns Observable of matching events
+	 */
+	subscribePattern(pattern: RegExp): Observable<StoredEvent> {
+		return this.masterSubject.pipe(
+			filter((event) => pattern.test(event.channel)),
+		);
+	}
+
+	/**
 	 * Get channel info (XINFO equivalent)
 	 */
 	async info(channel: string): Promise<{
@@ -313,12 +352,16 @@ export class AppEventStream {
 			clearInterval(this.cleanupInterval);
 		}
 
-		// Complete all subjects
+		// Complete all channel-specific subjects
 		for (const subject of this.subjects.values()) {
 			subject.complete();
 		}
 
+		// Complete master subject
+		this.masterSubject.complete();
+
 		this.subjects.clear();
+		this.activeChannels.clear();
 	}
 
 	// ========== Private Methods ==========
