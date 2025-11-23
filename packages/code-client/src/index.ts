@@ -86,12 +86,15 @@ export {
 // ============================================================================
 export {
 	_initGlobalClient as _initGlobalLensClient,
+	_initGlobalOptimisticManager,
 	// Client factories
 	createInProcessClient as createInProcessLensClient,
+	getOptimisticManager,
 	// React Context API
 	LensProvider,
 	type LensProviderProps,
 	type TypedLensClient,
+	useOptimisticManager,
 } from "./lens-provider.js";
 // ============================================================================
 // tRPC Links (Low-level, use createInProcessClient instead)

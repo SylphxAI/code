@@ -227,11 +227,9 @@ export const sessionAPI = lens.object({
 
 	/**
 	 * Update session title
-	 */
-	/**
-	 * Update session title
 	 * REACTIVE: Publishes to session:{id} channel
 	 * Frontend receives via subscription (using patch strategy for minimal transmission)
+	 * OPTIMISTIC: UI updates immediately, confirms on success, rolls back on error
 	 */
 	updateTitle: lens
 		.input(z.object({
@@ -239,6 +237,14 @@ export const sessionAPI = lens.object({
 			title: z.string(),
 		}))
 		.output(SessionSchema)
+		.optimistic((opt) => opt
+			.entity('Session')
+			.id($ => $.sessionId)
+			.apply((draft, input, t) => {
+				draft.title = input.title;
+				draft.updatedAt = t.now();
+			})
+		)
 		.mutation(async ({ input, ctx }) => {
 			const { sessionId, title } = input;
 			// 1. Update database

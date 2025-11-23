@@ -1,13 +1,14 @@
 /**
  * Lens Session Subscription Hook
  *
- * Direct Lens subscription for real-time session updates.
+ * Direct Lens subscription for real-time session updates with optimistic updates.
  * Replaces legacy useEventStream with cleaner, simpler approach.
  *
  * Architecture:
  * - Subscribes directly to session.getById.subscribe()
  * - Receives model-level events (session-updated) from backend
- * - Simple reactive pattern: Observable → update local state
+ * - Merges server state with optimistic updates from OptimisticManager
+ * - Simple reactive pattern: Observable → merge optimistic → update local state
  * - No large switch statements for event dispatch
  *
  * Benefits over legacy useEventStream:
@@ -16,15 +17,18 @@
  * - ✅ Model-level events only (consistent granularity)
  * - ✅ Uses existing Lens subscription implementation
  * - ✅ Same event payload structure (no breaking changes)
+ * - ✅ Optimistic updates (UI updates immediately)
  *
  * Fine-Grained Control:
  * - ✅ Field selection (select: { id: true, title: true })
  * - ✅ Auto-optimized transmission (57%-99% bandwidth savings)
  * - ✅ Backend AutoStrategy handles everything (no manual config)
+ * - ✅ Optimistic updates (mutations update UI immediately)
  */
 
 import { useEffect, useRef } from "react";
-import { currentSession, setCurrentSession, lensClient, useCurrentSessionId } from "@sylphx/code-client";
+import { currentSession, setCurrentSession, lensClient, useCurrentSessionId, useOptimisticManager } from "@sylphx/code-client";
+import { subscribeWithOptimistic } from "@sylphx/lens-client";
 import type { Select } from "@sylphx/lens-core";
 import type { Session } from "@sylphx/code-core";
 
@@ -81,6 +85,7 @@ export function useLensSessionSubscription(options: UseLensSessionSubscriptionOp
 	const { onSessionUpdated, select } = options;
 
 	const currentSessionId = useCurrentSessionId();
+	const optimisticManager = useOptimisticManager();
 
 	// Ref to track subscription
 	const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
@@ -117,38 +122,56 @@ export function useLensSessionSubscription(options: UseLensSessionSubscriptionOp
 		// - String fields → Delta strategy (57% savings for incremental text)
 		// - Object fields → Patch strategy (99% savings for partial updates)
 		// - Primitive fields → Value strategy (simple, fast)
-		const subscription = lensClient.session.getById
-			.subscribe(
-				{ sessionId: currentSessionId },
-				select ? { select } : undefined
-			)
-			.subscribe({
-				next: (session: any) => {
-					if (!session) return;
+		//
+		// Optimistic updates (if OptimisticManager available):
+		// - Wraps server subscription with optimistic layer
+		// - Merges server state with pending optimistic updates
+		// - UI updates immediately when mutations are called
+		// - Auto-reconciles when server confirms
+		const serverSubscription = lensClient.session.getById.subscribe(
+			{ sessionId: currentSessionId },
+			select ? { select } : undefined
+		);
 
-					// Update local state (immutable update for zen signals)
-					const currentSessionValue = currentSession.value;
-					if (currentSessionValue && currentSessionValue.id === session.id) {
-						setCurrentSession({
-							...currentSessionValue,
-							...session,
-							// Preserve arrays/objects not in update
-							messages: session.messages || currentSessionValue.messages,
-							todos: session.todos || currentSessionValue.todos,
-						});
-					}
+		// Handle update callback (shared for both optimistic and non-optimistic paths)
+		const handleUpdate = (session: any) => {
+			if (!session) return;
 
-					// Trigger callback
-					callbackRef.current?.(session);
-				},
-				error: (error: any) => {
-					console.error("[useLensSessionSubscription] Error:", error);
-				},
-				complete: () => {
-					// Subscription completed (e.g., session deleted)
-					console.log("[useLensSessionSubscription] Subscription completed");
-				},
-			});
+			// Update local state (immutable update for zen signals)
+			const currentSessionValue = currentSession.value;
+			if (currentSessionValue && currentSessionValue.id === session.id) {
+				setCurrentSession({
+					...currentSessionValue,
+					...session,
+					// Preserve arrays/objects not in update
+					messages: session.messages || currentSessionValue.messages,
+					todos: session.todos || currentSessionValue.todos,
+				});
+			}
+
+			// Trigger callback
+			callbackRef.current?.(session);
+		};
+
+		// If OptimisticManager available, wrap subscription with optimistic updates
+		// Otherwise, use direct subscription
+		const subscription = optimisticManager
+			? subscribeWithOptimistic(serverSubscription, optimisticManager, {
+					entityType: "Session",
+					entityId: currentSessionId,
+					debug: false,
+					onUpdate: handleUpdate,
+			  })
+			: serverSubscription.subscribe({
+					next: handleUpdate,
+					error: (error: any) => {
+						console.error("[useLensSessionSubscription] Error:", error);
+					},
+					complete: () => {
+						// Subscription completed (e.g., session deleted)
+						console.log("[useLensSessionSubscription] Subscription completed");
+					},
+			  });
 
 		subscriptionRef.current = subscription;
 
@@ -157,7 +180,8 @@ export function useLensSessionSubscription(options: UseLensSessionSubscriptionOp
 			subscription.unsubscribe();
 			subscriptionRef.current = null;
 		};
-	}, [currentSessionId, select]);
+	}, [currentSessionId, select, optimisticManager]);
 	// NOTE: onSessionUpdated NOT in dependency array to avoid infinite loop
 	// NOTE: select IS in dependency array - stable object defined at call site
+	// NOTE: optimisticManager IS in dependency array - stable instance from provider
 }

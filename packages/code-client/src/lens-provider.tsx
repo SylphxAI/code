@@ -5,7 +5,11 @@
 
 import type { LensObject } from "@sylphx/lens-core";
 import { InProcessTransport } from "@sylphx/lens-core";
-import { createLensClient, type LensClient } from "@sylphx/lens-client";
+import {
+	createLensClient,
+	type LensClient,
+	OptimisticManager,
+} from "@sylphx/lens-client";
 import { createContext, type ReactNode, useContext, useMemo } from "react";
 
 /**
@@ -17,6 +21,11 @@ export type TypedLensClient<TApi extends LensObject<any>> = LensClient<TApi>;
  * React Context for Lens client
  */
 const LensContext = createContext<LensClient<any> | null>(null);
+
+/**
+ * React Context for OptimisticManager
+ */
+const OptimisticManagerContext = createContext<OptimisticManager | null>(null);
 
 /**
  * Provider props
@@ -38,19 +47,34 @@ export function LensProvider<TApi extends LensObject<any>>({
 	optimistic = true,
 	children,
 }: LensProviderProps<TApi>) {
+	// Create OptimisticManager once (stable across renders)
+	const optimisticManager = useMemo(
+		() => (optimistic ? new OptimisticManager({ debug: false }) : null),
+		[optimistic],
+	);
+
 	const client = useMemo(() => {
 		const transport = new InProcessTransport({ api, context });
+
 		return createLensClient<TApi>({
 			transport,
-			optimistic,
+			schema: api, // Pass API schema for optimistic metadata
+			optimisticManager: optimisticManager || undefined,
 		});
-	}, [api, context, optimistic]);
+	}, [api, context, optimisticManager]);
 
-	// Initialize global client for Zustand stores (cannot use React Context)
+	// Initialize global client and manager for Zustand stores (cannot use React Context)
 	_initGlobalClient(client);
+	_initGlobalOptimisticManager(optimisticManager);
 
 	// @ts-expect-error - JSX works with both React and Preact runtimes
-	return <LensContext.Provider value={client}>{children}</LensContext.Provider>;
+	return (
+		<LensContext.Provider value={client}>
+			<OptimisticManagerContext.Provider value={optimisticManager}>
+				{children}
+			</OptimisticManagerContext.Provider>
+		</LensContext.Provider>
+	);
 }
 
 /**
@@ -80,9 +104,14 @@ export function createInProcessClient<TApi extends LensObject<any>>(
 	optimistic = true,
 ): LensClient<TApi> {
 	const transport = new InProcessTransport({ api, context });
+
+	// Create OptimisticManager if optimistic updates are enabled
+	const optimisticManager = optimistic ? new OptimisticManager({ debug: false }) : undefined;
+
 	return createLensClient<TApi>({
 		transport,
-		optimistic,
+		schema: api, // Pass API schema for optimistic metadata
+		optimisticManager,
 	});
 }
 
@@ -116,4 +145,42 @@ export function getLensClient<TApi extends LensObject<any>>(): LensClient<TApi> 
 		throw new Error("Lens client not initialized. Ensure LensProvider wraps your app.");
 	}
 	return _globalClientForStores as LensClient<TApi>;
+}
+
+// ============================================================================
+// Internal: Global OptimisticManager for Zustand Stores
+// ============================================================================
+// Zustand stores cannot use React hooks, so they need global manager access
+// This is INTERNAL API - React components should use useOptimisticManager() hook
+
+/**
+ * Global OptimisticManager instance for Zustand stores
+ * @internal DO NOT USE in React components - use useOptimisticManager() hook
+ */
+let _globalOptimisticManager: OptimisticManager | null = null;
+
+/**
+ * Initialize global OptimisticManager for Zustand stores
+ * Called automatically by LensProvider
+ * @internal
+ */
+export function _initGlobalOptimisticManager(manager: OptimisticManager | null) {
+	_globalOptimisticManager = manager;
+}
+
+/**
+ * Get OptimisticManager for Zustand stores
+ * @internal DO NOT USE in React components - use useOptimisticManager() hook
+ */
+export function getOptimisticManager(): OptimisticManager | null {
+	return _globalOptimisticManager;
+}
+
+/**
+ * Hook to access OptimisticManager
+ * Must be used within LensProvider
+ * Returns null if optimistic updates are disabled
+ */
+export function useOptimisticManager(): OptimisticManager | null {
+	return useContext(OptimisticManagerContext);
 }
