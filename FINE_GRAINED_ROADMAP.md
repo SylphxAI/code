@@ -567,6 +567,128 @@ useLensSessionSubscription({
 - [x] Updated documentation to reflect zero-config philosophy
 - [x] API simplified to architectural perfection
 
+---
+
+### Phase 6A: Optimistic Updates Infrastructure ✅ COMPLETE
+
+**Goal:** Instant UI updates for mutations (zero-latency UX)
+
+**Problem Solved:** UI lag during mutations
+- Before: User action → Wait 50-200ms → UI updates
+- After: User action → UI updates instantly (0ms) → Server confirms in background
+
+**Status:** ✅ Complete - Optimistic infrastructure fully integrated
+
+**Architecture:**
+```typescript
+// Mutation Flow with Optimistic Updates
+User calls: client.session.updateTitle.mutate({ sessionId, title: "New" })
+  ↓
+OptimisticManager.beforeMutation() → Apply optimistic update
+  ↓
+UI updates immediately (currentSession signal)
+  ↓
+Execute server mutation
+  ↓
+Success: OptimisticManager.onSuccess() → Confirm optimistic
+Error: OptimisticManager.onError() → Automatic rollback
+```
+
+**Implementation - Phase 6A:**
+
+1. **API Layer (code-api):**
+   - Added `.optimistic()` config to `session.updateTitle`
+   - Declarative optimistic configuration
+   - Template for all future mutations
+
+2. **Client Infrastructure (code-client):**
+   - Setup OptimisticManager in LensProvider
+   - Created OptimisticManager with stable identity (useMemo)
+   - Passed API schema to createLensClient for metadata access
+   - Global manager initialization for Zustand stores
+   - Exported `useOptimisticManager` hook for React
+   - Exported `getOptimisticManager` for Zustand
+
+3. **Subscription Integration (code):**
+   - Updated `useLensSessionSubscription` with optimistic wrapper
+   - Merges server state + optimistic updates seamlessly
+   - Backward compatible (works with or without manager)
+
+**Completed Actions:**
+- [x] Added optimistic config to session.updateTitle (template)
+- [x] Setup OptimisticManager in LensProvider
+- [x] Added useOptimisticManager hook
+- [x] Updated useLensSessionSubscription for optimistic merging
+- [x] Exported optimistic utilities from code-client
+- [x] Global manager access for Zustand stores
+- [x] Committed Phase 6A (commit: 7782690)
+
+**Template Pattern:**
+```typescript
+.optimistic((opt) => opt
+  .entity('Session')
+  .id($ => $.sessionId)
+  .apply((draft, input, t) => {
+    draft.fieldName = input.newValue;
+    draft.updatedAt = t.now();
+  })
+)
+```
+
+---
+
+### Phase 6B: Optimistic Updates Extended Coverage ✅ COMPLETE
+
+**Goal:** Apply optimistic pattern to all high-priority mutations
+
+**Status:** ✅ Complete - All session config + todo mutations optimistic
+
+**Mutations Updated (5):**
+
+1. **session.updateModel** - Model selection instant
+2. **session.updateProvider** - Provider + model combo instant
+3. **session.updateRules** - Rule toggles instant
+4. **session.updateAgent** - Agent selection instant
+5. **todo.update** - Todo list updates instant
+
+**Completed Actions:**
+- [x] Added optimistic to session.updateModel
+- [x] Added optimistic to session.updateProvider
+- [x] Added optimistic to session.updateRules
+- [x] Added optimistic to session.updateAgent
+- [x] Added optimistic to todo.update (atomic array replacement)
+- [x] Committed Phase 6B (commit: daf75b2)
+
+**Coverage Summary:**
+- ✅ session.updateTitle (Phase 6A)
+- ✅ session.updateModel (Phase 6B)
+- ✅ session.updateProvider (Phase 6B)
+- ✅ session.updateRules (Phase 6B)
+- ✅ session.updateAgent (Phase 6B)
+- ✅ todo.update (Phase 6B)
+
+**Total:** 6 mutations with instant UI updates
+
+**Benefits Achieved:**
+- ✅ Zero-latency UI updates (mutations apply immediately)
+- ✅ Automatic reconciliation (server state merges with optimistic)
+- ✅ Automatic rollback on error (pristine failure handling)
+- ✅ Declarative configuration (no manual state management)
+- ✅ Type-safe (full TypeScript inference)
+- ✅ Backward compatible (graceful degradation without manager)
+
+**User Experience Impact:**
+Settings panel now feels native-app responsive. All configuration changes (provider, model, agent, rules) update instantly with zero perceived latency.
+
+**Next Steps (Optional - Phase 6C):**
+- ⏳ session.create (requires temporary ID generation)
+- ⏳ session.delete (risky - needs careful error handling)
+- ⏳ message.* (complex - streaming + optimistic interaction)
+
+**Decision:** Defer Phase 6C until real usage reveals need. Current coverage handles all high-frequency user interactions.
+
+---
+
 ### Phase 7: Frequency Control ❌ CANCELLED
 - [x] Analysis complete
 - [x] Determined to violate Principle 3 (Reactive Event-Driven)
@@ -591,22 +713,26 @@ useLensSessionSubscription({
 
 ---
 
-## Current Focus: Architecture Perfect - Zero Configuration
+## Current Focus: Architecture Perfect - Zero Configuration + Instant UI
 
 **All Phases Complete ✅:**
 1. ✅ Phase 4: Lens Subscriptions - useLensSessionSubscription hook
 2. ✅ Phase 5: Field Selection - Type-safe select with autocomplete
 3. ✅ Phase 6: Auto-Optimization - Backend AutoStrategy (updateMode removed)
-4. ✅ Phase 7: CANCELLED - Violates reactive principles
+4. ✅ Phase 6A: Optimistic Infrastructure - OptimisticManager + subscription merging
+5. ✅ Phase 6B: Optimistic Coverage - 6 mutations with instant UI updates
+6. ✅ Phase 7: CANCELLED - Violates reactive principles
 
-**Major Architectural Achievement:**
-**Select is All You Need** - Perfect abstraction achieved
+**Major Architectural Achievements:**
+1. **Select is All You Need** - Perfect abstraction for field selection
+2. **Optimistic by Declaration** - Zero-latency mutations with auto-rollback
 
 **Framework Principles Realized:**
 1. ✅ Frontend-Driven Requirements (Not Implementation)
 2. ✅ TypeScript-First Intelligence
 3. ✅ Fine-Grained Reactivity
 4. ✅ Zero Configuration Default
+5. ✅ Instant UI Feedback (Optimistic Updates)
 
 **Phase 6 Decision - IMPLEMENTED:**
 
@@ -772,7 +898,9 @@ BREAKING: [Yes/No and why]
 
 ---
 
-**Last Updated:** 2024-12-22
-**Current State:** All Phases Complete ✅ | Architecture Perfect 🎯
-**Status:** updateMode Removed - Zero Configuration Default Achieved
-**Achievement:** Select is All You Need - Perfect Abstraction Layer
+**Last Updated:** 2025-01-23
+**Current State:** All Phases Complete ✅ | Architecture Perfect 🎯 | Optimistic Updates Integrated ⚡
+**Status:** Phase 6A/6B Complete - 6 mutations with instant UI updates
+**Achievements:**
+- Select is All You Need (Field Selection + Auto-Optimization)
+- Optimistic by Declaration (Zero-latency mutations with auto-rollback)
