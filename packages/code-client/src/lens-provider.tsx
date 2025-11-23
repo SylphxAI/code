@@ -70,6 +70,10 @@ export function LensProvider<TApi extends LensObject<any>>({
 	_initGlobalClient(client);
 	_initGlobalOptimisticManager(optimisticManager);
 
+	// Also initialize lens-client-global for framework-agnostic access
+	const { _initGlobalLensClient } = require("./lens-client-global.js");
+	_initGlobalLensClient(client);
+
 	return (
 		<LensContext.Provider value={client}>
 			<OptimisticManagerContext.Provider value={optimisticManager}>
