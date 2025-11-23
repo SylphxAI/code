@@ -148,18 +148,22 @@ export async function triggerStreamMutation(
 	/**
 	 * ARCHITECTURE: Subscribe to stream and wait for session-created (lazy sessions only)
 	 */
+	console.log("[triggerStreamMutation] Creating sessionIdPromise, eventSessionId:", eventSessionId);
 	const sessionIdPromise = new Promise<string>((resolve, reject) => {
 		let hasResolved = false;
 
 		// If session already exists, resolve immediately (but continue subscription for streaming)
 		if (eventSessionId) {
+			console.log("[triggerStreamMutation] Session exists, resolving immediately:", eventSessionId);
 			resolve(eventSessionId);
 			hasResolved = true;
 		}
 
+		console.log("[triggerStreamMutation] Subscribing to streamObservable...");
 		// Subscribe to stream to capture session-created event (lazy sessions)
 		const subscription = streamObservable.subscribe({
 			next: (event) => {
+				console.log("[triggerStreamMutation] Stream event received:", event.type);
 				// Capture sessionId from session-created event (lazy sessions only)
 				if (event.type === "session-created" && !hasResolved) {
 					eventSessionId = event.sessionId;
@@ -183,6 +187,7 @@ export async function triggerStreamMutation(
 				}
 			},
 			error: (error) => {
+				console.error("[triggerStreamMutation] Stream error:", error);
 				// Publish error to event stream
 				if (eventSessionId) {
 					appContext.eventStream
@@ -205,6 +210,7 @@ export async function triggerStreamMutation(
 				}
 			},
 			complete: () => {
+				console.log("[triggerStreamMutation] Stream completed");
 				// Publish complete to event stream
 				if (eventSessionId) {
 					appContext.eventStream
