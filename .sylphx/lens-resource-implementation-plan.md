@@ -1,16 +1,16 @@
 # Lens Resource-Based Enhancement - Implementation Plan
 
 **Date:** 2025-01-23
-**Status:** 🚧 In Progress (Phase 3 Complete)
+**Status:** 🚧 In Progress (Phase 4 Complete)
 **ADR:** [ADR-001: Resource-Based Lens Enhancement](decisions/001-resource-based-lens.md)
-**Phase:** 3/6 Complete
+**Phase:** 4/6 Complete
 
 ## Progress Tracking
 
 - ✅ **Phase 1: Core API & Registry** (Week 1) - COMPLETE
 - ✅ **Phase 2: Query Planner** (Week 2) - COMPLETE
 - ✅ **Phase 3: DataLoader Integration** (Week 2) - COMPLETE
-- ⏳ **Phase 4: Code Generation** (Week 3) - PENDING
+- ✅ **Phase 4: Runtime API Generation** (Week 3) - COMPLETE
 - ⏳ **Phase 5: Subscription Manager** (Week 3) - PENDING
 - ⏳ **Phase 6: Migration & Testing** (Week 4) - PENDING
 
@@ -531,10 +531,20 @@ function generateGetById<T extends ResourceDefinition>(
 ```
 
 ### Deliverables
-- ✅ CRUD API generator
-- ✅ Type generator
-- ✅ Client API generator
-- ✅ Generated code has full type inference
+- ✅ Runtime API generator (generateResourceAPI)
+- ✅ Query handlers (getById, list) with DataLoader integration
+- ✅ Mutation handlers (create, update, delete) with validation
+- ✅ Lifecycle hooks (beforeCreate, afterCreate, etc.)
+- ✅ Event publishing for subscriptions
+- ✅ Full TypeScript type inference
+- ✅ Field selection and relationship inclusion
+- ✅ Unit tests (35/35 passing)
+
+**Implementation:** Commit 86876e8 - 8 files, 1487 lines
+**Completed:** 2025-01-23
+
+**Note:** This is RUNTIME API generation (not compile-time codegen).
+TypeScript-first approach with full type inference, similar to tRPC/Drizzle pattern.
 
 ---
 
