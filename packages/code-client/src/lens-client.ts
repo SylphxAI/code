@@ -12,20 +12,26 @@
  * import { lensClient, useLensClient } from "@sylphx/code-client";
  *
  * // Non-React (Zen signals, utility functions)
- * const session = await lensClient.session.getById.query({ sessionId });
+ * const session = await lensClient.queries.getSession({ id: sessionId });
  *
  * // React components (hooks)
  * const client = useLensClient();
- * const session = await client.session.getById.query({ sessionId });
+ * const session = await client.queries.getSession({ id: sessionId });
  * ```
  */
 
-import type { API } from "@sylphx/code-api";
-import type { LensClient } from "@sylphx/lens-client";
+import type { LensClient } from "@lens/client";
 import {
 	getLensClient as getLensClientGeneric,
 	useLensClient as useLensClientGeneric,
 } from "./lens-provider.js";
+
+// Import server types for type inference
+import type { AppRouter } from "@sylphx/code-server";
+
+// Extract query and mutation types from router
+type Queries = AppRouter extends { queries: infer Q } ? Q : any;
+type Mutations = AppRouter extends { mutations: infer M } ? M : any;
 
 /**
  * Type-safe Lens client for Code API
@@ -38,18 +44,20 @@ import {
  * ```ts
  * import { lensClient } from "@sylphx/code-client";
  *
- * const session = await lensClient.session.getById.query({ sessionId });
- * const processes = await lensClient.bash.list.query();  // ✅ No brackets if void input!
+ * const session = await lensClient.queries.getSession({ id: sessionId });
  * ```
  */
-export const lensClient: LensClient<API> = new Proxy({} as LensClient<API>, {
-	get: (_target, prop) => {
-		// Lazy initialization - get client when first accessed
-		const client = getLensClientGeneric<API>();
-		// Forward all property accesses to the actual client
-		return (client as any)[prop];
+export const lensClient: LensClient<any, any> = new Proxy(
+	{} as LensClient<any, any>,
+	{
+		get: (_target, prop) => {
+			// Lazy initialization - get client when first accessed
+			const client = getLensClientGeneric();
+			// Forward all property accesses to the actual client
+			return (client as any)[prop];
+		},
 	},
-});
+);
 
 /**
  * React hook to access type-safe Lens client
@@ -63,19 +71,18 @@ export const lensClient: LensClient<API> = new Proxy({} as LensClient<API>, {
  *
  * function MyComponent() {
  *   const client = useLensClient();
- *   const session = await client.session.getById.query({ sessionId });
- *   const processes = await client.bash.list.query();  // ✅ No brackets if void input!
+ *   const session = await client.queries.getSession({ id: sessionId });
  * }
  * ```
  */
-export function useLensClient(): LensClient<API> {
-	return useLensClientGeneric<API>();
+export function useLensClient(): LensClient<any, any> {
+	return useLensClientGeneric();
 }
 
 /**
  * Legacy exports for backward compatibility
  * @deprecated Use lensClient or useLensClient instead
  */
-export function getLensClient(): LensClient<API> {
-	return getLensClientGeneric<API>();
+export function getLensClient(): LensClient<any, any> {
+	return getLensClientGeneric();
 }

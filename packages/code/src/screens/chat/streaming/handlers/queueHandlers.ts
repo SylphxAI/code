@@ -2,10 +2,10 @@
  * Queue Event Handlers
  * Handles message queue events from server
  *
- * ARCHITECTURE: Uses optimistic update system for self-healing
- * - Handlers call optimistic wrappers which reconcile with server state
- * - Rollback pending operations that conflict with server events
- * - Multi-client safe (all clients reconcile to same server state)
+ * ARCHITECTURE: Server-authoritative queue state
+ * - Server events update queue state directly
+ * - Lens handles optimistic updates via mutations
+ * - Multi-client sync automatic via Lens subscriptions
  */
 
 import {
@@ -13,18 +13,12 @@ import {
 	handleQueueMessageAdded,
 	handleQueueMessageRemoved,
 	handleQueueMessageUpdated,
-	handleQueueMessageAddedWithOptimistic,
-	handleQueueClearedWithOptimistic,
 } from "@sylphx/code-client";
 import type { EventHandlerContext } from "../types.js";
 
 /**
  * Handle queue-message-added event
  * Server added message to queue
- *
- * OPTIMISTIC: Reconciles with pending operations
- * - If we have conflicting add-message operation, rolls it back
- * - Server state wins (self-healing)
  */
 export function handleQueueMessageAddedEvent(
 	event: {
@@ -44,8 +38,8 @@ export function handleQueueMessageAddedEvent(
 	},
 	_context: EventHandlerContext,
 ): void {
-	// Use optimistic wrapper for self-healing
-	handleQueueMessageAddedWithOptimistic({
+	// Update queue state directly (server-authoritative)
+	handleQueueMessageAdded({
 		sessionId: event.sessionId,
 		message: event.message,
 	});
@@ -102,10 +96,6 @@ export function handleQueueMessageRemovedEvent(
 /**
  * Handle queue-cleared event
  * Server cleared all queued messages
- *
- * OPTIMISTIC: Reconciles with pending operations
- * - Rolls back all pending add-to-queue operations
- * - Server state wins (self-healing)
  */
 export function handleQueueClearedEvent(
 	event: {
@@ -114,8 +104,8 @@ export function handleQueueClearedEvent(
 	},
 	_context: EventHandlerContext,
 ): void {
-	// Use optimistic wrapper for self-healing
-	handleQueueClearedWithOptimistic({
+	// Update queue state directly (server-authoritative)
+	handleQueueCleared({
 		sessionId: event.sessionId,
 	});
 }

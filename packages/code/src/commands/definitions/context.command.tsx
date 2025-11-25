@@ -18,7 +18,6 @@ export const contextCommand: Command = {
 			const { formatTokenCount, calculateReservedTokens, loadSettings } = await import(
 				"@sylphx/code-core"
 			);
-			const { getTRPCClient } = await import("@sylphx/code-client");
 			const {
 				currentSessionSignal,
 				selectedModelSignal,
@@ -62,8 +61,8 @@ export const contextCommand: Command = {
 				commandContext.addLog(`[Context] No active session, using selected model: ${modelName}`);
 			}
 
-			// Initialize tRPC client
-			const trpc = getTRPCClient();
+			// Use client from context (passed from React hook)
+			const client = commandContext.client;
 
 			// Get model context limit from server (NO HARDCODED VALUES!)
 			if (!providerId) {
@@ -77,7 +76,8 @@ export const contextCommand: Command = {
 				return;
 			}
 
-			const modelDetailsResult = await trpc.config.getModelDetails.query({
+			// Lens flat namespace: client.getModelDetails()
+			const modelDetailsResult = await client.getModelDetails({
 				providerId: providerId,
 				modelId: modelName,
 			});
@@ -114,8 +114,9 @@ export const contextCommand: Command = {
 				`[Context] Calculating token counts for ${modelName} (limit: ${formatTokenCount(contextLimit)})...`,
 			);
 
-			console.log("[Context] Calling tRPC getContextInfo...");
-			const result = await trpc.session.getContextInfo.query({
+			console.log("[Context] Calling Lens getContextInfo...");
+			// Lens flat namespace: client.getContextInfo()
+			const result = await client.getContextInfo({
 				sessionId: sessionId,
 				model: modelName, // Pass current model for dynamic calculation
 				agentId: agentId, // Pass current agent for SSOT

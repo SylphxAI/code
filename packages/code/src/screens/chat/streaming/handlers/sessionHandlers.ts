@@ -8,8 +8,6 @@ import {
 	getCurrentSessionId,
 	setCurrentSessionId,
 	setCurrentSession,
-	optimisticManagerV2,
-	runOptimisticEffects,
 } from "@sylphx/code-client";
 import { createLogger } from "@sylphx/code-core";
 import type { StreamEvent } from "@sylphx/code-server";
@@ -262,15 +260,8 @@ export function handleSessionUpdated(
 	// Update local state
 	setCurrentSession(updatedSession);
 
-	// If status changed, reconcile with optimistic system
-	if (event.session.status) {
-		const result = optimisticManagerV2.reconcile(event.sessionId, {
-			type: "session-status-updated",
-			sessionId: event.sessionId,
-			status: event.session.status,
-		});
-		runOptimisticEffects(result.effects);
-	}
+	// Lens optimistic reconciliation is now automatic via useLensSessionSubscription
+	// The subscription wrapper (wrapSubscriptionWithOptimistic) handles mergeBase() automatically
 
 	logSession("Session updated successfully:", {
 		sessionId: event.sessionId,

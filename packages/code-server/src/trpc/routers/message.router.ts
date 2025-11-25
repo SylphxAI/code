@@ -587,8 +587,8 @@ export const messageRouter = router({
 
 					// console.log(`[TriggerStream] ✅ Message queued: ${queuedMessage.id}`);
 
-					// Publish queue-message-added event
-					await ctx.appContext.eventStream.publish(`session:${eventSessionId}`, {
+					// Publish queue-message-added event to streaming channel
+					await ctx.appContext.eventStream.publish(`session-stream:${eventSessionId}`, {
 						type: "queue-message-added" as const,
 						sessionId: eventSessionId,
 						message: queuedMessage,

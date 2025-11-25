@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useRef } from "react";
-import { currentSession, setCurrentSession, lensClient, setError, useCurrentSessionId } from "@sylphx/code-client";
+import { lensClient, setError, useCurrentSessionId } from "@sylphx/code-client";
 
 export interface EventStreamCallbacks {
 	// Session events
@@ -149,13 +149,13 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 			return;
 		}
 
-		// Subscribe to strongly-typed session events using Lens
-		const subscription = lensClient.events.subscribeToSession.subscribe(
-			{
-				sessionId: currentSessionId,
-				replayLast,
-			},
-		).subscribe({
+		// Subscribe to strongly-typed session events using NEW Lens flat namespace
+		// lensClient.subscribeToSession() instead of lensClient.events.subscribeToSession.subscribe()
+		const client = lensClient as any;
+		const subscription = client.subscribeToSession({
+			sessionId: currentSessionId,
+			replayLast,
+		}).subscribe({
 			next: (storedEvent: any) => {
 				// Extract event from stored event payload
 				const event = storedEvent.payload;
@@ -183,18 +183,8 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 							break;
 
 						case "session-title-updated-end":
-							// Update session title in local state ONLY (passive reaction to server event)
-							// DO NOT call updateSessionTitle() - that would trigger another API call → event loop!
-							// Just update local signals directly
-							if (event.sessionId === currentSessionId) {
-								const currentSessionValue = currentSession.value;
-								if (currentSessionValue && currentSessionValue.id === event.sessionId) {
-									setCurrentSession({
-										...currentSessionValue,
-										title: event.title,
-									});
-								}
-							}
+							// Title updates are now handled by useLensSessionSubscription
+							// which receives session entities directly via Lens format
 							callbacksRef.current.onSessionTitleComplete?.(event.sessionId, event.title);
 							break;
 

@@ -3,12 +3,11 @@
  * Handles all input modes: selection, pending command, and normal input
  */
 
-import { useThemeColors, getTRPCClient, setCurrentScreen } from "@sylphx/code-client";
+import { useThemeColors, useLensClient, setCurrentScreen } from "@sylphx/code-client";
 import type { FileAttachment } from "@sylphx/code-core";
 import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import { indicators } from "../../../utils/colors.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
 import { useEffect, useRef } from "react";
 import type { Command, WaitForInputOptions } from "../../../commands/types.js";
 import { CommandAutocomplete } from "../../../components/CommandAutocomplete.js";
@@ -158,6 +157,9 @@ export function InputSection({
 	abortControllerRef,
 	onPasteImage,
 }: InputSectionProps) {
+	// Lens client for API calls
+	const client = useLensClient();
+
 	// Use ref to always have the latest isStreaming value in onEscape callback
 	// This avoids stale closure issues with React.memo
 	const isStreamingRef = useRef(isStreaming);
@@ -225,8 +227,8 @@ export function InputSection({
 									const answerString = typeof value === "string" ? value : String(value);
 
 									try {
-										const client = getTRPCClient();
-										await client.message.answerAsk.mutate({
+										// Lens flat namespace: client.answerAsk()
+										await client.answerAsk({
 											sessionId,
 											toolCallId,
 											answer: answerString,
@@ -386,15 +388,14 @@ export function InputSection({
 									}}
 									onPasteImage={onPasteImage}
 									onCtrlB={() => {
-										const client = getTRPCClient();
-										client.bash.getActive
-											.query()
-											.then((active) => {
+										// Lens flat namespace: client.getActiveBash() and client.demoteBash()
+										client.getActiveBash()
+											.then((active: any) => {
 												if (active) {
-													return client.bash.demote.mutate({ bashId: active.id });
+													return client.demoteBash({ bashId: active.id });
 												}
 											})
-											.catch((error) => {
+											.catch((error: any) => {
 												console.error("[InputSection] Failed to demote active bash:", error);
 											});
 									}}

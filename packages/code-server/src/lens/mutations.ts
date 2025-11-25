@@ -766,14 +766,31 @@ export const triggerStream = mutation()
 		const { triggerStreamMutation } = await import(
 			"../services/streaming-mutations.service.js"
 		);
+		const { loadAIConfig } = await import("@sylphx/code-core");
+
+		// Load aiConfig from disk (same as tRPC context does)
+		let aiConfig: any = { providers: {} };
+		try {
+			const result = await loadAIConfig();
+			if (result.success) {
+				aiConfig = result.data;
+			}
+		} catch (error) {
+			console.error("[triggerStream] Failed to load AI config:", error);
+		}
 
 		const result = await triggerStreamMutation({
 			appContext: ctx.appContext,
-			sessionId: input.sessionId,
-			agentId: input.agentId,
-			provider: input.provider,
-			model: input.model,
-			content: input.content,
+			sessionRepository: ctx.appContext.database.getRepository(),
+			messageRepository: ctx.appContext.database.getMessageRepository(),
+			aiConfig,
+			input: {
+				sessionId: input.sessionId,
+				agentId: input.agentId,
+				provider: input.provider,
+				model: input.model,
+				content: input.content,
+			},
 		});
 
 		return result;

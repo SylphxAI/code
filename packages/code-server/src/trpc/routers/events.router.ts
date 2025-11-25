@@ -102,7 +102,9 @@ export const eventsRouter = router({
 			}),
 		)
 		.subscription(({ ctx, input }) => {
-			const channel = `session:${input.sessionId}`;
+			// Streaming events use session-stream:${id} channel
+			// Session model updates use session:${id} channel (handled by Lens)
+			const channel = `session-stream:${input.sessionId}`;
 
 			return observable<StoredEvent>((emit) => {
 				const subscription = ctx.appContext.eventStream

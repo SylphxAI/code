@@ -14,9 +14,9 @@ export {
 // ============================================================================
 export { CodeServer, type ServerConfig } from "./server.js";
 // ============================================================================
-// LensServer Class (Lens framework)
+// Lens Server (new Three-Layer Architecture)
 // ============================================================================
-export { LensServer, type LensServerConfig } from "./lens-server.js";
+export { createLensServer, type AppRouter as LensRouter } from "./lens/index.js";
 // ============================================================================
 // Ask Queue Service
 // ============================================================================

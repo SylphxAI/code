@@ -5,43 +5,34 @@
  * Used by Zen signals which need to work in both React and non-React environments.
  *
  * Initialization:
- * - React apps: Use LensProvider which calls _initGlobalClient
- * - Web UI (Preact): Set window.__lensClient directly
+ * - React apps: Use LensProvider which calls _initGlobalLensClient
+ * - Web UI: Set window.__lensClient directly
  * - Node/TUI: Use createInProcessLensClient
  */
 
-import type { LensClient } from "@sylphx/lens-client";
+import type { LensClient } from "@lens/client";
+
+// Same key as lens-provider.tsx for consistency
+const GLOBAL_CLIENT_KEY = "__lensClient__" as const;
 
 /**
  * Get global Lens client
- * Works in both browser (window.__lensClient) and Node (module-level global)
+ * Uses globalThis to ensure single instance across all modules
  *
  * @throws Error if client not initialized
  */
-export function getLensClientGlobal<TApi = any>(): LensClient<TApi> {
-	// Browser: check window.__lensClient first
-	if (typeof window !== 'undefined' && (window as any).__lensClient) {
-		return (window as any).__lensClient;
+export function getLensClientGlobal(): LensClient<any, any> {
+	const client = (globalThis as any)[GLOBAL_CLIENT_KEY];
+	if (!client) {
+		throw new Error(
+			"Lens client not initialized. " +
+				"In React apps, wrap with <LensProvider>. " +
+				"In Web UI, import lens-init. " +
+				"In Node/TUI, call _initGlobalLensClient().",
+		);
 	}
-
-	// Node/TUI: check module-level global (set by LensProvider)
-	if (_globalClient) {
-		return _globalClient as LensClient<TApi>;
-	}
-
-	throw new Error(
-		"Lens client not initialized. " +
-		"In React apps, wrap with <LensProvider>. " +
-		"In Web UI, import lens-init. " +
-		"In Node/TUI, call _initGlobalLensClient()."
-	);
+	return client;
 }
-
-/**
- * Module-level global for Node/TUI environments
- * Set by LensProvider or _initGlobalLensClient
- */
-let _globalClient: LensClient<any> | null = null;
 
 /**
  * Initialize global Lens client (Node/TUI)
@@ -49,6 +40,13 @@ let _globalClient: LensClient<any> | null = null;
  *
  * @internal
  */
-export function _initGlobalLensClient(client: LensClient<any>) {
-	_globalClient = client;
+export function _initGlobalLensClient(client: LensClient<any, any>) {
+	(globalThis as any)[GLOBAL_CLIENT_KEY] = client;
+}
+
+/**
+ * Check if global client is initialized
+ */
+export function isGlobalLensClientInitialized(): boolean {
+	return (globalThis as any)[GLOBAL_CLIENT_KEY] != null;
 }

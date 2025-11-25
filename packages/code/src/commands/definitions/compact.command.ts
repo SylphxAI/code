@@ -12,7 +12,7 @@ export const compactCommand: Command = {
 	label: "/compact",
 	description: "Summarize current session and create a new session with the summary",
 	execute: async (context) => {
-		const { getTRPCClient, setCompacting, setCompactAbortController } = await import(
+		const { setCompacting, setCompactAbortController } = await import(
 			"@sylphx/code-client"
 		);
 		const { currentSession: currentSessionSignal } = await import("@sylphx/code-client");
@@ -36,8 +36,8 @@ export const compactCommand: Command = {
 		setCompactAbortController(abortController);
 
 		try {
-			// Call server-side compact mutation
-			const client = getTRPCClient();
+			// Use client from context (passed from React hook)
+			const client = context.client;
 
 			// Check if already aborted before starting
 			if (abortController.signal.aborted) {
@@ -45,7 +45,8 @@ export const compactCommand: Command = {
 				return "⚠️ Compaction cancelled.";
 			}
 
-			const result = await client.session.compact.mutate({
+			// Lens flat namespace: client.compactSession()
+			const result = await client.compactSession({
 				sessionId: currentSession.id,
 			});
 
@@ -61,8 +62,9 @@ export const compactCommand: Command = {
 
 			// Fetch new session to get the system message (summary)
 			// Filter out any active messages (those are being streamed and will come via event stream)
-			const newSession = await client.session.getById.query({
-				sessionId: result.newSessionId!,
+			// Lens flat namespace: client.getSession()
+			const newSession = await client.getSession({
+				id: result.newSessionId!,
 			});
 
 			if (!newSession) {

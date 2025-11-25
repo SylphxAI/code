@@ -22,15 +22,12 @@
  * - All streaming state changes are event-driven
  */
 
+import type { LensClient } from "@lens/client";
 import {
 	currentSession,
-	getLensClient,
 	parseUserInput,
 	setCurrentSessionId,
 	setCurrentSession,
-	trackOptimisticMessage,
-	optimisticManagerV2,
-	runOptimisticEffects,
 } from "@sylphx/code-client";
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
@@ -51,6 +48,9 @@ export type TriggerAIOptions = {};
  * Parameters for subscription adapter
  */
 export interface SubscriptionAdapterParams {
+	// Lens client (passed from React hook useLensClient)
+	client: LensClient<any, any>;
+
 	// Configuration
 	aiConfig: AIConfig | null;
 	currentSessionId: string | null;
@@ -102,6 +102,7 @@ export interface SubscriptionAdapterParams {
  */
 export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapterParams) {
 	const {
+		client,
 		aiConfig,
 		currentSessionId,
 		selectedProvider,
@@ -172,27 +173,10 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		setIsStreaming(true);
 
 		// OPTIMISTIC: Set status indicator immediately (don't wait for backend)
-		// Uses V2 Effect System - pure functional, single source of truth
-		const currentSessionValue = currentSession.value;
-		if (currentSessionValue) {
-			const newStatus = {
-				text: "Thinking...",
-				duration: 0,
-				tokenUsage: 0,
-				isActive: true,
-			};
-
-			// Apply optimistic update via Effect System
-			const result = optimisticManagerV2.apply(currentSessionValue.id, {
-				type: "update-session-status",
-				sessionId: currentSessionValue.id,
-				status: newStatus,
-				previousStatus: currentSessionValue.status,
-			});
-
-			// Run effects (updates zen signals, schedules timeout, emits events)
-			runOptimisticEffects(result.effects);
-		}
+		// Status is now purely server-driven via EventStream
+		// No optimistic update needed - server publishes fast enough
+		// Client receives status via events.subscribeToSession subscription
+		// This eliminates the timeout issue and simplifies architecture
 
 		// Create abort controller for this stream
 		abortControllerRef.current = new AbortController();
@@ -213,8 +197,8 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
 				if (abortSessionId) {
 					try {
-						const client = getLensClient();
-						await client.message.abortStream.mutate({
+						// Use NEW Lens flat namespace: client.abortStream() instead of client.message.abortStream.mutate()
+						await (client as any).abortStream({
 							sessionId: abortSessionId,
 						});
 						logSession("Server notified of abort");
@@ -240,18 +224,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		});
 
 		try {
-			logSession("Getting Lens client");
-
-			// Get Lens client (in-process client)
-			let client;
-			try {
-				client = getLensClient();
-				logSession("Lens client obtained");
-			} catch (clientError) {
-				console.error("[subscriptionAdapter] FAILED to get Lens client:", clientError);
-				logSession("FAILED to get Lens client:", clientError);
-				throw clientError;
-			}
+			logSession("Using Lens client from params");
 
 			// Parse user input into ordered content parts
 			const { parts: content } = parseUserInput(userMessage, attachments || []);
@@ -394,19 +367,8 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 						});
 					}
 
-					// OPTIMISTIC TRACKING: Track this operation for reconciliation
-					// Extract text content for tracking
-					const textContent = content
-						.filter((part) => part.type === "text")
-						.map((part) => part.content)
-						.join("\n");
-
-					trackOptimisticMessage({
-						sessionId,
-						optimisticId: optimisticMessageId,
-						content: textContent,
-						attachments: attachments || [],
-					});
+					// Note: Lens handles optimistic tracking automatically via mutations
+				// No manual tracking needed - server will confirm via events
 				} else {
 					// For new sessions or no current session, create temporary session for display
 					logSession("Creating temporary session for optimistic display");
@@ -444,19 +406,11 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 							},
 						],
 						todos: [],
-						status: newStatus,
+						status: newStatus, // Status will be updated by server via EventStream
 					});
 
-					// Apply optimistic update via Effect System
-					const result = optimisticManagerV2.apply("temp-session", {
-						type: "update-session-status",
-						sessionId: "temp-session",
-						status: newStatus,
-						// No previous status for new temp-session
-					});
-
-					// Run effects (updates zen signals, schedules timeout, emits events)
-					runOptimisticEffects(result.effects);
+					// Status is server-driven - will be updated via EventStream subscription
+					// No optimistic update needed for status
 
 					// Track optimistic assistant message ID for reconciliation
 					streamingMessageIdRef.current = optimisticAssistantId;
@@ -482,7 +436,8 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			// - Server publishes all events to event bus
 			// - Client receives events via useEventStream (Chat.tsx)
 			// - No subscription callbacks needed - all handled in event handlers
-			const result = await client.message.triggerStream.mutate({
+			// Use NEW Lens flat namespace: client.triggerStream() instead of client.message.triggerStream.mutate()
+			const result = await (client as any).triggerStream({
 				sessionId: sessionId,
 				provider: sessionId ? undefined : provider,
 				model: sessionId ? undefined : model,

@@ -448,7 +448,7 @@ Server-initiated:
 
 ## Related Documentation
 
-- [tRPC Communication](/architecture/trpc) - Detailed tRPC implementation
+- [Lens Architecture](/architecture/lens) - Type-safe API with automatic optimistic updates
 - [Event Streaming](/architecture/streaming) - Event system deep dive
 - [API Reference](/api/) - Complete API documentation
 - [Development Guide](/development/) - Contributing to Code

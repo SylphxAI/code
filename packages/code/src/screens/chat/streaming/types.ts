@@ -3,6 +3,7 @@
  * Shared types used across all event handlers
  */
 
+import type { LensClient } from "@lens/client";
 import type { AIConfig } from "@sylphx/code-core";
 import type React from "react";
 
@@ -10,6 +11,8 @@ import type React from "react";
  * Context passed to all event handlers
  */
 export interface EventHandlerContext {
+	/** Lens client (passed from React hook useLensClient) */
+	client: LensClient<any, any>;
 	currentSessionId: string | null;
 	updateSessionTitle: (sessionId: string, title: string) => void;
 	setIsStreaming: (value: boolean) => void;

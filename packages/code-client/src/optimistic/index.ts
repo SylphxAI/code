@@ -1,56 +1,25 @@
 /**
- * Optimistic Update System - Public API
+ * Optimistic Update System - Deprecated
  *
- * Exports all public APIs for optimistic updates
+ * This module is DEPRECATED. Use Lens OptimisticManager instead.
+ *
+ * Lens provides:
+ * - Automatic optimistic updates via .optimistic() on mutations
+ * - Automatic reconciliation via wrapSubscriptionWithOptimistic()
+ * - Type-safe, frontend-driven architecture
+ *
+ * See @sylphx/lens-client for the new optimistic update system.
  */
 
-// V2 Effect System (from standalone package)
-export type { Effect, EffectResult, StatePatch, EffectRunnerConfig } from "@sylphx/optimistic";
+// Re-export queue handlers (still needed for direct signal updates)
 export {
-	optimisticManagerV2,
-	OptimisticManagerV2,
-	runEffects,
-	applyOperation,
-	applyInverse,
-	applyPendingOperations,
-	patchState,
-	scheduleTimeout,
-	cancelTimeout,
-	emitEvent,
-	log,
-} from "@sylphx/optimistic";
+	handleQueueCleared,
+	handleQueueMessageAdded,
+	handleQueueMessageRemoved,
+	handleQueueMessageUpdated,
+} from "../signals/domain/queue/index.js";
 
-// Types (from standalone package)
-export type {
-	Message,
-	SessionStatus,
-	Operation,
-	PendingOperation,
-	ServerEvent,
-	SessionState,
-	FileAttachment,
-	QueuedMessage,
-} from "@sylphx/optimistic";
-
-// Zen Signal Adapter (framework-specific, kept in code-client)
-export { runOptimisticEffects } from "./zen-adapter.js";
-
-// V1 Legacy (deprecated - will be removed in future)
-export { optimisticManager, OptimisticManager } from "./manager.js";
-
-// Integration (main API for clients) - V1 (legacy)
-export {
-	trackOptimisticMessage,
-	trackOptimisticSessionStatus,
-	confirmOptimistic,
-	rollbackOptimistic,
-	reconcileWithServer,
-	getOptimisticState,
-	syncServerState,
-	handleQueueMessageAddedWithOptimistic,
-	handleQueueClearedWithOptimistic,
-	handleUserMessageCreatedWithOptimistic,
-	handleMessageStatusUpdatedWithOptimistic,
-	handleSessionStatusUpdatedWithOptimistic,
-	initOptimisticUpdates,
-} from "./integration.js";
+// Note: Old optimistic functions are REMOVED
+// - trackOptimisticMessage → Use Lens mutation .optimistic()
+// - optimisticManagerV2 → Use Lens OptimisticManager
+// - runOptimisticEffects → Handled automatically by Lens

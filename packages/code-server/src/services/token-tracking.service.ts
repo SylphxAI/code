@@ -70,7 +70,8 @@ export async function initializeTokenTracking(
 	// Emit initial baseline tokens immediately when streaming starts
 	// This ensures status bar shows tokens even during "Thinking..." phase
 	try {
-		await appContext.eventStream.publish(`session:${sessionId}`, {
+		// Token updates go to streaming channel (contains streaming-specific outputTokens)
+		await appContext.eventStream.publish(`session-stream:${sessionId}`, {
 			type: "session-tokens-updated" as const,
 			sessionId,
 			totalTokens: baselineTotal,
@@ -102,7 +103,8 @@ export async function updateTokensFromDelta(
 
 		// Emit immediate update (optimistic value, not SSOT)
 		// User requirement: "反正有任何異動都要即刻通知client去實時更新"
-		await appContext.eventStream.publish(`session:${sessionId}`, {
+		// Token updates go to streaming channel (contains streaming-specific outputTokens)
+		await appContext.eventStream.publish(`session-stream:${sessionId}`, {
 			type: "session-tokens-updated" as const,
 			sessionId,
 			totalTokens: currentTotal,
@@ -166,7 +168,8 @@ export async function recalculateTokensAtCheckpoint(
 		const totalTokens = recalculatedBaseContext + recalculatedMessages;
 
 		// Emit to all clients (multi-client real-time sync)
-		await appContext.eventStream.publish(`session:${sessionId}`, {
+		// Token updates go to streaming channel
+		await appContext.eventStream.publish(`session-stream:${sessionId}`, {
 			type: "session-tokens-updated" as const,
 			sessionId,
 			totalTokens,
@@ -225,9 +228,9 @@ export async function calculateFinalTokens(
 		const finalTotal = finalBaseContext + finalMessages;
 
 		// Emit event with calculated token data (send data on needed)
-		// Publish to session-specific channel (same as other streaming events)
+		// Token updates go to streaming channel
 		// All clients receive token data immediately without additional API calls
-		await appContext.eventStream.publish(`session:${sessionId}`, {
+		await appContext.eventStream.publish(`session-stream:${sessionId}`, {
 			type: "session-tokens-updated" as const,
 			sessionId,
 			totalTokens: finalTotal,

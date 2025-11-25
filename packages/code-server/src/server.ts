@@ -22,6 +22,8 @@ import { type Context, createContext } from "./trpc/context.js";
 import { type AppRouter, appRouter } from "./trpc/routers/index.js";
 import { initializeLensAPI } from "./lens/index.js";
 import { createLensHTTPHandler } from "./lens/http-handler.js";
+import { createLensServer, type AppRouter as LensAppRouter } from "./lens/server.js";
+import type { LensServer } from "@lens/server";
 
 export interface ServerConfig {
 	/**
@@ -64,6 +66,7 @@ export class CodeServer {
 	private expressApp?: Express;
 	private initialized = false;
 	private appContext?: AppContext;
+	private lensServer?: LensServer;
 
 	constructor(config: ServerConfig = {}) {
 		this.config = {
@@ -91,6 +94,9 @@ export class CodeServer {
 		});
 
 		await initializeAppContext(this.appContext);
+
+		// Initialize Lens server
+		this.lensServer = createLensServer(this.appContext);
 
 		this.initialized = true;
 	}
@@ -274,5 +280,17 @@ export class CodeServer {
 			throw new Error("Server not initialized. Call initialize() first.");
 		}
 		return this.appContext;
+	}
+
+	/**
+	 * Get Lens server for in-process transport
+	 * Returns the Lens server instance that implements LensServerInterface
+	 * Used with inProcess({ server }) transport for zero-overhead communication
+	 */
+	getLensServer(): LensServer {
+		if (!this.initialized || !this.lensServer) {
+			throw new Error("Server not initialized. Call initialize() first.");
+		}
+		return this.lensServer;
 	}
 }

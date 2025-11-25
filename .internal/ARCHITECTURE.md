@@ -16,10 +16,10 @@
 │  - Command System                       │
 │  - Streaming Display                    │
 └─────────────────────────────────────────┘
-                    ↓ tRPC
+                    ↓ Lens (auto-optimistic)
 ┌─────────────────────────────────────────┐
 │      Application Layer (code-server)    │
-│  - tRPC Routers                         │
+│  - Lens API (code-api)                  │
 │  - Business Logic Services              │
 │  - Event Stream (Multi-client sync)     │
 │  - AppContext (DI Container)            │
@@ -63,8 +63,22 @@
 - `tools/` - Tool implementations (filesystem, shell, search)
 - `utils/` - Helpers (token counter, session title, etc.)
 
+### code-api (API Definition)
+**Purpose**: Lens API definitions with automatic optimistic updates
+**Characteristics**:
+- ✅ Type-safe API with Zod schemas
+- ✅ Declarative `.optimistic()` on mutations
+- ✅ Field selection support
+- ✅ Frontend-driven architecture
+
+**Key Features**:
+- `session.*` - Session CRUD, streaming
+- `message.*` - Message operations, streaming
+- `config.*` - Configuration management
+- `events.*` - Real-time subscriptions
+
 ### code-server (Application Layer)
-**Purpose**: Backend server with tRPC API
+**Purpose**: Backend server with Lens API implementation
 **Characteristics**:
 - ✅ Stateful services (via AppContext)
 - ✅ Event stream for multi-client sync
@@ -72,7 +86,6 @@
 - ✅ Business logic orchestration
 
 **Key Modules**:
-- `trpc/routers/` - API endpoints
 - `services/` - Business logic services
 - `context.ts` - AppContext (DI container)
 - `server.ts` - HTTP server setup
@@ -82,7 +95,7 @@
 **Characteristics**:
 - ✅ Presentation layer only
 - ✅ No business logic
-- ✅ tRPC client for server communication
+- ✅ Lens client for server communication (auto-optimistic)
 
 **Key Modules**:
 - `screens/` - UI screens
@@ -92,9 +105,10 @@
 ### code-client (Client State)
 **Purpose**: Shared client-side state management
 **Characteristics**:
-- ✅ Signals for reactive state
-- ✅ tRPC client setup
-- ✅ No business logic
+- ✅ Zen signals for reactive state
+- ✅ Lens client setup with OptimisticManager
+- ✅ Automatic optimistic updates
+- ✅ No manual optimistic handling needed
 
 ---
 

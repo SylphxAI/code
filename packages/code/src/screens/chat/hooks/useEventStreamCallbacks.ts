@@ -5,6 +5,7 @@
  * Extracted from Chat.tsx to improve modularity and testability.
  */
 
+import type { LensClient } from "@lens/client";
 import { getCurrentSessionId } from "@sylphx/code-client";
 import type { AIConfig } from "@sylphx/code-core";
 import type React from "react";
@@ -12,6 +13,8 @@ import { useMemo } from "react";
 import { type EventHandlerContext, handleStreamEvent } from "../streaming/streamEventHandlers.js";
 
 export interface EventStreamCallbacksDeps {
+	/** Lens client (passed from React hook useLensClient) */
+	client: LensClient<any, any>;
 	updateSessionTitle: (sessionId: string, title: string) => void;
 	setIsStreaming: (value: boolean) => void;
 	setIsTitleStreaming: (value: boolean) => void;
@@ -58,6 +61,7 @@ export interface EventStreamCallbacksDeps {
  */
 export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 	const {
+		client,
 		updateSessionTitle,
 		setIsStreaming,
 		setIsTitleStreaming,
@@ -78,6 +82,7 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 	// Note: currentSessionId is set to null - handlers call getCurrentSessionId() directly
 	const eventContextParams = useMemo<EventHandlerContext>(
 		() => ({
+			client,
 			currentSessionId: null, // Handlers call getCurrentSessionId() directly
 			updateSessionTitle,
 			setIsStreaming,
@@ -96,6 +101,7 @@ export function useEventStreamCallbacks(deps: EventStreamCallbacksDeps) {
 			setStreamingOutputTokens,
 		}),
 		[
+			client,
 			updateSessionTitle,
 			setIsStreaming,
 			setIsTitleStreaming,

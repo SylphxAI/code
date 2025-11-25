@@ -3,7 +3,7 @@
  * Configure and switch AI providers using component-based UI
  */
 
-import { getActionCompletionsProviderCompletions } from "../../completions/provider.js";
+import { getActionCompletions, getProviderCompletions } from "../../completions/provider.js";
 import { ProviderManagement } from "../../screens/chat/components/ProviderManagementV2.js";
 import type { Command } from "../types.js";
 
@@ -25,8 +25,8 @@ export const providerCommand: Command = {
 			name: "provider-id",
 			description: "Provider to use or configure",
 			required: false,
-			loadOptions: async () => {
-				return getProviderCompletions();
+			loadOptions: async (_previousArgs, context) => {
+				return getProviderCompletions(context!.client);
 			},
 		},
 		{
@@ -42,11 +42,11 @@ export const providerCommand: Command = {
 			name: "key",
 			description: "Configuration key",
 			required: false,
-			loadOptions: async (context) => {
-				const providerId = context.args[1];
+			loadOptions: async (previousArgs, context) => {
+				const providerId = previousArgs[1];
 				if (!providerId) return [];
 				const { getProviderKeyCompletions } = await import("../../completions/provider.js");
-				return getProviderKeyCompletions(providerId);
+				return getProviderKeyCompletions(context!.client, providerId);
 			},
 		},
 		{
@@ -80,13 +80,14 @@ export const providerCommand: Command = {
 
 		// Get zen signals
 		const { get } = await import("@sylphx/code-client");
-		const { getTRPCClient } = await import("@sylphx/code-client");
 		const { aiConfig: aiConfigSignal, updateProvider, setAIConfig } = await import("@sylphx/code-client");
 		const aiConfig = aiConfigSignal.value;
 
+		// Use client from context (passed from React hook)
+		const client = context.client;
+
 		// Handle command-line configuration (set/get/show)
 		if (action === "configure" && providerId && subaction) {
-			const trpc = getTRPCClient();
 
 			if (subaction === "show") {
 				// Show all configuration for provider
@@ -136,7 +137,8 @@ export const providerCommand: Command = {
 				}
 
 				// Check if field is secret - use dedicated endpoint
-				const providerSchemaResult = await trpc.config.getProviderSchema.query({
+				// Lens flat namespace: client.getProviderSchema()
+				const providerSchemaResult = await client.getProviderSchema({
 					providerId: providerId as any,
 				});
 
@@ -144,14 +146,15 @@ export const providerCommand: Command = {
 					return `Error: ${providerSchemaResult.error}`;
 				}
 
-				const field = providerSchemaResult.schema.find((f) => f.key === key);
+				const field = providerSchemaResult.schema.find((f: any) => f.key === key);
 				if (!field) {
 					return `Error: Field "${key}" not found in provider "${providerId}" schema`;
 				}
 
 				if (field.secret) {
 					// Secret field - use dedicated setProviderSecret endpoint
-					const result = await trpc.config.setProviderSecret.mutate({
+					// Lens flat namespace: client.setProviderSecret()
+					const result = await client.setProviderSecret({
 						providerId,
 						fieldName: key,
 						value: String(value),
@@ -248,7 +251,6 @@ export const providerCommand: Command = {
 						setSelectedModel,
 						updateSessionProvider,
 					} = await import("@sylphx/code-client");
-					const { getTRPCClient } = await import("@sylphx/code-client");
 					const freshAiConfig = aiConfig.value;
 
 					// Update zen signal state
@@ -269,8 +271,8 @@ export const providerCommand: Command = {
 					if (!providerDefaultModel) {
 						try {
 							context.addLog(`Loading models from ${providerId}...`);
-							const trpc = getTRPCClient();
-							const result = await trpc.config.fetchModels.query({ providerId: providerId as any });
+							// Use client from context (passed from React hook)
+							const result = await client.fetchModels({ providerId: providerId as any });
 
 							if (result.success && result.models && result.models.length > 0) {
 								const firstModel = result.models[0];
@@ -320,11 +322,11 @@ export const providerCommand: Command = {
 					}
 				}}
 				onConfigureProvider={async (providerId, config) => {
-					const { getTRPCClient } = await import("@sylphx/code-client");
-					const trpc = getTRPCClient();
+					// Use client from context (passed from React hook)
 
 					// Get provider schema to separate secrets from non-secrets
-					const schemaResult = await trpc.config.getProviderSchema.query({
+					// Lens flat namespace: client.getProviderSchema()
+					const schemaResult = await client.getProviderSchema({
 						providerId: providerId as any,
 					});
 
@@ -350,8 +352,9 @@ export const providerCommand: Command = {
 					}
 
 					// Save secrets using dedicated endpoint
+					// Lens flat namespace: client.setProviderSecret()
 					for (const [fieldName, value] of Object.entries(secrets)) {
-						const result = await trpc.config.setProviderSecret.mutate({
+						const result = await client.setProviderSecret({
 							providerId,
 							fieldName,
 							value,

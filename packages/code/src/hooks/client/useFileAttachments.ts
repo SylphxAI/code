@@ -9,7 +9,7 @@ import type { FileAttachment } from "@sylphx/code-core";
 import { lookup } from "mime-types";
 import { useEffect } from "react";
 import {
-	getTRPCClient,
+	useLensClient,
 	extractFileReferences,
 	usePendingAttachments,
 	setPendingAttachments as setPendingAttachmentsSignal,
@@ -21,6 +21,7 @@ import {
 } from "@sylphx/code-client";
 
 export function useFileAttachments(input: string) {
+	const client = useLensClient();
 	const pendingAttachments = usePendingAttachments();
 	const attachmentTokens = useAttachmentTokens();
 	const validTags = useValidTags();
@@ -51,7 +52,6 @@ export function useFileAttachments(input: string) {
 
 		// Otherwise, upload file immediately to get fileId
 		try {
-			const client = await getTRPCClient();
 
 			// Read file content
 			let base64Content: string;
@@ -74,8 +74,8 @@ export function useFileAttachments(input: string) {
 				return;
 			}
 
-			// Upload to server
-			const result = await client.file.upload.mutate({
+			// Lens flat namespace: client.uploadFile()
+			const result = await client.uploadFile({
 				relativePath: attachment.relativePath,
 				mediaType: mimeType,
 				size,

@@ -77,21 +77,18 @@ Output only the title, nothing else.`,
 
 		let fullTitle = "";
 
-		// Emit start event (model-level: session-updated with empty title to indicate start)
+		// Emit start event - session entity with empty title
 		if (callbacks) {
 			callbacks.onStart();
 		} else {
-			const startEvent = {
-				type: "session-updated" as const,
-				sessionId: session.id,
-				session: {
-					id: session.id,
-					title: "", // Empty title indicates title generation started
-					updatedAt: Date.now(),
-				},
+			// Publish session entity directly (Lens format)
+			const sessionUpdate = {
+				id: session.id,
+				title: "", // Empty title indicates title generation started
+				updatedAt: Date.now(),
 			};
 			// Fire-and-forget publish (non-blocking, same as message streaming)
-			appContext.eventStream.publish(`session:${session.id}`, startEvent).catch((err) => {
+			appContext.eventStream.publish(`session:${session.id}`, sessionUpdate).catch((err) => {
 				console.error("[TitleGen] Failed to publish START event:", err);
 			});
 		}
@@ -102,21 +99,18 @@ Output only the title, nothing else.`,
 				if (chunk.type === "text-delta" && chunk.text) {
 					fullTitle += chunk.text;
 
-					// Emit delta (model-level: session-updated with incrementally updated title)
+					// Emit delta - session entity with incrementally updated title
 					if (callbacks) {
 						callbacks.onDelta(chunk.text);
 					} else {
-						const deltaEvent = {
-							type: "session-updated" as const,
-							sessionId: session.id,
-							session: {
-								id: session.id,
-								title: fullTitle, // Send full accumulated title so far
-								updatedAt: Date.now(),
-							},
+						// Publish session entity directly (Lens format)
+						const sessionUpdate = {
+							id: session.id,
+							title: fullTitle, // Send full accumulated title so far
+							updatedAt: Date.now(),
 						};
 						// Fire-and-forget publish (non-blocking, same as message streaming)
-						appContext.eventStream.publish(`session:${session.id}`, deltaEvent).catch((err) => {
+						appContext.eventStream.publish(`session:${session.id}`, sessionUpdate).catch((err) => {
 							console.error("[TitleGen] Failed to publish DELTA event:", err);
 						});
 					}

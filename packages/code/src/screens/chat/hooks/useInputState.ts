@@ -4,7 +4,7 @@
  */
 
 import {
-	getTRPCClient,
+	useLensClient,
 	useInput,
 	setInput as setInputSignal,
 	useCursor,
@@ -41,6 +41,7 @@ export interface InputState {
 }
 
 export function useInputState(): InputState {
+	const client = useLensClient();
 	const input = useInput();
 	const cursor = useCursor();
 	const normalizedCursor = useNormalizedCursor();
@@ -48,12 +49,12 @@ export function useInputState(): InputState {
 	const historyIndex = useHistoryIndex();
 	const tempInput = useTempInput();
 
-	// Load message history via tRPC on mount (backend handles database access)
+	// Load message history via Lens on mount (backend handles database access)
+	// Lens flat namespace: client.getRecentUserMessages()
 	useEffect(() => {
 		const loadHistory = async () => {
 			try {
-				const client = getTRPCClient();
-				const result = await client.message.getRecentUserMessages.query({
+				const result = await client.getRecentUserMessages({
 					limit: 100,
 				});
 				// Extract messages array from paginated result
@@ -88,7 +89,7 @@ export function useInputState(): InputState {
 			}
 		};
 		loadHistory();
-	}, []); // Only load once on mount
+	}, [client]); // Load when client is ready
 
 	// Wrapper for setMessageHistory to support functional updates
 	const setMessageHistory = (

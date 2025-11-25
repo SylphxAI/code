@@ -33,7 +33,8 @@ export function useProviders() {
 			try {
 				setProvidersLoadingSignal(true);
 				setProvidersErrorSignal(null);
-				const data = await client.config.getProviders.query();
+				// Lens flat namespace: client.getProviders()
+				const data = await client.getProviders();
 				if (mounted) {
 					setProvidersSignal(data);
 				}

@@ -3,24 +3,22 @@
 /**
  * Test Harness for Non-Interactive Testing
  *
- * 呢個 script 用嚟做自動化測試，唔需要 interactive TUI
- * 所有 output 會去 log file，你可以 programmatically 檢查結果
+ * ARCHITECTURE: React Ink component using LensProvider
+ * Uses useLensClient() hook (NOT getLensClient())
  *
  * Usage:
  *   bun ./packages/code/src/test-harness.ts "test message"
  *   bun ./packages/code/src/test-harness.ts --input test-input.txt
- *
- * Environment Variables:
- *   DEBUG=* - Enable debug logging
- *   DEBUG_FILE=test.log - Write logs to file (default: ~/.sylphx-code/logs/test-{timestamp}.log)
- *   TEST_TIMEOUT=30000 - Timeout in ms (default: 30000)
  */
 
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { getTRPCClient } from "@sylphx/code-client";
+import { LensProvider, useLensClient } from "@sylphx/code-client";
+import { CodeServer } from "@sylphx/code-server";
 import { createLogger } from "@sylphx/code-core";
+import { render } from "ink";
+import React, { useEffect, useState } from "react";
 
 const log = createLogger("test-harness");
 
@@ -33,37 +31,57 @@ interface TestResult {
 	output: string;
 }
 
-/**
- * Run a test with the given message
- */
-async function runTest(message: string, timeout: number = 30000): Promise<TestResult> {
-	const startTime = Date.now();
-	const events: string[] = [];
-	const errors: string[] = [];
-	let sessionId: string | null = null;
-	let output = "";
+interface TestHarnessProps {
+	message: string;
+	timeout: number;
+	outputFile: string;
+}
 
-	return new Promise((resolve, reject) => {
+/**
+ * TestHarnessApp - React component for test harness
+ */
+function TestHarnessApp({ message, timeout, outputFile }: TestHarnessProps) {
+	const client = useLensClient();
+	const [result, setResult] = useState<TestResult | null>(null);
+
+	useEffect(() => {
+		let mounted = true;
+		const startTime = Date.now();
+		const events: string[] = [];
+		const errors: string[] = [];
+		let sessionId: string | null = null;
+		let output = "";
+
 		const timeoutId = setTimeout(() => {
-			reject(new Error(`Test timed out after ${timeout}ms`));
+			if (mounted) {
+				const result: TestResult = {
+					success: false,
+					sessionId,
+					events,
+					errors: [...errors, `Test timed out after ${timeout}ms`],
+					duration: Date.now() - startTime,
+					output,
+				};
+				setResult(result);
+				writeTestResult(result, outputFile);
+				process.exit(1);
+			}
 		}, timeout);
 
-		try {
-			log("Starting test with message:", message);
+		async function runTest() {
+			try {
+				log("Starting test with message:", message);
 
-			// Get tRPC client
-			const client = getTRPCClient();
-
-			// Subscribe to streaming response
-			const _subscription = client.message.streamResponse.subscribe(
-				{
+				// Subscribe to streaming response
+				const subscription = client.sendMessage({
 					sessionId: null,
 					provider: "openrouter",
 					model: "x-ai/grok-code-fast-1",
-					userMessage: message,
-				},
-				{
-					onData: (event: any) => {
+					content: [{ type: "text", content: message }],
+				}).subscribe({
+					next: (event: any) => {
+						if (!mounted) return;
+
 						events.push(event.type);
 						log("Event:", event.type);
 
@@ -87,39 +105,77 @@ async function runTest(message: string, timeout: number = 30000): Promise<TestRe
 								const duration = Date.now() - startTime;
 								log("Test completed in", duration, "ms");
 
-								resolve({
+								const testResult: TestResult = {
 									success: errors.length === 0,
 									sessionId,
 									events,
 									errors,
 									duration,
 									output,
-								});
+								};
+								setResult(testResult);
+								writeTestResult(testResult, outputFile);
+
+								// Print summary
+								console.log("");
+								console.log("========== TEST RESULT ==========");
+								console.log("Success:", testResult.success);
+								console.log("Session ID:", testResult.sessionId);
+								console.log("Duration:", testResult.duration, "ms");
+								console.log("Events:", testResult.events.length);
+								console.log("Errors:", testResult.errors.length);
+								console.log("Output length:", testResult.output.length, "chars");
+								console.log("=================================");
+
+								if (testResult.errors.length > 0) {
+									console.log("\nErrors:");
+									testResult.errors.forEach((err, i) => {
+										console.log(`  ${i + 1}. ${err}`);
+									});
+								}
+
+								process.exit(testResult.success ? 0 : 1);
 								break;
 							}
 						}
 					},
-					onError: (error: any) => {
+					error: (error: any) => {
+						if (!mounted) return;
+
 						clearTimeout(timeoutId);
 						errors.push(error.message || String(error));
 						log("Subscription error:", error);
 
-						resolve({
+						const testResult: TestResult = {
 							success: false,
 							sessionId,
 							events,
 							errors,
 							duration: Date.now() - startTime,
 							output,
-						});
+						};
+						setResult(testResult);
+						writeTestResult(testResult, outputFile);
+						process.exit(1);
 					},
-				},
-			);
-		} catch (error: any) {
-			clearTimeout(timeoutId);
-			reject(error);
+				});
+			} catch (error: any) {
+				clearTimeout(timeoutId);
+				console.error("Test failed:", error.message);
+				process.exit(1);
+			}
 		}
-	});
+
+		runTest();
+
+		return () => {
+			mounted = false;
+			clearTimeout(timeoutId);
+		};
+	}, [client, message, timeout, outputFile]);
+
+	// Invisible component - output goes to console
+	return null;
 }
 
 /**
@@ -170,14 +226,6 @@ async function main() {
 		outputFile = path.join(logsDir, `test-result-${timestamp}.json`);
 	}
 
-	// Set default debug file if not set
-	if (process.env.DEBUG && !process.env.DEBUG_FILE) {
-		const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-		const logsDir = path.join(os.homedir(), ".sylphx-code", "logs");
-		process.env.DEBUG_FILE = path.join(logsDir, `test-debug-${timestamp}.log`);
-		console.log(`Debug logs will be written to: ${process.env.DEBUG_FILE}`);
-	}
-
 	const timeout = parseInt(process.env.TEST_TIMEOUT || "30000", 10);
 
 	console.log("Running test...");
@@ -185,36 +233,19 @@ async function main() {
 	console.log("Timeout:", timeout, "ms");
 	console.log("");
 
-	try {
-		const result = await runTest(message, timeout);
+	// Initialize embedded server
+	const server = new CodeServer();
+	await server.initialize();
+	const lensServer = server.getLensServer();
 
-		// Print summary
-		console.log("");
-		console.log("========== TEST RESULT ==========");
-		console.log("Success:", result.success);
-		console.log("Session ID:", result.sessionId);
-		console.log("Duration:", result.duration, "ms");
-		console.log("Events:", result.events.length);
-		console.log("Errors:", result.errors.length);
-		console.log("Output length:", result.output.length, "chars");
-		console.log("=================================");
-
-		if (result.errors.length > 0) {
-			console.log("\nErrors:");
-			result.errors.forEach((err, i) => {
-				console.log(`  ${i + 1}. ${err}`);
-			});
-		}
-
-		// Write result to file
-		writeTestResult(result, outputFile);
-
-		// Exit with appropriate code
-		process.exit(result.success ? 0 : 1);
-	} catch (error: any) {
-		console.error("Test failed:", error.message);
-		process.exit(1);
-	}
+	// Render test harness with LensProvider
+	render(
+		React.createElement(
+			LensProvider,
+			{ server: lensServer },
+			React.createElement(TestHarnessApp, { message, timeout, outputFile }),
+		),
+	);
 }
 
 // Only run if this is the main module
@@ -224,5 +255,3 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 		process.exit(1);
 	});
 }
-
-export { runTest };

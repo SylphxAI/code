@@ -184,62 +184,70 @@ function createDatabaseAdapter(appContext: AppContext): LensDB {
  * Wraps AppEventStream to provide async iterable interface.
  */
 function createEventStreamAdapter(appContext: AppContext): LensEventStream {
+	// Helper to convert Observable to AsyncIterable
+	function observableToAsyncIterable<T>(observable: import("rxjs").Observable<T>): AsyncIterable<T> {
+		return {
+			[Symbol.asyncIterator]: () => {
+				const queue: T[] = [];
+				let resolve: ((value: IteratorResult<T>) => void) | null = null;
+				let done = false;
+
+				const subscription = observable.subscribe({
+					next: (value) => {
+						if (resolve) {
+							resolve({ value, done: false });
+							resolve = null;
+						} else {
+							queue.push(value);
+						}
+					},
+					error: () => {
+						done = true;
+						if (resolve) {
+							resolve({ value: undefined as any, done: true });
+						}
+					},
+					complete: () => {
+						done = true;
+						if (resolve) {
+							resolve({ value: undefined as any, done: true });
+						}
+					},
+				});
+
+				return {
+					next: () => {
+						if (queue.length > 0) {
+							return Promise.resolve({ value: queue.shift()!, done: false });
+						}
+						if (done) {
+							return Promise.resolve({ value: undefined as any, done: true });
+						}
+						return new Promise<IteratorResult<T>>((res) => {
+							resolve = res;
+						});
+					},
+					return: () => {
+						subscription.unsubscribe();
+						done = true;
+						return Promise.resolve({ value: undefined as any, done: true });
+					},
+				};
+			},
+		};
+	}
+
 	return {
 		publish: async (channel, event) => {
 			await appContext.eventStream.publish(channel, event);
 		},
 		subscribe: (channel) => {
-			// Create async iterable from Observable
-			return {
-				[Symbol.asyncIterator]: () => {
-					const observable = appContext.eventStream.subscribe(channel);
-					const queue: any[] = [];
-					let resolve: ((value: IteratorResult<any>) => void) | null = null;
-					let done = false;
-
-					const subscription = observable.subscribe({
-						next: (value) => {
-							if (resolve) {
-								resolve({ value, done: false });
-								resolve = null;
-							} else {
-								queue.push(value);
-							}
-						},
-						error: () => {
-							done = true;
-							if (resolve) {
-								resolve({ value: undefined, done: true });
-							}
-						},
-						complete: () => {
-							done = true;
-							if (resolve) {
-								resolve({ value: undefined, done: true });
-							}
-						},
-					});
-
-					return {
-						next: () => {
-							if (queue.length > 0) {
-								return Promise.resolve({ value: queue.shift(), done: false });
-							}
-							if (done) {
-								return Promise.resolve({ value: undefined, done: true });
-							}
-							return new Promise<IteratorResult<any>>((res) => {
-								resolve = res;
-							});
-						},
-						return: () => {
-							subscription.unsubscribe();
-							done = true;
-							return Promise.resolve({ value: undefined, done: true });
-						},
-					};
-				},
-			};
+			const observable = appContext.eventStream.subscribe(channel);
+			return observableToAsyncIterable(observable);
+		},
+		subscribeWithHistory: (channel, lastN) => {
+			const observable = appContext.eventStream.subscribeWithHistory(channel, lastN);
+			return observableToAsyncIterable(observable);
 		},
 	};
 }

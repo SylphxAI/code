@@ -101,6 +101,18 @@ export interface LensDB {
 }
 
 /**
+ * Stored event interface (matches event-persistence.service.ts)
+ */
+export interface StoredEvent<T = any> {
+	id: string;
+	cursor: { timestamp: number; sequence: number };
+	channel: string;
+	type: string;
+	timestamp: number;
+	payload: T;
+}
+
+/**
  * Event stream interface
  *
  * Provides pub/sub for real-time updates.
@@ -108,4 +120,5 @@ export interface LensDB {
 export interface LensEventStream {
 	publish: (channel: string, event: any) => Promise<void>;
 	subscribe: (channel: string) => AsyncIterable<{ payload: any }>;
+	subscribeWithHistory: (channel: string, lastN: number) => AsyncIterable<StoredEvent>;
 }

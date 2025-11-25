@@ -104,7 +104,7 @@ export function createSessionStatusManager(
 
 	/**
 	 * Emit session-updated event (model-level)
-	 * Only includes fields managed by status manager
+	 * Publishes to both tRPC observable and EventStream
 	 */
 	function emitStatus() {
 		const statusText = determineStatusText(todos, currentTool ?? undefined);
@@ -129,23 +129,9 @@ export function createSessionStatusManager(
 		// Emit to tRPC observable (mutation subscribers)
 		emitSessionUpdated(observer, sessionId, sessionUpdate);
 
-		// CRITICAL: Also publish to Lens EventStream for useEventStream hook
-		// This enables optimistic reconciliation in handleSessionUpdated
-		console.log("[session-status-manager] Publishing to EventStream:", {
-			channel: `session:${sessionId}`,
-			statusText: status.text,
-			hasStatus: !!sessionUpdate.status,
-			isActive,
-		});
-		appContext.eventStream.publish(`session:${sessionId}`, {
-			type: "session-updated",
-			sessionId,
-			session: sessionUpdate,
-		}).then(() => {
-			console.log("[session-status-manager] EventStream publish SUCCESS");
-		}).catch((err) => {
-			console.error("[session-status-manager] Failed to publish to event stream:", err);
-		});
+		// Publish session entity to session:${id} channel (Lens format)
+		// useLensSessionSubscription receives session entity directly
+		appContext.eventStream.publish(`session:${sessionId}`, sessionUpdate);
 	}
 
 	/**

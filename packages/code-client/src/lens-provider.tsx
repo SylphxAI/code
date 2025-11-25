@@ -1,85 +1,86 @@
 /**
  * Lens Provider for code-client
  * Provides type-safe Lens client to all React components via Context
+ *
+ * Uses the new @lens/client package with transport-based architecture
  */
 
-import type { LensObject } from "@sylphx/lens-core";
-import { InProcessTransport } from "@sylphx/lens-core";
 import {
-	createLensClient,
+	createClient,
+	inProcess,
+	http,
 	type LensClient,
-	OptimisticManager,
-} from "@sylphx/lens-client";
-import { createContext, type ReactNode, useContext, useMemo } from "react";
-
-/**
- * Lens Client type (typed with API)
- */
-export type TypedLensClient<TApi extends LensObject<any>> = LensClient<TApi>;
+	type LensServerInterface,
+	type Transport,
+} from "@lens/client";
+import { createContext, type ReactNode, useContext, useMemo, useEffect } from "react";
 
 /**
  * React Context for Lens client
  */
-const LensContext = createContext<LensClient<any> | null>(null);
-
-/**
- * React Context for OptimisticManager
- */
-const OptimisticManagerContext = createContext<OptimisticManager | null>(null);
+const LensContext = createContext<LensClient<any, any> | null>(null);
 
 /**
  * Provider props
  */
-export interface LensProviderProps<TApi extends LensObject<any>> {
-	api: TApi;
-	context?: any; // Optional if transport is provided
-	transport?: any; // Optional pre-configured transport (use instead of creating new one)
-	optimistic?: boolean;
+export interface LensProviderProps {
+	/** Server URL for HTTP transport (e.g., "http://localhost:3000/lens") */
+	serverUrl?: string;
+	/** Lens server instance for in-process transport (for TUI mode) */
+	server?: LensServerInterface;
+	/** Pre-configured transport */
+	transport?: Transport;
 	children: ReactNode;
 }
 
 /**
  * LensProvider - Provides Lens client to React tree
- * Also initializes global client for Zustand stores
+ * Supports both HTTP (Web) and in-process (TUI) transports
  */
-export function LensProvider<TApi extends LensObject<any>>({
-	api,
-	context,
+export function LensProvider({
+	serverUrl,
+	server,
 	transport: providedTransport,
-	optimistic = true,
 	children,
-}: LensProviderProps<TApi>) {
-	// Create OptimisticManager once (stable across renders)
-	const optimisticManager = useMemo(
-		() => (optimistic ? new OptimisticManager({ debug: false }) : null),
-		[optimistic],
-	);
-
+}: LensProviderProps) {
 	const client = useMemo(() => {
-		// Use provided transport if available, otherwise create new one
-		const transport = providedTransport || new InProcessTransport({ api, context });
+		// Determine which transport to use
+		let transport: Transport;
 
-		return createLensClient<TApi>({
-			transport,
-			schema: api, // Pass API schema for optimistic metadata
-			optimisticManager: optimisticManager || undefined,
-		});
-	}, [api, context, providedTransport, optimisticManager]);
+		if (providedTransport) {
+			// Use provided transport directly
+			transport = providedTransport;
+		} else if (server) {
+			// TUI mode: in-process communication with Lens server
+			transport = inProcess({ server });
+		} else if (serverUrl) {
+			// Web mode: HTTP communication
+			transport = http({ url: serverUrl });
+		} else {
+			throw new Error(
+				"LensProvider requires either serverUrl, server, or transport prop"
+			);
+		}
 
-	// Initialize global client and manager for Zustand stores (cannot use React Context)
-	_initGlobalClient(client);
-	_initGlobalOptimisticManager(optimisticManager);
+		const newClient = createClient({ transport });
 
-	// Also initialize lens-client-global for framework-agnostic access
-	const { _initGlobalLensClient } = require("./lens-client-global.js");
-	_initGlobalLensClient(client);
+		// Initialize global client SYNCHRONOUSLY before first render
+		// This ensures getLensClient() works in child components' render phase
+		_initGlobalClient(newClient);
+
+		// Also initialize lens-client-global for framework-agnostic access
+		try {
+			const { _initGlobalLensClient } = require("./lens-client-global.js");
+			_initGlobalLensClient(newClient);
+		} catch {
+			// Ignore if lens-client-global is not available
+		}
+
+		return newClient;
+	}, [serverUrl, server, providedTransport]);
 
 	return (
-		<LensContext.Provider value={client}>
-			<OptimisticManagerContext.Provider value={optimisticManager}>
-				{children}
-			</OptimisticManagerContext.Provider>
-		</LensContext.Provider>
+		<LensContext.Provider value={client}>{children}</LensContext.Provider>
 	);
 }
 
@@ -87,106 +88,71 @@ export function LensProvider<TApi extends LensObject<any>>({
  * Hook to access Lens client
  * Must be used within LensProvider
  */
-export function useLensClient<TApi extends LensObject<any>>(): LensClient<TApi> {
+export function useLensClient(): LensClient<any, any> {
 	const client = useContext(LensContext);
 
 	if (!client) {
 		throw new Error(
 			"useLensClient must be used within LensProvider. " +
-				"Wrap your app with <LensProvider api={api} context={context}>...</LensProvider>",
+				"Wrap your app with <LensProvider serverUrl='...' />",
 		);
 	}
 
-	return client as LensClient<TApi>;
+	return client;
 }
 
 /**
  * Helper: Create in-process Lens client
  * Zero-overhead communication for embedded server
  */
-export function createInProcessClient<TApi extends LensObject<any>>(
-	api: TApi,
-	context: any,
-	optimistic = true,
-): LensClient<TApi> {
-	const transport = new InProcessTransport({ api, context });
+export function createInProcessClient(server: LensServerInterface): LensClient<any, any> {
+	return createClient({
+		transport: inProcess({ server }),
+	});
+}
 
-	// Create OptimisticManager if optimistic updates are enabled
-	const optimisticManager = optimistic ? new OptimisticManager({ debug: false }) : undefined;
-
-	return createLensClient<TApi>({
-		transport,
-		schema: api, // Pass API schema for optimistic metadata
-		optimisticManager,
+/**
+ * Helper: Create HTTP Lens client
+ * For web browser connections
+ */
+export function createHttpClient(serverUrl: string): LensClient<any, any> {
+	return createClient({
+		transport: http({ url: serverUrl }),
 	});
 }
 
 // ============================================================================
-// Internal: Global Client for Zustand Stores
+// Internal: Global Client for Non-React Code
 // ============================================================================
-// Zustand stores cannot use React hooks, so they need global client access
-// This is INTERNAL API - React components should use useLensClient() hook
+// Zustand stores and utility functions cannot use React hooks,
+// so they need global client access.
+// Uses globalThis to ensure single instance across all module duplicates.
+
+// Use Symbol to ensure unique key even if module is duplicated
+const GLOBAL_CLIENT_KEY = "__lensClient__" as const;
 
 /**
- * Global Lens client instance for Zustand stores
- * @internal DO NOT USE in React components - use useLensClient() hook
- */
-let _globalClientForStores: LensClient<any> | null = null;
-
-/**
- * Initialize global client for Zustand stores
+ * Initialize global client
  * Called automatically by LensProvider
+ * Uses globalThis to avoid module duplication issues
  * @internal
  */
-export function _initGlobalClient(client: LensClient<any>) {
-	_globalClientForStores = client;
-}
-
-/**
- * Get Lens client for Zustand stores
- * @internal DO NOT USE in React components - use useLensClient() hook
- */
-export function getLensClient<TApi extends LensObject<any>>(): LensClient<TApi> {
-	if (!_globalClientForStores) {
-		throw new Error("Lens client not initialized. Ensure LensProvider wraps your app.");
+export function _initGlobalClient(client: LensClient<any, any> | null) {
+	if (client) {
+		(globalThis as any)[GLOBAL_CLIENT_KEY] = client;
 	}
-	return _globalClientForStores as LensClient<TApi>;
-}
-
-// ============================================================================
-// Internal: Global OptimisticManager for Zustand Stores
-// ============================================================================
-// Zustand stores cannot use React hooks, so they need global manager access
-// This is INTERNAL API - React components should use useOptimisticManager() hook
-
-/**
- * Global OptimisticManager instance for Zustand stores
- * @internal DO NOT USE in React components - use useOptimisticManager() hook
- */
-let _globalOptimisticManager: OptimisticManager | null = null;
-
-/**
- * Initialize global OptimisticManager for Zustand stores
- * Called automatically by LensProvider
- * @internal
- */
-export function _initGlobalOptimisticManager(manager: OptimisticManager | null) {
-	_globalOptimisticManager = manager;
 }
 
 /**
- * Get OptimisticManager for Zustand stores
- * @internal DO NOT USE in React components - use useOptimisticManager() hook
+ * Get Lens client for non-React code
+ * @internal DO NOT USE in React components - use useLensClient() hook
  */
-export function getOptimisticManager(): OptimisticManager | null {
-	return _globalOptimisticManager;
-}
-
-/**
- * Hook to access OptimisticManager
- * Must be used within LensProvider
- * Returns null if optimistic updates are disabled
- */
-export function useOptimisticManager(): OptimisticManager | null {
-	return useContext(OptimisticManagerContext);
+export function getLensClient(): LensClient<any, any> {
+	const client = (globalThis as any)[GLOBAL_CLIENT_KEY];
+	if (!client) {
+		throw new Error(
+			"Lens client not initialized. Ensure LensProvider wraps your app.",
+		);
+	}
+	return client;
 }

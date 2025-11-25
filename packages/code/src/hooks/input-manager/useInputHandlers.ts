@@ -6,6 +6,7 @@
  */
 
 import type { FilteredFile } from "@sylphx/code-client";
+import { useLensClient } from "@sylphx/code-client";
 import type React from "react";
 import { useMemo } from "react";
 import type { Command, CommandContext } from "../../commands/types.js";
@@ -109,6 +110,9 @@ export interface InputHandlerDeps {
  * ```
  */
 export function useInputHandlers(deps: InputHandlerDeps) {
+	// Get Lens client from React context (MUST call at hook top level)
+	const client = useLensClient();
+
 	const {
 		// Selection mode
 		inputResolver,
@@ -259,6 +263,7 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 	const fileNavigationHandler = useMemo(
 		() =>
 			new FileNavigationModeHandler({
+				client,
 				filteredFileInfo,
 				selectedFileIndex,
 				currentSession,
@@ -270,6 +275,7 @@ export function useInputHandlers(deps: InputHandlerDeps) {
 				setAttachmentTokenCount,
 			}),
 		[
+			client,
 			filteredFileInfo,
 			selectedFileIndex,
 			currentSession,

@@ -110,8 +110,8 @@ export async function triggerStreamMutation(
 				attachments,
 			);
 
-			// Publish queue-message-added event
-			await appContext.eventStream.publish(`session:${eventSessionId}`, {
+			// Publish queue-message-added event to streaming channel
+			await appContext.eventStream.publish(`session-stream:${eventSessionId}`, {
 				type: "queue-message-added" as const,
 				sessionId: eventSessionId,
 				message: queuedMessage,
@@ -189,10 +189,12 @@ export async function triggerStreamMutation(
 					activeStreamAbortControllers.set(eventSessionId, abortController);
 				}
 
-				// Publish all events to event stream for client subscriptions
+				// Publish streaming events to session-stream channel
+				// Session model updates go to session:${id} (Lens format)
+				// Streaming events go to session-stream:${id} (content streaming)
 				if (eventSessionId) {
 					appContext.eventStream
-						.publish(`session:${eventSessionId}`, event)
+						.publish(`session-stream:${eventSessionId}`, event)
 						.catch((err) => {
 							console.error("[TriggerStream] Event publish error:", err);
 						});
@@ -200,10 +202,10 @@ export async function triggerStreamMutation(
 			},
 			error: (error) => {
 				console.error("[triggerStreamMutation] Stream error:", error);
-				// Publish error to event stream
+				// Publish error to streaming channel
 				if (eventSessionId) {
 					appContext.eventStream
-						.publish(`session:${eventSessionId}`, {
+						.publish(`session-stream:${eventSessionId}`, {
 							type: "error" as const,
 							error: error instanceof Error ? error.message : String(error),
 						})
@@ -223,10 +225,10 @@ export async function triggerStreamMutation(
 			},
 			complete: () => {
 				console.log("[triggerStreamMutation] Stream completed");
-				// Publish complete to event stream
+				// Publish complete to streaming channel
 				if (eventSessionId) {
 					appContext.eventStream
-						.publish(`session:${eventSessionId}`, {
+						.publish(`session-stream:${eventSessionId}`, {
 							type: "complete" as const,
 						})
 						.catch((err) => {

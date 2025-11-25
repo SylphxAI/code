@@ -5,8 +5,7 @@
 
 import { useAIConfigActions } from "../../../hooks/client/useAIConfig.js";
 import { useEventStream } from "../../../hooks/client/useEventStream.js";
-import { useLensSessionSubscription } from "../../../hooks/client/useLensSessionSubscription.js";
-import { addMessageAsync as addMessage, setCurrentSessionId, updateSessionTitle } from "@sylphx/code-client";
+import { addMessageAsync as addMessage, setCurrentSessionId, updateSessionTitle, useLensClient } from "@sylphx/code-client";
 import { clearUserInputHandler, setUserInputHandler } from "@sylphx/code-core";
 import { useCallback, useEffect, useMemo } from "react";
 import { commands } from "../../../commands/registry.js";
@@ -22,10 +21,12 @@ import { useEventStreamCallbacks } from "./useEventStreamCallbacks.js";
 
 export function useChatEffects(state: ChatState) {
 	const { saveConfig } = useAIConfigActions();
+	const client = useLensClient();
 
 	// Create sendUserMessageToAI function first (needed by command context)
 	const sendUserMessageToAI = useCallback(
 		createSubscriptionSendUserMessageToAI({
+			client,
 			aiConfig: state.aiConfig,
 			currentSessionId: state.currentSessionId,
 			selectedProvider: state.selectedProvider,
@@ -43,6 +44,7 @@ export function useChatEffects(state: ChatState) {
 			setStreamingOutputTokens: state.streamingState.setStreamingOutputTokens,
 		}),
 		[
+			client,
 			state.aiConfig,
 			state.currentSessionId,
 			state.selectedProvider,
@@ -69,6 +71,7 @@ export function useChatEffects(state: ChatState) {
 	const createCommandContextForArgs = useCallback(
 		(args: string[]) =>
 			createCommandContext(args, {
+				client,
 				addMessage,
 				currentSessionId: state.currentSessionId,
 				saveConfig,
@@ -88,6 +91,7 @@ export function useChatEffects(state: ChatState) {
 				getCommands: () => commands,
 			}),
 		[
+			client,
 			state.currentSessionId,
 			saveConfig,
 			sendUserMessageToAI,
@@ -110,6 +114,7 @@ export function useChatEffects(state: ChatState) {
 
 	// Event stream callbacks
 	const eventStreamCallbacks = useEventStreamCallbacks({
+		client,
 		updateSessionTitle,
 		setIsStreaming: state.streamingState.setIsStreaming,
 		setIsTitleStreaming: state.streamingState.setIsTitleStreaming,
@@ -126,52 +131,21 @@ export function useChatEffects(state: ChatState) {
 		setStreamingOutputTokens: state.streamingState.setStreamingOutputTokens,
 	});
 
-	// Fine-Grained Reactive Architecture - Split Subscriptions
+	// Frontend-Driven Architecture: Direct useQuery Pattern
 	//
-	// 1. Session metadata subscription (Lens) - Model-level updates with field selection
-	// 2. Content streaming subscription (Event Stream) - Incremental content events
+	// ✅ No composable hooks needed (useLensSessionSubscription deleted)
+	// ✅ Pages directly declare what data they need via useQuery + select
+	// ✅ Lens automatically handles: lifecycle, state, optimistic updates, subscription
 	//
-	// Architecture Perfect: "Select is All You Need"
-	// - Frontend specifies WHAT data needed (via select)
-	// - Backend auto-optimizes HOW to transmit (AutoStrategy)
-	// - No manual configuration needed
-
-	// Session metadata subscription
-	// Currently using full model - can enable field selection for bandwidth optimization:
-	//
-	// useLensSessionSubscription({
-	//   select: {
+	// Example (use in page component, not here):
+	// const { data: session } = useQuery(() =>
+	//   client.getSession({ id }).select({
 	//     id: true,
-	//     title: true,
-	//     status: true,
-	//     totalTokens: true,
-	//     // messages: false  ← Exclude (messages handled by event stream)
-	//     // todos: false     ← Exclude if not needed
-	//   },
-	//   onSessionUpdated: (session) => {
-	//     // session: Partial<Session> with only selected fields
-	//     // Backend automatically optimizes transmission:
-	//     // - title (string) → delta strategy (57% savings)
-	//     // - status (object) → patch strategy (99% savings)
-	//     // - id, totalTokens (primitives) → value strategy
-	//   }
-	// });
-
-	useLensSessionSubscription({
-		onSessionUpdated: (session) => {
-			// Session updated via model-level event
-			// Trigger optimistic reconciliation if status changed
-			if (session?.id && session?.status) {
-				const { optimisticManagerV2, runOptimisticEffects } = require("@sylphx/code-client");
-				const result = optimisticManagerV2.reconcile(session.id, {
-					type: "session-status-updated",
-					sessionId: session.id,
-					status: session.status,
-				});
-				runOptimisticEffects(result.effects);
-			}
-		},
-	});
+	//     title: true,      // ← delta strategy (57% savings)
+	//     status: true,     // ← patch strategy (99% savings)
+	//     totalTokens: true // ← value strategy
+	//   })
+	// );
 
 	// Content streaming subscription (incremental events)
 	// IMPORTANT: replayLast > 0 required for compact auto-trigger

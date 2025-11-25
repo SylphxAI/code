@@ -282,6 +282,45 @@ export const subscribeSessionList = query()
 		}
 	});
 
+/**
+ * StoredEvent schema for streaming events
+ */
+const StoredEventSchema = z.object({
+	id: z.string(),
+	cursor: z.object({
+		timestamp: z.number(),
+		sequence: z.number(),
+	}),
+	channel: z.string(),
+	type: z.string(),
+	timestamp: z.number(),
+	payload: z.any(),
+});
+
+/**
+ * Subscribe to session streaming events
+ *
+ * This is used for real-time streaming events (text-delta, tool-call, etc.)
+ * Channel: session-stream:${sessionId}
+ *
+ * Matches tRPC events.subscribeToSession API for client compatibility.
+ */
+export const subscribeToSession = query()
+	.input(z.object({
+		sessionId: z.string(),
+		replayLast: z.number().min(0).max(100).default(0),
+	}))
+	.returns(StoredEventSchema)
+	.resolve(async function* ({ input, ctx }: { input: { sessionId: string; replayLast: number }; ctx: LensContext }) {
+		// Streaming events use session-stream:${id} channel
+		const channel = `session-stream:${input.sessionId}`;
+
+		// Subscribe with history replay
+		for await (const event of ctx.eventStream.subscribeWithHistory(channel, input.replayLast)) {
+			yield event;
+		}
+	});
+
 // =============================================================================
 // Config Queries
 // =============================================================================

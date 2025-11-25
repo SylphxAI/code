@@ -63,7 +63,7 @@ import {
 	type TypedTRPCClient,
 	LensProvider,
 } from "@sylphx/code-client";
-import { CodeServer, LensServer, api } from "@sylphx/code-server";
+import { CodeServer, createLensServer } from "@sylphx/code-server";
 import chalk from "chalk";
 import { Command } from "commander";
 import { checkServer } from "./trpc-client.js";
@@ -80,14 +80,14 @@ const VERSION = packageJson.version;
  * Used for in-process mode
  */
 let embeddedServer: CodeServer | null = null;
-let lensServer: LensServer | null = null;
+let lensServer: ReturnType<typeof createLensServer> | null = null;
 
 /**
  * Initialize embedded servers for in-process use
  */
 async function initEmbeddedServers(_options: { quiet?: boolean } = {}): Promise<{
 	codeServer: CodeServer;
-	lensServer: LensServer;
+	lensServer: ReturnType<typeof createLensServer>;
 }> {
 	if (embeddedServer && lensServer) {
 		return { codeServer: embeddedServer, lensServer };
@@ -101,9 +101,8 @@ async function initEmbeddedServers(_options: { quiet?: boolean } = {}): Promise<
 	const { setEmbeddedServer } = await import("./embedded-context.js");
 	setEmbeddedServer(embeddedServer);
 
-	// Initialize Lens server (new)
-	lensServer = new LensServer();
-	await lensServer.initialize();
+	// Initialize Lens server (new) - uses factory function with AppContext
+	lensServer = embeddedServer.getLensServer();
 
 	// Auto-connect to enabled MCP servers (async, don't wait)
 	const { getMCPManager } = await import("@sylphx/code-core");
@@ -208,12 +207,15 @@ async function main() {
 					process.exit(1);
 				}
 
-				// Initialize global client for headless mode (needed for getTRPCClient())
-				const { _initGlobalClient } = await import("@sylphx/code-client");
-				_initGlobalClient(client);
+				// Headless mode uses same React + LensProvider pattern as TUI
+				// No global client needed - component uses useLensClient() hook
+				if (!lensServer) {
+					console.error(chalk.red("Error: Lens server not initialized"));
+					process.exit(1);
+				}
 
 				const { runHeadless } = await import("./headless.js");
-				await runHeadless(prompt, options);
+				await runHeadless(prompt, options, lensServer);
 				return;
 			}
 
@@ -228,16 +230,16 @@ async function main() {
 			// const { initializeSignals } = await import('./signal-init.js');
 			// initializeSignals();
 
-			if (!lensServer) {
-				throw new Error("Lens server not initialized");
+			if (!embeddedServer) {
+				throw new Error("Embedded server not initialized");
 			}
 
-			// Get InProcessTransport from LensServer (already created with full CodeContext)
-			// This transport has sessionRepository, messageRepository, todoRepository, aiConfig
-			const transport = lensServer.createInProcessTransport();
+			// Get Lens server for in-process transport
+			// LensServer implements getMetadata() and execute() for transport handshake
+			const lensServerInstance = embeddedServer.getLensServer();
 
 			// Wrap App with both providers (dual-mode during migration)
-			// LensProvider uses transport from server (has full CodeContext with aiConfig)
+			// LensProvider uses Lens server for zero-overhead in-process communication
 			// tRPC provider for legacy code
 			render(
 				React.createElement(
@@ -245,7 +247,7 @@ async function main() {
 					{ client },
 					React.createElement(
 						LensProvider,
-						{ api, transport, optimistic: true },
+						{ server: lensServerInstance },
 						React.createElement(App)
 					)
 				)

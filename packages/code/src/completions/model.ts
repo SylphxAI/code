@@ -3,7 +3,8 @@
  * Fetches models from provider API for current provider
  */
 
-import { aiConfig, currentSession, getTRPCClient } from "@sylphx/code-client";
+import type { LensClient } from "@lens/client";
+import { aiConfig, currentSession } from "@sylphx/code-client";
 
 export interface CompletionOption {
 	id: string;
@@ -13,14 +14,19 @@ export interface CompletionOption {
 
 /**
  * Get model completion options for current provider
- * ARCHITECTURE: Uses tRPC endpoint (server-side fetches models)
+ * ARCHITECTURE: Uses Lens endpoint (server-side fetches models)
  * - Client = Pure UI
  * - Server = Business logic + File access
  * - Works for both CLI and Web GUI
+ *
+ * @param client - Lens client (passed from React hook useLensClient)
+ * @param partial - Partial search string for filtering
  */
-export async function getModelCompletions(partial = ""): Promise<CompletionOption[]> {
+export async function getModelCompletions(
+	client: LensClient<any, any>,
+	partial = "",
+): Promise<CompletionOption[]> {
 	try {
-		const trpc = getTRPCClient();
 
 		// Get current provider from session or config
 		const currentSessionValue = currentSession.value;
@@ -31,10 +37,8 @@ export async function getModelCompletions(partial = ""): Promise<CompletionOptio
 			return [];
 		}
 
-		// Fetch models from server (server loads config with API keys)
-		const result = await trpc.config.fetchModels.query({
-			providerId: currentProviderId,
-		});
+		// Lens flat namespace: client.fetchModels()
+		const result = await client.fetchModels({ providerId: currentProviderId });
 
 		if (!result.success) {
 			console.error("[completions] Failed to fetch models:", result.error);
@@ -43,10 +47,10 @@ export async function getModelCompletions(partial = ""): Promise<CompletionOptio
 
 		// Filter by partial match
 		const filtered = partial
-			? result.models.filter((m) => m.name.toLowerCase().includes(partial.toLowerCase()))
+			? result.models.filter((m: any) => m.name.toLowerCase().includes(partial.toLowerCase()))
 			: result.models;
 
-		return filtered.map((m) => ({
+		return filtered.map((m: any) => ({
 			id: m.id,
 			label: m.name,
 			value: m.id,

@@ -3,6 +3,7 @@
  * Shared types for command system
  */
 
+import type { LensClient } from "@lens/client";
 import type { AIConfig } from "@sylphx/code-core";
 import type { ReactNode } from "react";
 
@@ -58,11 +59,15 @@ export type WaitForInputOptions =
  * Command execution context
  *
  * ARCHITECTURE:
+ * - Commands should use context.client for API calls (React hook pattern)
  * - Commands should directly use useAppStore for most operations
  * - CommandContext only provides UI-specific operations that need React context
  * - For store operations: import { useAppStore } from '@sylphx/code-client'
  */
 export interface CommandContext {
+	// Lens client (passed from React hook - useLensClient())
+	client: LensClient<any, any>;
+
 	// Command arguments
 	args: string[];
 

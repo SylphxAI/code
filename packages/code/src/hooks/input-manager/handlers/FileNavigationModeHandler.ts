@@ -5,12 +5,15 @@
  * Migrated from useFileNavigation hook
  */
 
+import type { LensClient } from "@lens/client";
 import type { Key } from "ink";
 import type React from "react";
 import { InputMode, type InputModeContext } from "../types.js";
 import { BaseInputHandler } from "./BaseHandler.js";
 
 export interface FileNavigationModeHandlerDeps {
+	/** Lens client (passed from React hook useLensClient) */
+	client: LensClient<any, any>;
 	filteredFileInfo: {
 		hasAt: boolean;
 		files: Array<{ path: string; relativePath: string; size: number }>;
@@ -121,9 +124,9 @@ export class FileNavigationModeHandler extends BaseInputHandler {
 				// ARCHITECTURE: Server reads file and counts tokens
 				(async () => {
 					try {
-						const { getTRPCClient } = await import("../../../trpc-provider.js");
-						const client = getTRPCClient();
-						const result = await client.config.countFileTokens.query({
+						// Use client from deps (passed from React hook useLensClient)
+						const client = this.deps.client;
+						const result = await client.countFileTokens({
 							filePath: selected.path,
 							model: currentSession?.model,
 						});

@@ -13,7 +13,8 @@ export function useAIConfig() {
 	const loadConfig = useCallback(async () => {
 		setLoading(true);
 		try {
-			const result = await client.config.load.query();
+			// Lens flat namespace: client.loadConfig()
+			const result = await client.loadConfig();
 
 			if (result.success) {
 				// Use setAIConfig to trigger logic for loading defaultEnabledRuleIds and defaultAgentId
@@ -34,7 +35,8 @@ export function useAIConfig() {
 		async (config: AIConfig) => {
 			setLoading(true);
 			try {
-				const result = await client.config.save.mutate({ config });
+				// Lens flat namespace: client.saveConfig()
+				const result = await client.saveConfig({ config });
 
 				if (result.success) {
 					setAIConfig(config);

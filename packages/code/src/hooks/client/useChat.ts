@@ -1,10 +1,12 @@
 /**
  * Chat Hook
- * Handle AI chat with streaming support via tRPC
+ * Handle AI chat with streaming support via Lens
  *
  * Architecture: Thin client calling server-side streaming
  * - Server: Handles all AI logic (createAIStream, processStream, providers)
- * - Client: Subscribes to streaming events and updates UI
+ * - Client: Calls mutation and receives streaming updates
+ *
+ * Uses NEW Lens flat namespace API.
  */
 
 import type { FileAttachment, TokenUsage } from "@sylphx/code-core";
@@ -27,8 +29,18 @@ export interface SendMessageOptions {
 
 	// Tool streaming callbacks
 	onToolCall?: (toolCallId: string, toolName: string, input: unknown) => void;
-	onToolResult?: (toolCallId: string, toolName: string, result: unknown, duration: number) => void;
-	onToolError?: (toolCallId: string, toolName: string, error: string, duration: number) => void;
+	onToolResult?: (
+		toolCallId: string,
+		toolName: string,
+		result: unknown,
+		duration: number,
+	) => void;
+	onToolError?: (
+		toolCallId: string,
+		toolName: string,
+		error: string,
+		duration: number,
+	) => void;
 
 	// Reasoning streaming callbacks
 	onReasoningStart?: () => void;
@@ -41,7 +53,11 @@ export interface SendMessageOptions {
 	onTextEnd?: () => void;
 
 	// Session events
-	onSessionCreated?: (sessionId: string, provider: string, model: string) => void;
+	onSessionCreated?: (
+		sessionId: string,
+		provider: string,
+		model: string,
+	) => void;
 	onSessionTitleStart?: () => void;
 	onSessionTitleDelta?: (text: string) => void;
 	onSessionTitleComplete?: (title: string) => void;
@@ -66,7 +82,7 @@ export interface SendMessageOptions {
 
 export function useChat() {
 	const currentSessionId = useCurrentSessionId();
-	const currentSession = useCurrentSession();
+	const { currentSession } = useCurrentSession();
 
 	const sendMessage = useCallback(
 		async (message: string, options: SendMessageOptions = {}) => {
@@ -99,18 +115,24 @@ export function useChat() {
 			}
 
 			try {
-				// Subscribe to streaming response
-				const subscription = lensClient.message.streamResponse.subscribe(
-					{
+				// Use NEW Lens flat namespace for streaming mutation
+				// lensClient.sendMessage() instead of lensClient.message.streamResponse.subscribe()
+				const client = lensClient as any;
+				const subscription = client
+					.sendMessage({
 						sessionId: currentSessionId,
-						userMessageContent: message,
-					},
-				).subscribe({
-					next: (event: any) => {
+						content: [{ type: "text", content: message }],
+					})
+					.subscribe({
+						next: (event: any) => {
 							// Handle streaming events from server
 							switch (event.type) {
 								case "session-created":
-									onSessionCreated?.(event.sessionId, event.provider, event.model);
+									onSessionCreated?.(
+										event.sessionId,
+										event.provider,
+										event.model,
+									);
 									break;
 
 								case "session-title-start":
@@ -158,11 +180,21 @@ export function useChat() {
 									break;
 
 								case "tool-result":
-									onToolResult?.(event.toolCallId, event.toolName, event.result, event.duration);
+									onToolResult?.(
+										event.toolCallId,
+										event.toolName,
+										event.result,
+										event.duration,
+									);
 									break;
 
 								case "tool-error":
-									onToolError?.(event.toolCallId, event.toolName, event.error, event.duration);
+									onToolError?.(
+										event.toolCallId,
+										event.toolName,
+										event.error,
+										event.duration,
+									);
 									break;
 
 								case "ask-question":
@@ -184,20 +216,22 @@ export function useChat() {
 									break;
 							}
 						},
-					error: (error: any) => {
-						const errorMessage = error instanceof Error ? error.message : "Streaming error";
-						onError?.(errorMessage);
-						setError(errorMessage);
-					},
-					complete: () => {
-						// Subscription completed
-					},
-				});
+						error: (error: any) => {
+							const errorMessage =
+								error instanceof Error ? error.message : "Streaming error";
+							onError?.(errorMessage);
+							setError(errorMessage);
+						},
+						complete: () => {
+							// Subscription completed
+						},
+					});
 
 				// Return unsubscribe function
 				return () => subscription.unsubscribe();
 			} catch (error) {
-				const errorMessage = error instanceof Error ? error.message : "Failed to send message";
+				const errorMessage =
+					error instanceof Error ? error.message : "Failed to send message";
 				onError?.(errorMessage);
 				setError(errorMessage);
 			}

@@ -19,26 +19,20 @@ export async function publishTitleUpdate(
 	sessionId: string,
 	title: string,
 ): Promise<void> {
+	const sessionUpdate = {
+		id: sessionId,
+		title,
+		updatedAt: Date.now(),
+	};
+
 	await Promise.all([
-		// Session-specific channel (real-time display for current session)
-		eventStream.publish(`session:${sessionId}`, {
-			type: "session-updated" as const,
-			sessionId,
-			session: {
-				id: sessionId,
-				title,
-				updatedAt: Date.now(),
-			},
-		}),
+		// Session-specific channel - Lens format (entity directly)
+		eventStream.publish(`session:${sessionId}`, sessionUpdate),
 		// Global channel (sidebar sync for all clients)
 		eventStream.publish("session-events", {
 			type: "session-updated" as const,
 			sessionId,
-			session: {
-				id: sessionId,
-				title,
-				updatedAt: Date.now(),
-			},
+			session: sessionUpdate,
 		}),
 	]);
 }

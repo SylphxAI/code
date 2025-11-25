@@ -45,7 +45,8 @@ export function useModels(providerId: string | null) {
 			try {
 				setModelsLoadingSignal(true);
 				setModelsErrorSignal(null);
-				const result = await client.config.fetchModels.query({ providerId });
+				// Lens flat namespace: client.fetchModels()
+				const result = await client.fetchModels({ providerId });
 				if (mounted) {
 					if (result.success) {
 						setModelsForProviderSignal(providerId, result.models);

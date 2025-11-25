@@ -3,7 +3,8 @@
  * Lazy loading from zen signals, no extra cache needed
  */
 
-import { aiConfig, setAIConfig, getTRPCClient } from "@sylphx/code-client";
+import type { LensClient } from "@lens/client";
+import { aiConfig, setAIConfig } from "@sylphx/code-client";
 import type { AIConfig, ProviderId } from "@sylphx/code-core";
 
 export interface CompletionOption {
@@ -17,8 +18,10 @@ export interface CompletionOption {
  * First access: async load from server → cache in zen signal
  * Subsequent access: sync read from zen signal cache
  * Update: event-driven via setAIConfig()
+ *
+ * @param client - Lens client (passed from React hook useLensClient)
  */
-async function _getAIConfig(): Promise<AIConfig | null> {
+async function _getAIConfig(client: LensClient<any, any>): Promise<AIConfig | null> {
 	// Already in zen signal? Return cached (fast!)
 	const currentConfig = aiConfig.value;
 	if (currentConfig) {
@@ -27,13 +30,16 @@ async function _getAIConfig(): Promise<AIConfig | null> {
 
 	// First access - lazy load from server
 	try {
-		const trpc = getTRPCClient();
-		const config = await trpc.config.load.query({});
+		// Lens flat namespace: client.loadConfig()
+		const result = await client.loadConfig({});
 
-		// Cache in zen signal (stays until explicitly updated)
-		setAIConfig(config);
+		if (result.success) {
+			// Cache in zen signal (stays until explicitly updated)
+			setAIConfig(result.config);
+			return result.config;
+		}
 
-		return config;
+		return null;
 	} catch (error) {
 		console.error("[completions] Failed to load AI config:", error);
 		return null;
@@ -43,11 +49,17 @@ async function _getAIConfig(): Promise<AIConfig | null> {
 /**
  * Get provider completion options
  * Returns ALL available providers from the registry (not just configured ones)
+ *
+ * @param client - Lens client (passed from React hook useLensClient)
+ * @param partial - Partial search string for filtering
  */
-export async function getProviderCompletions(partial = ""): Promise<CompletionOption[]> {
+export async function getProviderCompletions(
+	client: LensClient<any, any>,
+	partial = "",
+): Promise<CompletionOption[]> {
 	try {
-		const trpc = getTRPCClient();
-		const result = await trpc.config.getProviders.query();
+		// Lens flat namespace: client.getProviders()
+		const result = await client.getProviders();
 
 		const providers = Object.keys(result);
 		const filtered = partial
@@ -89,22 +101,24 @@ export function getSubactionCompletions(): CompletionOption[] {
 /**
  * Get provider configuration key completions
  * Dynamically fetches schema from provider
+ *
+ * @param client - Lens client (passed from React hook useLensClient)
+ * @param providerId - Provider ID to get schema for
  */
 export async function getProviderKeyCompletions(
+	client: LensClient<any, any>,
 	providerId: ProviderId,
 ): Promise<CompletionOption[]> {
 	try {
-		const trpc = getTRPCClient();
-		const result = await trpc.config.getProviderSchema.query({
-			providerId,
-		});
+		// Lens flat namespace: client.getProviderSchema()
+		const result = await client.getProviderSchema({ providerId });
 
 		if (!result.success || !result.schema) {
 			return [];
 		}
 
 		// Return all config field keys
-		return result.schema.map((field) => ({
+		return result.schema.map((field: any) => ({
 			id: field.key,
 			label: field.key,
 			value: field.key,

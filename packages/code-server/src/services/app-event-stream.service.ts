@@ -77,23 +77,39 @@ export class AppEventStream {
 	/**
 	 * Publish event to channel (XADD equivalent)
 	 *
+	 * Two modes:
+	 * 1. Event mode: { type: "event-type", ...payload } - For streaming events
+	 * 2. Entity mode: { id: "...", ...fields } - For Lens entities (session:${id})
+	 *
+	 * Entity mode (session:${id} channel):
+	 * - No persistence needed (entity is already in database)
+	 * - Type derived as "entity-update"
+	 * - Used by Lens for model-level subscriptions
+	 *
 	 * @param channel - Channel to publish to (e.g., 'session:abc', 'config:ai')
-	 * @param event - Event payload
+	 * @param event - Event payload (with type) or entity (without type)
 	 * @returns Event ID and cursor
 	 */
 	async publish<T = any>(
 		channel: string,
-		event: { type: string; [key: string]: any },
+		event: { type?: string; [key: string]: any },
 	): Promise<{ id: string; cursor: EventCursor }> {
 		// Generate cursor-based ID
 		const { id, cursor } = this.generateId();
+
+		// Determine if this is an entity channel (session:${id})
+		// Entity channels publish model data directly, not events
+		const isEntityChannel = /^session:[^:]+$/.test(channel) && !channel.includes("-stream");
+
+		// Derive type: explicit type, or "entity-update" for entity channels
+		const eventType = event.type || (isEntityChannel ? "entity-update" : "unknown");
 
 		// Create stored event
 		const storedEvent: StoredEvent<T> = {
 			id,
 			cursor,
 			channel,
-			type: event.type,
+			type: eventType,
 			timestamp: cursor.timestamp,
 			payload: event,
 		};
@@ -109,7 +125,9 @@ export class AppEventStream {
 		this.masterSubject.next(storedEvent);
 
 		// 4. Persist to database (async, non-blocking)
-		if (this.persistence) {
+		// Skip persistence for entity channels - entity itself is already persisted in DB
+		// Only streaming events need replay capability
+		if (this.persistence && !isEntityChannel) {
 			this.persistence.save(channel, storedEvent).catch((err) => {
 				console.error("[AppEventStream] Persistence error:", err);
 			});

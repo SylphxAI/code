@@ -58,7 +58,8 @@ describe("Streaming Integration", () => {
 
 			try {
 				// Step 1: Trigger streaming via mutation
-				const triggerResult = await client.message.triggerStream.mutate({
+				// Use NEW Lens flat namespace: client.triggerStream() instead of client.message.triggerStream.mutate()
+				const triggerResult = await (client as any).triggerStream({
 					sessionId: null,
 					provider: "openrouter",
 					model: "x-ai/grok-code-fast-1",
@@ -81,50 +82,49 @@ describe("Streaming Integration", () => {
 				}
 
 				// Step 2: Subscribe to session events
-				client.message.subscribe.subscribe(
-					{
-						sessionId,
-						replayLast: 50, // Replay to catch events already published
-					},
-					{
-						onData: (event: any) => {
-							events.push(event.type);
+				// Use NEW Lens flat namespace: client.subscribeToSession() instead of client.message.subscribe.subscribe()
+				(client as any).subscribeToSession({
+					sessionId,
+					replayLast: 50, // Replay to catch events already published
+				}).subscribe({
+					next: (storedEvent: any) => {
+						const event = storedEvent.payload;
+						events.push(event.type);
 
-							switch (event.type) {
-								case "session-created":
-									// Already captured from mutation result
-									break;
-								case "text-delta":
-									output += event.text;
-									break;
-								case "error":
-									errors.push(event.error);
-									break;
-								case "complete":
-									clearTimeout(timeout);
-									resolve({
-										success: errors.length === 0,
-										sessionId,
-										events,
-										output,
-										errors,
-									});
-									break;
-							}
-						},
-						onError: (error: any) => {
-							clearTimeout(timeout);
-							errors.push(error.message || String(error));
-							resolve({
-								success: false,
-								sessionId,
-								events,
-								output,
-								errors,
-							});
-						},
+						switch (event.type) {
+							case "session-created":
+								// Already captured from mutation result
+								break;
+							case "text-delta":
+								output += event.text;
+								break;
+							case "error":
+								errors.push(event.error);
+								break;
+							case "complete":
+								clearTimeout(timeout);
+								resolve({
+									success: errors.length === 0,
+									sessionId,
+									events,
+									output,
+									errors,
+								});
+								break;
+						}
 					},
-				);
+					error: (error: any) => {
+						clearTimeout(timeout);
+						errors.push(error.message || String(error));
+						resolve({
+							success: false,
+							sessionId,
+							events,
+							output,
+							errors,
+						});
+					},
+				});
 			} catch (error) {
 				clearTimeout(timeout);
 				errors.push(error instanceof Error ? error.message : String(error));
@@ -179,7 +179,8 @@ describe("Streaming Integration", () => {
 
 			try {
 				// Trigger with invalid provider
-				const triggerResult = await client.message.triggerStream.mutate({
+				// Use NEW Lens flat namespace
+				const triggerResult = await (client as any).triggerStream({
 					sessionId: null,
 					provider: "invalid-provider" as any,
 					model: "invalid-model",
@@ -200,37 +201,36 @@ describe("Streaming Integration", () => {
 				}
 
 				// Subscribe to events
-				client.message.subscribe.subscribe(
-					{
-						sessionId,
-						replayLast: 50,
-					},
-					{
-						onData: (event: any) => {
-							events.push(event.type);
-							if (event.type === "error") {
-								errors.push(event.error);
-							}
-							if (event.type === "complete" || event.type === "error") {
-								clearTimeout(timeout);
-								resolve({
-									success: false,
-									events,
-									errors,
-								});
-							}
-						},
-						onError: (error: any) => {
+				// Use NEW Lens flat namespace
+				(client as any).subscribeToSession({
+					sessionId,
+					replayLast: 50,
+				}).subscribe({
+					next: (storedEvent: any) => {
+						const event = storedEvent.payload;
+						events.push(event.type);
+						if (event.type === "error") {
+							errors.push(event.error);
+						}
+						if (event.type === "complete" || event.type === "error") {
 							clearTimeout(timeout);
-							errors.push(error.message || String(error));
 							resolve({
 								success: false,
 								events,
 								errors,
 							});
-						},
+						}
 					},
-				);
+					error: (error: any) => {
+						clearTimeout(timeout);
+						errors.push(error.message || String(error));
+						resolve({
+							success: false,
+							events,
+							errors,
+						});
+					},
+				});
 			} catch (error) {
 				clearTimeout(timeout);
 				errors.push(error instanceof Error ? error.message : String(error));
@@ -258,7 +258,8 @@ describe("Streaming Integration", () => {
 
 			try {
 				// Trigger first message
-				const triggerResult = await client.message.triggerStream.mutate({
+				// Use NEW Lens flat namespace
+				const triggerResult = await (client as any).triggerStream({
 					sessionId: null,
 					provider: "openrouter",
 					model: "x-ai/grok-code-fast-1",
@@ -274,24 +275,23 @@ describe("Streaming Integration", () => {
 				}
 
 				// Subscribe to events
-				client.message.subscribe.subscribe(
-					{
-						sessionId: firstSessionId,
-						replayLast: 50,
-					},
-					{
-						onData: (event: any) => {
-							if (event.type === "complete") {
-								clearTimeout(timeout);
-								resolve();
-							}
-						},
-						onError: (error) => {
+				// Use NEW Lens flat namespace
+				(client as any).subscribeToSession({
+					sessionId: firstSessionId,
+					replayLast: 50,
+				}).subscribe({
+					next: (storedEvent: any) => {
+						const event = storedEvent.payload;
+						if (event.type === "complete") {
 							clearTimeout(timeout);
-							reject(error);
-						},
+							resolve();
+						}
 					},
-				);
+					error: (error: any) => {
+						clearTimeout(timeout);
+						reject(error);
+					},
+				});
 			} catch (error) {
 				clearTimeout(timeout);
 				reject(error);
@@ -309,7 +309,8 @@ describe("Streaming Integration", () => {
 
 			try {
 				// Trigger second message with existing session
-				const triggerResult = await client.message.triggerStream.mutate({
+				// Use NEW Lens flat namespace
+				const triggerResult = await (client as any).triggerStream({
 					sessionId: firstSessionId,
 					content: [{ type: "text", content: "second message" }],
 				});
@@ -318,25 +319,24 @@ describe("Streaming Integration", () => {
 				returnedSessionId = triggerResult.sessionId;
 
 				// Subscribe to events
-				client.message.subscribe.subscribe(
-					{
-						sessionId: firstSessionId!,
-						replayLast: 0, // No replay needed, session already exists
-					},
-					{
-						onData: (event: any) => {
-							events.push(event.type);
-							if (event.type === "complete") {
-								clearTimeout(timeout);
-								resolve();
-							}
-						},
-						onError: (error) => {
+				// Use NEW Lens flat namespace
+				(client as any).subscribeToSession({
+					sessionId: firstSessionId!,
+					replayLast: 0, // No replay needed, session already exists
+				}).subscribe({
+					next: (storedEvent: any) => {
+						const event = storedEvent.payload;
+						events.push(event.type);
+						if (event.type === "complete") {
 							clearTimeout(timeout);
-							reject(error);
-						},
+							resolve();
+						}
 					},
-				);
+					error: (error: any) => {
+						clearTimeout(timeout);
+						reject(error);
+					},
+				});
 			} catch (error) {
 				clearTimeout(timeout);
 				reject(error);

@@ -19,7 +19,8 @@ export function useBackgroundBashCount(): number {
 	useEffect(() => {
 		const updateCount = async () => {
 			try {
-				const processes = await client.bash.list.query();
+				// Lens flat namespace: client.listBash()
+				const processes = await client.listBash();
 				// Count background processes (not active, still running)
 				const bgCount = processes.filter(
 					(p: any) => !p.isActive && p.status === "running",
@@ -32,29 +33,6 @@ export function useBackgroundBashCount(): number {
 
 		// Initial load
 		updateCount();
-
-		// Subscribe to bash:all for event-driven updates using Lens
-		// TODO: Fix events.subscribe.subscribe() - Lens client doesn't expose subscribe on query endpoints yet
-		// For now, polling on initial load is sufficient
-		/*
-		try {
-			const observable = client.events.subscribe.subscribe({ channel: "bash:all" });
-			subscriptionRef.current = observable.subscribe({
-				next: (event: any) => {
-					const eventType = event.payload?.type;
-					// Update count on events that affect background bash count
-					if (["started", "completed", "failed", "killed", "demoted", "promoted"].includes(eventType)) {
-						updateCount();
-					}
-				},
-				error: (err: any) => {
-					console.error("[useBackgroundBashCount] Subscription error:", err);
-				},
-			});
-		} catch (error) {
-			console.error("[useBackgroundBashCount] Failed to subscribe:", error);
-		}
-		*/
 
 		return () => {
 			if (subscriptionRef.current) {

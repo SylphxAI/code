@@ -5,7 +5,7 @@
 
 import { useEffect } from "react";
 import {
-	getTRPCClient,
+	useLensClient,
 	useProjectFiles as useProjectFilesSignal,
 	useFilesLoading,
 	setProjectFiles as setProjectFilesSignal,
@@ -13,6 +13,7 @@ import {
 } from "@sylphx/code-client";
 
 export function useProjectFiles() {
+	const client = useLensClient();
 	const projectFiles = useProjectFilesSignal();
 	const filesLoading = useFilesLoading();
 
@@ -20,8 +21,8 @@ export function useProjectFiles() {
 		const loadFiles = async () => {
 			setFilesLoadingSignal(true);
 			try {
-				const client = getTRPCClient();
-				const result = await client.config.scanProjectFiles.query({});
+				// Lens flat namespace: client.scanProjectFiles()
+				const result = await client.scanProjectFiles();
 				setProjectFilesSignal(result.files);
 			} catch (error) {
 				console.error("Failed to load project files:", error);
@@ -31,7 +32,7 @@ export function useProjectFiles() {
 		};
 
 		loadFiles();
-	}, []);
+	}, [client]);
 
 	return { projectFiles, filesLoading };
 }

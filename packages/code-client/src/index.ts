@@ -86,15 +86,12 @@ export {
 // ============================================================================
 export {
 	_initGlobalClient as _initGlobalLensClient,
-	_initGlobalOptimisticManager,
 	// Client factories
 	createInProcessClient as createInProcessLensClient,
-	getOptimisticManager,
+	createHttpClient as createHttpLensClient,
 	// React Context API
 	LensProvider,
 	type LensProviderProps,
-	type TypedLensClient,
-	useOptimisticManager,
 } from "./lens-provider.js";
 // ============================================================================
 // Lens HTTP Transport (for Web UI)

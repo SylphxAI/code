@@ -17,8 +17,8 @@ export const modelCommand: Command = {
 			name: "model-name",
 			description: "Model to switch to",
 			required: false,
-			loadOptions: async () => {
-				return getModelCompletions();
+			loadOptions: async (_previousArgs, context) => {
+				return getModelCompletions(context!.client);
 			},
 		},
 	],
@@ -52,9 +52,9 @@ export const modelCommand: Command = {
 			// Validate the model exists for this provider
 			try {
 				context.addLog(`Loading models from ${provider}...`);
-				const { getTRPCClient } = await import("@sylphx/code-client");
-				const trpc = getTRPCClient();
-				const result = await trpc.config.fetchModels.query({ providerId: provider });
+				// Use client from context (passed from React hook)
+				const client = context.client;
+				const result = await client.fetchModels({ providerId: provider });
 
 				if (result.success) {
 					const modelExists = result.models.some((m) => m.id === modelId);
@@ -172,11 +172,11 @@ export const modelCommand: Command = {
 		context.setInputComponent(renderModelSelection(), "Model Selection");
 
 		// Fetch models asynchronously
-		const { getTRPCClient } = await import("@sylphx/code-client");
-		const trpc = getTRPCClient();
+		// Use client from context (passed from React hook)
+		const client = context.client;
 
 		try {
-			const result = await trpc.config.fetchModels.query({
+			const result = await client.fetchModels({
 				providerId: currentProviderId,
 			});
 

@@ -1,6 +1,6 @@
 /**
  * useCurrentSession Hook
- * Fetches current session data from server using tRPC
+ * Fetches current session data from server using Lens
  *
  * Pure Data Fetching Hook:
  * - Fetches session from server when currentSessionId changes
@@ -8,6 +8,8 @@
  * - Emits events for cross-store communication (no direct store imports)
  * - Simple, focused responsibility: fetch data and emit events
  * - State stored in Zen signals for global access
+ *
+ * Uses NEW Lens flat namespace API.
  */
 
 import type { Session } from "@sylphx/code-core";
@@ -73,7 +75,10 @@ export function useCurrentSession() {
 		// when user navigates back to chat screen.
 		// Event replay will handle any updates needed.
 		const existingSession = currentSession.value;
-		if (existingSession?.id === currentSessionId && existingSession.messages.length > 0) {
+		if (
+			existingSession?.id === currentSessionId &&
+			existingSession.messages.length > 0
+		) {
 			setCurrentSessionLoadingSignal(false);
 			return;
 		}
@@ -81,9 +86,11 @@ export function useCurrentSession() {
 		setCurrentSessionLoadingSignal(true);
 		setCurrentSessionErrorSignal(null);
 
-		lensClient.session.getById
-			.query({ sessionId: currentSessionId })
-			.then((session) => {
+		// Use NEW Lens flat namespace: lensClient.getSession() instead of lensClient.session.getById.query()
+		const client = lensClient as any;
+		client
+			.getSession({ id: currentSessionId })
+			.then((session: any) => {
 				setServerSessionSignal(session);
 				setCurrentSessionLoadingSignal(false);
 
@@ -96,13 +103,18 @@ export function useCurrentSession() {
 
 					// Always merge if we have optimistic data (even if session IDs don't match)
 					// This handles the case where temp-session → real session transition
-					if (currentOptimistic?.messages && currentOptimistic.messages.length > 0) {
+					if (
+						currentOptimistic?.messages &&
+						currentOptimistic.messages.length > 0
+					) {
 						// Merge: keep messages that exist in optimistic but not in server response
 						// Include: system/assistant messages + temp user messages (id starts with "temp-")
 						// Exclude: real user messages (handled by user-message-created event)
-						const serverMessageIds = new Set(session.messages.map((m) => m.id));
+						const serverMessageIds = new Set(session.messages.map((m: any) => m.id));
 						const optimisticOnlyMessages = currentOptimistic.messages.filter(
-							(m) => !serverMessageIds.has(m.id) && (m.role !== "user" || m.id.startsWith("temp-")),
+							(m: any) =>
+								!serverMessageIds.has(m.id) &&
+								(m.role !== "user" || m.id.startsWith("temp-")),
 						);
 
 						if (optimisticOnlyMessages.length > 0) {
@@ -126,17 +138,17 @@ export function useCurrentSession() {
 					});
 				}
 			})
-			.catch((err) => {
+			.catch((err: any) => {
 				setCurrentSessionErrorSignal(err as Error);
 				setCurrentSessionLoadingSignal(false);
 			});
 	}, [currentSessionId]);
 
 	// Return optimistic data if available (instant UI), otherwise server data
-	const currentSession = optimisticSession || serverSession;
+	const currentSessionData = optimisticSession || serverSession;
 
 	return {
-		currentSession,
+		currentSession: currentSessionData,
 		currentSessionId,
 		isStreaming: isStreamingValue,
 		isLoading,

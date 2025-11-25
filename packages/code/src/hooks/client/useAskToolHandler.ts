@@ -69,7 +69,9 @@ export function useAskToolHandler({
 
 				try {
 					// Send answer to server via mutation
-					await lensClient.message.answerAsk.mutate({
+					// Use NEW Lens flat namespace: lensClient.answerAsk() instead of lensClient.message.answerAsk.mutate()
+					const client = lensClient as any;
+					await client.answerAsk({
 						sessionId: currentSessionId,
 						questionId,
 						answers: answerRecord,

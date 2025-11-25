@@ -3,6 +3,7 @@
  * Creates CommandContext objects for command execution
  */
 
+import type { LensClient } from "@lens/client";
 import type { AIConfig, ProviderId } from "@sylphx/code-core";
 import type { ReactNode } from "react";
 import type { Command, CommandContext, WaitForInputOptions } from "../../../commands/types.js";
@@ -11,10 +12,14 @@ import type { Command, CommandContext, WaitForInputOptions } from "../../../comm
  * Parameters needed to create command context
  *
  * ARCHITECTURE:
+ * - Client passed from React hook (useLensClient) - never use getLensClient()
  * - Only pass what's truly needed for UI interaction
  * - Commands use useAppStore directly for most operations
  */
 export interface CommandContextParams {
+	// Lens client from React hook (useLensClient)
+	client: LensClient<any, any>;
+
 	// For message operations (complex logic)
 	addMessage: (params: {
 		sessionId: string | null;
@@ -73,6 +78,7 @@ export interface CommandContextParams {
  */
 export function createCommandContext(args: string[], params: CommandContextParams): CommandContext {
 	const {
+		client,
 		addMessage,
 		currentSessionId,
 		saveConfig,
@@ -93,6 +99,7 @@ export function createCommandContext(args: string[], params: CommandContextParam
 	} = params;
 
 	return {
+		client,
 		args,
 
 		sendMessage: async (content: string) => {
