@@ -98,6 +98,12 @@ export {
 // ============================================================================
 export { createHTTPTransport } from "./lens-http-client.js";
 // ============================================================================
+// Lens React Hooks (Frontend-Driven Pattern)
+// ============================================================================
+// WORKAROUND: Use source files to avoid bundled React 18.3.1 in dist
+// Published package has React bundled instead of external, causing hook errors
+export { useQuery, useMutation, useLazyQuery } from "@sylphx/lens-react/src/index.ts";
+// ============================================================================
 // tRPC Links (Low-level, use createInProcessClient instead)
 // ============================================================================
 export {

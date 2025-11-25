@@ -2,18 +2,20 @@
  * Status Bar Component
  * Display important session info at the bottom
  *
- * PERFORMANCE: Memoized to prevent re-renders when unrelated props change
+ * ARCHITECTURE: Frontend-Driven Lens Pattern
+ * - Direct useQuery for all Lens data (session, bash)
+ * - No intermediate hooks, no signals
+ * - Components declare what data they need
+ * - Lens handles: state, subscription, optimistic updates, cleanup
  */
 
-import { useMCPStatus } from "../hooks/client/useMCPStatus.js";
-import { useModelDetails } from "../hooks/client/useModelDetails.js";
-import { useTotalTokens } from "../hooks/client/useTotalTokens.js";
-import { useBackgroundBashCount } from "../hooks/client/useBackgroundBashCount.js";
-import { useEnabledRuleIds, useSelectedAgentId, useThemeColors } from "@sylphx/code-client";
+import { useQuery, useLensClient, useEnabledRuleIds, useSelectedAgentId, useThemeColors } from "@sylphx/code-client";
 import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Spacer, Text } from "ink";
 import { useMemo } from "react";
 import { getAgentById } from "../embedded-context.js";
+import { useMCPStatus } from "../hooks/client/useMCPStatus.js";
+import { useModelDetails } from "../hooks/client/useModelDetails.js";
 
 interface StatusBarProps {
 	provider: string | null;
@@ -46,6 +48,8 @@ function StatusBarInternal({
 	modelStatus,
 	usedTokens = 0,
 }: StatusBarPropsInternal) {
+	const client = useLensClient();
+
 	// Subscribe to current agent from store (event-driven, no polling!)
 	const selectedAgentId = useSelectedAgentId();
 	const currentAgent = getAgentById(selectedAgentId);
@@ -55,17 +59,30 @@ function StatusBarInternal({
 	const enabledRuleIds = useEnabledRuleIds();
 	const enabledRulesCount = enabledRuleIds.length;
 
-	// Subscribe to MCP status
+	// Frontend-Driven Pattern: Direct useQuery for session data
+	// ✅ Lens auto-handles: state, subscription, optimistic updates, cleanup
+	// ✅ Field selection: only fetch totalTokens (bandwidth optimization)
+	const { data: session } = useQuery(
+		sessionId
+			? client.getSession({ id: sessionId }).select({
+					totalTokens: true, // Only need tokens for status bar
+			  })
+			: null
+	);
+	const totalTokens = session?.totalTokens || 0;
+
+	// Frontend-Driven Pattern: Direct useQuery for bash processes
+	// ✅ Lens handles subscription to bash events automatically
+	const { data: bashProcesses } = useQuery(client.listBash());
+	const backgroundBashCount = useMemo(
+		() => bashProcesses?.filter((p: any) => !p.isActive && p.status === "running").length || 0,
+		[bashProcesses]
+	);
+
+	// MCP status (event-driven via eventBus, not Lens)
 	const mcpStatus = useMCPStatus();
 
-	// Subscribe to background bash count
-	const backgroundBashCount = useBackgroundBashCount();
-
-	// Real-time tokens from currentSession signal
-	// Updated live during streaming via session-tokens-updated events
-	const totalTokens = useTotalTokens();
-
-	// Fetch model details from server
+	// Fetch model details from server (tRPC, not Lens)
 	const { details, loading } = useModelDetails(provider, model);
 	const contextLength = details.contextLength;
 	const capabilities = details.capabilities;
@@ -177,8 +194,10 @@ function StatusBarInternal({
 }
 
 /**
- * ARCHITECTURE NOTE: No React.memo here because component uses signal hooks (useTotalTokens)
- * React.memo would prevent re-renders even when signals update, breaking reactivity.
- * Signal-based hooks need component to re-render when their values change.
+ * ARCHITECTURE NOTE: Frontend-Driven Lens Pattern
+ * - Direct useQuery for session and bash data
+ * - Lens automatically handles reactivity and re-renders
+ * - No signals, no manual subscription management
+ * - Component re-renders when Lens data updates
  */
 export default StatusBarInternal;

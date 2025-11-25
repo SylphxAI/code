@@ -12,7 +12,7 @@ import {
 	type LensClient,
 	type LensServerInterface,
 	type Transport,
-} from "@lens/client";
+} from "@sylphx/lens-client";
 import { createContext, type ReactNode, useContext, useMemo, useEffect } from "react";
 
 /**
