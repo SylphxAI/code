@@ -120,8 +120,8 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 	const { replayLast = 0, callbacks = {} } = options;
 	const currentSessionId = useCurrentSessionId();
 
-	// Ref to track subscription
-	const subscriptionRef = useRef<{ unsubscribe: () => void } | null>(null);
+	// Ref to track subscription (can be RxJS Subscription or cleanup function)
+	const subscriptionRef = useRef<{ unsubscribe: () => void } | (() => void) | null>(null);
 
 	/**
 	 * CRITICAL: Store callbacks in ref to avoid stale closures
@@ -139,8 +139,13 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 
 	useEffect(() => {
 		// Cleanup previous subscription
+		// Handle both RxJS Subscription ({ unsubscribe: fn }) and cleanup function patterns
 		if (subscriptionRef.current) {
-			subscriptionRef.current.unsubscribe();
+			if (typeof subscriptionRef.current === "function") {
+				(subscriptionRef.current as () => void)();
+			} else if (typeof subscriptionRef.current.unsubscribe === "function") {
+				subscriptionRef.current.unsubscribe();
+			}
 			subscriptionRef.current = null;
 		}
 
@@ -332,8 +337,13 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 		subscriptionRef.current = subscription;
 
 		// Cleanup on unmount or session change
+		// Handle both RxJS Subscription ({ unsubscribe: fn }) and cleanup function patterns
 		return () => {
-			subscription.unsubscribe();
+			if (typeof subscription === "function") {
+				subscription();
+			} else if (subscription?.unsubscribe) {
+				subscription.unsubscribe();
+			}
 			subscriptionRef.current = null;
 		};
 	}, [currentSessionId, replayLast]);
