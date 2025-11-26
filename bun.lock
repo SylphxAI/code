@@ -111,7 +111,7 @@
         "@sylphx/code-core": "workspace:*",
         "@sylphx/code-server": "workspace:*",
         "@sylphx/lens-client": "^1.0.4",
-        "@sylphx/lens-react": "^1.0.5",
+        "@sylphx/lens-react": "^1.2.0",
         "@sylphx/zen": "3.47.0",
         "@tanstack/react-query": "^5.70.0",
         "@trpc/client": "^11.7.1",
@@ -734,7 +734,7 @@
 
     "@sylphx/lens-core": ["@sylphx/lens-core@1.0.4", "", {}, "sha512-Ece8uQ/igs0lbZf8aZPTEwhto4zQ1a9MILz3rLfA8ho/DltwELk851TYXyPPsI8vRSQJ2Y/sMmFPEN1trCr/EQ=="],
 
-    "@sylphx/lens-react": ["@sylphx/lens-react@1.0.5", "", { "dependencies": { "@sylphx/lens-client": "^1.0.4" }, "peerDependencies": { "react": ">=18.0.0" } }, "sha512-uZiRyh8o5ttPFP8rH5LKrCD38Z0DQ5ji7WxmkC4Wnk9DrF9kvcN4TTfNaw+LIPO8nylL6WW51PPs+xOh0iAJ4g=="],
+    "@sylphx/lens-react": ["@sylphx/lens-react@1.2.0", "", { "dependencies": { "@sylphx/lens-client": "^1.0.4" }, "peerDependencies": { "react": ">=18.0.0" } }, "sha512-JNvMB21SjMfMhjFwNfWzlRgonZN/UsRSdOCYIPoB3nu7IuRNMkWOCz5HjArz5MTUn+06byfF8xCAzIrHdDPG/g=="],
 
     "@sylphx/lens-server": ["@sylphx/lens-server@1.0.4", "", { "dependencies": { "@sylphx/lens-core": "^1.0.4" } }, "sha512-yt63hNWRC64JOaiEhUe/C+MWI3LMhZMOgGpubKxSecR6ecJKlx78x4PnU7FtME6JVymEb5sdsRJ9+wxwJaEu4g=="],
 

@@ -13,23 +13,6 @@ import { useQuery, useLensClient, useEnabledRuleIds, useSelectedAgentId, useThem
 import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Spacer, Text } from "ink";
 import { useMemo } from "react";
-
-/**
- * Creates a null-safe query object for useQuery.
- * When query is null, returns a mock that immediately provides undefined.
- * This allows us to always call useQuery (React hooks rules) while safely
- * handling null cases without crashing.
- */
-function createSafeQuery<T>(query: any | null): any {
-	if (query) return query;
-	// Return a mock query that satisfies the subscribe interface
-	return {
-		subscribe: (callback: (value: T | undefined) => void) => {
-			callback(undefined);
-			return () => {}; // noop unsubscribe
-		},
-	};
-}
 import { getAgentById } from "../embedded-context.js";
 import { useMCPStatus } from "../hooks/client/useMCPStatus.js";
 import { useModelDetails } from "../hooks/client/useModelDetails.js";
@@ -79,19 +62,14 @@ function StatusBarInternal({
 	// Frontend-Driven Pattern: Direct useQuery for session data
 	// ✅ Lens auto-handles: state, subscription, optimistic updates, cleanup
 	// ✅ Field selection: only fetch totalTokens (bandwidth optimization)
-	// ✅ createSafeQuery handles null sessionId without crashing useQuery
-	const sessionQuery = useMemo(
-		() =>
-			createSafeQuery(
-				sessionId
-					? client.getSession({ id: sessionId }).select({
-							totalTokens: true, // Only need tokens for status bar
-					  })
-					: null,
-			),
-		[sessionId, client],
+	// ✅ Conditional query: null = skip (supported in @sylphx/lens-react@1.2.0+)
+	const { data: session } = useQuery(
+		sessionId
+			? client.getSession({ id: sessionId }).select({
+					totalTokens: true, // Only need tokens for status bar
+			  })
+			: null,
 	);
-	const { data: session } = useQuery(sessionQuery);
 	const totalTokens = session?.totalTokens || 0;
 
 	// Frontend-Driven Pattern: Direct useQuery for bash processes
