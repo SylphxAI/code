@@ -1,6 +1,17 @@
 # Lens NPM Package Issue - React Bundling
 
-## Problem
+## ✅ RESOLVED in @sylphx/lens-react@1.0.5
+
+The React bundling issue has been fixed in version 1.0.5. React is now imported as an external dependency instead of being bundled.
+
+**Fixed Versions:**
+- ✅ @sylphx/lens-react@1.0.5 - React imports correctly
+- ✅ @sylphx/lens-client@1.0.4 - Working correctly
+- ✅ @sylphx/lens@1.0.4 - Working correctly
+
+---
+
+## Problem (Historical - Fixed in 1.0.5)
 `@sylphx/lens-react@1.0.3` bundles React 18.3.1 into `dist/index.js` instead of treating it as an external dependency. This causes "Invalid hook call" errors when used with React 19.2.0 projects.
 
 ## Root Cause
