@@ -1,18 +1,30 @@
 /**
  * useCurrentSession Hook
- * Fetches current session data from server using Lens
+ * Provides current session data from signals
  *
- * Pure Data Fetching Hook:
- * - Fetches session from server when currentSessionId changes
- * - Respects streaming state (won't overwrite optimistic data during streaming)
- * - Emits events for cross-store communication (no direct store imports)
- * - Simple, focused responsibility: fetch data and emit events
- * - State stored in Zen signals for global access
+ * ARCHITECTURE: Event-Driven Session State
+ * =========================================
+ * Session data flows through two mechanisms:
  *
- * Uses NEW Lens flat namespace API.
+ * 1. INITIAL LOAD (this hook):
+ *    - Fetches session from server when navigating to existing session
+ *    - Uses lensClient.getSession() for one-time fetch
+ *    - Sets data into currentSession signal
+ *
+ * 2. REAL-TIME UPDATES (useEventStream):
+ *    - Event handlers update currentSession signal directly
+ *    - Handles: session-created, session-updated, text-delta, tool-call, etc.
+ *    - Optimistic updates applied in subscriptionAdapter before events arrive
+ *
+ * WHY SIGNALS (not useQuery)?
+ * - Chat requires real-time streaming with optimistic updates
+ * - Events modify session in-place (appending content, updating status)
+ * - useQuery would create dual source of truth with event handlers
+ * - Signals provide single source of truth that both fetch and events update
+ *
+ * For simpler components, use direct useQuery pattern (see StatusBar.tsx).
  */
 
-import type { Session } from "@sylphx/code-core";
 import { useEffect, useRef } from "react";
 import {
 	eventBus,
@@ -20,23 +32,19 @@ import {
 	lensClient,
 	isStreaming,
 	setCurrentSession,
-	useCurrentSession as useOptimisticSession,
+	useCurrentSession as useCurrentSessionSignal,
 	useCurrentSessionId,
 	useIsStreaming,
-	useServerSession,
 	useCurrentSessionLoading,
 	useCurrentSessionError,
-	setServerSession as setServerSessionSignal,
-	setCurrentSessionLoading as setCurrentSessionLoadingSignal,
-	setCurrentSessionError as setCurrentSessionErrorSignal,
+	setCurrentSessionLoading,
+	setCurrentSessionError,
 } from "@sylphx/code-client";
 
 export function useCurrentSession() {
 	const currentSessionId = useCurrentSessionId();
-	const optimisticSession = useOptimisticSession();
+	const session = useCurrentSessionSignal();
 	const isStreamingValue = useIsStreaming();
-
-	const serverSession = useServerSession();
 	const isLoading = useCurrentSessionLoading();
 	const error = useCurrentSessionError();
 
@@ -48,107 +56,85 @@ export function useCurrentSession() {
 		const prevSessionId = prevSessionIdRef.current;
 		prevSessionIdRef.current = currentSessionId;
 
+		// No session ID → clear state
 		if (!currentSessionId) {
-			setServerSessionSignal(null);
-			setCurrentSessionLoadingSignal(false);
-			setCurrentSessionErrorSignal(null);
+			setCurrentSessionLoading(false);
+			setCurrentSessionError(null);
 			return;
 		}
 
-		// Skip server fetch if we have optimistic data for a temp session
+		// temp-session → Use optimistic data, no server fetch
 		if (currentSessionId === "temp-session") {
-			setCurrentSessionLoadingSignal(false);
+			setCurrentSessionLoading(false);
 			return;
 		}
 
-		// RACE CONDITION FIX: If we just transitioned from temp-session,
-		// don't fetch from server immediately (would overwrite optimistic messages)
-		// The session-created event handler will set up the session with preserved messages.
-		// Let the streaming flow complete first, then session will be synced via events.
-		if (prevSessionId === "temp-session" && currentSessionId !== "temp-session") {
-			setCurrentSessionLoadingSignal(false);
+		// Just transitioned from temp-session → Let streaming complete, don't fetch
+		// The session-created event will set up the session with preserved messages
+		if (prevSessionId === "temp-session") {
+			setCurrentSessionLoading(false);
 			return;
 		}
 
-		// FIX: Skip fetch if session already exists in memory with same ID
-		// This prevents overwriting in-memory data (with tool results) with DB data
-		// when user navigates back to chat screen.
-		// Event replay will handle any updates needed.
+		// Session already in memory with messages → Don't overwrite with stale DB data
+		// Event replay (via useEventStream replayLast) handles updates
 		const existingSession = currentSession.value;
-		if (
-			existingSession?.id === currentSessionId &&
-			existingSession.messages.length > 0
-		) {
-			setCurrentSessionLoadingSignal(false);
+		if (existingSession?.id === currentSessionId && existingSession.messages.length > 0) {
+			setCurrentSessionLoading(false);
 			return;
 		}
 
-		setCurrentSessionLoadingSignal(true);
-		setCurrentSessionErrorSignal(null);
+		// Fetch session from server
+		setCurrentSessionLoading(true);
+		setCurrentSessionError(null);
 
-		// Use NEW Lens flat namespace: lensClient.getSession() instead of lensClient.session.getById.query()
 		const client = lensClient as any;
 		client
 			.getSession({ id: currentSessionId })
-			.then((session: any) => {
-				setServerSessionSignal(session);
-				setCurrentSessionLoadingSignal(false);
+			.then((serverSession: any) => {
+				setCurrentSessionLoading(false);
 
-				// Only update store and emit events if not streaming
-				// During streaming, optimistic data is authoritative
-				if (!isStreaming.value) {
-					// IMPORTANT: Merge with existing optimistic messages (don't overwrite)
-					// System messages may have been added by events after this query started
-					const currentOptimistic = currentSession.value;
-
-					// Always merge if we have optimistic data (even if session IDs don't match)
-					// This handles the case where temp-session → real session transition
-					if (
-						currentOptimistic?.messages &&
-						currentOptimistic.messages.length > 0
-					) {
-						// Merge: keep messages that exist in optimistic but not in server response
-						// Include: system/assistant messages + temp user messages (id starts with "temp-")
-						// Exclude: real user messages (handled by user-message-created event)
-						const serverMessageIds = new Set(session.messages.map((m: any) => m.id));
-						const optimisticOnlyMessages = currentOptimistic.messages.filter(
-							(m: any) =>
-								!serverMessageIds.has(m.id) &&
-								(m.role !== "user" || m.id.startsWith("temp-")),
-						);
-
-						if (optimisticOnlyMessages.length > 0) {
-							setCurrentSession({
-								...session,
-								messages: [...session.messages, ...optimisticOnlyMessages],
-							});
-						} else {
-							// No extra messages to merge
-							setCurrentSession(session);
-						}
-					} else {
-						// No optimistic data to merge
-						setCurrentSession(session);
-					}
-
-					// Emit event for other stores to react (e.g., settings store updates rules)
-					eventBus.emit("session:loaded", {
-						sessionId: session.id,
-						enabledRuleIds: session.enabledRuleIds || [],
-					});
+				// Skip if streaming started (optimistic data is authoritative)
+				if (isStreaming.value) {
+					return;
 				}
+
+				// Merge with any optimistic messages that arrived after fetch started
+				const currentOptimistic = currentSession.value;
+				if (currentOptimistic?.messages?.length > 0) {
+					const serverMessageIds = new Set(serverSession.messages.map((m: any) => m.id));
+					const optimisticOnlyMessages = currentOptimistic.messages.filter(
+						(m: any) =>
+							!serverMessageIds.has(m.id) &&
+							(m.role !== "user" || m.id.startsWith("temp-")),
+					);
+
+					if (optimisticOnlyMessages.length > 0) {
+						setCurrentSession({
+							...serverSession,
+							messages: [...serverSession.messages, ...optimisticOnlyMessages],
+						});
+					} else {
+						setCurrentSession(serverSession);
+					}
+				} else {
+					setCurrentSession(serverSession);
+				}
+
+				// Emit event for other stores (e.g., settings store updates rules)
+				eventBus.emit("session:loaded", {
+					sessionId: serverSession.id,
+					enabledRuleIds: serverSession.enabledRuleIds || [],
+				});
 			})
 			.catch((err: any) => {
-				setCurrentSessionErrorSignal(err as Error);
-				setCurrentSessionLoadingSignal(false);
+				setCurrentSessionError(err as Error);
+				setCurrentSessionLoading(false);
 			});
 	}, [currentSessionId]);
 
-	// Return optimistic data if available (instant UI), otherwise server data
-	const currentSessionData = optimisticSession || serverSession;
-
 	return {
-		currentSession: currentSessionData,
+		currentSession: session,
 		currentSessionId,
 		isStreaming: isStreamingValue,
 		isLoading,

@@ -232,31 +232,79 @@ const session = await lensClient.session.getById.query({ sessionId });
 
 ```tsx
 import { useLensClient } from "@sylphx/code-client";
-import { useQuery } from "@lens/react";
+import { useQuery } from "@sylphx/lens-react";
 
-function Chat() {
+function StatusBar({ sessionId }) {
   const client = useLensClient();
 
   // ✅ Direct useQuery - declare what you need
-  const { data: session } = useQuery(() =>
-    client.getSession({ id: currentSessionId }).select({
-      id: true,
-      title: true,      // Lens auto-optimizes: delta strategy (57% savings)
-      status: true,     // Lens auto-optimizes: patch strategy (99% savings)
-      totalTokens: true,
-      // Only select what THIS page needs
-    })
+  const { data: session } = useQuery(
+    sessionId
+      ? client.getSession({ id: sessionId }).select({
+          totalTokens: true, // Only fetch what this component needs
+        })
+      : null
   );
 
-  return <ChatUI session={session} />;
+  return <TokenDisplay tokens={session?.totalTokens || 0} />;
 }
 ```
 
 **Key Principles**:
 - ❌ No composable hooks (useLensSessionSubscription, etc.)
-- ✅ Pages directly declare data needs via `useQuery` + `select`
+- ✅ Components directly declare data needs via `useQuery` + `select`
 - ✅ Lens handles: lifecycle, state, optimistic updates, subscription
 - ✅ Frontend-driven: specify WHAT, Lens handles HOW
+
+## When to Use useQuery vs Signals
+
+| Use Case | Pattern | Example |
+|----------|---------|---------|
+| **Static data display** | `useQuery` | StatusBar fetching totalTokens |
+| **Real-time streaming** | Signals + Events | Chat with live text/tool streaming |
+| **Local UI state** | Signals | Selected provider, model selection |
+| **User preferences** | Signals | Theme, display settings |
+
+### Chat Component (Signal + Event Pattern)
+
+Chat uses signals instead of `useQuery` because:
+1. **Real-time streaming** - Events modify session in-place (appending text, tools)
+2. **Optimistic updates** - User messages appear instantly before server confirms
+3. **temp-session handling** - Complex state transitions during session creation
+
+```tsx
+// Chat uses event-driven pattern (not useQuery)
+// See: packages/code/src/hooks/client/useCurrentSession.ts
+function useCurrentSession() {
+  // Signals updated by event handlers during streaming
+  const session = useCurrentSessionSignal();
+
+  // One-time fetch when loading existing session
+  useEffect(() => {
+    if (sessionId) {
+      lensClient.getSession({ id: sessionId }).then(setCurrentSession);
+    }
+  }, [sessionId]);
+
+  return { currentSession: session };
+}
+```
+
+### StatusBar Component (useQuery Pattern)
+
+StatusBar uses `useQuery` because:
+1. **Static display** - Just shows token count, no streaming
+2. **Simple lifecycle** - Fetch when sessionId changes
+3. **Auto-subscription** - Lens handles cache updates
+
+```tsx
+// StatusBar uses Frontend-Driven pattern
+const { data: session } = useQuery(
+  sessionId
+    ? client.getSession({ id: sessionId }).select({ totalTokens: true })
+    : null
+);
+```
 
 ## Key Benefits
 
