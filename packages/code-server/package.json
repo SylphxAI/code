@@ -31,7 +31,7 @@
 	"dependencies": {
 		"@sylphx/code-api": "workspace:*",
 		"@sylphx/code-core": "workspace:*",
-		"@sylphx/lens": "^1.0.3",
+		"@sylphx/lens": "^1.0.4",
 		"@trpc/server": "^11.7.1",
 		"express": "^5.1.0",
 		"mime-types": "^2.1.35",

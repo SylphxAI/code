@@ -11,7 +11,7 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@sylphx/lens-client": "^1.0.3",
+		"@sylphx/lens-client": "^1.0.4",
 		"@sylphx/code-client": "workspace:*",
 		"@sylphx/code-core": "workspace:*",
 		"@sylphx/code-server": "workspace:*",
