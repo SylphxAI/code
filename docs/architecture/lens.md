@@ -4,11 +4,11 @@ Lens is our TypeScript-first, frontend-driven API framework that combines the be
 
 ## Core Principles
 
-1. **Frontend-Driven**: Client declares what it wants, server handles how
-2. **TypeScript-First**: Full type inference from Zod schemas, no codegen
-3. **Automatic Optimistic Updates**: Declarative `.optimistic()` on mutations
-4. **Field Selection**: GraphQL-like field selection with auto-optimized transmission
-5. **Zero Boilerplate**: Just use `lensClient`, everything is automatic
+1. **Live Query**: All queries are subscriptions - data updates automatically
+2. **Server-Side Emit**: Server uses emit API to push updates
+3. **Frontend-Driven**: Client declares what it wants, Lens handles how
+4. **TypeScript-First**: Full type inference from Zod schemas, no codegen
+5. **Zero Boilerplate**: Just use `useQuery`, everything is automatic
 
 ## Architecture Overview
 
@@ -17,18 +17,20 @@ Lens is our TypeScript-first, frontend-driven API framework that combines the be
 │  Frontend (React/TUI)                                           │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  lensClient.session.getById.query({ sessionId })               │
-│  lensClient.session.updateTitle.mutate({ sessionId, title })   │
-│  lensClient.session.getById.subscribe({ sessionId })           │
+│  useQuery(client.getSession({ id: sessionId }))                │
 │                                                                 │
-│  ↓ TypeScript inference ↓                                       │
+│  ↓ Data updates automatically via emit ↓                        │
+│                                                                 │
+│  session.textContent      ← emit.delta("textContent", ...)     │
+│  session.currentTool      ← emit.set("currentTool", {...})     │
+│  session.streamingStatus  ← emit.merge({ status: ... })        │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │  Lens Client (@sylphx/lens-client)                             │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  • Type-safe proxy for API calls                               │
-│  • Automatic optimistic updates via OptimisticManager          │
+│  • Automatic subscription management                            │
 │  • Field selection support                                     │
 │  • Transport abstraction (InProcess, HTTP, WebSocket)          │
 │                                                                 │
@@ -37,7 +39,7 @@ Lens is our TypeScript-first, frontend-driven API framework that combines the be
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  TUI:  InProcessTransport (zero overhead, direct function call)│
-│  Web:  HTTPTransport (REST-like, with EventSource for subs)    │
+│  Web:  HTTPTransport (REST-like, with WebSocket for streaming) │
 │                                                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │  Lens Server (@sylphx/lens-server)                             │
@@ -46,130 +48,202 @@ Lens is our TypeScript-first, frontend-driven API framework that combines the be
 │  • Request routing                                             │
 │  • Schema validation (Zod)                                     │
 │  • Context injection                                           │
-│  • Event publishing                                            │
-│                                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│  API Definition (@sylphx/code-api)                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  lens                                                          │
-│    .input(z.object({ sessionId: z.string() }))                 │
-│    .output(SessionSchema)                                      │
-│    .optimistic((opt) => opt                                    │
-│      .entity('Session')                                        │
-│      .id($ => $.sessionId)                                     │
-│      .apply((draft, input, t) => { ... })                      │
-│    )                                                           │
-│    .mutation(async ({ input, ctx }) => { ... })                │
+│  • Emit API for streaming                                      │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Automatic Optimistic Updates
+## Live Query Pattern
 
-Lens handles optimistic updates completely automatically. Users don't need to know about `OptimisticManager` or any internal details.
+**All queries are subscriptions.** Client describes what data it wants, server uses emit to push updates.
 
-### How It Works
+### Three-Layer Architecture
 
-1. **Define optimistic in API**:
-```typescript
-// api.ts
-triggerStream: lens
-  .input(z.object({ sessionId: z.string().nullish(), content: z.array(...) }))
-  .output(z.object({ success: z.boolean(), sessionId: z.string() }))
-  .optimistic((opt) => opt
-    .entity('Session')
-    .id($ => $.sessionId || 'temp-session')
-    .apply((draft, input, t) => {
-      // Optimistically set status immediately
-      draft.status = {
-        text: "Thinking...",
-        isActive: true,
-      };
-      draft.updatedAt = t.now();
-    })
-  )
-  .mutation(async ({ input, ctx }) => { ... })
+| Layer | Responsibility | API |
+|-------|---------------|-----|
+| **Server** | Describes what data exists, uses emit to push updates | `query().resolve(({ emit }) => {...})` |
+| **Lens** | Handles sync, diff, reconnection automatically | Transparent |
+| **Client** | Describes what data it wants | `useQuery(client.getSession({ id }))` |
+
+### Client Usage
+
+```tsx
+function Chat({ sessionId }) {
+  const client = useLensClient();
+
+  // Describe: I want this session's data
+  const { data: session } = useQuery(
+    client.getSession({ id: sessionId })
+  );
+
+  // Data updates automatically!
+  // - session.textContent updates via emit.delta
+  // - session.currentTool updates via emit.set
+  // - session.streamingStatus updates via emit.merge
+
+  return (
+    <div>
+      <Text>{session?.textContent}</Text>
+      {session?.currentTool && <ToolDisplay tool={session.currentTool} />}
+    </div>
+  );
+}
 ```
 
-2. **User just calls mutation**:
+### Server Usage
+
 ```typescript
-// User code - no optimistic handling needed!
-await lensClient.message.triggerStream.mutate({
-  sessionId: 'sess-1',
-  content: [{ type: 'text', content: 'Hello' }],
+export const getSession = query()
+  .input(z.object({ id: z.string() }))
+  .returns(Session)
+  .resolve(async ({ input, ctx, emit, onCleanup }) => {
+    // 1. Return initial data
+    const session = await ctx.db.session.findUnique({ where: { id: input.id } });
+
+    // 2. Subscribe to event source
+    const channel = `session-stream:${input.id}`;
+    const events = ctx.eventStream.subscribe(channel);
+
+    // 3. Process events and use emit to update
+    (async () => {
+      for await (const event of events) {
+        switch (event.type) {
+          case "text-delta":
+            emit.delta("textContent", [{ position: Infinity, insert: event.text }]);
+            break;
+          case "tool-call":
+            emit.set("currentTool", { id: event.id, name: event.name });
+            break;
+          case "complete":
+            emit.merge({ streamingStatus: "idle", isTextStreaming: false });
+            break;
+        }
+      }
+    })();
+
+    // 4. Cleanup on disconnect
+    onCleanup(() => { /* cleanup */ });
+
+    return session;
+  });
+```
+
+## Emit API
+
+| Method | Use Case | Example |
+|--------|----------|---------|
+| `emit.merge(partial)` | Merge partial data | `emit.merge({ status: "streaming" })` |
+| `emit.set(field, value)` | Set single field | `emit.set("isStreaming", true)` |
+| `emit.delta(field, ops)` | Text streaming (57% bandwidth savings) | `emit.delta("text", [{ position: Infinity, insert: "..." }])` |
+| `emit.patch(field, ops)` | JSON Patch (RFC 6902) | `emit.patch("tool", [{ op: "replace", path: "/status", value: "done" }])` |
+| `emit.replace(data)` | Replace entire state | `emit.replace(newSession)` |
+
+## Data Flow
+
+```
+1. Client: useQuery(client.getSession({ id }))
+     ↓
+2. Server: resolve() returns initial data + sets up emit listeners
+     ↓
+3. Lens: Automatically establishes WebSocket subscription
+     ↓
+4. Server: Event arrives → emit.delta/merge/set
+     ↓
+5. Lens: Automatically syncs diff to client
+     ↓
+6. Client: useQuery's data updates → React re-renders
+```
+
+## Anti-Patterns (Avoid These)
+
+### ❌ Creating special "subscribe" queries
+
+```typescript
+// WRONG! Don't need special naming
+export const subscribeToStreamingState = query()...
+```
+
+### ❌ Manual .subscribe() callbacks
+
+```typescript
+// WRONG! useQuery handles this automatically
+query.subscribe((state) => { ... });
+```
+
+### ❌ Client-side event handling
+
+```typescript
+// WRONG! This logic should be on server
+switch (event.type) {
+  case "text-delta": ...
+}
+```
+
+### ❌ 20+ callback options
+
+```typescript
+// WRONG! Old pattern with too many callbacks
+sendMessage(text, {
+  onTextDelta: (text) => setContent(c => c + text),
+  onToolCall: (id, name) => setTool({ id, name }),
+  // ... 18 more callbacks
 });
-// ✅ UI updates immediately (optimistic)
-// ✅ Server confirms → reconciles automatically
-// ✅ Error → rolls back automatically
 ```
 
-3. **User just subscribes**:
-```typescript
-// User code - no wrapping needed!
-lensClient.session.getById.subscribe({ sessionId }).subscribe({
-  next: (session) => {
-    // ✅ Receives merged state (optimistic + server)
-    // ✅ Automatic reconciliation when server updates
-    console.log('Session:', session);
+## Migration Guide
+
+### Before (Old Pattern)
+
+```tsx
+// Complex event handling
+useEventStream({
+  callbacks: {
+    onTextDelta: (text) => setContent(c => c + text),
+    onToolCall: (id, name) => setTool({ id, name }),
+    onComplete: () => setStreaming(false),
+    // ... 10+ callbacks
   }
 });
+
+// Manual subscription
+const subscription = client.subscribeToSession({ sessionId })
+  .subscribe({
+    next: (event) => {
+      switch (event.type) {
+        case "text-delta": ...
+        case "tool-call": ...
+      }
+    }
+  });
 ```
 
-### Internal Flow
+### After (Live Query)
 
-```
-User calls mutate()
-       │
-       ▼
-┌──────────────────────────┐
-│ Lens Client              │
-│ 1. beforeMutation()      │ ← Apply optimistic to cache
-│ 2. transport.mutate()    │ ← Send to server
-│ 3. onSuccess/onError()   │ ← Confirm or rollback
-└──────────────────────────┘
-       │
-       ▼
-Server processes & publishes event
-       │
-       ▼
-┌──────────────────────────┐
-│ Subscription (auto-wrap) │
-│ 1. Receive server update │
-│ 2. mergeBase()           │ ← Merge into base state
-│ 3. Emit merged state     │ ← base + optimistic layers
-└──────────────────────────┘
-       │
-       ▼
-UI receives final merged state
+```tsx
+// Simple data reading
+const { data: session } = useQuery(
+  client.getSession({ id: sessionId })
+);
+
+// Direct field access - all auto-updated!
+const isStreaming = session?.streamingStatus === "streaming";
+const text = session?.textContent;
+const tool = session?.currentTool;
+const question = session?.askQuestion;
 ```
 
 ## Field Selection
 
-Lens supports GraphQL-like field selection with automatic transmission optimization.
-
 ```typescript
 // Select only needed fields
-const session = await lensClient.session.getById.query(
-  { sessionId: 'sess-1' },
-  {
-    select: {
-      id: true,
-      title: true,
-      status: true,
-      // messages: false ← Not selected, not transmitted
-    }
-  }
+const { data: session } = useQuery(
+  client.getSession({ id: sessionId }).select({
+    totalTokens: true,
+    streamingStatus: true,
+    // messages: false ← Not selected, not transmitted
+  })
 );
-// session type: { id: string; title: string; status: SessionStatus }
 ```
-
-### Auto-Optimized Transmission
-
-Backend automatically chooses optimal strategy per field:
-- **String fields** (e.g., title) → Delta strategy (57% bandwidth savings)
-- **Object fields** (e.g., status) → Patch strategy (99% bandwidth savings)
-- **Primitive fields** (e.g., id) → Value strategy (simple, fast)
 
 ## Transport Options
 
@@ -180,138 +254,36 @@ Backend automatically chooses optimal strategy per field:
 
 ### HTTPTransport (Web)
 - REST-like API over HTTP
-- EventSource for subscriptions
+- WebSocket for subscriptions
 - Used for remote server (Web UI)
 
 ## LensProvider Setup
 
 ```tsx
 import { LensProvider } from "@sylphx/code-client";
-import { api } from "@sylphx/code-api";
 
 function App() {
   return (
-    <LensProvider
-      api={api}
-      context={appContext}
-      optimistic={true}  // Enable automatic optimistic updates
-    >
+    <LensProvider server={lensServer}>
       <YourApp />
     </LensProvider>
   );
 }
 ```
 
-## Using Lens Client
+## Hooks Summary
 
-### In React Components
-```tsx
-import { useLensClient } from "@sylphx/code-client";
-
-function SessionView({ sessionId }: { sessionId: string }) {
-  const client = useLensClient();
-
-  const updateTitle = async (newTitle: string) => {
-    await client.session.updateTitle.mutate({ sessionId, newTitle });
-    // ✅ Optimistic update applied automatically
-  };
-
-  return <button onClick={() => updateTitle('New Title')}>Update</button>;
-}
-```
-
-### In Non-React Code (Signals, Utilities)
-```typescript
-import { lensClient } from "@sylphx/code-client";
-
-// Direct access without hooks
-const session = await lensClient.session.getById.query({ sessionId });
-```
-
-## Frontend-Driven Pattern: Direct useQuery
-
-```tsx
-import { useLensClient } from "@sylphx/code-client";
-import { useQuery } from "@sylphx/lens-react";
-
-function StatusBar({ sessionId }) {
-  const client = useLensClient();
-
-  // ✅ Direct useQuery - declare what you need
-  const { data: session } = useQuery(
-    sessionId
-      ? client.getSession({ id: sessionId }).select({
-          totalTokens: true, // Only fetch what this component needs
-        })
-      : null
-  );
-
-  return <TokenDisplay tokens={session?.totalTokens || 0} />;
-}
-```
-
-**Key Principles**:
-- ❌ No composable hooks (useLensSessionSubscription, etc.)
-- ✅ Components directly declare data needs via `useQuery` + `select`
-- ✅ Lens handles: lifecycle, state, optimistic updates, subscription
-- ✅ Frontend-driven: specify WHAT, Lens handles HOW
-
-## When to Use useQuery vs Signals
-
-| Use Case | Pattern | Example |
-|----------|---------|---------|
-| **Static data display** | `useQuery` | StatusBar fetching totalTokens |
-| **Real-time streaming** | Signals + Events | Chat with live text/tool streaming |
-| **Local UI state** | Signals | Selected provider, model selection |
-| **User preferences** | Signals | Theme, display settings |
-
-### Chat Component (Signal + Event Pattern)
-
-Chat uses signals instead of `useQuery` because:
-1. **Real-time streaming** - Events modify session in-place (appending text, tools)
-2. **Optimistic updates** - User messages appear instantly before server confirms
-3. **temp-session handling** - Complex state transitions during session creation
-
-```tsx
-// Chat uses event-driven pattern (not useQuery)
-// See: packages/code/src/hooks/client/useCurrentSession.ts
-function useCurrentSession() {
-  // Signals updated by event handlers during streaming
-  const session = useCurrentSessionSignal();
-
-  // One-time fetch when loading existing session
-  useEffect(() => {
-    if (sessionId) {
-      lensClient.getSession({ id: sessionId }).then(setCurrentSession);
-    }
-  }, [sessionId]);
-
-  return { currentSession: session };
-}
-```
-
-### StatusBar Component (useQuery Pattern)
-
-StatusBar uses `useQuery` because:
-1. **Static display** - Just shows token count, no streaming
-2. **Simple lifecycle** - Fetch when sessionId changes
-3. **Auto-subscription** - Lens handles cache updates
-
-```tsx
-// StatusBar uses Frontend-Driven pattern
-const { data: session } = useQuery(
-  sessionId
-    ? client.getSession({ id: sessionId }).select({ totalTokens: true })
-    : null
-);
-```
+| Hook | Use Case |
+|------|----------|
+| `useQuery(client.queryName(input))` | Subscribe to any query - data updates automatically |
+| `useLensClient()` | Get client for mutations |
+| `useCurrentSessionId()` | Get current session ID from URL |
 
 ## Key Benefits
 
-1. **No Manual Optimistic Handling**
-   - Define once in API, works everywhere
-   - No `wrapSubscriptionWithOptimistic` needed
-   - No `getOptimisticManager` needed
+1. **No Manual Event Handling**
+   - Server handles all event types
+   - Client just reads data
 
 2. **Type Safety**
    - Full TypeScript inference
@@ -323,35 +295,195 @@ const { data: session } = useQuery(
    - Tree-shakeable
    - ~90KB gzipped (entire TUI)
 
-4. **Multi-Client Sync**
-   - All clients subscribe to same events
-   - Automatic reconciliation
+4. **Automatic Sync**
+   - Reconnection handled
+   - Diff optimization
    - No state conflicts
 
-## Migration from Old System
+## Lens Package Versions
 
-The old `OptimisticManagerV2` and manual optimistic system has been removed. Everything is now handled automatically by Lens.
+Current versions:
+- `@sylphx/lens-core`: ^1.2.0
+- `@sylphx/lens-server`: ^1.2.0
+- `@sylphx/lens-client`: ^1.0.5
+- `@sylphx/lens-react`: ^1.2.2
 
-**Before (Old System)**:
+## Summary
+
+**Simple is powerful.**
+
+- Server: Use emit to describe state changes
+- Client: Use useQuery to read data
+- Lens: Handles everything in between
+
+---
+
+## Lessons Learned & Best Practices
+
+### 1. Single Source of Truth: Server
+
+**Principle**: Server is the ONLY source of truth. Client ONLY reads via `useQuery`.
+
+❌ **Anti-Pattern**: Dual state management
 ```typescript
-// ❌ Manual tracking
-trackOptimisticMessage({ sessionId, optimisticId, content });
+// WRONG: Two sources for same data
+const currentSession = zen<Session | null>(null);  // zen signal
+const { data: session } = useQuery(client.getSession({ id }));  // useQuery
 
-// ❌ Manual reconciliation
-const result = optimisticManagerV2.reconcile(sessionId, event);
-runOptimisticEffects(result.effects);
-
-// ❌ Manual subscription wrapping
-const wrapped = wrapSubscriptionWithOptimistic(sub, manager, {...});
+// This creates conflicts and infinite loops!
 ```
 
-**After (Lens)**:
+✅ **Correct**: Server-driven state only
 ```typescript
-// ✅ Just call mutation
-await lensClient.session.updateTitle.mutate({ sessionId, newTitle });
-
-// ✅ Just subscribe
-lensClient.session.getById.subscribe({ sessionId }).subscribe({...});
-
-// Everything else is automatic!
+// RIGHT: Single source via useQuery
+const { data: session } = useQuery(client.getSession({ id }));
+// session.textContent, session.currentTool, etc. all come from server
 ```
+
+### 2. No Client-Side Event Handling
+
+**Principle**: Event type handling belongs on SERVER, not client.
+
+❌ **Anti-Pattern**: Client processes events
+```typescript
+// WRONG: Client handling events
+eventBus.on("streaming:started", () => setIsStreaming(true));
+eventBus.on("text-delta", (text) => setContent(c => c + text));
+```
+
+✅ **Correct**: Server emits, client reads
+```typescript
+// SERVER: Handles event → emits update
+case "text-delta":
+  emit.delta("textContent", [{ position: Infinity, insert: event.text }]);
+  break;
+
+// CLIENT: Just reads
+const text = session?.textContent; // Auto-updated!
+```
+
+### 3. Flat Namespace API
+
+**Principle**: Use Lens flat namespace, not tRPC-style nested routes.
+
+❌ **Anti-Pattern**: tRPC-style API
+```typescript
+// WRONG: Old tRPC nested structure
+await client.session.create.mutate({ ... });
+await client.message.triggerStream.mutate({ ... });
+```
+
+✅ **Correct**: Flat Lens namespace
+```typescript
+// RIGHT: Flat namespace
+await client.createSession({ ... });
+await client.triggerStream({ ... });
+```
+
+### 4. useQuery for All Data Fetching
+
+**Principle**: Never manually fetch + setState. Always useQuery.
+
+❌ **Anti-Pattern**: Manual fetching
+```typescript
+// WRONG: Manual fetch + state
+const loadSessions = async () => {
+  const sessions = await client.listSessions.query();
+  setRecentSessions(sessions);  // Manual state update
+};
+```
+
+✅ **Correct**: useQuery handles everything
+```typescript
+// RIGHT: useQuery auto-updates
+const { data: sessions } = useQuery(client.listSessions({ limit: 20 }));
+// No manual setState needed!
+```
+
+### 5. Conditional Queries
+
+**Principle**: Pass `null` to skip query, not conditional hooks.
+
+❌ **Anti-Pattern**: Conditional hooks
+```typescript
+// WRONG: Violates rules of hooks
+if (sessionId) {
+  const { data } = useQuery(client.getSession({ id: sessionId }));
+}
+```
+
+✅ **Correct**: Null query
+```typescript
+// RIGHT: Pass null to skip
+const { data: session } = useQuery(
+  sessionId ? client.getSession({ id: sessionId }) : null
+);
+```
+
+### 6. Optimistic Updates via Mutation
+
+**Principle**: For instant feedback, use mutation's optimistic update, not manual state.
+
+❌ **Anti-Pattern**: Manual optimistic state
+```typescript
+// WRONG: Manual signal update
+setCurrentSession({ ...session, messages: [...messages, newMessage] });
+await client.addMessage({ ... });
+```
+
+✅ **Correct**: Mutation optimistic options
+```typescript
+// RIGHT: Let Lens handle optimistic updates
+const mutation = useMutation(client.addMessage, {
+  optimistic: (input) => ({
+    // Lens applies this optimistically, rolls back on error
+  })
+});
+```
+
+---
+
+## Current Migration Status
+
+### ✅ Completed
+- Server emit API in `getSession` query
+- Title streaming via emit.delta on `title` field
+- Removed callback-based event handling (useEventStreamCallbacks, streamEventHandlers)
+- `useCurrentSession` uses `useQuery`
+- **Removed `currentSession` zen signal** - navigation only via `currentSessionId`
+- **Removed dual state sources** - server data comes from useQuery only
+- **Updated to flat namespace API** - `client.createSession()`, `client.triggerStream()`
+- **Simplified subscriptionAdapter** - no optimistic signals, trusts server emit
+- **Deleted deprecated files** - utils.ts, refetch-session.ts, event handlers
+- **Removed client-side streaming setters** - `setIsStreaming`, `setIsTitleStreaming`, etc.
+- **useStreamingState derives from useQuery** - all streaming state comes from session
+- **Deleted obsolete type files** - types.ts, eventContextBuilder.ts from streaming/
+
+### 🔄 Remaining (Minor)
+- code-web package needs proper Preact + Lens integration (has TODO comments)
+- Legacy tRPC-style API still exists in compat.ts (backward compat, can remove later)
+
+### Architecture Achievement
+```
+BEFORE: Client signals + useQuery + Callbacks (dual source of truth)
+AFTER:  useQuery only for server data (single source of truth)
+```
+
+---
+
+## Debugging Tips
+
+### Issue: Infinite Re-renders
+**Cause**: Usually dual state sources (signal + useQuery) fighting.
+**Fix**: Remove the signal, use only useQuery.
+
+### Issue: Data Not Updating
+**Cause**: Usually client not subscribed, or emit not being called.
+**Debug**:
+1. Check server emit is being called (add logging)
+2. Check useQuery is active (not null input)
+3. Check transport is connected
+
+### Issue: Stale Data
+**Cause**: Reading from signal instead of useQuery.
+**Fix**: Always read from useQuery result, never from zen signals for server data.

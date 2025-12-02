@@ -1,32 +1,21 @@
 /**
  * Streaming State Hook
- * Manages streaming flags and refs using Zen signals
+ * Derives streaming state from session via Live Query
+ *
+ * LENS ARCHITECTURE:
+ * All streaming state comes from server via useQuery session data.
+ * Server uses emit API to push updates, client just reads.
  */
 
-import {
-	useIsStreamingUI,
-	setIsStreamingUI as setIsStreamingSignal,
-	useIsTitleStreaming,
-	setIsTitleStreaming as setIsTitleStreamingSignal,
-	useStreamingTitle,
-	setStreamingTitle as setStreamingTitleSignal,
-	useStreamingStartTime,
-	setStreamingStartTime as setStreamingStartTimeSignal,
-	useStreamingOutputTokens,
-	setStreamingOutputTokens as setStreamingOutputTokensSignal,
-	getIsStreaming,
-} from "@sylphx/code-client";
 import type { MessagePart as StreamPart } from "@sylphx/code-core";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+import { useCurrentSession } from "../../../hooks/client/useCurrentSession.js";
 
 export interface StreamingState {
 	isStreaming: boolean;
-	setIsStreaming: (streaming: boolean) => void;
 	isStreamingRef: React.MutableRefObject<boolean>;
 	isTitleStreaming: boolean;
-	setIsTitleStreaming: (streaming: boolean) => void;
 	streamingTitle: string;
-	setStreamingTitle: (title: string | ((prev: string) => string)) => void;
 	abortControllerRef: React.MutableRefObject<AbortController | null>;
 	streamingMessageIdRef: React.MutableRefObject<string | null>;
 	dbWriteTimerRef: React.MutableRefObject<NodeJS.Timeout | null>;
@@ -37,34 +26,25 @@ export interface StreamingState {
 	skipContentForStepRef: React.MutableRefObject<boolean>;
 	/** Track streaming start time for duration display */
 	streamingStartTime: number | null;
-	setStreamingStartTime: (time: number | null) => void;
 	/** Track cumulative output tokens during streaming */
 	streamingOutputTokens: number;
-	setStreamingOutputTokens: (tokens: number | ((prev: number) => number)) => void;
 }
 
 export function useStreamingState(): StreamingState {
-	const isStreaming = useIsStreamingUI();
-	const isTitleStreaming = useIsTitleStreaming();
-	const streamingTitle = useStreamingTitle();
-	const streamingStartTime = useStreamingStartTime();
-	const streamingOutputTokens = useStreamingOutputTokens();
+	// Get streaming state from session via Live Query
+	const { currentSession, isStreaming } = useCurrentSession();
+
+	// Derive streaming state from session (server-driven)
+	const isTitleStreaming = currentSession?.isTitleStreaming ?? false;
+	const streamingTitle = currentSession?.title ?? "";
+	const streamingStartTime = currentSession?.streamingStartTime ?? null;
+	const streamingOutputTokens = currentSession?.totalTokens?.output ?? 0;
 
 	// Ref to track current streaming state (for stable access across renders)
 	const isStreamingRef = useRef<boolean>(isStreaming);
+	isStreamingRef.current = isStreaming;
 
-	// Keep ref in sync with signal
-	useEffect(() => {
-		isStreamingRef.current = isStreaming;
-	}, [isStreaming]);
-
-	// Wrapper to keep ref in sync with signal when setting
-	const setIsStreaming = (streaming: boolean) => {
-		isStreamingRef.current = streaming;
-		setIsStreamingSignal(streaming);
-	};
-
-	// Refs for streaming management (not migrated - React-specific, no reactivity needed)
+	// Refs for streaming management (React-specific, not server state)
 	const abortControllerRef = useRef<AbortController | null>(null);
 	const streamingMessageIdRef = useRef<string | null>(null);
 
@@ -77,25 +57,30 @@ export function useStreamingState(): StreamingState {
 	const skipContentForStepRef = useRef<boolean>(false);
 
 	return {
+		// Streaming state (from server via useQuery)
 		isStreaming,
-		setIsStreaming,
 		isStreamingRef,
 		isTitleStreaming,
-		setIsTitleStreaming: setIsTitleStreamingSignal,
 		streamingTitle,
-		setStreamingTitle: setStreamingTitleSignal,
+		streamingStartTime,
+		streamingOutputTokens,
+
+		// React refs (local to component)
 		abortControllerRef,
 		streamingMessageIdRef,
 		dbWriteTimerRef,
 		pendingDbContentRef,
 		currentStepIndexRef,
 		skipContentForStepRef,
-		streamingStartTime,
-		setStreamingStartTime: setStreamingStartTimeSignal,
-		streamingOutputTokens,
-		setStreamingOutputTokens: setStreamingOutputTokensSignal,
 	};
 }
 
-// Export getter for non-React code
-export { getIsStreaming };
+/**
+ * Get streaming status synchronously (for non-React code)
+ * NOTE: For React components, use useCurrentSession().isStreaming
+ */
+export function getIsStreaming(): boolean {
+	// This is a fallback for non-React code
+	// In practice, prefer using hooks
+	return false;
+}

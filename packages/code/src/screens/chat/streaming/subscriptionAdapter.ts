@@ -1,46 +1,25 @@
 /**
  * Streaming Trigger Adapter for Lens
- * Triggers AI streaming via mutation and handles optimistic updates
  *
- * MUTATION + EVENT STREAM ARCHITECTURE:
+ * LIVE QUERY ARCHITECTURE:
  * - Client calls triggerStream mutation to start streaming
- * - Server streams in background and publishes all events to event bus
- * - Client receives events via useEventStream (Chat.tsx)
- * - All event handling in streamEventHandlers.ts
+ * - Server uses emit API to push updates to session
+ * - Client uses useQuery(getSession) to receive live updates
+ * - NO callbacks, NO client-side state management!
  *
- * Architecture:
- * - TUI: Uses in-process Lens (zero overhead)
- * - Web: Will use HTTP Lens (over network)
- * - Same interface for both!
- *
- * OPTIMISTIC UPDATE + PASSIVE EVENT MODEL:
- * - Client adds optimistic user message before mutation call
- * - Client calls mutation to trigger streaming
- * - Server streams and publishes events to event bus
- * - Client receives events via useEventStream and reacts in handleStreamEvent()
- * - Multi-client sync works automatically (all clients subscribe to session's event stream)
- * - All streaming state changes are event-driven
+ * The server emit is fast enough. Client just reads from useQuery.
  */
 
 import type { LensClient } from "@lens/client";
-import {
-	currentSession,
-	parseUserInput,
-	setCurrentSessionId,
-	setCurrentSession,
-} from "@sylphx/code-client";
+import { parseUserInput, setCurrentSessionId } from "@sylphx/code-client";
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
 import type React from "react";
-import { updateActiveMessageContent } from "./streamEventHandlers.js";
 
-// Create debug loggers for different components
 const logSession = createLogger("subscription:session");
-const _logMessage = createLogger("subscription:message");
 
 /**
  * Options for triggering AI streaming
- * Currently no options needed - kept for future extensibility
  */
 export type TriggerAIOptions = {};
 
@@ -48,16 +27,12 @@ export type TriggerAIOptions = {};
  * Parameters for subscription adapter
  */
 export interface SubscriptionAdapterParams {
-	// Lens client (passed from React hook useLensClient)
 	client: LensClient<any, any>;
-
-	// Configuration
 	aiConfig: AIConfig | null;
 	currentSessionId: string | null;
 	selectedProvider: string | null;
 	selectedModel: string | null;
 
-	// Functions from hooks/store
 	addMessage: (params: {
 		sessionId: string | null;
 		role: "user" | "assistant";
@@ -75,49 +50,31 @@ export interface SubscriptionAdapterParams {
 	updateSessionTitle: (sessionId: string, title: string) => void;
 	notificationSettings: { notifyOnCompletion: boolean; notifyOnError: boolean };
 
-	// Refs for streaming state
 	abortControllerRef: React.MutableRefObject<AbortController | null>;
 	streamingMessageIdRef: React.MutableRefObject<string | null>;
-
-	// State setters
-	setIsStreaming: (value: boolean) => void;
-	setIsTitleStreaming: (value: boolean) => void;
-	setStreamingTitle: React.Dispatch<React.SetStateAction<string>>;
-	setStreamingStartTime: (time: number | null) => void;
-	setStreamingOutputTokens: (tokens: number | ((prev: number) => number)) => void;
 }
 
 /**
- * Creates sendUserMessageToAI function using tRPC mutation + event stream
+ * Creates sendUserMessageToAI function
  *
- * Flow:
- * 1. Adds optimistic user message to UI (for instant feedback)
- * 2. Calls triggerStream mutation to start server streaming
- * 3. Server publishes events to event bus
- * 4. useEventStream receives events and calls handleStreamEvent
- * 5. Event handlers update UI state
+ * SIMPLIFIED FLOW (Lens Live Query):
+ * 1. Call triggerStream mutation
+ * 2. Server creates session/message, starts streaming
+ * 3. Server emits updates via emit API
+ * 4. useQuery(getSession) auto-updates → React re-renders
+ * 5. NO client-side event handling!
  *
- * Note: Empty content array = trigger with existing messages only (no new user message)
- * Use case: /compact command where session already has messages
+ * Streaming state (isStreaming, streamingStatus) comes from server via emit.
  */
 export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapterParams) {
 	const {
 		client,
-		aiConfig,
 		currentSessionId,
 		selectedProvider,
 		selectedModel,
 		addMessage,
 		addLog,
-		updateSessionTitle,
-		notificationSettings,
 		abortControllerRef,
-		streamingMessageIdRef,
-		setIsStreaming,
-		setIsTitleStreaming,
-		setStreamingTitle,
-		setStreamingStartTime,
-		setStreamingOutputTokens,
 	} = params;
 
 	return async (
@@ -126,31 +83,24 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		_options?: TriggerAIOptions,
 	) => {
 		logSession("Send user message called");
-		logSession("User message length:", userMessage.length);
-		logSession("Provider:", selectedProvider, "Model:", selectedModel);
 
-		// Block if no provider configured
-		// Use selectedProvider and selectedModel from store (reactive state)
 		const provider = selectedProvider;
 		const model = selectedModel;
 
+		// Validate provider/model
 		if (!provider || !model) {
-			logSession("No provider or model configured!", { provider, model });
+			logSession("No provider or model configured!");
 			addLog("[subscriptionAdapter] No AI provider configured. Use /provider to configure.");
 
-			// Add error message to UI (pre-validation error, no streaming involved)
 			if (currentSessionId) {
 				await addMessage({
 					sessionId: currentSessionId,
 					role: "assistant",
-					content: [
-						{
-							type: "error",
-							error:
-								"No AI provider configured. Please configure a provider using the /provider command.",
-							status: "completed",
-						} as MessagePart,
-					],
+					content: [{
+						type: "error",
+						error: "No AI provider configured. Please configure a provider using the /provider command.",
+						status: "completed",
+					} as MessagePart],
 					provider,
 					model,
 				});
@@ -158,363 +108,70 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			return;
 		}
 
-		logSession("Provider configured, proceeding with streaming");
-
-		// LAZY SESSIONS: Server will create session if currentSessionId is null
-		// Client just passes null, server handles creation
-		const sessionId = currentSessionId;
-
-		// Reset streaming state for new stream
-		streamingMessageIdRef.current = null;
-
-		// OPTIMISTIC: Show indicator immediately on send (before server response)
-		setStreamingStartTime(Date.now());
-		setStreamingOutputTokens(0);
-		setIsStreaming(true);
-
-		// OPTIMISTIC: Set status indicator immediately (don't wait for backend)
-		// Status is now purely server-driven via EventStream
-		// No optimistic update needed - server publishes fast enough
-		// Client receives status via events.subscribeToSession subscription
-		// This eliminates the timeout issue and simplifies architecture
-
-		// Create abort controller for this stream
+		// Create abort controller
 		abortControllerRef.current = new AbortController();
+		let mutationSessionId: string | null = null;
 
-		// CRITICAL: Register abort handler IMMEDIATELY after creating AbortController
-		// Must register before any async operations (Lens client, mutation, etc.)
-		// Otherwise, if user presses ESC during async operation, handler won't be registered yet
-		let mutationSessionId: string | null = null; // Will be set after mutation completes
-
+		// Register abort handler
 		abortControllerRef.current.signal.addEventListener("abort", async () => {
 			try {
 				logSession("Stream aborted by user");
-				addLog("[Mutation] Aborted by user");
-
-				// Use sessionId from mutation result (available after mutation completes)
-				// Or fall back to currentSessionId if mutation hasn't completed yet
 				const abortSessionId = mutationSessionId || currentSessionId;
 
 				if (abortSessionId) {
-					try {
-						// Use NEW Lens flat namespace: client.abortStream() instead of client.message.abortStream.mutate()
-						await (client as any).abortStream({
-							sessionId: abortSessionId,
-						});
-						logSession("Server notified of abort");
-					} catch (abortError) {
-						console.error("[subscriptionAdapter] Failed to notify server of abort:", abortError);
-						// Fallback: If server notification fails, clean up locally
-						updateActiveMessageContent(sessionId, streamingMessageIdRef.current, (prev) =>
-							prev.map((part) =>
-								part.status === "active" ? { ...part, status: "abort" as const } : part,
-							),
-						);
-						setIsStreaming(false);
-						streamingMessageIdRef.current = null;
-					}
+					await client.abortStream({ sessionId: abortSessionId });
+					logSession("Server notified of abort");
 				}
-
-				// DO NOT clean up here - wait for server's abort event
-				// This ensures handleAbort has access to streamingMessageIdRef
-			} catch (handlerError) {
-				console.error("[subscriptionAdapter] Error in abort handler:", handlerError);
-				setIsStreaming(false);
+			} catch (error) {
+				console.error("[subscriptionAdapter] Abort error:", error);
 			}
+			// Note: Server emit will update streamingStatus to "idle"
+			// useQuery will receive the update automatically
 		});
 
 		try {
-			logSession("Using Lens client from params");
-
-			// Parse user input into ordered content parts
+			// Parse user input
 			const { parts: content } = parseUserInput(userMessage, attachments || []);
+			logSession("Parsed content:", content.length, "parts");
 
-			logSession("Parsed content:", JSON.stringify(content, null, 2));
-
-			/**
-			 * OPTIMISTIC UPDATE STRATEGY
-			 *
-			 * Goal: Show user message immediately without waiting for server confirmation
-			 *
-			 * New Session Flow:
-			 * 1. Create temp session ('temp-session') with optimistic message
-			 * 2. Display temp session in UI (instant feedback)
-			 * 3. Call triggerStream mutation → Server creates real session
-			 * 4. Server emits session-created event with real sessionId
-			 * 5. handleSessionCreated (streamEventHandlers.ts) replaces temp with real session
-			 * 6. User sees seamless transition from temp → real session
-			 *
-			 * Existing Session Flow:
-			 * 1. Add optimistic message to current session with temp ID
-			 * 2. Display message immediately (instant feedback)
-			 * 3. Call triggerStream mutation → Server saves real message
-			 * 4. Server emits user-message-created with real messageId
-			 * 5. handleUserMessageCreated replaces temp ID with real ID
-			 * 6. User doesn't notice the ID swap
-			 *
-			 * Rollback Strategy:
-			 * - If mutation fails: Error is displayed as assistant error message
-			 * - Optimistic message is NOT removed (keeps user input visible)
-			 * - User can retry by sending again
-			 *
-			 * File Attachments:
-			 * - Optimistic display: Show file metadata only (no base64)
-			 * - Server reads and freezes actual file content
-			 * - Real message contains full base64 data
-			 */
-
-			// Optimistic update: Add user message immediately for better UX
-			// Only add if there is actual content (empty message = using existing messages only)
-			if (content.length > 0) {
-				// Convert ParsedContentPart to MessagePart with proper structure
-				const optimisticMessageId = `temp-user-${Date.now()}`;
-
-				logSession("Creating optimistic update:", {
-					sessionId,
-					hasSession: !!sessionId,
-				});
-
-				// Build MessagePart[] from content and attachments (ChatGPT-style: fileId)
-				const messageParts: MessagePart[] = content.map((part) => {
-					if (part.type === "text") {
-						return {
-							type: "text",
-							content: part.content,
-							status: "completed" as const,
-						};
-					} else if (part.type === "file") {
-						// For optimistic update, create file part WITHOUT base64
-						// Server will fetch from storage using fileId and freeze content
-						// We just need to display it correctly in UI
-						return {
-							type: "file",
-							relativePath: part.relativePath,
-							mediaType: part.mimeType,
-							// Use empty base64 for optimistic display - server will provide real data
-							base64: "",
-							size: part.size,
-							status: "completed" as const,
-						};
-					}
-					// Shouldn't reach here, but return text fallback
-					return {
-						type: "text",
-						content: "",
-						status: "completed" as const,
-					};
-				});
-
-				logSession("Built message parts:", messageParts.length, "parts");
-
-				// Add optimistic message to store (works for both existing and new sessions)
-				// IMPORTANT: Use get() to avoid triggering re-renders during subscription setup
-				const currentSessionValue = currentSession.value;
-				const _shouldCreateTempSession =
-					!sessionId || !currentSessionValue || currentSessionValue.id !== sessionId;
-
-				// OPTIMISTIC UPDATE STRATEGY:
-				// - If NOT streaming → add to messages (will be confirmed by user-message-created event)
-				// - If streaming → DON'T add to messages, server will queue it and emit queue-message-added
-				// This prevents showing message in both places (messages AND queue)
-				const { getIsStreaming } = await import("@sylphx/code-client");
-				const currentlyStreaming = getIsStreaming();
-
-				// Optimistic assistant message ID
-				const optimisticAssistantId = `temp-assistant-${Date.now()}`;
-
-				// IMMUTABLE UPDATE: zen signals need immutable updates to trigger re-renders
-				if (sessionId && currentSessionValue?.id === sessionId) {
-					// For existing sessions
-					const beforeCount = currentSessionValue.messages.length;
-
-					// Only add to messages if NOT streaming
-					if (!currentlyStreaming) {
-						// Add BOTH user message AND assistant placeholder for instant feedback
-						setCurrentSession({
-							...currentSessionValue,
-							messages: [
-								...currentSessionValue.messages,
-								{
-									id: optimisticMessageId,
-									role: "user",
-									content: messageParts,
-									timestamp: Date.now(),
-									status: "completed",
-								},
-								{
-									id: optimisticAssistantId,
-									role: "assistant",
-									content: [], // Empty - will be filled by streaming
-									timestamp: Date.now(),
-									status: "active", // Show as active immediately
-								},
-							],
-						});
-
-						// Track optimistic assistant message ID for reconciliation
-						streamingMessageIdRef.current = optimisticAssistantId;
-
-						logSession("Added optimistic user + assistant messages:", {
-							userId: optimisticMessageId,
-							assistantId: optimisticAssistantId,
-							beforeCount,
-							afterCount: beforeCount + 2,
-						});
-					} else {
-						logSession("Skipped adding to messages (streaming, will be queued):", {
-							id: optimisticMessageId,
-							streaming: currentlyStreaming,
-						});
-					}
-
-					// Note: Lens handles optimistic tracking automatically via mutations
-				// No manual tracking needed - server will confirm via events
-				} else {
-					// For new sessions or no current session, create temporary session for display
-					logSession("Creating temporary session for optimistic display");
-
-					const newStatus = {
-						text: "Thinking...",
-						duration: 0,
-						tokenUsage: 0,
-						isActive: true,
-					};
-
-					setCurrentSessionId("temp-session");
-					setCurrentSession({
-						id: "temp-session",
-						title: "",
-						agentId: "coder",
-						provider: provider || "",
-						model: model || "",
-						createdAt: Date.now(),
-						updatedAt: Date.now(),
-						messages: [
-							{
-								id: optimisticMessageId,
-								role: "user",
-								content: messageParts,
-								timestamp: Date.now(),
-								status: "completed",
-							},
-							{
-								id: optimisticAssistantId,
-								role: "assistant",
-								content: [], // Empty - will be filled by streaming
-								timestamp: Date.now(),
-								status: "active", // Show as active immediately
-							},
-						],
-						todos: [],
-						status: newStatus, // Status will be updated by server via EventStream
-					});
-
-					// Status is server-driven - will be updated via EventStream subscription
-					// No optimistic update needed for status
-
-					// Track optimistic assistant message ID for reconciliation
-					streamingMessageIdRef.current = optimisticAssistantId;
-
-					logSession("Created temporary session with optimistic user + assistant messages");
-				}
-			} else {
-				logSession(
-					"Skipping optimistic update (skipUserMessage=true - triggering with existing messages)",
-				);
-			}
-
-			logSession("Calling triggerStream mutation", {
-				sessionId,
-				hasProvider: !!provider,
-				hasModel: !!model,
-				messageLength: userMessage.length,
-				contentParts: content.length,
-			});
-
-			// MUTATION ARCHITECTURE: Trigger streaming via mutation, receive via event stream
-			// - Mutation triggers server to start streaming in background
-			// - Server publishes all events to event bus
-			// - Client receives events via useEventStream (Chat.tsx)
-			// - No subscription callbacks needed - all handled in event handlers
-			// Use NEW Lens flat namespace: client.triggerStream() instead of client.message.triggerStream.mutate()
-			const result = await (client as any).triggerStream({
-				sessionId: sessionId,
-				provider: sessionId ? undefined : provider,
-				model: sessionId ? undefined : model,
-				content, // Empty array = use existing messages, non-empty = add new user message
+			// Call triggerStream mutation
+			// Server will:
+			// 1. Create session if needed
+			// 2. Create user message
+			// 3. Create assistant message (placeholder)
+			// 4. Start AI streaming
+			// 5. Emit updates via emit API:
+			//    - emit.merge({ streamingStatus: "streaming" }) at start
+			//    - emit.delta("textContent", ...) for text
+			//    - emit.merge({ streamingStatus: "idle" }) at end
+			// 6. useQuery auto-receives updates → React re-renders
+			const result = await client.triggerStream({
+				sessionId: currentSessionId,
+				provider: currentSessionId ? undefined : provider,
+				model: currentSessionId ? undefined : model,
+				content,
 			});
 
 			logSession("Mutation completed:", result);
-
-			// Store sessionId for abort handler (registered earlier)
 			mutationSessionId = result.sessionId;
 
-			// CRITICAL: Update sessionId if lazy session was created
-			// This ensures useEventStream subscribes to the correct session
-			if (result.sessionId && result.sessionId !== sessionId) {
-				logSession("Lazy session created, updating currentSessionId:", result.sessionId);
-
-				// RACE CONDITION FIX: Preserve optimistic messages when transitioning session ID
-				// The session-created event will arrive later, but we need to update now
-				// to ensure useEventStream subscribes to the correct session
-				const currentSessionValue = currentSession.value;
-				logSession("Before session transition:", {
-					currentId: currentSessionValue?.id,
-					messageCount: currentSessionValue?.messages?.length || 0,
-					newId: result.sessionId,
-				});
-
-				if (currentSessionValue && currentSessionValue.id === "temp-session") {
-					// Transition temp-session → real session while preserving messages
-					logSession("Transitioning temp-session to real session, preserving messages");
-					setCurrentSession( {
-						...currentSessionValue,
-						id: result.sessionId,
-					});
-					setCurrentSessionId(result.sessionId);
-				} else {
-					// Just update the ID (existing session case)
-					setCurrentSessionId(result.sessionId);
-				}
+			// Update sessionId if new session was created
+			if (result.sessionId && result.sessionId !== currentSessionId) {
+				logSession("New session created:", result.sessionId);
+				setCurrentSessionId(result.sessionId);
 			}
-			// Note: setIsStreaming(true) is called optimistically at start
+
+			// Note: Streaming state comes from server via emit
+			// useQuery(getSession) will receive:
+			//   session.streamingStatus === "streaming" → isStreaming = true
+			//   session.streamingStatus === "idle" → isStreaming = false
+			// No client-side setIsStreaming needed!
+
 		} catch (error) {
-			logSession("Mutation call error:", {
-				error: error instanceof Error ? error.message : String(error),
-				stack: error instanceof Error ? error.stack : undefined,
-			});
-
-			try {
-				addLog(
-					`[subscriptionAdapter] Error: ${error instanceof Error ? error.message : String(error)}`,
-				);
-			} catch (logError) {
-				console.error("[subscriptionAdapter] Error logging failed:", logError);
-			} finally {
-				// Always reset streaming state
-				setIsStreaming(false);
-				setStreamingStartTime(null);
-				setStreamingOutputTokens(0);
-			}
-
-			// Re-throw the error so it's not silently swallowed
+			logSession("Mutation error:", error);
+			addLog(`[subscriptionAdapter] Error: ${error instanceof Error ? error.message : String(error)}`);
+			// Note: Server will emit streamingStatus: "idle" on error
 			throw error;
 		}
 	};
 }
-
-/**
- * DEPRECATED: Title generation is now handled by backend streaming service
- *
- * Backend emits session-title-start/delta/complete events during streaming.
- * The subscription adapter handles these events and updates the UI.
- * This function is no longer needed but kept for reference.
- */
-
-/**
- * DEPRECATED: Cleanup after stream completes or errors
- *
- * With mutation-based architecture, all cleanup is handled by event handlers
- * (handleComplete, handleError in streamEventHandlers.ts).
- * This function is no longer needed but kept for reference.
- */

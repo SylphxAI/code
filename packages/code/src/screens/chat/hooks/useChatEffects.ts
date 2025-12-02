@@ -1,10 +1,21 @@
 /**
  * Consolidated Chat Effects Hook
  * All useEffect logic and side effects for Chat component
+ *
+ * ARCHITECTURE: Live Query Pattern
+ * =================================
+ * Session streaming is handled via Lens Live Query:
+ * - useCurrentSession uses useQuery(client.getSession({ id }))
+ * - Server uses emit API to push updates
+ * - NO event callbacks needed - data updates automatically
+ *
+ * This file only handles:
+ * - Command/autocomplete setup
+ * - Message submission
+ * - User input handling
  */
 
 import { useAIConfigActions } from "../../../hooks/client/useAIConfig.js";
-import { useEventStream } from "../../../hooks/client/useEventStream.js";
 import { addMessageAsync as addMessage, setCurrentSessionId, updateSessionTitle, useLensClient } from "@sylphx/code-client";
 import { clearUserInputHandler, setUserInputHandler } from "@sylphx/code-core";
 import { useCallback, useEffect, useMemo } from "react";
@@ -17,13 +28,13 @@ import { createHandleSubmit } from "../handlers/messageHandler.js";
 import { createSubscriptionSendUserMessageToAI } from "../streaming/subscriptionAdapter.js";
 import { DEFAULT_NOTIFICATION_SETTINGS } from "../types.js";
 import type { ChatState } from "./useChatState.js";
-import { useEventStreamCallbacks } from "./useEventStreamCallbacks.js";
 
 export function useChatEffects(state: ChatState) {
 	const { saveConfig } = useAIConfigActions();
 	const client = useLensClient();
 
-	// Create sendUserMessageToAI function first (needed by command context)
+	// Create sendUserMessageToAI function
+	// NOTE: Streaming state comes from server via emit API, not client-side setters
 	const sendUserMessageToAI = useCallback(
 		createSubscriptionSendUserMessageToAI({
 			client,
@@ -37,11 +48,7 @@ export function useChatEffects(state: ChatState) {
 			notificationSettings: DEFAULT_NOTIFICATION_SETTINGS,
 			abortControllerRef: state.streamingState.abortControllerRef,
 			streamingMessageIdRef: state.streamingState.streamingMessageIdRef,
-			setIsStreaming: state.streamingState.setIsStreaming,
-			setIsTitleStreaming: state.streamingState.setIsTitleStreaming,
-			setStreamingTitle: state.streamingState.setStreamingTitle,
-			setStreamingStartTime: state.streamingState.setStreamingStartTime,
-			setStreamingOutputTokens: state.streamingState.setStreamingOutputTokens,
+			// NOTE: No setters passed - streaming state is server-driven via emit API
 		}),
 		[
 			client,
@@ -52,11 +59,6 @@ export function useChatEffects(state: ChatState) {
 			state.addLog,
 			state.streamingState.abortControllerRef,
 			state.streamingState.streamingMessageIdRef,
-			state.streamingState.setIsStreaming,
-			state.streamingState.setIsTitleStreaming,
-			state.streamingState.setStreamingTitle,
-			state.streamingState.setStreamingStartTime,
-			state.streamingState.setStreamingOutputTokens,
 		],
 	);
 
@@ -112,48 +114,19 @@ export function useChatEffects(state: ChatState) {
 		commands,
 	);
 
-	// Event stream callbacks
-	const eventStreamCallbacks = useEventStreamCallbacks({
-		client,
-		updateSessionTitle,
-		setIsStreaming: state.streamingState.setIsStreaming,
-		setIsTitleStreaming: state.streamingState.setIsTitleStreaming,
-		setStreamingTitle: state.streamingState.setStreamingTitle,
-		streamingMessageIdRef: state.streamingState.streamingMessageIdRef,
-		addLog: state.addLog,
-		aiConfig: state.aiConfig,
-		notificationSettings: DEFAULT_NOTIFICATION_SETTINGS,
-		setPendingInput: state.selectionState.setPendingInput,
-		askToolContextRef: state.selectionState.askToolContextRef,
-		currentStepIndexRef: state.streamingState.currentStepIndexRef,
-		skipContentForStepRef: state.streamingState.skipContentForStepRef,
-		setStreamingStartTime: state.streamingState.setStreamingStartTime,
-		setStreamingOutputTokens: state.streamingState.setStreamingOutputTokens,
-	});
-
-	// Frontend-Driven Architecture: Direct useQuery Pattern
+	// LIVE QUERY ARCHITECTURE
+	// =======================
+	// Session streaming is handled by useCurrentSession which uses:
+	//   useQuery(client.getSession({ id }))
 	//
-	// ✅ No composable hooks needed (useLensSessionSubscription deleted)
-	// ✅ Pages directly declare what data they need via useQuery + select
-	// ✅ Lens automatically handles: lifecycle, state, optimistic updates, subscription
+	// Server emits updates via emit API (emit.delta, emit.set, emit.merge).
+	// Client receives updates automatically - NO callbacks needed!
 	//
-	// Example (use in page component, not here):
-	// const { data: session } = useQuery(() =>
-	//   client.getSession({ id }).select({
-	//     id: true,
-	//     title: true,      // ← delta strategy (57% savings)
-	//     status: true,     // ← patch strategy (99% savings)
-	//     totalTokens: true // ← value strategy
-	//   })
-	// );
-
-	// Content streaming subscription (incremental events)
-	// IMPORTANT: replayLast > 0 required for compact auto-trigger
-	// Handles: text-delta, tool-call, tool-result, reasoning-delta, etc.
-	useEventStream({
-		replayLast: 50,
-		callbacks: eventStreamCallbacks,
-	});
+	// Streaming state (isStreaming, isTitleStreaming, etc.) is derived in:
+	//   - useCurrentSession() for isStreaming
+	//   - useStreamingState() for all streaming state from session
+	//
+	// No need for useEffect to sync streaming state - it's already reactive via useQuery!
 
 	// Create handleSubmit function
 	const handleSubmit = useMemo(
@@ -222,17 +195,6 @@ export function useChatEffects(state: ChatState) {
 		commands,
 		state.addLog,
 	);
-
-	// Sync UI streaming state with server state on session switch
-	useEffect(() => {
-		if (!state.currentSession) {
-			state.streamingState.setIsStreaming(false);
-			return;
-		}
-
-		const activeMessage = state.currentSession.messages.find((m) => m.status === "active");
-		state.streamingState.setIsStreaming(!!activeMessage);
-	}, [state.currentSession, state.streamingState.setIsStreaming]);
 
 	// Reset selected command index when filtered commands change
 	useEffect(() => {
