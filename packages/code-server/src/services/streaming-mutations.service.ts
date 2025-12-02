@@ -3,17 +3,200 @@
  * Implements triggerStream and abortStream logic for Lens API
  *
  * Extracted from tRPC router to be reusable across transport layers
+ *
+ * ARCHITECTURE: Emit + DB Persistence (Parallel)
+ * ==============================================
+ * Events are emitted AND persisted to DB in parallel:
+ * - emit: For connected clients via Lens subscription
+ * - DB: For late subscribers who call getSession after events fired
+ *
+ * This solves the race condition where client subscribes AFTER events.
  */
 
-import type { AppContext } from "@sylphx/code-core";
-import type { Observable } from "rxjs";
 import type { SessionRepository, MessageRepository, AIConfig } from "@sylphx/code-core";
+import type { AppContext } from "../context.js";
 
 /**
  * Active stream abort controllers
  * Map<sessionId, AbortController>
  */
 const activeStreamAbortControllers = new Map<string, AbortController>();
+
+/**
+ * Streaming state accumulator
+ * Tracks current streaming state for DB persistence
+ */
+interface StreamingStateAccumulator {
+	textContent: string;
+	reasoningContent: string;
+	streamingStatus: "idle" | "streaming" | "waiting_input" | "error";
+	isTextStreaming: boolean;
+	isReasoningStreaming: boolean;
+	currentTool: any | null;
+	askQuestion: any | null;
+	lastPersistTime: number;
+}
+
+/**
+ * Active streaming state accumulators
+ * Map<sessionId, StreamingStateAccumulator>
+ */
+const streamingStateAccumulators = new Map<string, StreamingStateAccumulator>();
+
+/**
+ * DB persistence interval (ms) - debounce writes
+ */
+const DB_PERSIST_INTERVAL = 200;
+
+/**
+ * Create or get streaming state accumulator for a session
+ */
+function getOrCreateAccumulator(sessionId: string): StreamingStateAccumulator {
+	let acc = streamingStateAccumulators.get(sessionId);
+	if (!acc) {
+		acc = {
+			textContent: "",
+			reasoningContent: "",
+			streamingStatus: "streaming",
+			isTextStreaming: false,
+			isReasoningStreaming: false,
+			currentTool: null,
+			askQuestion: null,
+			lastPersistTime: 0,
+		};
+		streamingStateAccumulators.set(sessionId, acc);
+	}
+	return acc;
+}
+
+/**
+ * Persist streaming state to DB (debounced)
+ * Returns true if persisted, false if debounced
+ */
+async function persistStreamingState(
+	sessionRepository: SessionRepository,
+	sessionId: string,
+	acc: StreamingStateAccumulator,
+	force: boolean = false,
+): Promise<boolean> {
+	const now = Date.now();
+
+	// Debounce: only persist if forced or interval passed
+	if (!force && now - acc.lastPersistTime < DB_PERSIST_INTERVAL) {
+		return false;
+	}
+
+	acc.lastPersistTime = now;
+
+	// Persist to DB (fire-and-forget for performance, but catch errors)
+	sessionRepository.update(sessionId, {
+		textContent: acc.textContent,
+		reasoningContent: acc.reasoningContent,
+		streamingStatus: acc.streamingStatus,
+		isTextStreaming: acc.isTextStreaming,
+		isReasoningStreaming: acc.isReasoningStreaming,
+		currentTool: acc.currentTool,
+		askQuestion: acc.askQuestion,
+	}).catch((err) => {
+		console.error("[StreamingState] DB persist error:", err);
+	});
+
+	return true;
+}
+
+/**
+ * Process streaming event and update accumulator
+ * Returns true if state changed (needs DB persist)
+ */
+function processEventForAccumulator(
+	event: any,
+	acc: StreamingStateAccumulator,
+): boolean {
+	switch (event.type) {
+		case "session-created":
+			acc.streamingStatus = "streaming";
+			return true;
+
+		case "text-start":
+			acc.isTextStreaming = true;
+			acc.textContent = "";
+			return true;
+
+		case "text-delta":
+			acc.textContent += event.text || "";
+			return true;
+
+		case "text-end":
+			acc.isTextStreaming = false;
+			return true;
+
+		case "reasoning-start":
+			acc.isReasoningStreaming = true;
+			acc.reasoningContent = "";
+			return true;
+
+		case "reasoning-delta":
+			acc.reasoningContent += event.text || "";
+			return true;
+
+		case "reasoning-end":
+			acc.isReasoningStreaming = false;
+			return true;
+
+		case "tool-call":
+			acc.currentTool = {
+				id: event.toolCallId,
+				name: event.toolName,
+				input: event.input,
+				inputText: "",
+				status: "executing",
+				startTime: event.startTime,
+			};
+			return true;
+
+		case "tool-input-delta":
+			if (acc.currentTool) {
+				acc.currentTool.inputText = (acc.currentTool.inputText || "") + (event.inputTextDelta || "");
+			}
+			return true;
+
+		case "tool-result":
+		case "tool-error":
+			acc.currentTool = null;
+			return true;
+
+		case "ask-question-start":
+			acc.streamingStatus = "waiting_input";
+			acc.askQuestion = {
+				toolCallId: event.toolCallId,
+				question: event.question,
+				options: event.options,
+				multiSelect: event.multiSelect,
+				preSelected: event.preSelected,
+				answered: false,
+			};
+			return true;
+
+		case "ask-question-answered":
+			acc.streamingStatus = "streaming";
+			acc.askQuestion = null;
+			return true;
+
+		case "error":
+			acc.streamingStatus = "error";
+			return true;
+
+		case "complete":
+			acc.streamingStatus = "idle";
+			acc.isTextStreaming = false;
+			acc.isReasoningStreaming = false;
+			acc.currentTool = null;
+			return true;
+
+		default:
+			return false;
+	}
+}
 
 /**
  * Trigger stream mutation parameters
@@ -143,7 +326,7 @@ export async function triggerStreamMutation(
 		model: input.model,
 		userMessageContent: input.content.length > 0 ? input.content : null,
 		abortSignal: abortController.signal,
-	}) as Observable<any>;
+	});
 
 	/**
 	 * ARCHITECTURE: Subscribe to stream and wait for session-created (lazy sessions only)
@@ -189,20 +372,31 @@ export async function triggerStreamMutation(
 					activeStreamAbortControllers.set(eventSessionId, abortController);
 				}
 
-				// Publish streaming events to session-stream channel
-				// Session model updates go to session:${id} (Lens format)
-				// Streaming events go to session-stream:${id} (content streaming)
+				// PARALLEL: Emit to channel AND persist to DB
+				// This ensures late subscribers get data from DB
 				if (eventSessionId) {
+					// 1. Emit to connected clients (fire-and-forget)
 					appContext.eventStream
 						.publish(`session-stream:${eventSessionId}`, event)
 						.catch((err) => {
 							console.error("[TriggerStream] Event publish error:", err);
 						});
+
+					// 2. Update accumulator and persist to DB (debounced)
+					const acc = getOrCreateAccumulator(eventSessionId);
+					const stateChanged = processEventForAccumulator(event, acc);
+
+					if (stateChanged) {
+						// Force persist on key events, debounce on deltas
+						const forceEvents = ["text-end", "reasoning-end", "tool-result", "tool-error", "complete", "error"];
+						const forcePersist = forceEvents.includes(event.type);
+						persistStreamingState(sessionRepository, eventSessionId, acc, forcePersist);
+					}
 				}
 			},
 			error: (error) => {
 				console.error("[triggerStreamMutation] Stream error:", error);
-				// Publish error to streaming channel
+				// Publish error to streaming channel AND persist error state
 				if (eventSessionId) {
 					appContext.eventStream
 						.publish(`session-stream:${eventSessionId}`, {
@@ -212,9 +406,20 @@ export async function triggerStreamMutation(
 						.catch((err) => {
 							console.error("[TriggerStream] Error event publish error:", err);
 						});
+
+					// Persist error state and cleanup accumulator
+					const acc = streamingStateAccumulators.get(eventSessionId);
+					if (acc) {
+						acc.streamingStatus = "error";
+						persistStreamingState(sessionRepository, eventSessionId, acc, true);
+						streamingStateAccumulators.delete(eventSessionId);
+					}
 				}
 				// Cleanup before rejecting
-				subscription.unsubscribe();
+				// Note: subscription is a cleanup function, not RxJS Subscription
+				if (typeof subscription === "function") {
+					subscription();
+				}
 				if (abortControllerId) {
 					activeStreamAbortControllers.delete(abortControllerId);
 				}
@@ -225,7 +430,7 @@ export async function triggerStreamMutation(
 			},
 			complete: () => {
 				console.log("[triggerStreamMutation] Stream completed");
-				// Publish complete to streaming channel
+				// Publish complete to streaming channel AND persist final state
 				if (eventSessionId) {
 					appContext.eventStream
 						.publish(`session-stream:${eventSessionId}`, {
@@ -234,9 +439,23 @@ export async function triggerStreamMutation(
 						.catch((err) => {
 							console.error("[TriggerStream] Complete event publish error:", err);
 						});
+
+					// Force persist final state and cleanup accumulator
+					const acc = streamingStateAccumulators.get(eventSessionId);
+					if (acc) {
+						acc.streamingStatus = "idle";
+						acc.isTextStreaming = false;
+						acc.isReasoningStreaming = false;
+						acc.currentTool = null;
+						persistStreamingState(sessionRepository, eventSessionId, acc, true);
+						streamingStateAccumulators.delete(eventSessionId);
+					}
 				}
 				// Cleanup on complete
-				subscription.unsubscribe();
+				// Note: subscription is a cleanup function, not RxJS Subscription
+				if (typeof subscription === "function") {
+					subscription();
+				}
 				if (abortControllerId) {
 					activeStreamAbortControllers.delete(abortControllerId);
 				}
