@@ -1,25 +1,27 @@
 /**
  * Headless Mode - Execute prompt and stream response
  *
- * ARCHITECTURE: React Ink component using LensProvider
- * - Uses useLensClient() hook (NOT getLensClient())
- * - Wrapped in LensProvider just like TUI mode
- * - Ink renders to stdout in raw mode
+ * ARCHITECTURE: React Ink component using LensProvider + Lens Live Query
+ * - Uses useLensClient() for mutations (triggerStream)
+ * - Uses useQuery(getSession) for streaming state (automatic updates via emit)
+ * - Lens handles all synchronization automatically
  *
- * Event Flow:
+ * Data Flow:
  * 1. Load AI config and validate provider
- * 2. Call triggerStream mutation → Get sessionId
- * 3. Subscribe to session events with replayLast=0 (no replay needed)
- * 4. Print text-delta events to stdout (streaming output)
- * 5. Wait for complete/error event
- * 6. Exit process with appropriate code (0 = success, 1 = error)
+ * 2. Create or get session
+ * 3. useQuery(getSession) subscribes to session data
+ * 4. Call triggerStream mutation → Server starts streaming
+ * 5. Server uses emit API → session.textContent updates automatically
+ * 6. Print textContent delta to stdout
+ * 7. Wait for session.streamingStatus === "idle"
+ * 8. Exit process
  */
 
-import { useLensClient } from "@sylphx/code-client";
+import { useQuery, useLensClient } from "@sylphx/code-client";
 import { loadAIConfig } from "@sylphx/code-core";
 import chalk from "chalk";
 import { Box, Text, render } from "ink";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 
 interface HeadlessOptions {
 	continue?: boolean;
@@ -33,14 +35,65 @@ interface HeadlessProps {
 
 /**
  * HeadlessApp - React component for headless mode
- * Uses useLensClient() hook to get the Lens client
+ * Uses useQuery(getSession) - data updates automatically via emit
  */
 function HeadlessApp({ prompt, options }: HeadlessProps) {
 	const client = useLensClient();
 	const [error, setError] = useState<string | null>(null);
-	const [output, setOutput] = useState("");
-	const [isComplete, setIsComplete] = useState(false);
+	const [sessionId, setSessionId] = useState<string | null>(null);
+	const lastPrintedLengthRef = useRef(0);
+	const wasStreamingRef = useRef(false);
 
+	// Live Query: Subscribe to session data
+	// When server uses emit.delta("textContent", ...), this data updates automatically
+	// Use skip when no session ID (Apollo/GraphQL pattern)
+	const { data: session } = useQuery(
+		(lensClient) => lensClient.getSession,
+		{ id: sessionId ?? "" },
+		{ skip: !sessionId }
+	);
+
+	// Effect: Print new text content as it streams
+	useEffect(() => {
+		if (!session?.textContent) return;
+
+		const fullText = session.textContent;
+		const newText = fullText.slice(lastPrintedLengthRef.current);
+
+		if (newText) {
+			process.stdout.write(newText);
+			lastPrintedLengthRef.current = fullText.length;
+		}
+	}, [session?.textContent]);
+
+	// Effect: Handle completion and errors
+	useEffect(() => {
+		if (!session) return;
+
+		// Track if we've started streaming
+		if (session.streamingStatus === "streaming") {
+			wasStreamingRef.current = true;
+		}
+
+		// Handle error
+		if (session.streamingStatus === "error" && session.streamingError) {
+			console.error(chalk.red(`\n✗ Error: ${session.streamingError}`));
+			process.exit(1);
+		}
+
+		// Stream completed (was streaming, now idle)
+		if (session.streamingStatus === "idle" && wasStreamingRef.current) {
+			if (options.verbose) {
+				console.error(chalk.dim(`\n\n[Complete]`));
+				if (session.totalTokens) {
+					console.error(chalk.dim(`Tokens: ${session.totalTokens}`));
+				}
+			}
+			process.exit(0);
+		}
+	}, [session?.streamingStatus, session?.streamingError, options.verbose]);
+
+	// Effect: Trigger streaming on mount
 	useEffect(() => {
 		let mounted = true;
 
@@ -70,114 +123,41 @@ function HeadlessApp({ prompt, options }: HeadlessProps) {
 				}
 
 				// Handle continue mode: load last session
-				let sessionId: string | null = null;
+				let existingSessionId: string | null = null;
 				if (options.continue) {
-					const lastSession = await client.getLastSession();
+					const lastSession = await client.getLastSession().select({ id: true });
 					if (lastSession) {
-						sessionId = lastSession.id;
+						existingSessionId = lastSession.id;
 					}
 				}
-
-				// Trigger streaming via mutation
-				let hasOutput = false;
-				let streamSessionId = sessionId;
 
 				// Parse user input into content parts
 				const content = [{ type: "text" as const, content: prompt }];
 
-				// Start streaming
+				// Trigger streaming via mutation
 				const triggerResult = await client.triggerStream({
-					sessionId: streamSessionId,
-					provider: sessionId ? undefined : provider,
-					model: sessionId ? undefined : model,
+					sessionId: existingSessionId,
+					provider: existingSessionId ? undefined : provider,
+					model: existingSessionId ? undefined : model,
 					content,
+				}).select({
+					sessionId: true,
 				});
 
-				// Use returned sessionId if lazy session was created
-				if (triggerResult.sessionId) {
-					streamSessionId = triggerResult.sessionId;
-				}
+				if (!mounted) return;
 
-				if (!streamSessionId) {
+				if (!triggerResult.sessionId) {
 					setError("Failed to get session ID");
 					process.exit(1);
 					return;
 				}
 
-				// Subscribe to session events
-				await new Promise<void>((resolve, reject) => {
-					client.subscribeToSession({
-						sessionId: streamSessionId!,
-						replayLast: 0,
-					}).subscribe({
-						next: (storedEvent: any) => {
-							if (!mounted) return;
-
-							const event = storedEvent.payload;
-							switch (event.type) {
-								case "session-created":
-									if (options.verbose) {
-										console.error(chalk.dim(`Session: ${event.sessionId}`));
-									}
-									break;
-
-								case "text-delta":
-									process.stdout.write(event.text);
-									hasOutput = true;
-									break;
-
-								case "tool-call":
-									if (options.verbose) {
-										console.error(chalk.yellow(`\n[Tool: ${event.toolName}]`));
-									}
-									break;
-
-								case "tool-result":
-									if (options.verbose) {
-										console.error(
-											chalk.dim(`[Result: ${JSON.stringify(event.result).substring(0, 100)}...]`),
-										);
-									}
-									break;
-
-								case "complete":
-									if (options.verbose) {
-										console.error(chalk.dim(`\n\n[Complete]`));
-										if (event.usage) {
-											console.error(chalk.dim(`Tokens: ${event.usage.totalTokens || "N/A"}`));
-										}
-									}
-									resolve();
-									break;
-
-								case "error":
-									console.error(chalk.red(`\n✗ Error: ${event.error}`));
-									reject(new Error(event.error));
-									break;
-							}
-						},
-						error: (err: Error) => {
-							console.error(chalk.red(`\n✗ Subscription error: ${err.message}`));
-							reject(err);
-						},
-						complete: () => {
-							if (!hasOutput) {
-								console.error(
-									chalk.yellow("\n⚠️  No output received. Model may not support tool calling."),
-								);
-								reject(new Error("No output received"));
-							} else {
-								resolve();
-							}
-						},
-					});
-				});
-
-				// Success
-				if (mounted) {
-					setIsComplete(true);
-					process.exit(0);
+				if (options.verbose) {
+					console.error(chalk.dim(`Session: ${triggerResult.sessionId}`));
 				}
+
+				// Set sessionId to activate useQuery subscription
+				setSessionId(triggerResult.sessionId);
 			} catch (err) {
 				if (!mounted) return;
 
@@ -208,7 +188,6 @@ function HeadlessApp({ prompt, options }: HeadlessProps) {
 	}, [client, prompt, options]);
 
 	// Minimal UI - headless mode outputs to stdout directly
-	// This component is invisible but provides React context for useLensClient()
 	if (error) {
 		return (
 			<Box flexDirection="column">

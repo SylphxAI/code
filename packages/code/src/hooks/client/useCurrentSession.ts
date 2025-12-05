@@ -1,142 +1,49 @@
 /**
  * useCurrentSession Hook
- * Provides current session data from signals
+ * Provides current session data via Live Query
  *
- * ARCHITECTURE: Event-Driven Session State
- * =========================================
- * Session data flows through two mechanisms:
+ * ARCHITECTURE: Live Query Pattern
+ * =================================
+ * Uses useQuery(client.getSession({ id })) - data updates automatically via emit.
+ * No manual fetch, no event callbacks needed.
  *
- * 1. INITIAL LOAD (this hook):
- *    - Fetches session from server when navigating to existing session
- *    - Uses lensClient.getSession() for one-time fetch
- *    - Sets data into currentSession signal
+ * Server uses emit API to push streaming updates:
+ * - emit.delta("textContent", ...) for text streaming
+ * - emit.set("currentTool", ...) for tool status
+ * - emit.merge({ streamingStatus: ... }) for status changes
  *
- * 2. REAL-TIME UPDATES (useEventStream):
- *    - Event handlers update currentSession signal directly
- *    - Handles: session-created, session-updated, text-delta, tool-call, etc.
- *    - Optimistic updates applied in subscriptionAdapter before events arrive
+ * Client just reads session fields - all updates are automatic!
  *
- * WHY SIGNALS (not useQuery)?
- * - Chat requires real-time streaming with optimistic updates
- * - Events modify session in-place (appending content, updating status)
- * - useQuery would create dual source of truth with event handlers
- * - Signals provide single source of truth that both fetch and events update
- *
- * For simpler components, use direct useQuery pattern (see StatusBar.tsx).
+ * For session navigation, we still use currentSessionId signal.
  */
 
-import { useEffect, useRef } from "react";
-import {
-	eventBus,
-	currentSession,
-	lensClient,
-	isStreaming,
-	setCurrentSession,
-	useCurrentSession as useCurrentSessionSignal,
-	useCurrentSessionId,
-	useIsStreaming,
-	useCurrentSessionLoading,
-	useCurrentSessionError,
-	setCurrentSessionLoading,
-	setCurrentSessionError,
-} from "@sylphx/code-client";
+import { useQuery, useCurrentSessionId } from "@sylphx/code-client";
 
 export function useCurrentSession() {
 	const currentSessionId = useCurrentSessionId();
-	const session = useCurrentSessionSignal();
-	const isStreamingValue = useIsStreaming();
-	const isLoading = useCurrentSessionLoading();
-	const error = useCurrentSessionError();
 
-	// Track previous session ID to detect temp-session → real session transition
-	const prevSessionIdRef = useRef<string | null>(null);
+	// Live Query: Subscribe to session with streaming state
+	// Server uses emit API to update, Lens syncs automatically
+	// Use skip when no valid session ID (Apollo/GraphQL pattern)
+	const shouldQuery = Boolean(currentSessionId && currentSessionId !== "temp-session");
+	const { data: session, loading: isLoading, error } = useQuery(
+		(client) => client.getSession,
+		{ id: currentSessionId ?? "" },
+		{ skip: !shouldQuery }
+	);
 
-	// Fetch session data from server when currentSessionId changes
-	useEffect(() => {
-		const prevSessionId = prevSessionIdRef.current;
-		prevSessionIdRef.current = currentSessionId;
-
-		// No session ID → clear state
-		if (!currentSessionId) {
-			setCurrentSessionLoading(false);
-			setCurrentSessionError(null);
-			return;
-		}
-
-		// temp-session → Use optimistic data, no server fetch
-		if (currentSessionId === "temp-session") {
-			setCurrentSessionLoading(false);
-			return;
-		}
-
-		// Just transitioned from temp-session → Let streaming complete, don't fetch
-		// The session-created event will set up the session with preserved messages
-		if (prevSessionId === "temp-session") {
-			setCurrentSessionLoading(false);
-			return;
-		}
-
-		// Session already in memory with messages → Don't overwrite with stale DB data
-		// Event replay (via useEventStream replayLast) handles updates
-		const existingSession = currentSession.value;
-		if (existingSession?.id === currentSessionId && existingSession.messages.length > 0) {
-			setCurrentSessionLoading(false);
-			return;
-		}
-
-		// Fetch session from server
-		setCurrentSessionLoading(true);
-		setCurrentSessionError(null);
-
-		const client = lensClient as any;
-		client
-			.getSession({ id: currentSessionId })
-			.then((serverSession: any) => {
-				setCurrentSessionLoading(false);
-
-				// Skip if streaming started (optimistic data is authoritative)
-				if (isStreaming.value) {
-					return;
-				}
-
-				// Merge with any optimistic messages that arrived after fetch started
-				const currentOptimistic = currentSession.value;
-				if (currentOptimistic?.messages?.length > 0) {
-					const serverMessageIds = new Set(serverSession.messages.map((m: any) => m.id));
-					const optimisticOnlyMessages = currentOptimistic.messages.filter(
-						(m: any) =>
-							!serverMessageIds.has(m.id) &&
-							(m.role !== "user" || m.id.startsWith("temp-")),
-					);
-
-					if (optimisticOnlyMessages.length > 0) {
-						setCurrentSession({
-							...serverSession,
-							messages: [...serverSession.messages, ...optimisticOnlyMessages],
-						});
-					} else {
-						setCurrentSession(serverSession);
-					}
-				} else {
-					setCurrentSession(serverSession);
-				}
-
-				// Emit event for other stores (e.g., settings store updates rules)
-				eventBus.emit("session:loaded", {
-					sessionId: serverSession.id,
-					enabledRuleIds: serverSession.enabledRuleIds || [],
-				});
-			})
-			.catch((err: any) => {
-				setCurrentSessionError(err as Error);
-				setCurrentSessionLoading(false);
-			});
-	}, [currentSessionId]);
+	// Derive isStreaming from session state
+	// streamingStatus is updated by server via emit API
+	const isStreaming = session?.streamingStatus === "streaming" ||
+		session?.streamingStatus === "waiting_input" ||
+		session?.isTextStreaming ||
+		session?.isReasoningStreaming ||
+		!!session?.currentTool;
 
 	return {
-		currentSession: session,
+		currentSession: session ?? null,
 		currentSessionId,
-		isStreaming: isStreamingValue,
+		isStreaming,
 		isLoading,
 		error,
 	};
