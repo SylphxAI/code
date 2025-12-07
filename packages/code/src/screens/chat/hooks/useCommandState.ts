@@ -3,6 +3,9 @@
  * Manages command menu, pending commands, selection state, and custom input components using Zen signals
  */
 
+import { type Command } from "@sylphx/code-client";
+import type { ReactNode } from "react";
+import { useRef } from "react";
 import {
 	useCtrlPressed,
 	setCtrlPressed as setCtrlPressedSignal,
@@ -25,10 +28,7 @@ import {
 	useInputComponent,
 	useInputComponentTitle,
 	setInputComponent as setInputComponentSignal,
-	type Command,
-} from "@sylphx/code-client";
-import type { ReactNode } from "react";
-import { useRef } from "react";
+} from "../../../command-state.js";
 
 export interface CommandState {
 	ctrlPressed: boolean;
