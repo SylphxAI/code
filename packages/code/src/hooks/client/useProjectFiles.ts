@@ -1,38 +1,91 @@
 /**
  * Project Files Hook
- * Loads project files on mount for @file auto-completion using Zen signals
+ * Loads project files for @file auto-completion
+ *
+ * ============================================================================
+ * LENS-REACT vs ZEN SIGNALS
+ * ============================================================================
+ *
+ * ❌ WRONG: 用 Zen signals 做 server data cache
+ * ```tsx
+ * const projectFiles = useProjectFilesSignal();  // Zen signal
+ *
+ * useEffect(() => {
+ *   const data = await client.xxx.fetch({});
+ *   setProjectFilesSignal(data);  // Manual sync to Zen
+ * }, []);
+ * ```
+ *
+ * ✅ CORRECT: 用 lens-react hook 直接
+ * ```tsx
+ * const { data: projectFiles, loading } = client.scanProjectFiles({});
+ * ```
+ *
+ * 點解？
+ * - lens-react hook 已經有 built-in cache
+ * - 唔需要額外 Zen signal 去 store server data
+ * - 減少 state sync bugs
+ * - 減少 code complexity
+ *
+ * Zen signals 應該用喺:
+ * - UI state (isMenuOpen, selectedIndex)
+ * - User preferences (theme, language)
+ * - Cross-component state (currentSessionId)
+ *
+ * lens-react hooks 應該用喺:
+ * - Server data (sessions, providers, models)
+ * - Any data from backend API
+ *
+ * ============================================================================
  */
 
-import { useEffect } from "react";
-import {
-	useLensClient,
-	useProjectFiles as useProjectFilesSignal,
-	useFilesLoading,
-	setProjectFiles as setProjectFilesSignal,
-	setFilesLoading as setFilesLoadingSignal,
-} from "@sylphx/code-client";
+import { useLensClient } from "@sylphx/code-client";
 
+interface ProjectFile {
+	path: string;
+	relativePath: string;
+	name: string;
+	isDirectory: boolean;
+}
+
+/**
+ * Hook to load project files for @file auto-completion
+ *
+ * @example
+ * ```tsx
+ * function FileSelector() {
+ *   const { projectFiles, loading, error } = useProjectFiles();
+ *
+ *   if (loading) return <Spinner />;
+ *
+ *   return (
+ *     <List>
+ *       {projectFiles.map(f => (
+ *         <ListItem key={f.path}>{f.relativePath}</ListItem>
+ *       ))}
+ *     </List>
+ *   );
+ * }
+ * ```
+ */
 export function useProjectFiles() {
 	const client = useLensClient();
-	const projectFiles = useProjectFilesSignal();
-	const filesLoading = useFilesLoading();
 
-	useEffect(() => {
-		const loadFiles = async () => {
-			setFilesLoadingSignal(true);
-			try {
-				// Lens flat namespace: client.scanProjectFiles()
-				const result = await client.scanProjectFiles.fetch({}) as { files: any[] };
-				setProjectFilesSignal(result.files);
-			} catch (error) {
-				console.error("Failed to load project files:", error);
-			} finally {
-				setFilesLoadingSignal(false);
-			}
-		};
+	// lens-react hook: auto-fetches on mount, caches result
+	// - No need for manual useEffect
+	// - No need for Zen signal to store data
+	// - Automatically handles loading/error state
+	const { data, loading, error, refetch } = client.scanProjectFiles({}) as {
+		data: { files: ProjectFile[] } | null;
+		loading: boolean;
+		error: Error | null;
+		refetch: () => void;
+	};
 
-		loadFiles();
-	}, [client]);
-
-	return { projectFiles, filesLoading };
+	return {
+		projectFiles: data?.files ?? [],
+		loading,
+		error: error?.message ?? null,
+		refetch,
+	};
 }

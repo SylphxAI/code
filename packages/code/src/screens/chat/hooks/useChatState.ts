@@ -97,8 +97,8 @@ export function useChatState(_props: ChatProps) {
 	// History restoration state
 	const [tempAttachments, setTempAttachments] = useState<FileAttachment[]>([]);
 
-	// Project files
-	const { projectFiles, filesLoading } = useProjectFiles();
+	// Project files (lens-react hook - auto-fetches and caches)
+	const { projectFiles, loading: filesLoading } = useProjectFiles();
 
 	// Ask tool handler setup
 	useAskToolHandler({
