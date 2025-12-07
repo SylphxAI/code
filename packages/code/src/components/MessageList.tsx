@@ -7,12 +7,12 @@
  */
 
 import type { SessionMessage } from "@sylphx/code-core";
-import { useThemeColors } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import React, { useState, useEffect } from "react";
 import MarkdownText from "./MarkdownText.js";
 import { MessagePart } from "./MessagePart.js";
 import { indicators } from "../utils/colors.js";
+import { useThemeColors } from "../theme.js";
 
 // Animated indicator that pulses between ◆ and ◇
 function AnimatedIndicator() {

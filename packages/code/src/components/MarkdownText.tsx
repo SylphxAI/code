@@ -15,7 +15,7 @@
 import Markdown from "@jescalan/ink-markdown";
 import { Box, Text } from "ink";
 import React from "react";
-import { useThemeColors } from "@sylphx/code-client";
+import { useThemeColors } from "../theme.js";
 
 interface MarkdownTextProps {
 	children: string;

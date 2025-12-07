@@ -11,7 +11,6 @@ import { useFileAttachments } from "../../../hooks/client/useFileAttachments.js"
 import { useProjectFiles } from "../../../hooks/client/useProjectFiles.js";
 import { useTokenCalculation } from "../../../hooks/client/useTokenCalculation.js";
 import {
-	addDebugLog,
 	useSelectedModel,
 	useSelectedProvider,
 	useHideMessageTitles,
@@ -19,6 +18,7 @@ import {
 	setHideMessageTitles as setHideMessageTitlesSignal,
 	setHideMessageUsage as setHideMessageUsageSignal,
 } from "@sylphx/code-client";
+import { addDebugLog } from "../../../ui-state.js";
 import type { FileAttachment } from "@sylphx/code-core";
 import { loadSettings } from "@sylphx/code-core";
 import { useCallback, useEffect, useMemo, useState } from "react";

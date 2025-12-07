@@ -5,14 +5,15 @@
 
 import { useAIConfig, useAIConfigActions } from "../hooks/client/useAIConfig.js";
 import { useKeyboard } from "../hooks/client/useKeyboard.js";
-import { useThemeColors, navigateTo, removeProvider, updateProvider } from "@sylphx/code-client";
+import { removeProvider, updateProvider } from "@sylphx/code-client";
+import { setCurrentScreen } from "../ui-state.js";
 import { AI_PROVIDERS, type ProviderId } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
 import TextInput from "ink-text-input";
 import { useState } from "react";
 import ProviderCard from "../components/ProviderCard.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../theme.js";
 
 type Mode = "menu" | "add" | "remove" | "view";
 
@@ -53,7 +54,7 @@ export default function ProviderManagement() {
 					setMode("remove");
 					break;
 				case "back":
-					navigateTo("chat");
+					setCurrentScreen("chat");
 					break;
 			}
 		};

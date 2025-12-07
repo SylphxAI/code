@@ -3,12 +3,14 @@
  * Handles all input modes: selection, pending command, and normal input
  */
 
-import { useThemeColors, useLensClient, setCurrentScreen } from "@sylphx/code-client";
+import { useLensClient } from "@sylphx/code-client";
+import { setCurrentScreen } from "../../../ui-state.js";
 import type { FileAttachment } from "@sylphx/code-core";
 import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import { indicators } from "../../../utils/colors.js";
 import { useEffect, useRef } from "react";
+import { useThemeColors } from "../../../theme.js";
 import type { Command, WaitForInputOptions } from "../../../commands/types.js";
 import { CommandAutocomplete } from "../../../components/CommandAutocomplete.js";
 import { FileAutocomplete } from "../../../components/FileAutocomplete.js";

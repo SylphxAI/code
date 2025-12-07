@@ -4,7 +4,6 @@
  */
 
 import {
-	useThemeColors,
 	useTRPCClient,
 	useBashProcessDetails,
 	useBashProcessOutputs,
@@ -16,7 +15,7 @@ import {
 import { Box, Text, useInput } from "ink";
 import { useEffect } from "react";
 import Spinner from "../components/Spinner.js";
-import { getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../theme.js";
 
 interface BashDetailProps {
 	bashId: string;

@@ -9,11 +9,12 @@
  * - Multi-client sync: Backend events keep all clients in sync
  */
 
-import { useIsCompacting, useThemeColors } from "@sylphx/code-client";
+import { useIsCompacting } from "../../../ui-state.js";
 import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
 import Spinner from "../../../components/Spinner.js";
 import { useCurrentSession } from "../../../hooks/client/useCurrentSession.js";
+import { useThemeColors } from "../../../theme.js";
 
 export function StatusIndicator() {
 	const isCompacting = useIsCompacting();

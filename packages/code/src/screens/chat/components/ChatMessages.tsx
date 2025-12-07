@@ -6,11 +6,11 @@
  */
 
 import type { SessionMessage } from "@sylphx/code-core";
-import { useThemeColors } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import React from "react";
 import { MessageList } from "../../../components/MessageList.js";
 import { indicators } from "../../../utils/colors.js";
+import { useThemeColors } from "../../../theme.js";
 
 interface ChatMessagesProps {
 	hasSession: boolean;

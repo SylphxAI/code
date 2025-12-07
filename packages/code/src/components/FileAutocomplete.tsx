@@ -4,8 +4,8 @@
  */
 
 import { Box, Text } from "ink";
-import { useThemeColors } from "@sylphx/code-client";
 import Spinner from "./Spinner.js";
+import { useThemeColors } from "../theme.js";
 
 interface FileAutocompleteProps {
 	files: Array<{ path: string; relativePath: string; size: number }>;

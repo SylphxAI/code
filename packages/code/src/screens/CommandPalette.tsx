@@ -3,12 +3,12 @@
  * VSCode-style command palette with search and autocomplete
  */
 
-import { useThemeColors, navigateTo, useCurrentScreen } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
 import TextInput from "ink-text-input";
 import { useState } from "react";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../theme.js";
+import { setCurrentScreen, useCurrentScreen } from "../ui-state.js";
 
 interface Command {
 	label: string;
@@ -65,9 +65,9 @@ export default function CommandPalette({ onCommand }: CommandPaletteProps) {
 			process.exit(0);
 		} else if (item.value === "toggle-logs") {
 			onCommand("toggle-logs");
-			navigateTo("chat");
+			setCurrentScreen("chat");
 		} else {
-			navigateTo(item.value as any);
+			setCurrentScreen(item.value as any);
 		}
 	};
 

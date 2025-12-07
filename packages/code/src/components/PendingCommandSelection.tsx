@@ -4,10 +4,10 @@
  */
 
 import { calculateScrollViewport } from "@sylphx/code-core";
-import { useThemeColors } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import type { Command } from "../commands/types.js";
 import Spinner from "./Spinner.js";
+import { useThemeColors } from "../theme.js";
 
 interface PendingCommandSelectionProps {
 	pendingCommand: { command: Command; currentInput: string };

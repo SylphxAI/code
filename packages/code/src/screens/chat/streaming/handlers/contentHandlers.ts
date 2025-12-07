@@ -3,11 +3,11 @@
  * Handles reasoning, text, and file content streaming
  */
 
-import { getCurrentSessionId } from "@sylphx/code-client";
 import { createLogger } from "@sylphx/code-core";
 import type { StreamEvent } from "@sylphx/code-server";
 import type { EventHandlerContext } from "../types.js";
 import { updateActiveMessageContent } from "../utils.js";
+import { getCurrentSessionId } from "../../../../session-state.js";
 
 // Create debug logger
 const logContent = createLogger("subscription:content");

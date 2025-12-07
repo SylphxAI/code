@@ -3,9 +3,9 @@
  * Handlers for ask-question-start and ask-question-answered events
  */
 
-import { getCurrentSessionId } from "@sylphx/code-client";
 import type { StreamEvent } from "@sylphx/code-server";
 import type { EventHandler } from "../types.js";
+import { getCurrentSessionId } from "../../../../session-state.js";
 
 /**
  * Handle ask-question-start event

@@ -16,7 +16,8 @@
  */
 
 import { useAIConfigActions } from "../../../hooks/client/useAIConfig.js";
-import { addMessageAsync as addMessage, setCurrentSessionId, updateSessionTitle, useLensClient } from "@sylphx/code-client";
+import { addMessageAsync as addMessage, updateSessionTitle, useLensClient } from "@sylphx/code-client";
+import { setCurrentSessionId } from "../../../session-state.js";
 import { clearUserInputHandler, setUserInputHandler } from "@sylphx/code-core";
 import { useCallback, useEffect, useMemo } from "react";
 import { commands } from "../../../commands/registry.js";

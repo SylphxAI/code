@@ -6,8 +6,8 @@
  */
 
 import type { LensClient } from "@sylphx/lens-client";
-import { getCurrentSessionId } from "@sylphx/code-client";
 import type { AIConfig } from "@sylphx/code-core";
+import { getCurrentSessionId } from "../../../session-state.js";
 import type React from "react";
 import { useMemo } from "react";
 import { type EventHandlerContext, handleStreamEvent } from "../streaming/streamEventHandlers.js";

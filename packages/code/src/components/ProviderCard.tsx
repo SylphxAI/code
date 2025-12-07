@@ -4,8 +4,8 @@
  */
 
 import { AI_PROVIDERS, type ProviderId } from "@sylphx/code-core";
-import { useThemeColors } from "@sylphx/code-client";
 import { Box, Text } from "ink";
+import { useThemeColors } from "../theme.js";
 
 interface ProviderCardProps {
 	providerId: ProviderId;

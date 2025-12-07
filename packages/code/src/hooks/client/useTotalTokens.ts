@@ -11,7 +11,7 @@
  * This ensures StatusBar shows real-time token usage during AI responses.
  */
 
-import { useCurrentSession } from "@sylphx/code-client";
+import { useCurrentSessionState } from "../../session-state.js";
 
 /**
  * Get total tokens from current session (real-time)
@@ -20,6 +20,6 @@ import { useCurrentSession } from "@sylphx/code-client";
  * @returns Total tokens or 0 if no session
  */
 export function useTotalTokens(): number {
-	const currentSession = useCurrentSession();
+	const currentSession = useCurrentSessionState();
 	return currentSession?.totalTokens || 0;
 }

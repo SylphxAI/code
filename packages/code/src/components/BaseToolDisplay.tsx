@@ -11,7 +11,7 @@
 import type React from "react";
 import { Box, Text } from "ink";
 import Spinner from "./Spinner.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../theme.js";
 
 export interface BaseToolDisplayProps {
 	// Header props

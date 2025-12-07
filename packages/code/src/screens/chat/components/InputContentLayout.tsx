@@ -6,7 +6,7 @@
 
 import { Box, Text } from "ink";
 import type { ReactNode } from "react";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../../../theme.js";
 
 interface InputContentLayoutProps {
 	// Optional subtitle/description text below the header

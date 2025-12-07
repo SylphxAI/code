@@ -5,7 +5,6 @@
 
 import type { MCPServerWithId, MCPToolInfo } from "@sylphx/code-core";
 import {
-	useThemeColors,
 	useMCPServerDetailsView,
 	useMCPServerTools,
 	useMCPSelectedTools,
@@ -23,7 +22,7 @@ import { Box, Text, useInput } from "ink";
 import { useEffect } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
-import { getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../../../theme.js";
 
 interface MCPServerDetailsProps {
 	server: MCPServerWithId;

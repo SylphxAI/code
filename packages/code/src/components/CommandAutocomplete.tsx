@@ -4,9 +4,9 @@
  */
 
 import { Box, Text } from "ink";
-import { useThemeColors } from "@sylphx/code-client";
 import type { Command } from "../commands/types.js";
 import Spinner from "./Spinner.js";
+import { useThemeColors } from "../theme.js";
 
 interface CommandAutocompleteProps {
 	commands: Command[];

@@ -5,7 +5,7 @@
 
 import { Box, Text } from "ink";
 import TextInput from "ink-text-input";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors } from "../../theme.js";
 
 interface SelectionFilterInputProps {
 	value: string;

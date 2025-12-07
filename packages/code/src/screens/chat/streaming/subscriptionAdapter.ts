@@ -14,7 +14,9 @@
  */
 
 import type { LensClient } from "@sylphx/lens-client";
-import { parseUserInput, setCurrentSessionId, setStreamingExpected } from "@sylphx/code-client";
+import { parseUserInput } from "@sylphx/code-client";
+import { setCurrentSessionId } from "../../../session-state.js";
+import { setStreamingExpected } from "../../../ui-state.js";
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
 import type React from "react";

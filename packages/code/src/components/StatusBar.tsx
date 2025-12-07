@@ -8,10 +8,12 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getClient, useEnabledRuleIds, useSelectedAgentId, useThemeColors } from "@sylphx/code-client";
+import { getClient } from "@sylphx/code-client";
 import { formatTokenCount } from "@sylphx/code-core";
+import { useEnabledRuleIds, useSelectedAgentId } from "../session-state.js";
 import { Box, Spacer, Text } from "ink";
 import { getAgentById } from "../embedded-context.js";
+import { useThemeColors } from "../theme.js";
 import { useMCPStatus } from "../hooks/client/useMCPStatus.js";
 import { useModelDetails } from "../hooks/client/useModelDetails.js";
 

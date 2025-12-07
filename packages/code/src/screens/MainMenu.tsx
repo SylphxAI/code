@@ -4,10 +4,10 @@
  */
 
 import { useAIConfig } from "../hooks/client/useAIConfig.js";
-import { useThemeColors, navigateTo } from "@sylphx/code-client";
+import { setCurrentScreen } from "../ui-state.js";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors } from "../theme.js";
 
 interface MenuItem {
 	label: string;
@@ -43,13 +43,13 @@ export default function MainMenu() {
 	const handleSelect = (item: MenuItem) => {
 		switch (item.value) {
 			case "providers":
-				navigateTo("provider-management");
+				setCurrentScreen("provider");
 				break;
 			case "models":
-				navigateTo("model-selection");
+				setCurrentScreen("model");
 				break;
 			case "chat":
-				navigateTo("chat");
+				setCurrentScreen("chat");
 				break;
 			case "exit":
 				process.exit(0);

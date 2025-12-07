@@ -6,7 +6,7 @@
 import { calculateScrollViewport } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import type { SelectionOption } from "../../hooks/useSelection.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../../theme.js";
 
 interface SelectionOptionsListProps {
 	options: SelectionOption[];

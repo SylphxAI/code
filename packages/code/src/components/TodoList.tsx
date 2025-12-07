@@ -6,9 +6,10 @@
  */
 
 import { useCurrentSession } from "../hooks/client/useCurrentSession.js";
-import { getTodoColor, getTodoDisplayText, getTodoIcon, isTodoBold, isTodoDimmed, isTodoStrikethrough, useThemeColors } from "@sylphx/code-client";
+import { getTodoColor, getTodoDisplayText, getTodoIcon, isTodoBold, isTodoDimmed, isTodoStrikethrough } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import React, { useMemo } from "react";
+import { useThemeColors } from "../theme.js";
 
 const MAX_VISIBLE_LINES = 5;
 

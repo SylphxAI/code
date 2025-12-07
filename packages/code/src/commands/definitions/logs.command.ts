@@ -10,8 +10,8 @@ export const logsCommand: Command = {
 	label: "/logs",
 	description: "View debug logs",
 	execute: async (_context) => {
-		const { navigateTo } = await import("@sylphx/code-client");
-		navigateTo("logs");
+		const { setCurrentScreen } = await import("../../ui-state.js");
+		setCurrentScreen("logs");
 		return "Opening debug logs...";
 	},
 };

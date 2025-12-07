@@ -7,7 +7,7 @@ import { Box, Text } from "ink";
 import Spinner from "../../../components/Spinner.js";
 import { InlineSelection } from "../../../components/selection/index.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../../../theme.js";
 
 interface ModelSelectionProps {
 	models: Array<{ id: string; name: string }> | null;

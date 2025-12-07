@@ -4,7 +4,7 @@
  */
 
 import { Box, Text } from "ink";
-import { useThemeColors } from "@sylphx/code-client";
+import { useThemeColors } from "../theme.js";
 
 interface LogPanelProps {
 	logs: string[];

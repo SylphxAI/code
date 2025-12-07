@@ -4,7 +4,7 @@
  */
 
 import type { LensClient } from "@sylphx/lens-client";
-import { updateCurrentSession } from "@sylphx/code-client";
+import { updateCurrentSession } from "../session-state.js";
 
 /**
  * Refetch current session from server and update local state

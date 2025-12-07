@@ -6,7 +6,7 @@
  * They will be replaced with proper tRPC calls in the future.
  */
 
-import { enabledRuleIds } from "@sylphx/code-client";
+import { getEnabledRuleIds } from "./session-state.js";
 import type { Agent, Rule } from "@sylphx/code-core";
 import type { CodeServer } from "@sylphx/code-server";
 
@@ -66,8 +66,8 @@ export function getRuleById(id: string): Rule | null {
 /**
  * Get enabled rule IDs from SolidJS signals
  */
-export function getEnabledRuleIds(): string[] {
-	return enabledRuleIds();
+export function getCurrentEnabledRuleIds(): string[] {
+	return getEnabledRuleIds();
 }
 
 /**
@@ -111,7 +111,7 @@ export async function toggleRule(ruleId: string): Promise<boolean> {
 		updateSessionRules,
 		getCurrentSessionId,
 	} = require("@sylphx/code-client");
-	const currentEnabled = getEnabledRuleIds();
+	const currentEnabled = getCurrentEnabledRuleIds();
 
 	const newRuleIds = currentEnabled.includes(ruleId)
 		? currentEnabled.filter((id) => id !== ruleId) // Disable: remove from list

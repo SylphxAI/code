@@ -7,7 +7,7 @@ import type { ToolDisplayProps } from "@sylphx/code-client";
 import { useElapsedTime } from "../../hooks/client/useElapsedTime.js";
 import { Text } from "ink";
 import { BaseToolDisplay } from "../BaseToolDisplay.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../../theme.js";
 
 export function AskToolDisplay(props: ToolDisplayProps) {
 	const { status, duration, startTime, input, result, error } = props;

@@ -8,7 +8,7 @@ import { DEFAULT_TOOL_DISPLAY_SETTINGS } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
 import { useState } from "react";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../../../theme.js";
 
 interface SettingsManagementProps {
 	aiConfig: AIConfig | null;

@@ -5,7 +5,7 @@
 
 import { Box, Text } from "ink";
 import type { QueuedMessage } from "@sylphx/code-core";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../../../theme.js";
 
 interface QueuedMessagesDisplayProps {
 	queuedMessages: QueuedMessage[];

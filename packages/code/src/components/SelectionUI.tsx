@@ -4,9 +4,9 @@
  */
 
 import { calculateScrollViewport } from "@sylphx/code-core";
-import { useThemeColors } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import type { WaitForInputOptions } from "../commands/types.js";
+import { useThemeColors } from "../theme.js";
 
 interface SelectionUIProps {
 	pendingInput: WaitForInputOptions;

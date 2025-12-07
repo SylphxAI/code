@@ -5,13 +5,13 @@
 
 import type { AIConfig } from "@sylphx/code-core";
 import { useCallback } from "react";
-import { setAIConfig, setError, setLoading, useLensClient } from "@sylphx/code-client";
+import { setAIConfig, useLensClient } from "@sylphx/code-client";
+import { setError } from "../../ui-state.js";
 
 export function useAIConfig() {
 	const client = useLensClient();
 
 	const loadConfig = useCallback(async () => {
-		setLoading(true);
 		try {
 			// Lens flat namespace: client.loadConfig.fetch({})
 			const result = await client.loadConfig.fetch({}) as { success: boolean; config: AIConfig; error?: string };
@@ -26,14 +26,11 @@ export function useAIConfig() {
 		} catch (err) {
 			console.error("[useAIConfig] Load error:", err);
 			setError(err instanceof Error ? err.message : "Failed to load AI config");
-		} finally {
-			setLoading(false);
 		}
 	}, [client]);
 
 	const saveConfig = useCallback(
 		async (config: AIConfig) => {
-			setLoading(true);
 			try {
 				// Lens flat namespace: client.saveConfig.fetch({ input })
 				const result = await client.saveConfig.fetch({ input: { config } }) as { success: boolean; error?: string };
@@ -47,8 +44,6 @@ export function useAIConfig() {
 			} catch (err) {
 				setError(err instanceof Error ? err.message : "Failed to save AI config");
 				return false;
-			} finally {
-				setLoading(false);
 			}
 		},
 		[client],

@@ -3,9 +3,9 @@
  * View debug logs for troubleshooting
  */
 
-import { useThemeColors, clearDebugLogs, navigateTo, useDebugLogs } from "@sylphx/code-client";
 import { Box, Text, useInput } from "ink";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../theme.js";
+import { clearDebugLogs, setCurrentScreen, useDebugLogs } from "../ui-state.js";
 
 export default function Logs() {
 	const debugLogs = useDebugLogs();
@@ -14,7 +14,7 @@ export default function Logs() {
 	// Keyboard shortcuts
 	useInput((input, key) => {
 		if (key.escape) {
-			navigateTo("chat");
+			setCurrentScreen("chat");
 			return;
 		}
 		if (input === "c" || input === "C") {

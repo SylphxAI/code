@@ -4,7 +4,6 @@
  */
 
 import {
-	useThemeColors,
 	useTRPCClient,
 	useBashProcesses,
 	useBashProcessesLoading,
@@ -17,7 +16,7 @@ import { useEffect, useMemo, useRef } from "react";
 import Spinner from "../components/Spinner.js";
 import { SelectionOptionsList } from "../components/selection/SelectionOptionsList.js";
 import { useSelection, type SelectionOption } from "../hooks/useSelection.js";
-import { getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../theme.js";
 
 interface BashListProps {
 	onClose: () => void;

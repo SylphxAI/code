@@ -12,7 +12,9 @@
  */
 
 import { useEffect, useRef } from "react";
-import { getClient, setError, useCurrentSessionId } from "@sylphx/code-client";
+import { getClient } from "@sylphx/code-client";
+import { useCurrentSessionId } from "../../session-state.js";
+import { setError } from "../../ui-state.js";
 
 export interface EventStreamCallbacks {
 	// Session events

@@ -8,10 +8,11 @@
  * - Optimized key handlers to return early when possible
  */
 
-import { renderTextWithTags, useThemeColors } from "@sylphx/code-client";
+import { renderTextWithTags } from "@sylphx/code-client";
 import { Box, Text, useInput, useStdout } from "ink";
 import React, { useCallback, useRef } from "react";
 import * as Cursor from "../utils/cursor-ops.js";
+import { useThemeColors } from "../theme.js";
 import * as TextOps from "../utils/text-ops.js";
 import * as Wrapping from "../utils/wrapping-ops.js";
 

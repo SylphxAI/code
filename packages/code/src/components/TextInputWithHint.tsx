@@ -7,8 +7,8 @@
 
 import { Box, Text } from "ink";
 import React, { useCallback, useState } from "react";
-import { useThemeColors } from "@sylphx/code-client";
 import ControlledTextInput from "./ControlledTextInput.js";
+import { useThemeColors } from "../theme.js";
 
 interface TextInputWithHintProps {
 	value: string;

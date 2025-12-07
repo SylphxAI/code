@@ -3,14 +3,14 @@
  * Shows real-time streaming bash output during tool execution
  */
 
-import { useThemeColors, useTRPCClient } from "@sylphx/code-client";
+import { useTRPCClient } from "@sylphx/code-client";
 import type { ToolDisplayProps } from "@sylphx/code-client";
 import { truncateString, getRelativePath } from "@sylphx/code-core";
 import { Text } from "ink";
 import { useEffect, useRef, useState } from "react";
 import { useElapsedTime } from "../../hooks/client/useElapsedTime.js";
 import { BaseToolDisplay } from "../BaseToolDisplay.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../../theme.js";
 
 export function BashToolDisplay(props: ToolDisplayProps) {
 	const { name, status, duration, startTime, input, result } = props;

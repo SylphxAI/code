@@ -3,16 +3,17 @@
  * Tests event handling logic without full integration
  */
 
-import { currentSession as currentSessionSignal, currentSessionId, $messages } from "@sylphx/code-client";
+import { $messages } from "@sylphx/code-client";
 import type { StreamEvent } from "@sylphx/code-server";
 import { get, set } from "@sylphx/zen";
 import { beforeEach, describe, expect, it } from "vitest";
+import { setCurrentSession, setCurrentSessionId, getCurrentSession } from "../session-state.js";
 
 describe("Subscription Adapter", () => {
 	beforeEach(() => {
 		// Reset signals before each test
-		set(currentSessionId, null);
-		set(currentSessionSignal, null);
+		setCurrentSessionId(null);
+		setCurrentSession(null);
 		set($messages, []);
 	});
 
@@ -25,8 +26,8 @@ describe("Subscription Adapter", () => {
 		};
 
 		// Simulate session-created handling
-		set(currentSessionId, event.sessionId);
-		set(currentSessionSignal, {
+		setCurrentSessionId(event.sessionId);
+		setCurrentSession({
 			id: event.sessionId,
 			provider: event.provider,
 			model: event.model,
@@ -37,11 +38,10 @@ describe("Subscription Adapter", () => {
 			nextTodoId: 1,
 			created: Date.now(),
 			updated: Date.now(),
-		});
+		} as any);
 
 		// Check state
-		expect(get(currentSessionId)).toBe("test-session-123");
-		const currentSession = currentSessionSignal();
+		const currentSession = getCurrentSession();
 		expect(currentSession).toBeTruthy();
 		expect(currentSession?.id).toBe("test-session-123");
 		expect(currentSession?.provider).toBe("openrouter");
@@ -50,7 +50,7 @@ describe("Subscription Adapter", () => {
 
 	it("should add assistant message on assistant-message-created event", () => {
 		// Setup: Create a session first
-		set(currentSessionId, "test-session");
+		setCurrentSessionId("test-session");
 		const testSession = {
 			id: "test-session",
 			provider: "openrouter",
@@ -63,7 +63,7 @@ describe("Subscription Adapter", () => {
 			created: Date.now(),
 			updated: Date.now(),
 		};
-		set(currentSessionSignal, testSession);
+		setCurrentSession(testSession as any);
 
 		const _event: StreamEvent = {
 			type: "assistant-message-created",
@@ -71,9 +71,9 @@ describe("Subscription Adapter", () => {
 		};
 
 		// Simulate assistant-message-created handling
-		const currentSession = currentSessionSignal();
+		const currentSession = getCurrentSession();
 		if (currentSession && currentSession.id === "test-session") {
-			set(currentSessionSignal, {
+			setCurrentSession({
 				...currentSession,
 				messages: [
 					...currentSession.messages,
@@ -83,12 +83,12 @@ describe("Subscription Adapter", () => {
 						timestamp: Date.now(),
 						status: "active",
 					},
-				],
-			});
+				] as any,
+			} as any);
 		}
 
 		// Check state
-		const updatedSession = currentSessionSignal();
+		const updatedSession = getCurrentSession();
 		expect(updatedSession?.messages).toHaveLength(1);
 		expect(updatedSession?.messages[0].role).toBe("assistant");
 		expect(updatedSession?.messages[0].status).toBe("active");
@@ -115,17 +115,17 @@ describe("Subscription Adapter", () => {
 			created: Date.now(),
 			updated: Date.now(),
 		};
-		set(currentSessionId, "test-session");
-		set(currentSessionSignal, testSessionWithMessage);
+		setCurrentSessionId("test-session");
+		setCurrentSession(testSessionWithMessage as any);
 
 		// Simulate reasoning-start handling
-		const currentSession = currentSessionSignal();
+		const currentSession = getCurrentSession();
 		if (currentSession) {
-			const activeMessage = currentSession.messages.find((m) => m.status === "active");
+			const activeMessage = currentSession.messages.find((m: any) => m.status === "active");
 			if (activeMessage) {
-				set(currentSessionSignal, {
+				setCurrentSession({
 					...currentSession,
-					messages: currentSession.messages.map((msg) =>
+					messages: currentSession.messages.map((msg: any) =>
 						msg.status === "active"
 							? {
 									...msg,
@@ -141,12 +141,12 @@ describe("Subscription Adapter", () => {
 								}
 							: msg,
 					),
-				});
+				} as any);
 			}
 		}
 
 		// Check state
-		const updatedSession = currentSessionSignal();
+		const updatedSession = getCurrentSession();
 		expect(updatedSession?.messages[0].content).toHaveLength(1);
 		expect(updatedSession?.messages[0].content[0].type).toBe("reasoning");
 		expect(updatedSession?.messages[0].content[0].status).toBe("active");
@@ -180,23 +180,23 @@ describe("Subscription Adapter", () => {
 			created: Date.now(),
 			updated: Date.now(),
 		};
-		set(currentSessionId, "test-session");
-		set(currentSessionSignal, testSessionWithReasoning);
+		setCurrentSessionId("test-session");
+		setCurrentSession(testSessionWithReasoning as any);
 
 		// Simulate reasoning-delta handling
 		const deltaText = "thought";
 
-		const currentSession = currentSessionSignal();
+		const currentSession = getCurrentSession();
 		if (currentSession) {
-			const activeMessage = currentSession.messages.find((m) => m.status === "active");
+			const activeMessage = currentSession.messages.find((m: any) => m.status === "active");
 			if (activeMessage) {
-				set(currentSessionSignal, {
+				setCurrentSession({
 					...currentSession,
-					messages: currentSession.messages.map((msg) =>
+					messages: currentSession.messages.map((msg: any) =>
 						msg.status === "active"
 							? {
 									...msg,
-									content: msg.content.map((part, index) =>
+									content: msg.content.map((part: any, index: number) =>
 										index === msg.content.length - 1 && part.type === "reasoning"
 											? { ...part, content: part.content + deltaText }
 											: part,
@@ -204,12 +204,12 @@ describe("Subscription Adapter", () => {
 								}
 							: msg,
 					),
-				});
+				} as any);
 			}
 		}
 
 		// Check state
-		const updatedSession = currentSessionSignal();
+		const updatedSession = getCurrentSession();
 		expect(updatedSession?.messages[0].content[0].content).toBe("Initial thought");
 	});
 
@@ -242,29 +242,29 @@ describe("Subscription Adapter", () => {
 			created: Date.now(),
 			updated: Date.now(),
 		};
-		set(currentSessionId, "test-session");
-		set(currentSessionSignal, testSessionForEnd);
+		setCurrentSessionId("test-session");
+		setCurrentSession(testSessionForEnd as any);
 
 		// Simulate reasoning-end handling
 		const endTime = Date.now();
 
-		const currentSession = currentSessionSignal();
+		const currentSession = getCurrentSession();
 		if (currentSession) {
-			const activeMessage = currentSession.messages.find((m) => m.status === "active");
+			const activeMessage = currentSession.messages.find((m: any) => m.status === "active");
 			if (activeMessage) {
 				const lastReasoningIndex = activeMessage.content
-					.map((p, i) => ({ p, i }))
+					.map((p: any, i: number) => ({ p, i }))
 					.reverse()
-					.find(({ p }) => p.type === "reasoning" && p.status === "active")?.i;
+					.find(({ p }: any) => p.type === "reasoning" && p.status === "active")?.i;
 
 				if (lastReasoningIndex !== undefined) {
-					set(currentSessionSignal, {
+					setCurrentSession({
 						...currentSession,
-						messages: currentSession.messages.map((msg) =>
+						messages: currentSession.messages.map((msg: any) =>
 							msg.status === "active"
 								? {
 										...msg,
-										content: msg.content.map((part, index) =>
+										content: msg.content.map((part: any, index: number) =>
 											index === lastReasoningIndex &&
 											part.type === "reasoning" &&
 											part.status === "active"
@@ -279,13 +279,13 @@ describe("Subscription Adapter", () => {
 									}
 								: msg,
 						),
-					});
+					} as any);
 				}
 			}
 		}
 
 		// Check state
-		const updatedSession = currentSessionSignal();
+		const updatedSession = getCurrentSession();
 		const reasoning = updatedSession?.messages[0].content[0];
 		expect(reasoning?.status).toBe("completed");
 		expect(reasoning?.type).toBe("reasoning");

@@ -9,7 +9,7 @@ import { type SelectionOption, useSelection } from "../../hooks/useSelection.js"
 import { InputContentLayout } from "../../screens/chat/components/InputContentLayout.js";
 import { SelectionFilterInput } from "./SelectionFilterInput.js";
 import { SelectionOptionsList } from "./SelectionOptionsList.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../../theme.js";
 
 interface InlineSelectionProps {
 	options: SelectionOption[];

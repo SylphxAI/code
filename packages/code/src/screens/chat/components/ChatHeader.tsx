@@ -4,7 +4,7 @@
  */
 
 import { Box, Text } from "ink";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../../../theme.js";
 
 interface ChatHeaderProps {
 	currentSessionTitle?: string;

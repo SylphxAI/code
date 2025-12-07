@@ -9,7 +9,7 @@ import { getToolComponent } from "../utils/tool-configs.js";
 import { Text } from "ink";
 import React from "react";
 import { BaseToolDisplay } from "./BaseToolDisplay.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../theme.js";
 
 /**
  * Fallback display for unregistered tools (e.g., MCP tools)

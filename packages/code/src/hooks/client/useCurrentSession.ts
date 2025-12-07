@@ -17,7 +17,8 @@
  * - refetch() when needed
  */
 
-import { useLensClient, useCurrentSessionId } from "@sylphx/code-client";
+import { useLensClient } from "@sylphx/code-client";
+import { useCurrentSessionId } from "../../session-state.js";
 
 export function useCurrentSession() {
 	const client = useLensClient();
@@ -64,6 +65,6 @@ export function useCurrentSession() {
 }
 
 /**
- * Re-export useCurrentSessionId from code-client for convenience
+ * Re-export useCurrentSessionId from session-state for convenience
  */
-export { useCurrentSessionId } from "@sylphx/code-client";
+export { useCurrentSessionId } from "../../session-state.js";

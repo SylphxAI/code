@@ -4,7 +4,7 @@
  */
 
 import { Box, Text, useInput } from "ink";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../../../theme.js";
 
 interface ContextDisplayProps {
 	output: string;

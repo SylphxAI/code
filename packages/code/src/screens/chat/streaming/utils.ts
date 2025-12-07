@@ -3,9 +3,9 @@
  * Shared helper functions used across all event handlers
  */
 
-import { currentSession, setCurrentSession } from "@sylphx/code-client";
 import type { MessagePart } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
+import { getCurrentSession, setCurrentSession } from "../../../session-state.js";
 
 const logContent = createLogger("subscription:content");
 
@@ -27,7 +27,7 @@ export function updateActiveMessageContent(
 	updater: (prev: MessagePart[]) => MessagePart[],
 	skipIfCompleted = false,
 ) {
-	const session = currentSession.value;
+	const session = getCurrentSession();
 
 	if (!session || session.id !== currentSessionId) {
 		logContent("Session mismatch! expected:", currentSessionId, "got:", session?.id);

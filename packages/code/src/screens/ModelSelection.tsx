@@ -6,13 +6,15 @@
 import { useAIConfig, useAIConfigActions } from "../hooks/client/useAIConfig.js";
 import { useModels } from "../hooks/client/useModels.js";
 import { useProviders } from "../hooks/client/useProviders.js";
-import { useThemeColors, navigateTo, setError, setSelectedModel, setSelectedProvider, updateProvider, useSelectedModel, useSelectedProvider } from "@sylphx/code-client";
+import { updateProvider } from "@sylphx/code-client";
+import { setSelectedModel, setSelectedProvider, useSelectedModel, useSelectedProvider } from "../session-state.js";
+import { setCurrentScreen, setError } from "../ui-state.js";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
 import TextInput from "ink-text-input";
 import { useEffect, useState } from "react";
 import Spinner from "../components/Spinner.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../theme.js";
 
 type Mode = "provider" | "model" | "search";
 
@@ -96,7 +98,7 @@ export default function ModelSelection() {
 			await setSelectedProvider(null);
 			setSearchQuery("");
 			setMode("provider");
-			navigateTo("chat");
+			setCurrentScreen("chat");
 		}
 	};
 
@@ -136,7 +138,7 @@ export default function ModelSelection() {
 
 		const handleSelect = async (item: MenuItem) => {
 			if (item.value === "back") {
-				navigateTo("chat");
+				setCurrentScreen("chat");
 			} else {
 				await setSelectedProvider(item.value);
 				setMode("model");
@@ -225,7 +227,7 @@ export default function ModelSelection() {
 			await setSelectedProvider(null);
 			setSearchQuery("");
 			setMode("provider");
-			navigateTo("chat");
+			setCurrentScreen("chat");
 		};
 
 		return (

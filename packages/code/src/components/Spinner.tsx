@@ -5,7 +5,7 @@
 
 import { Text } from "ink";
 import { useEffect, useState } from "react";
-import { useThemeColors } from "@sylphx/code-client";
+import { useThemeColors } from "../theme.js";
 
 const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 

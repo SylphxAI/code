@@ -3,10 +3,10 @@
  * Handles tool call lifecycle including input streaming
  */
 
-import { getCurrentSessionId } from "@sylphx/code-client";
 import type { StreamEvent } from "@sylphx/code-server";
 import type { EventHandlerContext } from "../types.js";
 import { updateActiveMessageContent } from "../utils.js";
+import { getCurrentSessionId } from "../../../../session-state.js";
 
 // ============================================================================
 // Tool Events

@@ -5,22 +5,21 @@
 
 import { useAIConfigActions } from "./hooks/client/useAIConfig.js";
 import { useSessionPersistence } from "./hooks/client/useSessionPersistence.js";
+import { useTRPCClient } from "@sylphx/code-client";
 import {
-	useThemeColors,
 	setError,
 	setCurrentScreen,
 	useCurrentScreen,
 	useIsLoading,
 	useUIError,
-	useTRPCClient,
 	useCommandPaletteCommand,
 	setCommandPaletteCommand as setCommandPaletteCommandSignal,
 	useSelectedBashId,
 	setSelectedBashId as setSelectedBashIdSignal,
-} from "@sylphx/code-client";
+} from "./ui-state.js";
 import { Box, Text, useInput } from "ink";
 import { useEffect } from "react";
-import { getColors } from "@sylphx/code-client";
+import { useThemeColors } from "./theme.js";
 import Chat from "./screens/Chat.js";
 import CommandPalette from "./screens/CommandPalette.js";
 import Logs from "./screens/Logs.js";

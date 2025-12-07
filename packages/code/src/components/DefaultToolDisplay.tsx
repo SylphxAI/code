@@ -11,7 +11,7 @@ import dJSON from "dirty-json";
 import { Text } from "ink";
 import type React from "react";
 import { BaseToolDisplay } from "./BaseToolDisplay.js";
-import { useThemeColors, getColors } from "@sylphx/code-client";
+import { useThemeColors, getColors } from "../theme.js";
 
 /**
  * Parse partial/dirty JSON into an object with best-effort parsing
