@@ -2,23 +2,43 @@
  * Lens Provider for code-client
  * Provides type-safe Lens client to all React components via Context
  *
- * Uses the new @lens/client package with transport-based architecture
+ * Uses the new @sylphx/lens-react 2.2.0 tRPC-style API
+ *
+ * Architecture:
+ * - LensProvider initializes both raw and typed clients
+ * - Raw client (lens-client) is used for mutations and direct queries
+ * - Typed client (lens-react) provides React hooks with tRPC-style API
+ * - Global clients are initialized synchronously for immediate availability
+ *
+ * Note: The typedClientFactory prop is required because bun monorepo workspaces
+ * can't resolve @sylphx/lens-react from code-client's context. The consuming
+ * package (packages/code) imports createClient and passes it here.
  */
 
 import {
-	createClient,
+	createClient as createRawClient,
 	inProcess,
 	http,
 	type LensClient,
 	type LensServerInterface,
 	type Transport,
 } from "@sylphx/lens-client";
-import { createContext, type ReactNode, useContext, useMemo, useEffect } from "react";
+import type { LensRouter as AppRouter } from "@sylphx/code-server";
+import React, { type ReactNode, useMemo, createContext, useContext } from "react";
+import { _initGlobalClient, _initTypedClient } from "./lens-client.js";
 
 /**
- * React Context for Lens client
+ * Type for createClient factory from @sylphx/lens-react
  */
-const LensContext = createContext<LensClient<any, any> | null>(null);
+export type TypedClientFactory = <TRouter>(options: { transport: Transport }) => any;
+
+/**
+ * Type for LensProvider component from @sylphx/lens-react (legacy)
+ */
+export type LensReactProviderType = React.ComponentType<{
+	client: LensClient<any, any>;
+	children: ReactNode;
+}>;
 
 /**
  * Provider props
@@ -30,8 +50,21 @@ export interface LensProviderProps {
 	server?: LensServerInterface;
 	/** Pre-configured transport */
 	transport?: Transport;
+	/**
+	 * Factory function to create typed client (from @sylphx/lens-react createClient)
+	 * Required for tRPC-style hooks to work
+	 */
+	typedClientFactory?: TypedClientFactory;
+	/**
+	 * LensProvider component from @sylphx/lens-react (legacy)
+	 * Required for backward compatibility with useQuery/useMutation hooks
+	 */
+	LensReactProvider?: LensReactProviderType;
 	children: ReactNode;
 }
+
+// Context for the raw client (used by legacy useLensClient hook)
+const LensClientContext = createContext<LensClient<any, any> | null>(null);
 
 /**
  * LensProvider - Provides Lens client to React tree
@@ -41,9 +74,11 @@ export function LensProvider({
 	serverUrl,
 	server,
 	transport: providedTransport,
+	typedClientFactory,
+	LensReactProvider,
 	children,
 }: LensProviderProps) {
-	const client = useMemo(() => {
+	const rawClient = useMemo(() => {
 		// Determine which transport to use
 		let transport: Transport;
 
@@ -52,7 +87,7 @@ export function LensProvider({
 			transport = providedTransport;
 		} else if (server) {
 			// TUI mode: in-process communication with Lens server
-			transport = inProcess({ server });
+			transport = inProcess({ app: server });
 		} else if (serverUrl) {
 			// Web mode: HTTP communication
 			transport = http({ url: serverUrl });
@@ -62,51 +97,67 @@ export function LensProvider({
 			);
 		}
 
-		const newClient = createClient({ transport });
+		// Create raw client for non-React code
+		const rawClient = createRawClient({ transport });
 
-		// Initialize global client SYNCHRONOUSLY before first render
-		// This ensures getLensClient() works in child components' render phase
-		_initGlobalClient(newClient);
+		// Initialize global raw client SYNCHRONOUSLY before first render
+		_initGlobalClient(rawClient);
 
-		// Also initialize lens-client-global for framework-agnostic access
-		try {
-			const { _initGlobalLensClient } = require("./lens-client-global.js");
-			_initGlobalLensClient(newClient);
-		} catch {
-			// Ignore if lens-client-global is not available
+		// Create and initialize typed client for React hooks
+		// This must happen synchronously before children render
+		if (typedClientFactory) {
+			const typedClient = typedClientFactory<AppRouter>({ transport });
+			_initTypedClient(typedClient);
+		} else {
+			console.warn("typedClientFactory not provided - typed client unavailable. Pass createClient from @sylphx/lens-react.");
 		}
 
-		return newClient;
-	}, [serverUrl, server, providedTransport]);
+		return rawClient;
+	}, [serverUrl, server, providedTransport, typedClientFactory]);
 
-	return (
-		<LensContext.Provider value={client}>{children}</LensContext.Provider>
+	// Wrap with lens-react's LensProvider for legacy useQuery/useMutation hooks
+	const content = (
+		<LensClientContext.Provider value={rawClient}>
+			{children}
+		</LensClientContext.Provider>
 	);
-}
 
-/**
- * Hook to access Lens client
- * Must be used within LensProvider
- */
-export function useLensClient(): LensClient<any, any> {
-	const client = useContext(LensContext);
-
-	if (!client) {
-		throw new Error(
-			"useLensClient must be used within LensProvider. " +
-				"Wrap your app with <LensProvider serverUrl='...' />",
+	// If LensReactProvider is provided, wrap with it for backward compatibility
+	if (LensReactProvider) {
+		return (
+			<LensReactProvider client={rawClient}>
+				{content}
+			</LensReactProvider>
 		);
 	}
 
+	return content;
+}
+
+/**
+ * Hook to get raw Lens client (for backward compatibility)
+ */
+export function useLensClientFromContext(): LensClient<any, any> {
+	const client = useContext(LensClientContext);
+	if (!client) {
+		throw new Error(
+			"useLensClient must be used within a <LensProvider>. " +
+			"Make sure to wrap your app with <LensProvider>."
+		);
+	}
 	return client;
 }
+
+// ============================================================================
+// Helper functions for creating clients
+// ============================================================================
 
 /**
  * Helper: Create in-process Lens client
  * Zero-overhead communication for embedded server
  */
 export function createInProcessClient(server: LensServerInterface): LensClient<any, any> {
-	return createClient({
+	return createRawClient({
 		transport: inProcess({ server }),
 	});
 }
@@ -116,43 +167,15 @@ export function createInProcessClient(server: LensServerInterface): LensClient<a
  * For web browser connections
  */
 export function createHttpClient(serverUrl: string): LensClient<any, any> {
-	return createClient({
+	return createRawClient({
 		transport: http({ url: serverUrl }),
 	});
 }
 
-// ============================================================================
-// Internal: Global Client for Non-React Code
-// ============================================================================
-// Zustand stores and utility functions cannot use React hooks,
-// so they need global client access.
-// Uses globalThis to ensure single instance across all module duplicates.
+// Re-export _initGlobalClient for external use
+export { _initGlobalClient } from "./lens-client.js";
 
-// Use Symbol to ensure unique key even if module is duplicated
-const GLOBAL_CLIENT_KEY = "__lensClient__" as const;
+// Re-export getLensClient for backward compatibility
+export { getLensClient } from "./lens-client.js";
 
-/**
- * Initialize global client
- * Called automatically by LensProvider
- * Uses globalThis to avoid module duplication issues
- * @internal
- */
-export function _initGlobalClient(client: LensClient<any, any> | null) {
-	if (client) {
-		(globalThis as any)[GLOBAL_CLIENT_KEY] = client;
-	}
-}
-
-/**
- * Get Lens client for non-React code
- * @internal DO NOT USE in React components - use useLensClient() hook
- */
-export function getLensClient(): LensClient<any, any> {
-	const client = (globalThis as any)[GLOBAL_CLIENT_KEY];
-	if (!client) {
-		throw new Error(
-			"Lens client not initialized. Ensure LensProvider wraps your app.",
-		);
-	}
-	return client;
-}
+// Note: useLensClient is now exported from @sylphx/lens-react via index.ts
