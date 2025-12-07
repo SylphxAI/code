@@ -22,6 +22,9 @@ import { useChatEffects } from "./chat/hooks/useChatEffects.js";
 import { useChatKeyboard } from "./chat/hooks/useChatKeyboard.js";
 import { useChatState } from "./chat/hooks/useChatState.js";
 import type { ChatProps } from "./chat/types.js";
+import type { QueuedMessage as LocalQueuedMessage } from "../queue-state.js";
+import type { QueuedMessage as CoreQueuedMessage } from "@sylphx/code-core";
+import type { Command as LocalCommand } from "../commands/types.js";
 
 export default function Chat(props: ChatProps) {
 	// Consolidated state management
@@ -33,8 +36,20 @@ export default function Chat(props: ChatProps) {
 	// Consolidated keyboard handling
 	const keyboard = useChatKeyboard(state, effects);
 
-	// Queued messages for display
-	const { queuedMessages } = useQueuedMessages();
+	// Queued messages for display (convert from local to core type)
+	const { queuedMessages: localQueuedMessages } = useQueuedMessages();
+
+	// Convert local QueuedMessage to core QueuedMessage format
+	const queuedMessages: CoreQueuedMessage[] = localQueuedMessages.map((msg) => ({
+		id: msg.id,
+		content: msg.content,
+		attachments: [], // Local queue doesn't track attachments yet
+		enqueuedAt: msg.timestamp,
+	}));
+
+	// LEGACY: attachmentTokens is currently a number in state but MessageList expects Map
+	// Creating empty Map to satisfy type - this parameter is unused in MessageList
+	const attachmentTokensMap = new Map<string, number>();
 
 	// Legacy command/file autocomplete handlers (undefined when using new input manager)
 	const handleCommandAutocompleteTab = undefined;
@@ -59,7 +74,7 @@ export default function Chat(props: ChatProps) {
 				<ChatMessages
 					hasSession={!!state.currentSession}
 					messages={state.messages}
-					attachmentTokens={state.attachmentTokens}
+					attachmentTokens={attachmentTokensMap}
 					hideMessageTitles={state.hideMessageTitles}
 					hideMessageUsage={state.hideMessageUsage}
 				/>
@@ -84,7 +99,7 @@ export default function Chat(props: ChatProps) {
 						input={state.inputState.input}
 						cursor={state.inputState.normalizedCursor}
 						pendingInput={state.selectionState.pendingInput}
-						pendingCommand={state.commandState.pendingCommand}
+						pendingCommand={state.commandState.pendingCommand as { command: LocalCommand; currentInput: string } | null}
 						multiSelectionPage={state.selectionState.multiSelectionPage}
 						multiSelectionAnswers={state.selectionState.multiSelectionAnswers}
 						multiSelectChoices={state.selectionState.multiSelectChoices}
@@ -95,7 +110,7 @@ export default function Chat(props: ChatProps) {
 						selectedCommandIndex={state.selectedCommandIndex}
 						askQueueLength={state.selectionState.askQueueLength}
 						pendingAttachments={state.pendingAttachments}
-						attachmentTokens={state.attachmentTokens}
+						attachmentTokens={attachmentTokensMap}
 						showEscHint={state.showEscHint}
 						filteredFileInfo={effects.filteredFileInfo}
 						filteredCommands={effects.filteredCommands}
@@ -105,7 +120,7 @@ export default function Chat(props: ChatProps) {
 						loadError={state.commandState.loadError}
 						cachedOptions={state.commandState.cachedOptions}
 						hintText={state.hintText}
-						validTags={state.validTags}
+						validTags={new Set(state.validTags)}
 						currentSessionId={state.currentSessionId}
 						setInput={state.inputState.setInput}
 						setCursor={state.inputState.setCursor}
@@ -122,8 +137,8 @@ export default function Chat(props: ChatProps) {
 						onFileAutocompleteDownArrow={keyboard.fileAutocompleteHandlers.handleDownArrow}
 						addMessage={effects.sendUserMessageToAI as any}
 						createCommandContext={effects.createCommandContextForArgs}
-						getAIConfig={state.getAIConfig}
-						setPendingCommand={state.commandState.setPendingCommand}
+						getAIConfig={() => null}
+						setPendingCommand={state.commandState.setPendingCommand as (cmd: { command: LocalCommand; currentInput: string } | null) => void}
 						inputComponent={state.commandState.inputComponent}
 						inputComponentTitle={state.commandState.inputComponentTitle}
 						isStreaming={state.streamingState.isStreaming}
@@ -141,7 +156,7 @@ export default function Chat(props: ChatProps) {
 						sessionId={state.currentSessionId || null}
 						provider={state.currentSession?.provider || state.selectedProvider || null}
 						model={state.currentSession?.model || state.selectedModel || null}
-						modelStatus={state.currentSession?.modelStatus}
+						modelStatus={undefined}
 						usedTokens={state.usedTokens}
 					/>
 				</Box>

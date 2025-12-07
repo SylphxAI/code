@@ -606,7 +606,7 @@ export class SelectionModeHandler extends BaseInputHandler {
 			setMultiSelectChoices(new Set()); // Clear choices for next question
 
 			// Check if all questions are answered
-			const allAnswered = questions.every((q) => newAnswers[q.id]);
+			const allAnswered = questions.every((q: { id: string }) => newAnswers[q.id]);
 
 			if (allAnswered) {
 				// All answered: auto-submit
@@ -621,7 +621,7 @@ export class SelectionModeHandler extends BaseInputHandler {
 			} else {
 				// Move to next unanswered question
 				const nextUnanswered = questions.findIndex(
-					(q, idx) => idx > multiSelectionPage && !newAnswers[q.id],
+					(q: { id: string }, idx) => idx > multiSelectionPage && !newAnswers[q.id],
 				);
 				if (nextUnanswered !== -1) {
 					setMultiSelectionPage(nextUnanswered);

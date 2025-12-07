@@ -198,7 +198,7 @@ export const mcpCommand: Command = {
 				return;
 			}
 
-			const connectResult = await mcpManager.connect(server);
+			const connectResult = await mcpManager.connect({ ...server, id: serverId });
 			if (!connectResult.success) {
 				await context.sendMessage(`❌ Failed to connect to server: ${connectResult.error.message}`);
 				return;
