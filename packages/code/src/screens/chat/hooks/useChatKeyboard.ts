@@ -82,7 +82,7 @@ export function useChatKeyboard(state: ChatState, effects: ChatEffects) {
 		setPendingInput: state.selectionState.setPendingInput,
 		addLog: state.addLog,
 		addMessage: effects.sendUserMessageToAI as any,
-		getAIConfig: () => null, // TODO: Fix - state.getAIConfig() returns hook actions, not config
+		getAIConfig: state.getAIConfig,
 		setCurrentSessionId: () => {},
 		// Pending command mode
 		pendingCommand: state.commandState.pendingCommand,

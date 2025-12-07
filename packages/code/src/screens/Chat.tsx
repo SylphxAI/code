@@ -137,7 +137,7 @@ export default function Chat(props: ChatProps) {
 						onFileAutocompleteDownArrow={keyboard.fileAutocompleteHandlers.handleDownArrow}
 						addMessage={effects.sendUserMessageToAI as any}
 						createCommandContext={effects.createCommandContextForArgs}
-						getAIConfig={() => null}
+						getAIConfig={state.getAIConfig}
 						setPendingCommand={state.commandState.setPendingCommand as (cmd: { command: LocalCommand; currentInput: string } | null) => void}
 						inputComponent={state.commandState.inputComponent}
 						inputComponentTitle={state.commandState.inputComponentTitle}
