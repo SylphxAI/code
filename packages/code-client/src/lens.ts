@@ -138,6 +138,7 @@ export interface CodeClient {
 	sendMessage: MutationEndpoint<SendMessageInput, SendMessageResult>;
 	abortStream: MutationEndpoint<{ sessionId: string }, { success: boolean }>;
 	triggerStream: MutationEndpoint<TriggerStreamInput, TriggerStreamResult>;
+	addSystemMessage: MutationEndpoint<AddSystemMessageInput, AddSystemMessageResult>;
 
 	// Todo Mutations
 	createTodo: MutationEndpoint<CreateTodoInput, Todo>;
@@ -355,6 +356,19 @@ export interface TriggerStreamResult {
 	success: boolean;
 	sessionId: string;
 	queued?: boolean;
+}
+
+export interface AddSystemMessageInput {
+	sessionId?: string | null;
+	role: "user" | "assistant" | "system";
+	content: string;
+	provider?: string;
+	model?: string;
+}
+
+export interface AddSystemMessageResult {
+	sessionId: string;
+	messageId: string;
 }
 
 export interface CreateTodoInput {

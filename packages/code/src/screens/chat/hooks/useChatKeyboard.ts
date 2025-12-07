@@ -5,6 +5,7 @@
 
 import { useQueuedMessages } from "../../../hooks/client/useQueuedMessages.js";
 import { removeFromQueue } from "../../../queue-state.js";
+import { setCurrentSessionId } from "../../../session-state.js";
 import { useCallback } from "react";
 import { DEBUG_INPUT_MANAGER, USE_NEW_INPUT_MANAGER } from "../../../config/features.js";
 import {
@@ -83,7 +84,7 @@ export function useChatKeyboard(state: ChatState, effects: ChatEffects) {
 		addLog: state.addLog,
 		addMessage: effects.sendUserMessageToAI as any,
 		getAIConfig: state.getAIConfig,
-		setCurrentSessionId: () => {},
+		setCurrentSessionId,
 		// Pending command mode
 		pendingCommand: state.commandState.pendingCommand,
 		cachedOptions: state.commandState.cachedOptions,

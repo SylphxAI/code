@@ -108,7 +108,7 @@ export const getMessage = query()
 	});
 
 /**
- * List messages for a session
+ * List messages for a session with nested steps and parts
  */
 export const listMessages = query()
 	.input(
@@ -117,12 +117,42 @@ export const listMessages = query()
 			limit: z.number().optional(),
 		}),
 	)
-	.returns([Message])
+	.returns(z.array(z.object({
+		id: z.string(),
+		sessionId: z.string(),
+		role: z.string(),
+		timestamp: z.number(),
+		ordering: z.number(),
+		status: z.string(),
+		steps: z.array(z.object({
+			id: z.string(),
+			messageId: z.string(),
+			stepIndex: z.number(),
+			status: z.string(),
+			parts: z.array(z.object({
+				id: z.string(),
+				stepId: z.string(),
+				ordering: z.number(),
+				type: z.string(),
+				content: z.unknown(),
+			})),
+		})),
+	})))
 	.resolve(async ({ input, ctx }: { input: { sessionId: string; limit?: number }; ctx: LensContext }) => {
 		return ctx.db.message.findMany({
 			where: { sessionId: input.sessionId },
 			orderBy: { ordering: "asc" },
 			take: input.limit,
+			include: {
+				steps: {
+					orderBy: { stepIndex: "asc" },
+					include: {
+						parts: {
+							orderBy: { ordering: "asc" },
+						},
+					},
+				},
+			},
 		});
 	});
 
