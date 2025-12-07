@@ -40,12 +40,10 @@
 			"@sylphx/flow-mcp": ["./packages/flow-mcp/src"],
 			"@sylphx/lens-core": ["../lens/packages/core/src"],
 			"@sylphx/lens-client": ["../lens/packages/client/src"],
-			"@sylphx/lens-react": ["../lens/packages/react/src"],
 			"@sylphx/lens-server": ["../lens/packages/server/src"],
 			"@sylphx/lens": ["../lens/packages/lens/src"],
 			"@lens/core": ["../lens/packages/core/src"],
 			"@lens/client": ["../lens/packages/client/src"],
-			"@lens/react": ["../lens/packages/react/src"],
 			"@lens/server": ["../lens/packages/server/src"]
 		}
 	},
