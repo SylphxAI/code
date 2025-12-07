@@ -64,7 +64,9 @@ export { useLensClient as useTRPCClient } from "./lens.js";
 // ============================================================================
 // Types
 // ============================================================================
-export type { MessagePart, Session, ProviderId } from "@sylphx/code-core";
+// Note: Session type is exported from lens.ts (our CodeClient Session type)
+// MessagePart and ProviderId come from code-core
+export type { MessagePart, ProviderId } from "@sylphx/code-core";
 
 // Provider and Model types
 export interface Provider {
@@ -106,7 +108,7 @@ export {
 // ============================================================================
 // API Functions
 // ============================================================================
-export { getLastSession, getRecentSessions } from "./api/sessions.js";
+export { getLastSession, getRecentSessions, type SessionListItem } from "./api/sessions.js";
 
 // ============================================================================
 // Optimistic Updates

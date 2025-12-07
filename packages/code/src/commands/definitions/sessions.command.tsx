@@ -27,23 +27,23 @@ export const sessionsCommand: Command = {
 		// Sort sessions by updated time (most recent first), then by created time
 		const sortedSessions = [...sessions].sort((a, b) => {
 			// First compare by updated time (descending)
-			const updateDiff = b.updated - a.updated;
+			const updateDiff = b.updatedAt - a.updatedAt;
 			if (updateDiff !== 0) return updateDiff;
 
 			// If updated is same, compare by created time (descending)
-			return b.created - a.created;
+			return b.createdAt - a.createdAt;
 		});
 
 		// Prepare session data for selection component
 		const sessionData = sortedSessions.map((session) => {
 			const isCurrent = session.id === currentSessionId;
-			const displayText = formatSessionDisplay(session.title, session.created);
+			const displayText = formatSessionDisplay(session.title, session.createdAt);
 
 			return {
 				id: session.id,
 				title: session.title,
-				created: session.created,
-				updated: session.updated,
+				created: session.createdAt,
+				updated: session.updatedAt,
 				displayText,
 				isCurrent,
 			};
@@ -63,7 +63,7 @@ export const sessionsCommand: Command = {
 
 						const selectedSession = sortedSessions.find((s) => s.id === sessionId);
 						const displayName = selectedSession
-							? formatSessionDisplay(selectedSession.title, selectedSession.created)
+							? formatSessionDisplay(selectedSession.title, selectedSession.createdAt)
 							: "Unknown session";
 
 						context.addLog(`Switched to session: ${displayName}`);

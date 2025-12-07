@@ -48,7 +48,9 @@ export function useSessionList(): UseSessionListReturn {
 		setSessionsErrorSignal(null);
 		try {
 			// Use lens client to fetch sessions
-			const result = await client.listSessions.fetch({ input: { limit } }) as SessionMetadata[];
+			// listSessions returns Session[] from the entity, but we expect SessionMetadata[]
+			// They have compatible shapes (id, title, updatedAt, etc.)
+			const result = await client.listSessions.fetch({ input: { limit } }) as unknown as SessionMetadata[];
 			setRecentSessionsSignal(result || []);
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : "Failed to load sessions";

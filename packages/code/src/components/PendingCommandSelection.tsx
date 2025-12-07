@@ -88,8 +88,6 @@ export function PendingCommandSelection({
 								return (
 									<Box
 										key={option.value || option.label}
-										paddingY={0}
-										onClick={() => onSelect(option)}
 									>
 										<Text
 											color={absoluteIdx === selectedCommandIndex ? colors.success : colors.textDim}

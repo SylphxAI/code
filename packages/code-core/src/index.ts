@@ -276,6 +276,8 @@ export type * from "./types/model.types.js";
 // ============================================================================
 // Types
 // ============================================================================
+export type * from "./types/agent.types.js";
+export type * from "./types/rule.types.js";
 export type * from "./types/session.types.js";
 export type * from "./types/streaming-events.types.js";
 export type * from "./types/todo.types.js";

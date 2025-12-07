@@ -112,6 +112,9 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 
 				// Get the last (most recent) queued message
 				const lastMessage = queuedMessages[queuedMessages.length - 1];
+				if (!lastMessage) {
+					return;
+				}
 
 				// Load message into input
 				setInput(lastMessage.content);

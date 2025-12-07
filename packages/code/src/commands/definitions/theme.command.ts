@@ -33,6 +33,9 @@ export const themeCommand: Command = {
 		// If arg provided, switch directly
 		if (context.args.length > 0) {
 			const themeId = context.args[0];
+			if (!themeId) {
+				return "Theme name is required";
+			}
 			const success = setTheme(themeId);
 
 			if (success) {

@@ -72,7 +72,7 @@ export const bashesCommand: Command = {
 				? processAnswers.process
 				: "";
 
-		if (!selectedId) {
+		if (!selectedId || Array.isArray(selectedId)) {
 			return "No process selected.";
 		}
 

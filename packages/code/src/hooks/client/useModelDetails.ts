@@ -62,12 +62,13 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 
 				// Fetch model details and tokenizer info in parallel
 				// Lens flat namespace: client.xxx.fetch({ input })
+				// providerId and modelId are guaranteed non-null here due to early return check
 				const [detailsResult, tokInfo] = await Promise.all([
-					client.getModelDetails.fetch({ input: { providerId, modelId } }) as Promise<{
+					client.getModelDetails.fetch({ input: { providerId: providerId!, modelId: modelId! } }) as Promise<{
 						success: boolean;
 						details?: { contextLength?: number; capabilities?: Record<string, boolean> };
 					}>,
-					client.getTokenizerInfo.fetch({ input: { model: modelId } }) as Promise<{
+					client.getTokenizerInfo.fetch({ input: { model: modelId! } }) as Promise<{
 						name: string;
 						modelId: string;
 						source: string;

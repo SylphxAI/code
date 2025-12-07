@@ -58,7 +58,7 @@ export default function Chat(props: ChatProps) {
 				{/* Messages */}
 				<ChatMessages
 					hasSession={!!state.currentSession}
-					messages={state.currentSession?.messages}
+					messages={state.messages}
 					attachmentTokens={state.attachmentTokens}
 					hideMessageTitles={state.hideMessageTitles}
 					hideMessageUsage={state.hideMessageUsage}

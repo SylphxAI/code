@@ -3,7 +3,7 @@
  * Full-screen view of a single bash process with streaming output
  */
 
-import { useTRPCClient } from "@sylphx/code-client";
+import { useLensClient } from "@sylphx/code-client";
 import {
 	useBashProcessDetails,
 	useBashProcessOutputs,
@@ -23,7 +23,7 @@ interface BashDetailProps {
 }
 
 export default function BashDetail({ bashId, onClose }: BashDetailProps) {
-	const trpc = useTRPCClient();
+	const client = useLensClient();
 	const colors = useThemeColors();
 	const processDetails = useBashProcessDetails();
 	const processOutputs = useBashProcessOutputs();
@@ -38,7 +38,7 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 		const loadProcess = async () => {
 			try {
 				setBashProcessDetailLoading(bashId, true);
-				const result = await trpc.bash.get.query({ bashId });
+				const result = await client.getBash.fetch({ input: { bashId } });
 				setBashProcessDetail(bashId, result);
 				setBashProcessDetailLoading(bashId, false);
 			} catch (error) {
@@ -48,46 +48,27 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 		};
 
 		loadProcess();
-	}, [bashId, trpc]);
+	}, [bashId, client]);
 
 	// Subscribe to output stream
+	// TODO: Migrate to lens events - currently using polling instead
+	// The lens client has subscribeToSession but may not have bash-specific event subscriptions
+	// For now, we rely on the initial load and manual refresh (kill/promote actions reload the process)
 	useEffect(() => {
-		const channel = `bash:${bashId}`;
-		let subscription: any = null;
-
-		try {
-			subscription = trpc.events.subscribe.subscribe(
-				{ channel, fromCursor: undefined },
-				{
-					onData: (event: any) => {
-						if (event.payload?.type === "output") {
-							const chunk = event.payload.output;
-							setBashProcessOutput(bashId, (prev) => prev + chunk.data);
-						} else if (event.payload?.type === "started") {
-							setBashProcessOutput(bashId, ""); // Clear on restart
-						} else if (event.payload?.type === "completed" || event.payload?.type === "failed") {
-							// Reload process info to get final status
-							trpc.bash.get
-								.query({ bashId })
-								.then((result) => setBashProcessDetail(bashId, result))
-								.catch(console.error);
-						}
-					},
-					onError: (err: any) => {
-						console.error("[BashDetail] Subscription error:", err);
-					},
-				},
-			);
-		} catch (error) {
-			console.error("[BashDetail] Failed to subscribe:", error);
-		}
+		// Polling fallback: refresh process data every few seconds
+		const interval = setInterval(async () => {
+			try {
+				const result = await client.getBash.fetch({ input: { bashId } });
+				setBashProcessDetail(bashId, result);
+			} catch (error) {
+				console.error("[BashDetail] Failed to refresh process:", error);
+			}
+		}, 2000); // Poll every 2 seconds
 
 		return () => {
-			if (subscription) {
-				subscription.unsubscribe();
-			}
+			clearInterval(interval);
 		};
-	}, [bashId, trpc]);
+	}, [bashId, client]);
 
 	// Keyboard controls
 	useInput(
@@ -99,11 +80,11 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 
 			// Kill bash
 			if (input === "K") {
-				trpc.bash.kill
-					.mutate({ bashId })
+				client.killBash
+					.fetch({ input: { bashId } })
 					.then(() => {
 						// Reload process info
-						return trpc.bash.get.query({ bashId });
+						return client.getBash.fetch({ input: { bashId } });
 					})
 					.then((result) => setBashProcessDetail(bashId, result))
 					.catch((error) => console.error("[BashDetail] Failed to kill:", error));
@@ -113,11 +94,11 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 			// Promote to active
 			if (input === "A") {
 				if (!process?.isActive && process?.status === "running") {
-					trpc.bash.promote
-						.mutate({ bashId })
+					client.promoteBash
+						.fetch({ input: { bashId } })
 						.then(() => {
 							// Reload process info
-							return trpc.bash.get.query({ bashId });
+							return client.getBash.fetch({ input: { bashId } });
 						})
 						.then((result) => setBashProcessDetail(bashId, result))
 						.catch((error) => console.error("[BashDetail] Failed to promote:", error));

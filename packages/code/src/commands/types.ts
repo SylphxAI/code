@@ -50,6 +50,7 @@ export type WaitForInputOptions =
 	  }
 	| {
 			type: "selection";
+			prompt?: string;
 			// Questions array - can be 1 question (single selection) or multiple (multi-selection)
 			// Asking 1 question or 10 questions should use the same interface
 			questions: Question[];

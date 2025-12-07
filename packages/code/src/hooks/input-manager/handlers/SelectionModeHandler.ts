@@ -157,7 +157,7 @@ export class SelectionModeHandler extends BaseInputHandler {
 			} else {
 				// Cancel entire selection
 				addLog(`[selection] Cancelled`);
-				inputResolver.current({});
+				inputResolver.current?.({});
 				inputResolver.current = null;
 				setPendingInput(null);
 				setMultiSelectionPage(0);
@@ -205,7 +205,7 @@ export class SelectionModeHandler extends BaseInputHandler {
 
 				if (isSingleQuestion) {
 					// Single question: submit immediately
-					inputResolver.current({ [currentQuestion.id]: customValue });
+					inputResolver.current?.({ [currentQuestion.id]: customValue });
 					inputResolver.current = null;
 					setPendingInput(null);
 					setMultiSelectionPage(0);
@@ -230,7 +230,7 @@ export class SelectionModeHandler extends BaseInputHandler {
 					if (allAnswered) {
 						// All answered: auto-submit
 						addLog(`[selection] All answered, auto-submitting: ${JSON.stringify(newAnswers)}`);
-						inputResolver.current(newAnswers);
+						inputResolver.current?.(newAnswers);
 						inputResolver.current = null;
 						setPendingInput(null);
 						setMultiSelectionPage(0);
@@ -356,7 +356,7 @@ export class SelectionModeHandler extends BaseInputHandler {
 			const allAnswered = questions.every((q) => multiSelectionAnswers[q.id]);
 			if (allAnswered) {
 				addLog(`[selection] Submitting answers: ${JSON.stringify(multiSelectionAnswers)}`);
-				inputResolver.current(multiSelectionAnswers);
+				inputResolver.current?.(multiSelectionAnswers);
 				inputResolver.current = null;
 				setPendingInput(null);
 				setMultiSelectionPage(0);
@@ -588,7 +588,7 @@ export class SelectionModeHandler extends BaseInputHandler {
 
 		if (isSingleQuestion) {
 			// Single question: submit immediately
-			inputResolver.current({ [currentQuestion.id]: answer });
+			inputResolver.current?.({ [currentQuestion.id]: answer });
 			inputResolver.current = null;
 			setPendingInput(null);
 			setMultiSelectionPage(0);
@@ -611,7 +611,7 @@ export class SelectionModeHandler extends BaseInputHandler {
 			if (allAnswered) {
 				// All answered: auto-submit
 				addLog(`[selection] All answered, auto-submitting: ${JSON.stringify(newAnswers)}`);
-				inputResolver.current(newAnswers);
+				inputResolver.current?.(newAnswers);
 				inputResolver.current = null;
 				setPendingInput(null);
 				setMultiSelectionPage(0);

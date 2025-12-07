@@ -421,7 +421,7 @@ function ControlledTextInput({
 	let cursorLogicalCol = cursor;
 
 	for (let i = 0; i < logicalLines.length; i++) {
-		const lineLength = logicalLines[i].length;
+		const lineLength = logicalLines[i]?.length ?? 0;
 		if (cursor <= charCount + lineLength) {
 			cursorLogicalLine = i;
 			cursorLogicalCol = cursor - charCount;
@@ -441,7 +441,7 @@ function ControlledTextInput({
 	const physicalLines: PhysicalLine[] = [];
 
 	for (let i = 0; i < logicalLines.length; i++) {
-		const logicalLine = logicalLines[i];
+		const logicalLine = logicalLines[i] ?? '';
 		const wrappedLines = Wrapping.wrapLine(logicalLine, availableWidth);
 
 		if (i === cursorLogicalLine) {

@@ -48,7 +48,7 @@ export const providerCommand: Command = {
 				const providerId = previousArgs[1];
 				if (!providerId) return [];
 				const { getProviderKeyCompletions } = await import("../../completions/provider.js");
-				return getProviderKeyCompletions(context!.client, providerId);
+				return getProviderKeyCompletions(context!.client, providerId as any);
 			},
 		},
 		{
@@ -271,29 +271,31 @@ export const providerCommand: Command = {
 
 							if (result.success && result.models && result.models.length > 0) {
 								const firstModel = result.models[0];
-								providerDefaultModel = firstModel.id;
+								if (firstModel) {
+									providerDefaultModel = firstModel.id;
 
-								// Update provider config with default model
-								const updatedProviderConfig = {
-									...providerConfig,
-									defaultModel: firstModel.id,
-								};
+									// Update provider config with default model
+									const updatedProviderConfig = {
+										...providerConfig,
+										defaultModel: firstModel.id,
+									};
 
-								const configWithModel = {
-									...updatedConfig,
-									providers: {
-										...updatedConfig.providers,
-										[providerId]: updatedProviderConfig,
-									},
-								};
+									const configWithModel = {
+										...updatedConfig,
+										providers: {
+											...updatedConfig.providers,
+											[providerId]: updatedProviderConfig,
+										},
+									};
 
-								setAIConfig(configWithModel);
-								setSelectedModel(firstModel.id);
-								await context.saveConfig(configWithModel);
+									setAIConfig(configWithModel);
+									setSelectedModel(firstModel.id);
+									await context.saveConfig(configWithModel);
 
-								context.addLog(
-									`[provider] Switched to provider: ${providerId} (model: ${firstModel.id}) and saved config`,
-								);
+									context.addLog(
+										`[provider] Switched to provider: ${providerId} (model: ${firstModel.id}) and saved config`,
+									);
+								}
 							} else {
 								context.addLog(
 									`[provider] Switched to provider: ${providerId} (no models available - configure API key first)`,

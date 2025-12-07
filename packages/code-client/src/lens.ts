@@ -411,8 +411,8 @@ export interface UploadFileInput {
 
 export interface AnswerAskInput {
 	sessionId: string;
-	messageId: string;
-	answer: "yes" | "no" | "always" | "never";
+	questionId: string;
+	answers: Record<string, string | string[]>;
 }
 
 export interface SuccessResult {

@@ -5,7 +5,7 @@
  * Migrated from useFileNavigation hook
  */
 
-import type { LensClient } from "@sylphx/lens-client";
+import type { CodeClient } from "@sylphx/code-client";
 import type { Key } from "ink";
 import type React from "react";
 import { InputMode, type InputModeContext } from "../types.js";
@@ -13,7 +13,7 @@ import { BaseInputHandler } from "./BaseHandler.js";
 
 export interface FileNavigationModeHandlerDeps {
 	/** Lens client (passed from React hook useLensClient) */
-	client: LensClient<any, any>;
+	client: CodeClient;
 	filteredFileInfo: {
 		hasAt: boolean;
 		files: Array<{ path: string; relativePath: string; size: number }>;
@@ -80,7 +80,7 @@ export class FileNavigationModeHandler extends BaseInputHandler {
 	/**
 	 * Handle keyboard input for file navigation
 	 */
-	handleInput(_char: string, key: Key, _context: InputModeContext): boolean {
+	handleInput(_char: string, key: Key, _context: InputModeContext): boolean | Promise<boolean> {
 		const {
 			filteredFileInfo,
 			selectedFileIndex,
@@ -131,8 +131,8 @@ export class FileNavigationModeHandler extends BaseInputHandler {
 								filePath: selected.path,
 								model: currentSession?.model,
 							},
-						}) as { success: boolean; count: number; error?: string };
-						if (result.success) {
+						});
+						if (result.success && result.count !== undefined) {
 							setAttachmentTokenCount(selected.path, result.count);
 						} else {
 							console.error("Failed to count tokens:", result.error);

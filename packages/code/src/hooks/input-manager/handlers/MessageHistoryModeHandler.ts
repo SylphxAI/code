@@ -21,7 +21,12 @@ export interface MessageHistoryModeHandlerDeps {
 	isStreaming: boolean;
 	inputComponent: React.ReactNode | null;
 	filteredCommands: FilteredCommand[];
-	filteredFileInfo: FilteredFile | null;
+	filteredFileInfo: {
+		hasAt: boolean;
+		files: Array<{ path: string; relativePath: string; size: number }>;
+		query: string;
+		atIndex: number;
+	} | null;
 	pendingAttachments: FileAttachment[];
 	setInput: (value: string) => void;
 	setCursor: (value: number) => void;

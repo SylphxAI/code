@@ -28,7 +28,7 @@ export interface InputHandlerDeps {
 	inputResolver: React.MutableRefObject<((value: any) => void) | null>;
 	multiSelectionPage: number;
 	multiSelectionAnswers: Record<string, any>;
-	multiSelectChoices: Set<number>;
+	multiSelectChoices: Set<string>;
 	selectionFilter: string;
 	isFilterMode: boolean;
 	freeTextInput: string;
@@ -39,7 +39,7 @@ export interface InputHandlerDeps {
 	setSelectedCommandIndex: React.Dispatch<React.SetStateAction<number>>;
 	setMultiSelectionPage: React.Dispatch<React.SetStateAction<number>>;
 	setMultiSelectionAnswers: React.Dispatch<React.SetStateAction<Record<string, any>>>;
-	setMultiSelectChoices: React.Dispatch<React.SetStateAction<Set<number>>>;
+	setMultiSelectChoices: React.Dispatch<React.SetStateAction<Set<string>>>;
 	setSelectionFilter: React.Dispatch<React.SetStateAction<string>>;
 	setIsFilterMode: React.Dispatch<React.SetStateAction<boolean>>;
 	setFreeTextInput: React.Dispatch<React.SetStateAction<string>>;
@@ -52,20 +52,25 @@ export interface InputHandlerDeps {
 
 	// Pending command mode dependencies
 	pendingCommand: any;
-	cachedOptions: any[];
+	cachedOptions: Map<string, Array<{ id: string; name: string }>>;
 	setPendingCommand: React.Dispatch<React.SetStateAction<any>>;
 	createCommandContext: (args: string[]) => CommandContext;
 
 	// File navigation mode dependencies
-	filteredFileInfo: FilteredFile;
+	filteredFileInfo: {
+		hasAt: boolean;
+		files: Array<{ path: string; relativePath: string; size: number }>;
+		query: string;
+		atIndex: number;
+	};
 	selectedFileIndex: number;
 	currentSession: any;
 	input: string;
 	setInput: (value: string) => void;
 	setCursor: (value: number) => void;
 	setSelectedFileIndex: React.Dispatch<React.SetStateAction<number>>;
-	addAttachment: (file: { path: string; relativePath: string; size: number }) => void;
-	setAttachmentTokenCount: (count: number) => void;
+	addAttachment: (file: { path: string; relativePath: string; size?: number }) => void;
+	setAttachmentTokenCount: (path: string, count: number) => void;
 
 	// Command autocomplete mode dependencies
 	filteredCommands: Command[];

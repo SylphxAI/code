@@ -45,7 +45,7 @@ Use /notifications to change settings.`;
 
 		// If args provided, handle directly
 		if (context.args.length > 0) {
-			const action = context.args[0].toLowerCase() as "show" | "enable" | "disable";
+			const action = context.args[0]?.toLowerCase() as "show" | "enable" | "disable";
 
 			// Validate action
 			if (action !== "show" && action !== "enable" && action !== "disable") {
@@ -59,7 +59,7 @@ Use /notifications to change settings.`;
 
 			// Enable/disable with type
 			if (context.args.length > 1) {
-				const type = context.args[1].toLowerCase() as "os" | "terminal" | "sound" | "all";
+				const type = context.args[1]?.toLowerCase() as "os" | "terminal" | "sound" | "all";
 				const isEnabled = action === "enable";
 
 				if (type === "all") {

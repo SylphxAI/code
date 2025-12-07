@@ -13,7 +13,7 @@ export const settingsCommand: Command = {
 	description: "Configure tool display settings and preferences",
 	args: [],
 
-	execute: async (context) => {
+	execute: async (context): Promise<string | undefined> => {
 		// Get current config
 		const aiConfig = getAIConfig();
 
@@ -38,6 +38,7 @@ export const settingsCommand: Command = {
 			/>,
 			"Settings",
 		);
+		return undefined;
 	},
 };
 

@@ -69,7 +69,7 @@ function renderLineWithImageTags(line: string, key: string): React.ReactElement 
 
 		// Add highlighted tag
 		parts.push(
-			<Text key={`${key}-tag-${match.index}`} bgColor="#1a2a47" color="#5599FF">
+			<Text key={`${key}-tag-${match.index}`} backgroundColor="#1a2a47" color="#5599FF">
 				{match[0]}
 			</Text>,
 		);

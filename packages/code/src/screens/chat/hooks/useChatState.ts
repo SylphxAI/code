@@ -8,6 +8,7 @@ import { useAskToolHandler } from "../../../hooks/client/useAskToolHandler.js";
 import { useChat } from "../../../hooks/client/useChat.js";
 import { useCurrentSession } from "../../../hooks/client/useCurrentSession.js";
 import { useFileAttachments } from "../../../hooks/client/useFileAttachments.js";
+import { useMessages } from "../../../hooks/client/useMessages.js";
 import { useProjectFiles } from "../../../hooks/client/useProjectFiles.js";
 import { useTokenCalculation } from "../../../hooks/client/useTokenCalculation.js";
 import {
@@ -41,6 +42,9 @@ export function useChatState(_props: ChatProps) {
 	const currentSession = sessionData?.currentSession;
 	const currentSessionId = sessionData?.currentSessionId;
 	const sessionLoading = sessionData?.isLoading;
+
+	// Messages data (separate from session)
+	const { messages } = useMessages(currentSessionId);
 
 	// Helper function (memoized to prevent infinite re-renders)
 	const addLog = useCallback((message: string) => {
@@ -130,6 +134,9 @@ export function useChatState(_props: ChatProps) {
 		currentSession,
 		currentSessionId,
 		sessionLoading,
+
+		// Messages
+		messages,
 
 		// Client actions
 		sendMessage,

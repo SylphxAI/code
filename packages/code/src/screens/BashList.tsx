@@ -3,14 +3,13 @@
  * Shows all bash processes, press K to kill, Enter to view details
  */
 
-import { useTRPCClient } from "@sylphx/code-client";
-import type { BashProcess } from "@sylphx/code-core";
+import { useLensClient, type BashProcess } from "@sylphx/code-client";
 import {
 	useBashProcesses,
 	useBashProcessesLoading,
 	setBashProcesses,
 	setBashProcessesLoading,
-} from "./bash-state.js";
+} from "../bash-state.js";
 import { Box, Text } from "ink";
 import { useEffect, useMemo, useRef } from "react";
 import Spinner from "../components/Spinner.js";
@@ -50,18 +49,18 @@ function getStatusColor(status: string): "green" | "red" | "yellow" | "blue" | "
 }
 
 export default function BashList({ onClose, onSelectBash }: BashListProps) {
-	const trpc = useTRPCClient();
+	const client = useLensClient();
 	const colors = useThemeColors();
 	const processes = useBashProcesses();
 	const loading = useBashProcessesLoading();
 	const subscriptionRef = useRef<any>(null);
 
-	// Load bash list - event-driven
+	// Load bash list - using polling instead of event-driven
 	useEffect(() => {
 		const loadProcesses = async () => {
 			try {
 				setBashProcessesLoading(true);
-				const result = await trpc.bash.list.query();
+				const result = await client.listBash.fetch({}) as BashProcess[];
 				setBashProcesses(result);
 				setBashProcessesLoading(false);
 			} catch (error) {
@@ -73,38 +72,22 @@ export default function BashList({ onClose, onSelectBash }: BashListProps) {
 		// Initial load
 		loadProcesses();
 
-		// Subscribe to bash:all for event-driven updates
-		try {
-			subscriptionRef.current = trpc.events.subscribe.subscribe(
-				{ channel: "bash:all", fromCursor: undefined },
-				{
-					onData: (event: any) => {
-						const eventType = event.payload?.type;
-						// Reload list on any bash state change
-						if (["started", "completed", "failed", "killed", "demoted", "promoted", "output"].includes(eventType)) {
-							loadProcesses();
-						}
-					},
-					onError: (err: any) => {
-						console.error("[BashList] Subscription error:", err);
-					},
-				},
-			);
-		} catch (error) {
-			console.error("[BashList] Failed to subscribe:", error);
-		}
+		// TODO: Migrate to lens events - currently using polling instead
+		// The lens client has subscribeToSession but may not have bash-specific event subscriptions
+		// Polling fallback: refresh list every few seconds
+		const interval = setInterval(() => {
+			loadProcesses();
+		}, 2000); // Poll every 2 seconds
 
 		return () => {
-			if (subscriptionRef.current) {
-				subscriptionRef.current.unsubscribe();
-			}
+			clearInterval(interval);
 		};
-	}, [trpc]);
+	}, [client]);
 
 	// Transform processes to SelectionOption[]
 	const options: SelectionOption[] = useMemo(
 		() =>
-			processes.map((proc) => {
+			processes.map((proc: BashProcess) => {
 				const modeLabel = proc.isActive ? "[ACTIVE]" : proc.mode === "background" ? "[BG]" : "";
 				const statusLabel = proc.status.toUpperCase();
 				const durationLabel = formatDuration(proc.duration);
@@ -143,8 +126,8 @@ export default function BashList({ onClose, onSelectBash }: BashListProps) {
 			if (char === "K") {
 				const selectedProc = processes[selection.selectedIndex];
 				if (selectedProc) {
-					trpc.bash.kill
-						.mutate({ bashId: selectedProc.id })
+					client.killBash
+						.fetch({ input: { bashId: selectedProc.id } })
 						.catch((error) => console.error("[BashList] Failed to kill:", error));
 				}
 				return true; // Consumed
@@ -174,7 +157,7 @@ export default function BashList({ onClose, onSelectBash }: BashListProps) {
 				</Text>
 				<Text color={colors.textDim}>
 					{" "}
-					│ {processes.length} total, {processes.filter((p) => p.status === "running").length} running
+					│ {processes.length} total, {processes.filter((p: BashProcess) => p.status === "running").length} running
 				</Text>
 			</Box>
 

@@ -51,7 +51,7 @@ export const mcpCommand: Command = {
 		},
 	],
 
-	execute: async (context) => {
+	execute: async (context): Promise<string | undefined> => {
 		const action = context.args[0];
 		const serverId = context.args[1];
 
@@ -249,6 +249,7 @@ export const mcpCommand: Command = {
 				"  • enable - Enable server\n" +
 				"  • disable - Disable server",
 		);
+		return undefined;
 	},
 };
 

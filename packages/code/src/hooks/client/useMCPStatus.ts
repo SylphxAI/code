@@ -29,8 +29,8 @@ export function useMCPStatus(): MCPStatus {
 
 	useEffect(() => {
 		// Subscribe to MCP status change events
-		const unsubscribe = eventBus.on("mcp:statusChanged", (data: MCPStatus) => {
-			setMCPStatusSignal(data);
+		const unsubscribe = eventBus.on("mcp:statusChanged", (data: any) => {
+			setMCPStatusSignal(data as MCPStatus);
 		});
 
 		return unsubscribe;

@@ -8,7 +8,7 @@
 
 import type { AIConfig } from "@sylphx/code-core";
 import { useEffect, useState } from "react";
-import { useTRPCClient } from "@sylphx/code-client";
+import { useLensClient } from "@sylphx/code-client";
 
 interface UseSessionInitializationProps {
 	currentSessionId: string | null;
@@ -21,7 +21,7 @@ export function useSessionInitialization({
 	aiConfig,
 	createSession,
 }: UseSessionInitializationProps) {
-	const trpc = useTRPCClient();
+	const client = useLensClient();
 	const [initialized, setInitialized] = useState(false);
 
 	useEffect(() => {
@@ -39,11 +39,14 @@ export function useSessionInitialization({
 			// If no default model, fetch first available from server
 			if (!model) {
 				try {
-					const result = await trpc.config.fetchModels.query({
-						providerId: aiConfig.defaultProvider,
-					});
-					if (result.success && result.models.length > 0) {
-						model = result.models[0].id;
+					const result = await client.fetchModels.fetch({
+						input: { providerId: aiConfig.defaultProvider },
+					}) as { success: boolean; models?: Array<{ id: string }> };
+					if (result.success && result.models && result.models.length > 0) {
+						const firstModel = result.models[0];
+						if (firstModel) {
+							model = firstModel.id;
+						}
 					}
 				} catch (err) {
 					console.error("Failed to fetch default model:", err);
@@ -60,5 +63,5 @@ export function useSessionInitialization({
 		}
 
 		initializeSession();
-	}, [initialized, currentSessionId, aiConfig, createSession, trpc]);
+	}, [initialized, currentSessionId, aiConfig, createSession, client]);
 }

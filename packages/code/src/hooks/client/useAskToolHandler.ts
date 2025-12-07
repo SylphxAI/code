@@ -73,9 +73,11 @@ export function useAskToolHandler({
 					// Get client and call answerAsk mutation
 					const client = getClient();
 					await client.answerAsk.fetch({
-						sessionId: currentSessionId,
-						questionId,
-						answers: answerRecord,
+						input: {
+							sessionId: currentSessionId,
+							questionId,
+							answers: answerRecord,
+						},
 					});
 
 					addDebugLog("[ask tool] Answer sent to server");
