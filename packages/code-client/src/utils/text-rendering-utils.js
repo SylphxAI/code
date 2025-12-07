@@ -16,7 +16,6 @@ export function renderTextWithTags(text, cursorPos, showCursor, validTags) {
     if (text.length === 0) {
         // If cursor should be shown at position 0 (empty line with cursor)
         if (cursorPos === 0 && showCursor) {
-            // @ts-expect-error - React JSX used here, but code-web with Preact JSX causes type errors
             return _jsx(Text, { inverse: true, children: " " });
         }
         return _jsx(Text, { children: " " });

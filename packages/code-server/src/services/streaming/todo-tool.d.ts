@@ -32,7 +32,7 @@ export declare function createServerTodoTool(sessionId: string, sessionRepositor
         activeForm?: string | undefined;
         status?: "completed" | "pending" | "in_progress" | "removed" | undefined;
         reorder?: {
-            type: "before" | "after" | "top" | "last";
+            type: "top" | "last" | "before" | "after";
             id?: number | undefined;
         } | undefined;
     }[];

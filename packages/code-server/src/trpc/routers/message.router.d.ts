@@ -44,9 +44,9 @@ declare const StreamEventSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     type: z.ZodLiteral<"message-status-updated">;
     messageId: z.ZodString;
     status: z.ZodEnum<{
-        error: "error";
         active: "active";
         completed: "completed";
+        error: "error";
         abort: "abort";
     }>;
     usage: z.ZodOptional<z.ZodObject<{
@@ -278,7 +278,7 @@ export declare const messageRouter: import("@trpc/server").TRPCBuiltRouter<{
                 status: "completed" | "pending" | "in_progress";
                 ordering: number;
             }[] | undefined;
-            status?: "error" | "active" | "completed" | "abort" | undefined;
+            status?: "active" | "completed" | "error" | "abort" | undefined;
         };
         output: {
             messageId: string;
@@ -326,7 +326,7 @@ export declare const messageRouter: import("@trpc/server").TRPCBuiltRouter<{
     updateStatus: import("@trpc/server").TRPCMutationProcedure<{
         input: {
             messageId: string;
-            status: "error" | "active" | "completed" | "abort";
+            status: "active" | "completed" | "error" | "abort";
             finishReason?: string | undefined;
         };
         output: void;
@@ -548,7 +548,7 @@ export declare const messageRouter: import("@trpc/server").TRPCBuiltRouter<{
         } | {
             type: "message-status-updated";
             messageId: string;
-            status: "error" | "active" | "completed" | "abort";
+            status: "active" | "completed" | "error" | "abort";
             usage?: {
                 promptTokens: number;
                 completionTokens: number;

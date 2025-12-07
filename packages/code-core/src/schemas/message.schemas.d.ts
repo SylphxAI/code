@@ -9,9 +9,9 @@ import { z } from "zod";
  * NOTE: Made optional with default to handle legacy data without status field
  */
 export declare const PartStatusSchema: z.ZodDefault<z.ZodOptional<z.ZodEnum<{
-    error: "error";
     active: "active";
     completed: "completed";
+    error: "error";
     abort: "abort";
     pending: "pending";
 }>>>;
@@ -46,9 +46,9 @@ export declare const MessagePartSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     type: z.ZodLiteral<"text">;
     content: z.ZodString;
     status: z.ZodDefault<z.ZodOptional<z.ZodEnum<{
-        error: "error";
         active: "active";
         completed: "completed";
+        error: "error";
         abort: "abort";
         pending: "pending";
     }>>>;
@@ -56,9 +56,9 @@ export declare const MessagePartSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     type: z.ZodLiteral<"reasoning">;
     content: z.ZodString;
     status: z.ZodDefault<z.ZodOptional<z.ZodEnum<{
-        error: "error";
         active: "active";
         completed: "completed";
+        error: "error";
         abort: "abort";
         pending: "pending";
     }>>>;
@@ -70,9 +70,9 @@ export declare const MessagePartSchema: z.ZodDiscriminatedUnion<[z.ZodObject<{
     name: z.ZodString;
     mcpServerId: z.ZodOptional<z.ZodString>;
     status: z.ZodDefault<z.ZodOptional<z.ZodEnum<{
-        error: "error";
         active: "active";
         completed: "completed";
+        error: "error";
         abort: "abort";
         pending: "pending";
     }>>>;
@@ -116,9 +116,9 @@ export declare const MessageStepSchema: z.ZodObject<{
         type: z.ZodLiteral<"text">;
         content: z.ZodString;
         status: z.ZodDefault<z.ZodOptional<z.ZodEnum<{
-            error: "error";
             active: "active";
             completed: "completed";
+            error: "error";
             abort: "abort";
             pending: "pending";
         }>>>;
@@ -126,9 +126,9 @@ export declare const MessageStepSchema: z.ZodObject<{
         type: z.ZodLiteral<"reasoning">;
         content: z.ZodString;
         status: z.ZodDefault<z.ZodOptional<z.ZodEnum<{
-            error: "error";
             active: "active";
             completed: "completed";
+            error: "error";
             abort: "abort";
             pending: "pending";
         }>>>;
@@ -140,9 +140,9 @@ export declare const MessageStepSchema: z.ZodObject<{
         name: z.ZodString;
         mcpServerId: z.ZodOptional<z.ZodString>;
         status: z.ZodDefault<z.ZodOptional<z.ZodEnum<{
-            error: "error";
             active: "active";
             completed: "completed";
+            error: "error";
             abort: "abort";
             pending: "pending";
         }>>>;
@@ -190,15 +190,15 @@ export declare const MessageStepSchema: z.ZodObject<{
     model: z.ZodOptional<z.ZodString>;
     duration: z.ZodOptional<z.ZodNumber>;
     finishReason: z.ZodOptional<z.ZodEnum<{
-        length: "length";
         error: "error";
+        length: "length";
         stop: "stop";
         "tool-calls": "tool-calls";
     }>>;
     status: z.ZodEnum<{
-        error: "error";
         active: "active";
         completed: "completed";
+        error: "error";
         abort: "abort";
     }>;
     startTime: z.ZodOptional<z.ZodNumber>;

@@ -265,7 +265,7 @@ export interface Todo {
     sessionId: string;
     content: string;
     activeForm: string;
-    status: "pending" | "in_progress" | "completed";
+    status: "pending" | "in_progress" | "completed" | "removed";
     ordering: number;
     createdAt: number;
     completedAt?: number;
@@ -455,8 +455,8 @@ export interface UploadFileInput {
 }
 export interface AnswerAskInput {
     sessionId: string;
-    messageId: string;
-    answer: "yes" | "no" | "always" | "never";
+    questionId: string;
+    answers: Record<string, string | string[]>;
 }
 export interface SuccessResult {
     success: boolean;

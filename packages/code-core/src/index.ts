@@ -282,6 +282,9 @@ export type * from "./types/session.types.js";
 export type * from "./types/streaming-events.types.js";
 export type * from "./types/todo.types.js";
 export type * from "./types/tool.types.js";
+
+// Explicit exports for commonly used types
+export type { FileAttachment, FileAttachmentInput, MessagePart, Session } from "./types/session.types.js";
 export { fetchModels, type ModelInfo } from "./utils/ai-model-fetcher.js";
 // Context Reserve Calculator
 export {

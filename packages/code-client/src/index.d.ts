@@ -6,7 +6,7 @@
  */
 export { createCodeClient, getClient, initClient, isClientInitialized, useLensClient, LensProvider, useQuery, direct, http, type CodeClient, type DirectTransportOptions, type HttpTransportOptions, type LensServerInterface, type Transport, type Session, type Message, type Step, type Part, type Todo, type UserMessageHistory, type StreamEvent, type ConfigResult, type ProviderInfo, type ProviderSchemaResult, type FetchModelsResult, type TokenizerInfo, type ModelDetailsResult, type ProjectFile, type CountTokensResult, type BashProcess, type CreateSessionInput, type UpdateSessionInput, type SendMessageInput, type SendMessageResult, type TriggerStreamInput, type TriggerStreamResult, type CreateTodoInput, type UpdateTodoInput, type SyncTodosInput, type SetProviderSecretInput, type ExecuteBashInput, type ExecuteBashResult, type UploadFileInput, type AnswerAskInput, type SuccessResult, } from "./lens.js";
 export { useLensClient as useTRPCClient } from "./lens.js";
-export type { MessagePart, Session, ProviderId } from "@sylphx/code-core";
+export type { MessagePart, ProviderId } from "@sylphx/code-core";
 export interface Provider {
     id: string;
     name: string;
@@ -19,7 +19,7 @@ export interface ModelInfo {
     maxOutputTokens?: number;
 }
 export { type AppEvents, calculateScrollViewport, clampCursor, eventBus, type FormattedResult, getAbsoluteCursorPosition, getCursorLinePosition, getRelativePath, type InputFormatter, isDefaultCwd, type LinePosition, moveCursorDown, moveCursorUp, pluralize, type ResultFormatter, type ScrollViewportResult, truncateString, } from "@sylphx/code-core";
-export { getLastSession, getRecentSessions } from "./api/sessions.js";
+export { getLastSession, getRecentSessions, type SessionListItem } from "./api/sessions.js";
 export * from "./optimistic/index.js";
 export type { Command, CommandArg, CommandContext, Question, SelectOption, WaitForInputOptions, } from "./types/command-types.js";
 export type { ToolConfig, ToolDisplayProps } from "./types/tool.types.js";

@@ -610,14 +610,15 @@ export const uploadFile = mutation()
 export const answerAsk = mutation()
     .input(z.object({
     sessionId: z.string(),
-    messageId: z.string(),
-    answer: z.enum(["yes", "no", "always", "never"]),
+    questionId: z.string(),
+    answers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
 }))
     .returns(z.object({ success: z.boolean() }))
     .resolve(async ({ input, ctx }) => {
-    // Store the answer for the streaming service to pick up
-    ctx.appContext.askManager?.setAnswer(input.sessionId, input.messageId, input.answer);
-    return { success: true };
+    // Resolve the pending ask using the new ask manager
+    const { resolvePendingAsk } = await import("../services/ask-manager.service.js");
+    const resolved = await resolvePendingAsk(input.questionId, input.answers);
+    return { success: resolved };
 });
 // =============================================================================
 // Streaming Mutations (tRPC compatibility)

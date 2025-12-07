@@ -10,7 +10,7 @@
  *
  * Exports AppRouter type for client type inference.
  */
-import { createApp } from "@sylphx/lens-server";
+import { createServer } from "@sylphx/lens-server";
 // Schema
 import * as entities from "./entities.js";
 // Note: relations not yet supported by lens-server
@@ -247,7 +247,7 @@ export function createLensServer(appContext) {
     const eventStream = createEventStreamAdapter(appContext);
     // Create resolvers with db closure
     const resolvers = createResolvers(db);
-    const app = createApp({
+    const app = createServer({
         entities,
         queries,
         mutations,

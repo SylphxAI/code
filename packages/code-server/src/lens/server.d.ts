@@ -11,26 +11,13 @@
  * Exports AppRouter type for client type inference.
  */
 import type { AppContext } from "../context.js";
-import * as queries from "./queries.js";
-import * as mutations from "./mutations.js";
-import type { LensDB, LensEventStream } from "./context.js";
 /**
  * Create Lens server instance
  *
  * @param appContext - Application context with database and event stream
  * @returns Configured Lens server
  */
-export declare function createLensServer(appContext: AppContext): import("@sylphx/lens-server").LensServer & {
-    _types: {
-        queries: typeof queries;
-        mutations: typeof mutations;
-        context: {
-            db: LensDB;
-            eventStream: LensEventStream;
-            appContext: AppContext;
-        };
-    };
-};
+export declare function createLensServer(appContext: AppContext): any;
 /**
  * Export router type for client type inference
  *

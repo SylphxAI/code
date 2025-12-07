@@ -15,15 +15,17 @@ import { getClient } from "../lens.js";
 export async function getRecentSessions(limit = 100) {
     const client = getClient();
     const result = await client.listSessions.fetch({ input: { limit } });
-    // Transform to SessionMetadata format
+    // Transform to SessionListItem format
     return result.map((session) => ({
         id: session.id,
         title: session.title || "Untitled",
-        provider: session.provider || "",
+        provider: (session.provider || "anthropic"),
         model: session.model || "",
+        modelId: session.modelId,
+        agentId: session.agentId,
         createdAt: session.createdAt,
         updatedAt: session.updatedAt,
-        messageCount: session.messages?.length || 0,
+        messageCount: 0, // Message count not available in list query
     }));
 }
 /**

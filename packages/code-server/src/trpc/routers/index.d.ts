@@ -226,7 +226,7 @@ export declare const appRouter: import("@trpc/server").TRPCBuiltRouter<{
                     status: "completed" | "pending" | "in_progress";
                     ordering: number;
                 }[] | undefined;
-                status?: "error" | "active" | "completed" | "abort" | undefined;
+                status?: "active" | "completed" | "error" | "abort" | undefined;
             };
             output: {
                 messageId: string;
@@ -262,7 +262,7 @@ export declare const appRouter: import("@trpc/server").TRPCBuiltRouter<{
         updateStatus: import("@trpc/server").TRPCMutationProcedure<{
             input: {
                 messageId: string;
-                status: "error" | "active" | "completed" | "abort";
+                status: "active" | "completed" | "error" | "abort";
                 finishReason?: string | undefined;
             };
             output: void;
@@ -391,7 +391,7 @@ export declare const appRouter: import("@trpc/server").TRPCBuiltRouter<{
             } | {
                 type: "message-status-updated";
                 messageId: string;
-                status: "error" | "active" | "completed" | "abort";
+                status: "active" | "completed" | "error" | "abort";
                 usage?: {
                     promptTokens: number;
                     completionTokens: number;

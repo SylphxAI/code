@@ -28,18 +28,18 @@ export declare const createSession: import("@sylphx/lens-core").MutationDef<{
 }, {
     id: string;
     agentId: string;
-    createdAt: number;
     enabledRuleIds: unknown;
     nextTodoId: number;
+    createdAt: number;
     updatedAt: number;
-    model?: string | undefined;
-    modelId?: string | undefined;
     provider?: string | undefined;
-    totalTokens?: number | undefined;
+    model?: string | undefined;
     title?: string | undefined;
+    totalTokens?: number | undefined;
+    modelId?: string | undefined;
+    flags?: unknown;
     enabledToolIds?: unknown;
     enabledMcpServerIds?: unknown;
-    flags?: unknown;
     baseContextTokens?: number | undefined;
     messageQueue?: unknown;
     lastAccessedAt?: number | undefined;
@@ -61,18 +61,18 @@ export declare const updateSession: import("@sylphx/lens-core").MutationDef<{
 }, {
     id: string;
     agentId: string;
-    createdAt: number;
     enabledRuleIds: unknown;
     nextTodoId: number;
+    createdAt: number;
     updatedAt: number;
-    model?: string | undefined;
-    modelId?: string | undefined;
     provider?: string | undefined;
-    totalTokens?: number | undefined;
+    model?: string | undefined;
     title?: string | undefined;
+    totalTokens?: number | undefined;
+    modelId?: string | undefined;
+    flags?: unknown;
     enabledToolIds?: unknown;
     enabledMcpServerIds?: unknown;
-    flags?: unknown;
     baseContextTokens?: number | undefined;
     messageQueue?: unknown;
     lastAccessedAt?: number | undefined;
@@ -88,18 +88,18 @@ export declare const deleteSession: import("@sylphx/lens-core").MutationDef<{
 }, {
     id: string;
     agentId: string;
-    createdAt: number;
     enabledRuleIds: unknown;
     nextTodoId: number;
+    createdAt: number;
     updatedAt: number;
-    model?: string | undefined;
-    modelId?: string | undefined;
     provider?: string | undefined;
-    totalTokens?: number | undefined;
+    model?: string | undefined;
     title?: string | undefined;
+    totalTokens?: number | undefined;
+    modelId?: string | undefined;
+    flags?: unknown;
     enabledToolIds?: unknown;
     enabledMcpServerIds?: unknown;
-    flags?: unknown;
     baseContextTokens?: number | undefined;
     messageQueue?: unknown;
     lastAccessedAt?: number | undefined;
@@ -161,12 +161,12 @@ export declare const createTodo: import("@sylphx/lens-core").MutationDef<{
     activeForm: string;
     status?: "completed" | "pending" | "in_progress" | undefined;
 }, {
-    content: string;
     id: number;
+    content: string;
     sessionId: string;
     status: string;
-    ordering: number;
     activeForm: string;
+    ordering: number;
     metadata?: unknown;
     createdAt?: number | undefined;
     createdByToolId?: string | undefined;
@@ -184,12 +184,12 @@ export declare const updateTodo: import("@sylphx/lens-core").MutationDef<{
     activeForm?: string | undefined;
     status?: "completed" | "pending" | "in_progress" | undefined;
 }, {
-    content: string;
     id: number;
+    content: string;
     sessionId: string;
     status: string;
-    ordering: number;
     activeForm: string;
+    ordering: number;
     metadata?: unknown;
     createdAt?: number | undefined;
     createdByToolId?: string | undefined;
@@ -218,12 +218,12 @@ export declare const syncTodos: import("@sylphx/lens-core").MutationDef<{
         id?: number | undefined;
     }[];
 }, {
-    content: string;
     id: number;
+    content: string;
     sessionId: string;
     status: string;
-    ordering: number;
     activeForm: string;
+    ordering: number;
     metadata?: unknown;
     createdAt?: number | undefined;
     createdByToolId?: string | undefined;
@@ -311,8 +311,8 @@ export declare const uploadFile: import("@sylphx/lens-core").MutationDef<{
  */
 export declare const answerAsk: import("@sylphx/lens-core").MutationDef<{
     sessionId: string;
-    messageId: string;
-    answer: "never" | "always" | "yes" | "no";
+    questionId: string;
+    answers: Record<string, string | string[]>;
 }, {
     success: boolean;
 }, unknown>;

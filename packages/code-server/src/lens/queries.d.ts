@@ -14,18 +14,18 @@ export declare const getSession: import("@sylphx/lens-core").QueryDef<{
 }, {
     id: string;
     agentId: string;
-    createdAt: number;
     enabledRuleIds: unknown;
     nextTodoId: number;
+    createdAt: number;
     updatedAt: number;
-    model?: string | undefined;
-    modelId?: string | undefined;
     provider?: string | undefined;
-    totalTokens?: number | undefined;
+    model?: string | undefined;
     title?: string | undefined;
+    totalTokens?: number | undefined;
+    modelId?: string | undefined;
+    flags?: unknown;
     enabledToolIds?: unknown;
     enabledMcpServerIds?: unknown;
-    flags?: unknown;
     baseContextTokens?: number | undefined;
     messageQueue?: unknown;
     lastAccessedAt?: number | undefined;
@@ -39,18 +39,18 @@ export declare const listSessions: import("@sylphx/lens-core").QueryDef<{
 } | undefined, {
     id: string;
     agentId: string;
-    createdAt: number;
     enabledRuleIds: unknown;
     nextTodoId: number;
+    createdAt: number;
     updatedAt: number;
-    model?: string | undefined;
-    modelId?: string | undefined;
     provider?: string | undefined;
-    totalTokens?: number | undefined;
+    model?: string | undefined;
     title?: string | undefined;
+    totalTokens?: number | undefined;
+    modelId?: string | undefined;
+    flags?: unknown;
     enabledToolIds?: unknown;
     enabledMcpServerIds?: unknown;
-    flags?: unknown;
     baseContextTokens?: number | undefined;
     messageQueue?: unknown;
     lastAccessedAt?: number | undefined;
@@ -61,18 +61,18 @@ export declare const listSessions: import("@sylphx/lens-core").QueryDef<{
 export declare const getLastSession: import("@sylphx/lens-core").QueryDef<void, {
     id: string;
     agentId: string;
-    createdAt: number;
     enabledRuleIds: unknown;
     nextTodoId: number;
+    createdAt: number;
     updatedAt: number;
-    model?: string | undefined;
-    modelId?: string | undefined;
     provider?: string | undefined;
-    totalTokens?: number | undefined;
+    model?: string | undefined;
     title?: string | undefined;
+    totalTokens?: number | undefined;
+    modelId?: string | undefined;
+    flags?: unknown;
     enabledToolIds?: unknown;
     enabledMcpServerIds?: unknown;
-    flags?: unknown;
     baseContextTokens?: number | undefined;
     messageQueue?: unknown;
     lastAccessedAt?: number | undefined;
@@ -86,18 +86,18 @@ export declare const searchSessions: import("@sylphx/lens-core").QueryDef<{
 }, {
     id: string;
     agentId: string;
-    createdAt: number;
     enabledRuleIds: unknown;
     nextTodoId: number;
+    createdAt: number;
     updatedAt: number;
-    model?: string | undefined;
-    modelId?: string | undefined;
     provider?: string | undefined;
-    totalTokens?: number | undefined;
+    model?: string | undefined;
     title?: string | undefined;
+    totalTokens?: number | undefined;
+    modelId?: string | undefined;
+    flags?: unknown;
     enabledToolIds?: unknown;
     enabledMcpServerIds?: unknown;
-    flags?: unknown;
     baseContextTokens?: number | undefined;
     messageQueue?: unknown;
     lastAccessedAt?: number | undefined;
@@ -113,11 +113,11 @@ export declare const getMessage: import("@sylphx/lens-core").QueryDef<{
     id: string;
 }, {
     id: string;
-    role: string;
-    timestamp: number;
     sessionId: string;
+    role: string;
     status: string;
     ordering: number;
+    timestamp: number;
     finishReason?: string | undefined;
 }, unknown>;
 /**
@@ -128,11 +128,11 @@ export declare const listMessages: import("@sylphx/lens-core").QueryDef<{
     limit?: number | undefined;
 }, {
     id: string;
-    role: string;
-    timestamp: number;
     sessionId: string;
+    role: string;
     status: string;
     ordering: number;
+    timestamp: number;
     finishReason?: string | undefined;
 }[], unknown>;
 /**
@@ -158,12 +158,12 @@ export declare const getStep: import("@sylphx/lens-core").QueryDef<{
 }, {
     id: string;
     status: string;
-    stepIndex: number;
     messageId: string;
-    duration?: number | undefined;
-    model?: string | undefined;
-    provider?: string | undefined;
+    stepIndex: number;
     finishReason?: string | undefined;
+    provider?: string | undefined;
+    model?: string | undefined;
+    duration?: number | undefined;
     startTime?: number | undefined;
     systemMessages?: unknown;
     endTime?: number | undefined;
@@ -176,12 +176,12 @@ export declare const listSteps: import("@sylphx/lens-core").QueryDef<{
 }, {
     id: string;
     status: string;
-    stepIndex: number;
     messageId: string;
-    duration?: number | undefined;
-    model?: string | undefined;
-    provider?: string | undefined;
+    stepIndex: number;
     finishReason?: string | undefined;
+    provider?: string | undefined;
+    model?: string | undefined;
+    duration?: number | undefined;
     startTime?: number | undefined;
     systemMessages?: unknown;
     endTime?: number | undefined;
@@ -192,8 +192,8 @@ export declare const listSteps: import("@sylphx/lens-core").QueryDef<{
 export declare const getPart: import("@sylphx/lens-core").QueryDef<{
     id: string;
 }, {
-    content: unknown;
     id: string;
+    content: unknown;
     type: string;
     ordering: number;
     stepId?: string | undefined;
@@ -204,8 +204,8 @@ export declare const getPart: import("@sylphx/lens-core").QueryDef<{
 export declare const listParts: import("@sylphx/lens-core").QueryDef<{
     stepId: string;
 }, {
-    content: unknown;
     id: string;
+    content: unknown;
     type: string;
     ordering: number;
     stepId?: string | undefined;
@@ -216,12 +216,12 @@ export declare const listParts: import("@sylphx/lens-core").QueryDef<{
 export declare const listTodos: import("@sylphx/lens-core").QueryDef<{
     sessionId: string;
 }, {
-    content: string;
     id: number;
+    content: string;
     sessionId: string;
     status: string;
-    ordering: number;
     activeForm: string;
+    ordering: number;
     metadata?: unknown;
     createdAt?: number | undefined;
     createdByToolId?: string | undefined;
@@ -240,18 +240,18 @@ export declare const subscribeSession: import("@sylphx/lens-core").QueryDef<{
 }, {
     id: string;
     agentId: string;
-    createdAt: number;
     enabledRuleIds: unknown;
     nextTodoId: number;
+    createdAt: number;
     updatedAt: number;
-    model?: string | undefined;
-    modelId?: string | undefined;
     provider?: string | undefined;
-    totalTokens?: number | undefined;
+    model?: string | undefined;
     title?: string | undefined;
+    totalTokens?: number | undefined;
+    modelId?: string | undefined;
+    flags?: unknown;
     enabledToolIds?: unknown;
     enabledMcpServerIds?: unknown;
-    flags?: unknown;
     baseContextTokens?: number | undefined;
     messageQueue?: unknown;
     lastAccessedAt?: number | undefined;
@@ -264,18 +264,18 @@ export declare const subscribeSession: import("@sylphx/lens-core").QueryDef<{
 export declare const subscribeSessionList: import("@sylphx/lens-core").QueryDef<void, {
     id: string;
     agentId: string;
-    createdAt: number;
     enabledRuleIds: unknown;
     nextTodoId: number;
+    createdAt: number;
     updatedAt: number;
-    model?: string | undefined;
-    modelId?: string | undefined;
     provider?: string | undefined;
-    totalTokens?: number | undefined;
+    model?: string | undefined;
     title?: string | undefined;
+    totalTokens?: number | undefined;
+    modelId?: string | undefined;
+    flags?: unknown;
     enabledToolIds?: unknown;
     enabledMcpServerIds?: unknown;
-    flags?: unknown;
     baseContextTokens?: number | undefined;
     messageQueue?: unknown;
     lastAccessedAt?: number | undefined;
