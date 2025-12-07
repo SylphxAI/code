@@ -5,12 +5,11 @@
  * Migrated from useMessageHistoryNavigation hook
  */
 
-import type { FilteredCommand, FilteredFile } from "@sylphx/code-client";
 import type { FileAttachment } from "@sylphx/code-core";
 import type { Key } from "ink";
 import type React from "react";
 import type { MessageHistoryEntry } from "../../../screens/chat/hooks/useInputState.js";
-import { InputMode, type InputModeContext } from "../types.js";
+import { InputMode, type FilteredCommand, type FilteredFile, type InputModeContext } from "../types.js";
 import { BaseInputHandler } from "./BaseHandler.js";
 
 export interface MessageHistoryModeHandlerDeps {
@@ -76,7 +75,7 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 
 		// Don't handle when autocomplete is showing
 		const hasAutocomplete =
-			filteredCommands.length > 0 || (filteredFileInfo && filteredFileInfo.files.length > 0);
+			filteredCommands.length > 0 || (filteredFileInfo && filteredFileInfo.files && filteredFileInfo.files.length > 0);
 
 		if (hasAutocomplete) {
 			return false;

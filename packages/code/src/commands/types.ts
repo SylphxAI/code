@@ -3,7 +3,7 @@
  * Shared types for command system
  */
 
-import type { LensClient } from "@sylphx/lens-client";
+import type { CodeClient } from "@sylphx/code-client";
 import type { AIConfig } from "@sylphx/code-core";
 import type { ReactNode } from "react";
 
@@ -66,7 +66,7 @@ export type WaitForInputOptions =
  */
 export interface CommandContext {
 	// Lens client (passed from React hook - useLensClient())
-	client: LensClient<any, any>;
+	client: CodeClient;
 
 	// Command arguments
 	args: string[];

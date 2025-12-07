@@ -1,0 +1,1 @@
+{"version":3,"file":"file-handler.d.ts","sourceRoot":"","sources":["file-handler.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAEH,OAAO,KAAK,EAAE,WAAW,EAAE,iBAAiB,EAAE,MAAM,mBAAmB,CAAC;AACxE,OAAO,KAAK,EAAE,iBAAiB,EAAE,MAAM,YAAY,CAAC;AAEpD;;;GAGG;AACH,wBAAsB,kBAAkB,CACvC,kBAAkB,EAAE,iBAAiB,EAAE,GAAG,IAAI,GAAG,SAAS,EAC1D,iBAAiB,EAAE,iBAAiB,GAClC,OAAO,CAAC,WAAW,EAAE,CAAC,CAiDxB"}

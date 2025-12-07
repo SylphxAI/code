@@ -51,7 +51,7 @@ function StatusBarInternal({
 
 	// Subscribe to current agent from store (event-driven, no polling!)
 	const selectedAgentId = useSelectedAgentId();
-	const currentAgent = getAgentById(selectedAgentId);
+	const currentAgent = selectedAgentId ? getAgentById(selectedAgentId) : null;
 	const agentName = currentAgent?.metadata.name || "";
 
 	// Subscribe to enabled rules count
@@ -122,14 +122,14 @@ function StatusBarInternal({
 
 	// Memoize capability label to avoid recalculating on every render
 	const capabilityLabel = useMemo(() => {
-		if (loading || !capabilities || capabilities.size === 0) return "";
+		if (loading || !capabilities || Object.keys(capabilities).length === 0) return "";
 
 		const caps: string[] = [];
-		if (capabilities.has("image-input")) caps.push("👁️");
-		if (capabilities.has("file-input")) caps.push("📎");
-		if (capabilities.has("image-output")) caps.push("🎨");
-		if (capabilities.has("tools")) caps.push("🔧");
-		if (capabilities.has("reasoning")) caps.push("🧠");
+		if (capabilities["image-input"]) caps.push("👁️");
+		if (capabilities["file-input"]) caps.push("📎");
+		if (capabilities["image-output"]) caps.push("🎨");
+		if (capabilities["tools"]) caps.push("🔧");
+		if (capabilities["reasoning"]) caps.push("🧠");
 
 		return caps.length > 0 ? ` ${caps.join("")}` : "";
 	}, [loading, capabilities]);
@@ -145,7 +145,7 @@ function StatusBarInternal({
 		const rightParts = [
 			`${enabledRulesCount} ${enabledRulesCount === 1 ? "rule" : "rules"}`,
 			mcpStatus.total > 0 &&
-				`MCP ${mcpStatus.connected}/${mcpStatus.total}${mcpStatus.connected > 0 ? ` (${mcpStatus.toolCount})` : ""}`,
+				`MCP ${mcpStatus.connected}/${mcpStatus.total}`,
 			backgroundBashCount > 0 && `${backgroundBashCount} BG bash (Ctrl+P)`,
 		].filter(Boolean);
 

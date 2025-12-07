@@ -3,7 +3,7 @@
  * Lazy loading from local state, no extra cache needed
  */
 
-import type { LensClient } from "@sylphx/lens-client";
+import type { CodeClient } from "@sylphx/code-client";
 import { getAIConfig, setAIConfig } from "../ai-config-state.js";
 import type { AIConfig, ProviderId } from "@sylphx/code-core";
 
@@ -21,7 +21,7 @@ export interface CompletionOption {
  *
  * @param client - Lens client (passed from React hook useLensClient)
  */
-async function _getAIConfig(client: LensClient<any, any>): Promise<AIConfig | null> {
+async function _getAIConfig(client: CodeClient): Promise<AIConfig | null> {
 	// Already in local state? Return cached (fast!)
 	const currentConfig = getAIConfig();
 	if (currentConfig) {
@@ -31,12 +31,12 @@ async function _getAIConfig(client: LensClient<any, any>): Promise<AIConfig | nu
 	// First access - lazy load from server
 	try {
 		// Lens flat namespace: client.loadConfig.fetch({})
-		const result = await client.loadConfig.fetch({}) as { success: boolean; config: AIConfig };
+		const result = await client.loadConfig.fetch({});
 
-		if (result.success) {
+		if (result.success && result.config) {
 			// Cache in local state (stays until explicitly updated)
-			setAIConfig(result.config);
-			return result.config;
+			setAIConfig(result.config as AIConfig);
+			return result.config as AIConfig;
 		}
 
 		return null;
@@ -54,12 +54,12 @@ async function _getAIConfig(client: LensClient<any, any>): Promise<AIConfig | nu
  * @param partial - Partial search string for filtering
  */
 export async function getProviderCompletions(
-	client: LensClient<any, any>,
+	client: CodeClient,
 	partial = "",
 ): Promise<CompletionOption[]> {
 	try {
 		// Lens flat namespace: client.getProviders.fetch({})
-		const result = await client.getProviders.fetch({}) as { [key: string]: any };
+		const result = await client.getProviders.fetch({});
 
 		const providers = Object.keys(result);
 		const filtered = partial
@@ -106,19 +106,19 @@ export function getSubactionCompletions(): CompletionOption[] {
  * @param providerId - Provider ID to get schema for
  */
 export async function getProviderKeyCompletions(
-	client: LensClient<any, any>,
+	client: CodeClient,
 	providerId: ProviderId,
 ): Promise<CompletionOption[]> {
 	try {
 		// Lens flat namespace: client.getProviderSchema.fetch({ input })
-		const result = await client.getProviderSchema.fetch({ input: { providerId } }) as { success: boolean; schema?: any[] };
+		const result = await client.getProviderSchema.fetch({ input: { providerId } });
 
 		if (!result.success || !result.schema) {
 			return [];
 		}
 
 		// Return all config field keys
-		return result.schema.map((field: any) => ({
+		return result.schema.map((field) => ({
 			id: field.key,
 			label: field.key,
 			value: field.key,

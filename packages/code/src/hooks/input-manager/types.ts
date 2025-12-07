@@ -105,3 +105,24 @@ export interface InputModeManagerConfig {
 	/** Custom mode detection logic (overrides default) */
 	detectMode?: (context: Omit<InputModeContext, "mode" | "setMode">) => InputMode;
 }
+
+/**
+ * Filtered file information
+ * Used by autocomplete and file navigation
+ */
+export interface FilteredFile {
+	path: string;
+	name: string;
+	type: string;
+	files?: FilteredFile[];
+}
+
+/**
+ * Filtered command information
+ * Used by command autocomplete
+ */
+export interface FilteredCommand {
+	id: string;
+	label: string;
+	description: string;
+}

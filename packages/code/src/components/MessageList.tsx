@@ -6,7 +6,7 @@
  * PERFORMANCE: Memoized message items to prevent re-renders when parent updates
  */
 
-import type { SessionMessage } from "@sylphx/code-core";
+import type { SessionMessage, MessagePart as MessagePartType } from "@sylphx/code-core";
 import { Box, Text } from "ink";
 import React, { useState, useEffect } from "react";
 import MarkdownText from "./MarkdownText.js";
@@ -44,7 +44,8 @@ const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
 
 	if (msg.role === "system") {
 		// Extract system message type from <system_message type="..."> tag
-		const content = msg.content?.[0]?.type === "text" ? msg.content[0].content : "";
+		const firstTextPart = msg.steps?.[0]?.parts.find((p) => p.type === "text");
+		const content = firstTextPart?.type === "text" ? firstTextPart.content : "";
 		const typeMatch = content.match(/<system_message type="([^"]+)">/);
 		const messageType = typeMatch ? typeMatch[1] : "info";
 
@@ -67,8 +68,8 @@ const MessageHeader = React.memo(({ msg }: { msg: SessionMessage }) => {
 		return <Text color={colors.success}>{indicators.assistant} SYLPHX</Text>;
 	}
 
-	const firstProvider = stepsWithModel[0].provider;
-	const firstModel = stepsWithModel[0].model;
+	const firstProvider = stepsWithModel[0]?.provider;
+	const firstModel = stepsWithModel[0]?.model;
 	const allSame = stepsWithModel.every(
 		(s) => s.provider === firstProvider && s.model === firstModel,
 	);
@@ -115,10 +116,10 @@ export function MessageList({
 						</Box>
 					)}
 
-					{/* Message Content (Step-based or fallback to content array) */}
+					{/* Message Content (Step-based) */}
 					{msg.role === "user" || msg.role === "system" ? (
 						// User/System message: reconstruct original text with inline @file highlighting
-						msg.steps && msg.steps.length > 0 ? (
+						msg.steps.length > 0 ? (
 							<Box paddingTop={0} paddingX={1} flexDirection="row">
 								{hideMessageTitles && (
 									<Text color={msg.role === "user" ? colors.primary : colors.warning}>
@@ -135,18 +136,12 @@ export function MessageList({
 									for (const part of parts) {
 										if (part.type === "text") {
 											fullText += part.content;
-										} else if (part.type === "file") {
+										} else if (part.type === "file" || part.type === "file-ref") {
 											fullText += `@${part.relativePath}`;
 											fileMap.set(part.relativePath, true);
 										} else if (part.type === "error") {
 											// Ensure error is converted to string to prevent React rendering issues
-											const errorStr =
-												typeof part.error === "string"
-													? part.error
-													: part.error instanceof Error
-														? part.error.message
-														: String(part.error);
-											fullText += `[Error: ${errorStr}]`;
+											fullText += `[Error: ${part.error}]`;
 										}
 									}
 
@@ -171,6 +166,7 @@ export function MessageList({
 										while ((match = fileRegex.exec(line)) !== null) {
 											const matchStart = match.index;
 											const fileName = match[1];
+											if (!fileName) continue;
 
 											// Add text before @file
 											if (matchStart > lastIndex) {
@@ -239,117 +235,9 @@ export function MessageList({
 								})()}
 								</Box>
 							</Box>
-						) : msg.content && msg.content.length > 0 ? (
-							<Box paddingTop={0} paddingX={1} flexDirection="row">
-								{hideMessageTitles && (
-									<Text color={msg.role === "user" ? colors.primary : colors.warning}>
-										{msg.role === "user" ? indicators.user : indicators.system}{" "}
-									</Text>
-								)}
-								<Box flexDirection="column" marginLeft={hideMessageTitles ? 0 : 2}>
-								{(() => {
-									// Same logic for legacy content array
-									let fullText = "";
-									const fileMap = new Map<string, boolean>();
-
-									for (const part of msg.content) {
-										if (part.type === "text") {
-											fullText += part.content;
-										} else if (part.type === "file") {
-											fullText += `@${part.relativePath}`;
-											fileMap.set(part.relativePath, true);
-										} else if (part.type === "error") {
-											// Ensure error is converted to string to prevent React rendering issues
-											const errorStr =
-												typeof part.error === "string"
-													? part.error
-													: part.error instanceof Error
-														? part.error.message
-														: String(part.error);
-											fullText += `[Error: ${errorStr}]`;
-										}
-									}
-
-									// For system messages, remove <system_message> tags and clean content
-									if (msg.role === "system") {
-										fullText = fullText
-											.replace(/<system_message[^>]*>/g, "")
-											.replace(/<\/system_message>/g, "")
-											.trim();
-									}
-
-									const lines = fullText.split("\n");
-
-									return lines.map((line, lineIdx) => {
-										const segments: Array<{ text: string; isFile: boolean }> = [];
-										const fileRegex = /@([^\s]+)/g;
-										let lastIndex = 0;
-										let match;
-
-										while ((match = fileRegex.exec(line)) !== null) {
-											const matchStart = match.index;
-											const fileName = match[1];
-
-											if (matchStart > lastIndex) {
-												segments.push({
-													text: line.slice(lastIndex, matchStart),
-													isFile: false,
-												});
-											}
-
-											segments.push({
-												text: `@${fileName}`,
-												isFile: fileMap.has(fileName),
-											});
-
-											lastIndex = match.index + match[0].length;
-										}
-
-										if (lastIndex < line.length) {
-											segments.push({
-												text: line.slice(lastIndex),
-												isFile: false,
-											});
-										}
-
-										return (
-											<Box
-												key={`legacy-line-${lineIdx}`}
-												flexDirection="row"
-												flexWrap="wrap"
-												paddingX={msg.role === "system" ? 1 : 0}
-												marginY={msg.role === "system" && lineIdx === 0 ? 0 : undefined}
-											>
-												{segments.map((seg, segIdx) =>
-													seg.isFile ? (
-														<Text
-															key={`legacy-line-${lineIdx}-seg-${segIdx}-${seg.text.slice(0, 10)}`}
-															backgroundColor="#1a472a"
-															color={colors.success}
-														>
-															{seg.text}
-														</Text>
-													) : msg.role === "system" ? (
-														// System messages: render plain text (no markdown to avoid Box nesting)
-														<Text key={`legacy-line-${lineIdx}-seg-${segIdx}`} color={colors.warning}>
-															{seg.text}
-														</Text>
-													) : (
-														// User messages: use MarkdownText (safe because not nested in Text)
-														<MarkdownText key={`legacy-line-${lineIdx}-seg-${segIdx}`}>
-															{seg.text}
-														</MarkdownText>
-													),
-												)}
-											</Box>
-										);
-									});
-								})()}
-								</Box>
-							</Box>
 						) : null
 					) : // Assistant message: render each part separately (tools, reasoning, files, etc.)
-					msg.steps && msg.steps.length > 0 ? (
+					msg.steps.length > 0 ? (
 						<Box paddingTop={0} paddingX={1} flexDirection="row">
 							{hideMessageTitles && (msg.status === "active" ? <AnimatedIndicator /> : <Text color={colors.success}>{indicators.assistant} </Text>)}
 							<Box flexDirection="column" flexGrow={1}>
@@ -368,36 +256,21 @@ export function MessageList({
 								})()}
 							</Box>
 						</Box>
-					) : msg.content && msg.content.length > 0 ? (
-						<Box paddingTop={0} paddingX={1} flexDirection="row">
-							{hideMessageTitles && (msg.status === "active" ? <AnimatedIndicator /> : <Text color={colors.success}>{indicators.assistant} </Text>)}
-							<Box flexDirection="column" flexGrow={1}>
-								{msg.content.map((part, partIdx) => (
-									<MessagePart
-										key={`${msg.id}-part-${partIdx}`}
-										part={part}
-										compact={hideMessageTitles}
-										isFirst={partIdx === 0}
-									/>
-								))}
-							</Box>
-						</Box>
 					) : msg.status === "active" ? (
 						<Box paddingTop={0} paddingX={1} flexDirection="row">
 							{hideMessageTitles && <AnimatedIndicator />}
 						</Box>
 					) : null}
 
-					{/* Attachments (for user/system messages) - extracted from steps.parts or content */}
+					{/* Attachments (for user/system messages) - extracted from steps.parts */}
 					{(msg.role === "user" || msg.role === "system") &&
 						(() => {
-							// Extract file parts from steps or content
-							const fileParts =
-								msg.steps && msg.steps.length > 0
-									? msg.steps.flatMap((step) => step.parts).filter((part) => part.type === "file")
-									: msg.content
-										? msg.content.filter((part) => part.type === "file")
-										: [];
+							// Extract file parts from steps
+							const fileParts = msg.steps
+								.flatMap((step) => step.parts)
+								.filter((part): part is Extract<MessagePartType, { type: "file" | "file-ref" }> =>
+									part.type === "file" || part.type === "file-ref"
+								);
 
 							return fileParts.map((filePart, idx) => (
 								<Box key={`${msg.id}-file-${idx}`} marginLeft={3}>

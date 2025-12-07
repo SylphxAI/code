@@ -17,7 +17,7 @@
  * - refetch() when needed
  */
 
-import { useLensClient } from "@sylphx/code-client";
+import { useLensClient, type Session } from "@sylphx/code-client";
 import { useCurrentSessionId } from "../../session-state.js";
 
 export function useCurrentSession() {
@@ -33,14 +33,11 @@ export function useCurrentSession() {
 		input: { id: currentSessionId || "" },
 		skip,
 	}) as {
-		data: {
-			id: string;
-			title?: string;
+		data: Session & {
 			streamingStatus?: "idle" | "streaming" | "waiting_input";
 			isTextStreaming?: boolean;
 			isReasoningStreaming?: boolean;
 			currentTool?: string;
-			[key: string]: unknown;
 		} | null;
 		loading: boolean;
 		error: Error | null;

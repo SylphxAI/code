@@ -24,78 +24,83 @@ export const compactCommand: Command = {
 			return "Current session has no messages to compact.";
 		}
 
-		// Set compacting status (shows indicator in UI)
-		setCompacting(true);
+		// TODO: compactSession endpoint doesn't exist in CodeClient API yet
+		// Need to implement this mutation on the server side first
+		return "❌ Session compaction is not yet implemented. The compactSession endpoint needs to be added to the Lens API.";
 
-		// Create abort controller for ESC cancellation
-		const abortController = new AbortController();
-		setCompactAbortController(abortController);
+		// // Set compacting status (shows indicator in UI)
+		// setCompacting(true);
 
-		try {
-			// Use client from context (passed from React hook)
-			const client = context.client;
+		// // Create abort controller for ESC cancellation
+		// const abortController = new AbortController();
+		// setCompactAbortController(abortController);
 
-			// Check if already aborted before starting
-			if (abortController.signal.aborted) {
-				setCompacting(false);
-				return "⚠️ Compaction cancelled.";
-			}
+		// try {
+		// 	// Use client from context (passed from React hook)
+		// 	const client = context.client;
 
-			// Lens flat namespace: client.compactSession.fetch({ input })
-			const result = await client.compactSession.fetch({
-				input: { sessionId: currentSession.id },
-			}) as { success: boolean; error?: string; newSessionId?: string; messageCount?: number; oldSessionTitle?: string };
+		// 	// Check if already aborted before starting
+		// 	if (abortController.signal.aborted) {
+		// 		setCompacting(false);
+		// 		return "⚠️ Compaction cancelled.";
+		// 	}
 
-			// Clear compacting status
-			setCompacting(false);
+		// 	// TODO: This endpoint doesn't exist yet - needs to be implemented
+		// 	// Lens flat namespace: client.compactSession.fetch({ input })
+		// 	// const result = await client.compactSession.fetch({
+		// 	// 	input: { sessionId: currentSession.id },
+		// 	// }) as { success: boolean; error?: string; newSessionId?: string; messageCount?: number; oldSessionTitle?: string };
 
-			if (!result.success) {
-				return `❌ Failed to compact session: ${result.error}`;
-			}
+		// 	// // Clear compacting status
+		// 	// setCompacting(false);
 
-			const messageCount = result.messageCount || currentSession.messages.length;
-			const sessionTitle = result.oldSessionTitle || currentSession.title || "Untitled session";
+		// 	// if (!result.success) {
+		// 	// 	return `❌ Failed to compact session: ${result.error}`;
+		// 	// }
 
-			// Fetch new session to get the system message (summary)
-			// Lens flat namespace: client.getSession.fetch({ input })
-			const newSession = await client.getSession.fetch({
-				input: { id: result.newSessionId! },
-			}) as { messages: Array<{ status: string }> } | null;
+		// 	// const messageCount = result.messageCount || currentSession.messages.length;
+		// 	// const sessionTitle = result.oldSessionTitle || currentSession.title || "Untitled session";
 
-			if (!newSession) {
-				return `❌ Failed to load new session`;
-			}
+		// 	// // Fetch new session to get the system message (summary)
+		// 	// // Lens flat namespace: client.getSession.fetch({ input })
+		// 	// const newSession = await client.getSession.fetch({
+		// 	// 	input: { id: result.newSessionId! },
+		// 	// });
 
-			// Only include completed messages (system message)
-			const completedMessages = newSession.messages.filter((m) => m.status === "completed");
+		// 	// if (!newSession) {
+		// 	// 	return `❌ Failed to load new session`;
+		// 	// }
 
-			// Switch to new session with completed messages only
-			setCurrentSessionId(result.newSessionId!);
-			setCurrentSession({
-				...newSession,
-				messages: completedMessages,
-			} as typeof currentSession);
+		// 	// // Only include completed messages (system message)
+		// 	// const completedMessages = newSession.messages.filter((m) => m.status === "completed");
 
-			// Server auto-triggers AI streaming in background (business logic on server)
-			// Lens live queries will automatically update the UI
-			context.sendMessage(
-				`✓ Compacted session "${sessionTitle}" (${messageCount} messages)\n✓ Created new session with AI-generated summary\n✓ Switched to new session\n✓ AI is processing the summary...`,
-			);
+		// 	// // Switch to new session with completed messages only
+		// 	// setCurrentSessionId(result.newSessionId!);
+		// 	// setCurrentSession({
+		// 	// 	...newSession,
+		// 	// 	messages: completedMessages,
+		// 	// } as typeof currentSession);
 
-			return;
-		} catch (error) {
-			// Clear compacting status on error
-			setCompacting(false);
+		// 	// // Server auto-triggers AI streaming in background (business logic on server)
+		// 	// // Lens live queries will automatically update the UI
+		// 	// context.sendMessage(
+		// 	// 	`✓ Compacted session "${sessionTitle}" (${messageCount} messages)\n✓ Created new session with AI-generated summary\n✓ Switched to new session\n✓ AI is processing the summary...`,
+		// 	// );
 
-			// Check if it was aborted
-			if (error instanceof Error && error.name === "AbortError") {
-				return "⚠️ Compaction cancelled.";
-			}
+		// 	// return;
+		// } catch (error) {
+		// 	// Clear compacting status on error
+		// 	setCompacting(false);
 
-			const errorMsg = error instanceof Error ? error.message : String(error);
-			context.addLog(`[Compact] Error: ${errorMsg}`);
-			return `❌ Failed to compact session: ${errorMsg}`;
-		}
+		// 	// Check if it was aborted
+		// 	if (error instanceof Error && error.name === "AbortError") {
+		// 		return "⚠️ Compaction cancelled.";
+		// 	}
+
+		// 	const errorMsg = error instanceof Error ? error.message : String(error);
+		// 	context.addLog(`[Compact] Error: ${errorMsg}`);
+		// 	return `❌ Failed to compact session: ${errorMsg}`;
+		// }
 	},
 };
 

@@ -33,8 +33,10 @@ export async function askSelectProviderKey(
 		],
 	});
 
-	const key = typeof keyAnswers === "object" && !Array.isArray(keyAnswers) ? keyAnswers.key : "";
-	return key || null;
+	const key = typeof keyAnswers === "object" && !Array.isArray(keyAnswers)
+		? (typeof keyAnswers.key === "string" ? keyAnswers.key : null)
+		: null;
+	return key;
 }
 
 /**
@@ -62,7 +64,10 @@ export async function askForValueByType(
 				},
 			],
 		});
-		value = typeof boolAnswers === "object" && !Array.isArray(boolAnswers) ? boolAnswers.value : "";
+		const boolValue = typeof boolAnswers === "object" && !Array.isArray(boolAnswers)
+			? boolAnswers.value
+			: "";
+		value = typeof boolValue === "string" ? boolValue : "";
 	} else {
 		await context.sendMessage(`Enter value for ${key}:`);
 		const valueAnswers = await context.waitForInput({

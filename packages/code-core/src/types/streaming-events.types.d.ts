@@ -1,0 +1,200 @@
+/**
+ * Streaming Event Types
+ * Proper type definitions for streaming events with discriminated unions
+ */
+import type { TokenUsage } from "./session.types.js";
+import type { Todo } from "./todo.types.js";
+/**
+ * System message in streaming context
+ */
+export interface StreamSystemMessage {
+    type: string;
+    content: string;
+    timestamp: number;
+}
+/**
+ * Tool input type - structured parameters for tool execution
+ * Uses Record<string, unknown> for dynamic tool parameters
+ */
+export type ToolInput = Record<string, unknown>;
+/**
+ * Tool result type - discriminated union for success/error states
+ * Prevents illegal states (success with error, or failure with result)
+ */
+export type ToolResult = {
+    success: true;
+    output: unknown;
+    duration?: number;
+} | {
+    success: false;
+    error: string;
+    duration?: number;
+};
+/**
+ * Todo snapshot type - array of todos at a specific point in time
+ */
+export type TodoSnapshot = Todo[];
+/**
+ * Session status - current activity state
+ * Controls unified progress indicator across UI
+ */
+export interface SessionStatus {
+    /** Status text (e.g., "Implementing user auth", "Thinking...", "Reading files...") */
+    text: string;
+    /** Milliseconds since activity started */
+    duration: number;
+    /** Cumulative tokens used in current activity */
+    tokenUsage: number;
+    /** true = streaming/active, false = completed/idle */
+    isActive: boolean;
+}
+/**
+ * Stream events emitted during AI response generation
+ * Discriminated union ensures type safety for event handling
+ */
+export type StreamEvent = {
+    type: "session-created";
+    sessionId: string;
+    provider: string;
+    model: string;
+} | {
+    type: "session-updated";
+    sessionId: string;
+    session: {
+        id: string;
+        title: string;
+        status?: SessionStatus;
+        totalTokens?: number;
+        baseContextTokens?: number;
+        provider?: string;
+        model?: string;
+        updatedAt?: number;
+    };
+} | {
+    type: "user-message-created";
+    messageId: string;
+    content: string;
+} | {
+    type: "assistant-message-created";
+    messageId: string;
+} | {
+    type: "system-message-created";
+    messageId: string;
+    content: string;
+} | {
+    type: "message-updated";
+    messageId: string;
+    message: {
+        id: string;
+        status?: "active" | "completed" | "error" | "abort";
+        usage?: TokenUsage;
+        finishReason?: string;
+        content?: any[];
+    };
+} | {
+    type: "step-start";
+    stepId: string;
+    stepIndex: number;
+    todoSnapshot: TodoSnapshot;
+    systemMessages?: StreamSystemMessage[];
+    provider?: string;
+    model?: string;
+} | {
+    type: "step-complete";
+    stepId: string;
+    usage: TokenUsage;
+    duration: number;
+    finishReason: string;
+} | {
+    type: "text-start";
+} | {
+    type: "text-delta";
+    text: string;
+} | {
+    type: "text-end";
+} | {
+    type: "reasoning-start";
+} | {
+    type: "reasoning-delta";
+    text: string;
+} | {
+    type: "reasoning-end";
+    duration: number;
+} | {
+    type: "tool-call";
+    toolCallId: string;
+    toolName: string;
+    input: ToolInput;
+    startTime: number;
+} | {
+    type: "tool-input-start";
+    toolCallId: string;
+    startTime: number;
+} | {
+    type: "tool-input-delta";
+    toolCallId: string;
+    inputTextDelta: string;
+} | {
+    type: "tool-input-end";
+    toolCallId: string;
+} | {
+    type: "tool-result";
+    toolCallId: string;
+    toolName: string;
+    result: unknown;
+    duration: number;
+} | {
+    type: "tool-error";
+    toolCallId: string;
+    toolName: string;
+    error: string;
+    duration: number;
+} | {
+    type: "file";
+    mediaType: string;
+    base64: string;
+} | {
+    type: "ask-question-start";
+    sessionId: string;
+    toolCallId: string;
+    question: string;
+    options: Array<{
+        label: string;
+        value?: string;
+        description?: string;
+        freeText?: boolean;
+        placeholder?: string;
+    }>;
+    multiSelect?: boolean;
+    preSelected?: string[];
+} | {
+    type: "ask-question-answered";
+    sessionId: string;
+    toolCallId: string;
+    answer: string;
+} | {
+    type: "queue-message-added";
+    sessionId: string;
+    message: {
+        id: string;
+        content: string;
+        attachments: Array<{
+            path: string;
+            relativePath: string;
+            size: number;
+            mimeType?: string;
+        }>;
+        enqueuedAt: number;
+    };
+} | {
+    type: "queue-message-removed";
+    sessionId: string;
+    messageId: string;
+} | {
+    type: "queue-cleared";
+    sessionId: string;
+} | {
+    type: "error";
+    error: string;
+};
+//# sourceMappingURL=streaming-events.types.d.ts.map

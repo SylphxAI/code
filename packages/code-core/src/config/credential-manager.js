@@ -1,0 +1,270 @@
+/**
+ * Credential Manager
+ *
+ * Handles loading and saving credentials to/from filesystem.
+ * Credentials are stored in separate files from general configuration.
+ *
+ * File locations:
+ * - Global: ~/.sylphx-code/credentials.json (user-wide API keys)
+ * - Project: ./.sylphx-code/credentials.local.json (project-specific, gitignored)
+ *
+ * SECURITY: Plaintext storage with restrictive permissions (0600).
+ * See GitHub issue #1 for encryption implementation roadmap.
+ */
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { z } from "zod";
+import { isErr, tryCatchAsync } from "../ai/result.js";
+import { clearCredentialRegistry, createCredential, deleteCredential, getCredential, getCredentialsByScope, hasActiveCredential, registerCredential, updateCredential, } from "../registry/credential-registry.js";
+import { createLogger } from "../utils/logger.js";
+const logger = createLogger("CredentialManager");
+/**
+ * Credential file schema
+ */
+const credentialFileSchema = z.object({
+    version: z.literal(1),
+    credentials: z.array(z.object({
+        id: z.string(),
+        providerId: z.string(),
+        label: z.string().optional(),
+        apiKey: z.string(),
+        scope: z.enum(["global", "project"]),
+        isDefault: z.boolean(),
+        status: z.enum(["active", "expired", "revoked", "invalid"]),
+        createdAt: z.number(),
+        lastUsedAt: z.number().optional(),
+        expiresAt: z.number().optional(),
+        metadata: z
+            .object({
+            projectPath: z.string().optional(),
+            environment: z.string().optional(),
+            tags: z.array(z.string()).optional(),
+        })
+            .optional(),
+    })),
+});
+/**
+ * Credential file paths
+ */
+const GLOBAL_CREDENTIALS_FILE = path.join(os.homedir(), ".sylphx-code", "credentials.json");
+function getProjectCredentialsFile(cwd) {
+    return path.join(cwd, ".sylphx-code", "credentials.local.json");
+}
+/**
+ * Get all credential file paths
+ */
+export function getCredentialPaths(cwd = process.cwd()) {
+    return {
+        global: GLOBAL_CREDENTIALS_FILE,
+        project: getProjectCredentialsFile(cwd),
+    };
+}
+/**
+ * Load credentials from a file
+ */
+async function loadCredentialFile(filePath) {
+    try {
+        const content = await fs.readFile(filePath, "utf8");
+        const parsed = JSON.parse(content);
+        const validated = credentialFileSchema.parse(parsed);
+        return validated.credentials;
+    }
+    catch (error) {
+        if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+            return []; // File doesn't exist
+        }
+        logger.error("Failed to load credential file", {
+            filePath,
+            error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+    }
+}
+/**
+ * Save credentials to a file
+ */
+async function saveCredentialFile(filePath, credentials) {
+    const credentialFile = {
+        version: 1,
+        credentials,
+    };
+    // Ensure directory exists
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    // Write file with restrictive permissions (0600 = rw-------)
+    await fs.writeFile(filePath, `${JSON.stringify(credentialFile, null, 2)}\n`, {
+        mode: 0o600,
+    });
+}
+/**
+ * Load all credentials from filesystem
+ * Merges global and project credentials into registry
+ */
+export async function loadCredentials(cwd = process.cwd()) {
+    return tryCatchAsync(async () => {
+        const paths = getCredentialPaths(cwd);
+        // Clear registry before loading
+        clearCredentialRegistry();
+        // Load global and project credentials
+        const [globalCreds, projectCreds] = await Promise.all([
+            loadCredentialFile(paths.global),
+            loadCredentialFile(paths.project),
+        ]);
+        // Register all credentials
+        for (const cred of [...globalCreds, ...projectCreds]) {
+            registerCredential(cred);
+        }
+        logger.info("Credentials loaded", {
+            global: globalCreds.length,
+            project: projectCreds.length,
+        });
+    }, (error) => new Error(`Failed to load credentials: ${error instanceof Error ? error.message : String(error)}`));
+}
+/**
+ * Save credentials to filesystem
+ * Separates global and project credentials
+ */
+export async function saveCredentials(cwd = process.cwd()) {
+    return tryCatchAsync(async () => {
+        const paths = getCredentialPaths(cwd);
+        // Separate credentials by scope
+        const globalCreds = getCredentialsByScope("global");
+        const projectCreds = getCredentialsByScope("project");
+        // Save to respective files
+        await Promise.all([
+            saveCredentialFile(paths.global, globalCreds),
+            projectCreds.length > 0
+                ? saveCredentialFile(paths.project, projectCreds)
+                : Promise.resolve(),
+        ]);
+        logger.info("Credentials saved", {
+            global: globalCreds.length,
+            project: projectCreds.length,
+        });
+    }, (error) => new Error(`Failed to save credentials: ${error instanceof Error ? error.message : String(error)}`));
+}
+/**
+ * Add a new credential
+ * Automatically saves to filesystem
+ */
+export async function addCredential(input, cwd = process.cwd()) {
+    return tryCatchAsync(async () => {
+        const credential = createCredential(input);
+        const saveResult = await saveCredentials(cwd);
+        if (isErr(saveResult)) {
+            // Rollback: remove from registry
+            deleteCredential(credential.id);
+            throw saveResult.error;
+        }
+        return credential;
+    }, (error) => new Error(`Failed to add credential: ${error instanceof Error ? error.message : String(error)}`));
+}
+/**
+ * Remove a credential
+ * Automatically saves to filesystem
+ */
+export async function removeCredential(credentialId, cwd = process.cwd()) {
+    return tryCatchAsync(async () => {
+        const credential = getCredential(credentialId);
+        if (!credential) {
+            return false;
+        }
+        const deleted = deleteCredential(credentialId);
+        if (deleted) {
+            const saveResult = await saveCredentials(cwd);
+            if (isErr(saveResult)) {
+                // Rollback: re-add to registry
+                registerCredential(credential);
+                throw saveResult.error;
+            }
+        }
+        return deleted;
+    }, (error) => new Error(`Failed to remove credential: ${error instanceof Error ? error.message : String(error)}`));
+}
+/**
+ * Update a credential
+ * Automatically saves to filesystem
+ */
+export async function modifyCredential(credentialId, updates, cwd = process.cwd()) {
+    return tryCatchAsync(async () => {
+        const original = getCredential(credentialId);
+        if (!original) {
+            return null;
+        }
+        const updated = updateCredential(credentialId, updates);
+        if (updated) {
+            const saveResult = await saveCredentials(cwd);
+            if (isErr(saveResult)) {
+                // Rollback: restore original
+                registerCredential(original);
+                throw saveResult.error;
+            }
+        }
+        return updated;
+    }, (error) => new Error(`Failed to update credential: ${error instanceof Error ? error.message : String(error)}`));
+}
+/**
+ * Check if credentials exist
+ */
+export async function credentialsExist(cwd = process.cwd()) {
+    const paths = getCredentialPaths(cwd);
+    try {
+        await fs.access(paths.global);
+        return true;
+    }
+    catch {
+        // Global doesn't exist, check project
+    }
+    try {
+        await fs.access(paths.project);
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+/**
+ * Migrate API keys from provider config to credentials
+ * Used during transition from old config structure
+ */
+export async function migrateProviderConfigToCredentials(providerConfigs, cwd = process.cwd()) {
+    return tryCatchAsync(async () => {
+        let migratedCount = 0;
+        for (const [providerId, config] of Object.entries(providerConfigs)) {
+            // Check if this provider config has an API key
+            if (!config.apiKey || typeof config.apiKey !== "string") {
+                continue;
+            }
+            // Check if we already have a credential for this provider
+            if (hasActiveCredential(providerId)) {
+                logger.info("Credential already exists for provider, skipping migration", {
+                    providerId,
+                });
+                continue;
+            }
+            // Create credential from API key
+            createCredential({
+                providerId,
+                label: `Migrated from config`,
+                apiKey: config.apiKey,
+                scope: "global",
+                isDefault: true,
+            });
+            migratedCount++;
+        }
+        if (migratedCount > 0) {
+            const saveResult = await saveCredentials(cwd);
+            if (isErr(saveResult)) {
+                throw saveResult.error;
+            }
+            logger.info("Migrated API keys to credential system", {
+                count: migratedCount,
+            });
+        }
+        return migratedCount;
+    }, (error) => new Error(`Failed to migrate credentials: ${error instanceof Error ? error.message : String(error)}`));
+}
+// Re-export registry functions for convenience
+// Note: These are duplicates of registry exports, used only within credential-manager
+// Main exports come from index.ts which exports from credential-registry.ts directly
+//# sourceMappingURL=credential-manager.js.map

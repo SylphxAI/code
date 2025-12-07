@@ -52,9 +52,9 @@ export const modelCommand: Command = {
 				context.addLog(`Loading models from ${provider}...`);
 				// Use client from context (passed from React hook)
 				const client = context.client;
-				const result = await client.fetchModels.fetch({ input: { providerId: provider } }) as { success: boolean; models: Array<{ id: string; name: string }>; error?: string };
+				const result = await client.fetchModels.fetch({ input: { providerId: provider } });
 
-				if (result.success) {
+				if (result.success && result.models) {
 					const modelExists = result.models.some((m) => m.id === modelId);
 
 					if (!modelExists) {
@@ -111,11 +111,11 @@ export const modelCommand: Command = {
 		const modelsState: {
 			loading: boolean;
 			models: Array<{ id: string; name: string }> | null;
-			error: string | null;
+			error: string | undefined;
 		} = {
 			loading: true,
 			models: null,
-			error: null,
+			error: undefined,
 		};
 
 		// Render ModelSelection component with loading state
@@ -124,7 +124,7 @@ export const modelCommand: Command = {
 				models={modelsState.models}
 				currentProvider={currentProviderId}
 				loading={modelsState.loading}
-				error={modelsState.error || undefined}
+				error={modelsState.error}
 				onSelect={async (modelId) => {
 					const provider = currentProviderId;
 
@@ -178,7 +178,7 @@ export const modelCommand: Command = {
 		try {
 			const result = await client.fetchModels.fetch({
 				input: { providerId: currentProviderId },
-			}) as { success: boolean; models: Array<{ id: string; name: string }>; error?: string };
+			});
 
 			if (!result.success) {
 				modelsState.loading = false;
@@ -188,7 +188,7 @@ export const modelCommand: Command = {
 			}
 
 			modelsState.loading = false;
-			modelsState.models = result.models;
+			modelsState.models = result.models || null;
 			context.setInputComponent(renderModelSelection(), "Model Selection");
 		} catch (error) {
 			const errorMsg = error instanceof Error ? error.message : String(error);

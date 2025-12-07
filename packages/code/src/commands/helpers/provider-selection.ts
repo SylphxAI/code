@@ -57,8 +57,10 @@ export async function askSelectProvider(
 		],
 	});
 
-	const providerId = typeof answers === "object" && !Array.isArray(answers) ? answers.provider : "";
-	return providerId || null;
+	const providerId = typeof answers === "object" && !Array.isArray(answers)
+		? (typeof answers.provider === "string" ? answers.provider : null)
+		: null;
+	return providerId;
 }
 
 /**
@@ -108,7 +110,7 @@ export async function ensureProviderConfigured(
 
 	const shouldConfigure =
 		typeof configureAnswers === "object" && !Array.isArray(configureAnswers)
-			? configureAnswers.configure === "yes"
+			? (typeof configureAnswers.configure === "string" && configureAnswers.configure === "yes")
 			: false;
 
 	if (!shouldConfigure) {
@@ -153,8 +155,24 @@ export async function switchToProvider(
 	};
 
 	// Get default model and update config
-	const { getDefaultModel } = await import("@sylphx/code-core");
-	const defaultModel = await getDefaultModel(providerId, providerConfig);
+	const { fetchModels, getDefaultModelIdForProvider } = await import("@sylphx/code-core");
+	let defaultModel: string | null = null;
+
+	// Try config first
+	const configModel = providerConfig.defaultModel as string | undefined;
+	if (configModel) {
+		defaultModel = configModel;
+	} else {
+		// Try fetching first available model
+		try {
+			const models = await fetchModels(providerId, providerConfig);
+			defaultModel = models[0]?.id || null;
+		} catch {
+			// Fallback to static default
+			defaultModel = getDefaultModelIdForProvider(providerId);
+		}
+	}
+
 	if (!defaultModel) {
 		return `Failed to get default model for ${AI_PROVIDERS[providerId].name}`;
 	}

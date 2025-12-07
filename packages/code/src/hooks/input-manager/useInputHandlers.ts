@@ -5,7 +5,6 @@
  * Extracted from Chat.tsx to improve modularity and testability.
  */
 
-import type { FilteredFile } from "@sylphx/code-client";
 import { useLensClient } from "@sylphx/code-client";
 import type React from "react";
 import { useMemo } from "react";
@@ -18,6 +17,7 @@ import {
 	QueueBrowsingModeHandler,
 	SelectionModeHandler,
 } from "./index.js";
+import type { FilteredFile } from "./types.js";
 
 /**
  * Dependencies for all input handlers

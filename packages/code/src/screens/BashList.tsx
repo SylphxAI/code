@@ -3,14 +3,14 @@
  * Shows all bash processes, press K to kill, Enter to view details
  */
 
+import { useTRPCClient } from "@sylphx/code-client";
+import type { BashProcess } from "@sylphx/code-core";
 import {
-	useTRPCClient,
 	useBashProcesses,
 	useBashProcessesLoading,
-	setBashProcesses as setBashProcessesSignal,
-	setBashProcessesLoading as setBashProcessesLoadingSignal,
-	type BashProcess,
-} from "@sylphx/code-client";
+	setBashProcesses,
+	setBashProcessesLoading,
+} from "./bash-state.js";
 import { Box, Text } from "ink";
 import { useEffect, useMemo, useRef } from "react";
 import Spinner from "../components/Spinner.js";
@@ -60,13 +60,13 @@ export default function BashList({ onClose, onSelectBash }: BashListProps) {
 	useEffect(() => {
 		const loadProcesses = async () => {
 			try {
-				setBashProcessesLoadingSignal(true);
+				setBashProcessesLoading(true);
 				const result = await trpc.bash.list.query();
-				setBashProcessesSignal(result);
-				setBashProcessesLoadingSignal(false);
+				setBashProcesses(result);
+				setBashProcessesLoading(false);
 			} catch (error) {
 				console.error("[BashList] Failed to load processes:", error);
-				setBashProcessesLoadingSignal(false);
+				setBashProcessesLoading(false);
 			}
 		};
 

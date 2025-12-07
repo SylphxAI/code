@@ -177,6 +177,7 @@ export interface Session {
 	provider?: string;
 	model?: string;
 	enabledRuleIds: string[];
+	todos?: Todo[];
 	nextTodoId: number;
 	createdAt: number;
 	updatedAt: number;
@@ -211,7 +212,7 @@ export interface Todo {
 	sessionId: string;
 	content: string;
 	activeForm: string;
-	status: "pending" | "in_progress" | "completed";
+	status: "pending" | "in_progress" | "completed" | "removed";
 	ordering: number;
 	createdAt: number;
 	completedAt?: number;

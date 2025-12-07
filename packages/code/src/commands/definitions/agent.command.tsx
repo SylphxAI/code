@@ -27,6 +27,9 @@ export const agentCommand: Command = {
 		// If arg provided, switch directly
 		if (context.args.length > 0) {
 			const agentId = context.args[0];
+			if (!agentId) {
+				return "Agent ID is required.";
+			}
 			const agent = getAgentById(agentId);
 
 			if (!agent) {

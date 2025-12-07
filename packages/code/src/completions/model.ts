@@ -3,7 +3,7 @@
  * Fetches models from provider API for current provider
  */
 
-import type { LensClient } from "@sylphx/lens-client";
+import type { CodeClient } from "@sylphx/code-client";
 import { getAIConfig } from "../ai-config-state.js";
 import { getCurrentSession } from "../session-state.js";
 
@@ -24,7 +24,7 @@ export interface CompletionOption {
  * @param partial - Partial search string for filtering
  */
 export async function getModelCompletions(
-	client: LensClient<any, any>,
+	client: CodeClient,
 	partial = "",
 ): Promise<CompletionOption[]> {
 	try {
@@ -39,7 +39,7 @@ export async function getModelCompletions(
 		}
 
 		// Lens flat namespace: client.fetchModels.fetch({ input })
-		const result = await client.fetchModels.fetch({ input: { providerId: currentProviderId } }) as { success: boolean; models: any[]; error?: string };
+		const result = await client.fetchModels.fetch({ input: { providerId: currentProviderId } });
 
 		if (!result.success) {
 			console.error("[completions] Failed to fetch models:", result.error);
@@ -47,11 +47,12 @@ export async function getModelCompletions(
 		}
 
 		// Filter by partial match
+		const models = result.models || [];
 		const filtered = partial
-			? result.models.filter((m: any) => m.name.toLowerCase().includes(partial.toLowerCase()))
-			: result.models;
+			? models.filter((m) => m.name.toLowerCase().includes(partial.toLowerCase()))
+			: models;
 
-		return filtered.map((m: any) => ({
+		return filtered.map((m) => ({
 			id: m.id,
 			label: m.name,
 			value: m.id,

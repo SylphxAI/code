@@ -5,11 +5,10 @@
  * User perspective: Queued messages are "already sent", so UP retrieves them for editing
  */
 
-import type { FilteredCommand, FilteredFile } from "@sylphx/code-client";
 import type { FileAttachment, QueuedMessage } from "@sylphx/code-core";
 import type { Key } from "ink";
 import type React from "react";
-import { InputMode, type InputModeContext } from "../types.js";
+import { InputMode, type FilteredCommand, type FilteredFile, type InputModeContext } from "../types.js";
 import { BaseInputHandler } from "./BaseHandler.js";
 
 export interface QueueBrowsingModeHandlerDeps {
@@ -76,7 +75,7 @@ export class QueueBrowsingModeHandler extends BaseInputHandler {
 
 		// Don't handle when autocomplete is showing
 		const hasAutocomplete =
-			filteredCommands.length > 0 || (filteredFileInfo && filteredFileInfo.files.length > 0);
+			filteredCommands.length > 0 || (filteredFileInfo && filteredFileInfo.files && filteredFileInfo.files.length > 0);
 
 		if (hasAutocomplete) {
 			return false;

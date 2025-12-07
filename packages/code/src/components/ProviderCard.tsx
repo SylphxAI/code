@@ -30,6 +30,7 @@ export default function ProviderCard({
 		openrouter: "#A855F7",
 		"claude-code": "#FF9500",
 		zai: "#FFD700",
+		kimi: "#7C3AED",
 	};
 
 	const color = colors[providerId];
@@ -67,9 +68,7 @@ export default function ProviderCard({
 						<Text color={themeColors.textDim}> │ </Text>
 					</>
 				)}
-				<Text color={color}>
-					{provider.models.length > 0 ? `${provider.models.length} models` : "Dynamic models"}
-				</Text>
+				<Text color={color}>Models</Text>
 			</Box>
 		</Box>
 	);

@@ -5,6 +5,7 @@
  * REFACTORED: Now uses interactiveSetProviderConfig from provider-set-value helper
  */
 
+import type { ProviderId } from "@sylphx/code-core";
 import type { CommandContext } from "../types.js";
 import { interactiveSetProviderConfig } from "./provider-set-value.js";
 
@@ -17,7 +18,8 @@ export async function configureProvider(
 	providerId: string,
 ): Promise<string> {
 	// Delegate to the extracted helper
-	return await interactiveSetProviderConfig(context, providerId);
+	// Cast to ProviderId - this is a command helper that accepts string from user input
+	return await interactiveSetProviderConfig(context, providerId as ProviderId);
 }
 
 /**
