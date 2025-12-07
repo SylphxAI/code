@@ -74,13 +74,15 @@ export function useFileAttachments(input: string) {
 				return;
 			}
 
-			// Lens flat namespace: client.uploadFile()
-			const result = await client.uploadFile({
-				relativePath: attachment.relativePath,
-				mediaType: mimeType,
-				size,
-				content: base64Content,
-			});
+			// Lens flat namespace: client.uploadFile.fetch({ input })
+			const result = await client.uploadFile.fetch({
+				input: {
+					relativePath: attachment.relativePath,
+					mediaType: mimeType,
+					size,
+					content: base64Content,
+				},
+			}) as { fileId: string };
 
 			// Add to state with fileId
 			addPendingAttachment({

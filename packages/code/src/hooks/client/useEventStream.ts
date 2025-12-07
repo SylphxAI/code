@@ -4,19 +4,15 @@
  *
  * Architecture: Mutation + Subscription
  * - Client calls triggerStream mutation to start streaming
- * - Client subscribes to session events via message.subscribe
+ * - Client subscribes to session events via subscribeToSession
  * - Server publishes events to session:{id} channel
- * - Client receives strongly-typed SessionEvent (not StoredEvent wrapper)
+ * - Client receives strongly-typed SessionEvent
  *
- * Benefits:
- * - Strongly typed SessionEvent
- * - No StoredEvent wrapper to unwrap
- * - IDE autocomplete for event types
- * - Automatically resubscribes when session changes
+ * Uses lens-react v4 pattern with module singleton.
  */
 
 import { useEffect, useRef } from "react";
-import { lensClient, setError, useCurrentSessionId } from "@sylphx/code-client";
+import { getClient, setError, useCurrentSessionId } from "@sylphx/code-client";
 
 export interface EventStreamCallbacks {
 	// Session events
@@ -154,153 +150,147 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 			return;
 		}
 
-		// Subscribe to strongly-typed session events using NEW Lens flat namespace
-		// lensClient.subscribeToSession() instead of lensClient.events.subscribeToSession.subscribe()
-		const client = lensClient as any;
-		const subscription = client.subscribeToSession({
+		// Get client and subscribe using lens-react v4 pattern
+		const client = getClient();
+		const subscription = (client.subscribeToSession as any)({
 			sessionId: currentSessionId,
 			replayLast,
 		}).subscribe({
 			next: (storedEvent: any) => {
 				// Extract event from stored event payload
 				const event = storedEvent.payload;
-					// Event is directly SessionEvent (no need to unwrap payload)
 
-					// Handle all event types
-					// Use callbacksRef.current to access latest callbacks (avoid stale closures)
-					switch (event.type) {
-						case "session-created":
-							callbacksRef.current.onSessionCreated?.(event.sessionId, event.provider, event.model);
-							break;
+				// Handle all event types
+				// Use callbacksRef.current to access latest callbacks (avoid stale closures)
+				switch (event.type) {
+					case "session-created":
+						callbacksRef.current.onSessionCreated?.(event.sessionId, event.provider, event.model);
+						break;
 
-						case "session-updated":
-							// Pass full event to onSessionUpdated callback
-							// Callback needs session data (especially status) for optimistic reconciliation
-							callbacksRef.current.onSessionUpdated?.(event.sessionId, event.session);
-							break;
+					case "session-updated":
+						callbacksRef.current.onSessionUpdated?.(event.sessionId, event.session);
+						break;
 
-						case "session-title-updated-start":
-							callbacksRef.current.onSessionTitleStart?.(event.sessionId);
-							break;
+					case "session-title-updated-start":
+						callbacksRef.current.onSessionTitleStart?.(event.sessionId);
+						break;
 
-						case "session-title-updated-delta":
-							callbacksRef.current.onSessionTitleDelta?.(event.sessionId, event.text);
-							break;
+					case "session-title-updated-delta":
+						callbacksRef.current.onSessionTitleDelta?.(event.sessionId, event.text);
+						break;
 
-						case "session-title-updated-end":
-							// Title updates are now handled by useLensSessionSubscription
-							// which receives session entities directly via Lens format
-							callbacksRef.current.onSessionTitleComplete?.(event.sessionId, event.title);
-							break;
+					case "session-title-updated-end":
+						callbacksRef.current.onSessionTitleComplete?.(event.sessionId, event.title);
+						break;
 
-						case "session-tokens-updated":
-							callbacksRef.current.onSessionTokensUpdated?.(
-								event.sessionId,
-								event.totalTokens,
-								event.baseContextTokens,
-								event.outputTokens,
-							);
-							break;
+					case "session-tokens-updated":
+						callbacksRef.current.onSessionTokensUpdated?.(
+							event.sessionId,
+							event.totalTokens,
+							event.baseContextTokens,
+							event.outputTokens,
+						);
+						break;
 
-						case "session-status-updated":
-							callbacksRef.current.onSessionStatusUpdated?.(event.sessionId, event.status);
-							break;
+					case "session-status-updated":
+						callbacksRef.current.onSessionStatusUpdated?.(event.sessionId, event.status);
+						break;
 
-						case "user-message-created":
-							callbacksRef.current.onUserMessageCreated?.(event.messageId, event.content);
-							break;
+					case "user-message-created":
+						callbacksRef.current.onUserMessageCreated?.(event.messageId, event.content);
+						break;
 
-						case "assistant-message-created":
-							callbacksRef.current.onAssistantMessageCreated?.(event.messageId);
-							break;
+					case "assistant-message-created":
+						callbacksRef.current.onAssistantMessageCreated?.(event.messageId);
+						break;
 
-						case "system-message-created":
-							callbacksRef.current.onSystemMessageCreated?.(event.messageId, event.content);
-							break;
+					case "system-message-created":
+						callbacksRef.current.onSystemMessageCreated?.(event.messageId, event.content);
+						break;
 
-						case "message-status-updated":
-							callbacksRef.current.onMessageStatusUpdated?.(
-								event.messageId,
-								event.status,
-								event.usage,
-								event.finishReason,
-							);
-							break;
+					case "message-status-updated":
+						callbacksRef.current.onMessageStatusUpdated?.(
+							event.messageId,
+							event.status,
+							event.usage,
+							event.finishReason,
+						);
+						break;
 
-						case "step-start":
-							callbacksRef.current.onStepStart?.(
-								event.stepId,
-								event.stepIndex,
-								event.metadata,
-								event.todoSnapshot,
-								event.systemMessages,
-								event.provider,
-								event.model,
-							);
-							break;
+					case "step-start":
+						callbacksRef.current.onStepStart?.(
+							event.stepId,
+							event.stepIndex,
+							event.metadata,
+							event.todoSnapshot,
+							event.systemMessages,
+							event.provider,
+							event.model,
+						);
+						break;
 
-						case "step-complete":
-							callbacksRef.current.onStepComplete?.(
-								event.stepId,
-								event.usage,
-								event.duration,
-								event.finishReason,
-							);
-							break;
+					case "step-complete":
+						callbacksRef.current.onStepComplete?.(
+							event.stepId,
+							event.usage,
+							event.duration,
+							event.finishReason,
+						);
+						break;
 
-						case "text-start":
-							callbacksRef.current.onTextStart?.();
-							break;
+					case "text-start":
+						callbacksRef.current.onTextStart?.();
+						break;
 
-						case "text-delta":
-							callbacksRef.current.onTextDelta?.(event.text);
-							break;
+					case "text-delta":
+						callbacksRef.current.onTextDelta?.(event.text);
+						break;
 
-						case "text-end":
-							callbacksRef.current.onTextEnd?.();
-							break;
+					case "text-end":
+						callbacksRef.current.onTextEnd?.();
+						break;
 
-						case "reasoning-start":
-							callbacksRef.current.onReasoningStart?.();
-							break;
+					case "reasoning-start":
+						callbacksRef.current.onReasoningStart?.();
+						break;
 
-						case "reasoning-delta":
-							callbacksRef.current.onReasoningDelta?.(event.text);
-							break;
+					case "reasoning-delta":
+						callbacksRef.current.onReasoningDelta?.(event.text);
+						break;
 
-						case "reasoning-end":
-							callbacksRef.current.onReasoningEnd?.(event.duration);
-							break;
+					case "reasoning-end":
+						callbacksRef.current.onReasoningEnd?.(event.duration);
+						break;
 
-						case "tool-call":
-							callbacksRef.current.onToolCall?.(event.toolCallId, event.toolName, event.input, event.startTime);
-							break;
+					case "tool-call":
+						callbacksRef.current.onToolCall?.(event.toolCallId, event.toolName, event.input, event.startTime);
+						break;
 
-						case "tool-result":
-							callbacksRef.current.onToolResult?.(
-								event.toolCallId,
-								event.toolName,
-								event.result,
-								event.duration,
-							);
-							break;
+					case "tool-result":
+						callbacksRef.current.onToolResult?.(
+							event.toolCallId,
+							event.toolName,
+							event.result,
+							event.duration,
+						);
+						break;
 
-						case "tool-error":
-							callbacksRef.current.onToolError?.(
-								event.toolCallId,
-								event.toolName,
-								event.error,
-								event.duration,
-							);
-							break;
+					case "tool-error":
+						callbacksRef.current.onToolError?.(
+							event.toolCallId,
+							event.toolName,
+							event.error,
+							event.duration,
+						);
+						break;
 
-						case "file":
-							callbacksRef.current.onFile?.(event.mediaType, event.base64);
-							break;
+					case "file":
+						callbacksRef.current.onFile?.(event.mediaType, event.base64);
+						break;
 
-						case "ask-question":
-							callbacksRef.current.onAskQuestion?.(event.questionId, event.questions);
-							break;
+					case "ask-question":
+						callbacksRef.current.onAskQuestion?.(event.questionId, event.questions);
+						break;
 
 					case "queue-message-added":
 						callbacksRef.current.onQueueMessageAdded?.(event.sessionId, event.message);
@@ -318,12 +308,12 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 						callbacksRef.current.onQueueCleared?.(event.sessionId);
 						break;
 
-						case "error":
-							callbacksRef.current.onError?.(event.error);
-							setError(event.error);
-							break;
-					}
-				},
+					case "error":
+						callbacksRef.current.onError?.(event.error);
+						setError(event.error);
+						break;
+				}
+			},
 			error: (error: any) => {
 				const errorMessage = error instanceof Error ? error.message : "Event stream error";
 				callbacksRef.current.onError?.(errorMessage);
@@ -337,7 +327,6 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 		subscriptionRef.current = subscription;
 
 		// Cleanup on unmount or session change
-		// Handle both RxJS Subscription ({ unsubscribe: fn }) and cleanup function patterns
 		return () => {
 			if (typeof subscription === "function") {
 				subscription();

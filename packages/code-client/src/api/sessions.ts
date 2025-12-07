@@ -2,11 +2,13 @@
  * Session API
  * Client-side functions for interacting with sessions via Lens
  *
- * Uses the new Lens client with flat namespace pattern
+ * Uses the new Lens client with flat namespace pattern:
+ * - client.listSessions.fetch({ limit }) → Promise
+ * - client.getLastSession.fetch() → Promise
  */
 
 import type { Session, SessionMetadata } from "@sylphx/code-core";
-import { getLensClientGlobal as getLensClient } from "../lens-client-global.js";
+import { getClient } from "../lens.js";
 
 /**
  * Get recent sessions from server
@@ -16,11 +18,11 @@ import { getLensClientGlobal as getLensClient } from "../lens-client-global.js";
 export async function getRecentSessions(
 	limit: number = 100,
 ): Promise<SessionMetadata[]> {
-	const client = getLensClient();
-	// New Lens uses flat namespace: client.listSessions() not client.queries.listSessions()
-	const result = await (client as any).listSessions({ limit });
+	const client = getClient();
+	const result = await client.listSessions.fetch({ input: { limit } });
+
 	// Transform to SessionMetadata format
-	return result.map((session: any) => ({
+	return (result as any[]).map((session: any) => ({
 		id: session.id,
 		title: session.title || "Untitled",
 		provider: session.provider || "",
@@ -36,7 +38,6 @@ export async function getRecentSessions(
  * @returns Last session or null if no sessions exist
  */
 export async function getLastSession(): Promise<Session | null> {
-	const client = getLensClient();
-	// New Lens uses flat namespace: client.getLastSession() not client.queries.getLastSession()
-	return await (client as any).getLastSession({});
+	const client = getClient();
+	return await client.getLastSession.fetch({}) as Session | null;
 }

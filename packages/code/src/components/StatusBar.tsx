@@ -2,17 +2,15 @@
  * Status Bar Component
  * Display important session info at the bottom
  *
- * ARCHITECTURE: Frontend-Driven Lens Pattern
- * - Direct useQuery for all Lens data (session, bash)
- * - No intermediate hooks, no signals
- * - Components declare what data they need
- * - Lens handles: state, subscription, optimistic updates, cleanup
+ * ARCHITECTURE: Promise-based Pattern (no lens-react hooks)
+ * - Uses .fetch() with local state to avoid React instance conflicts
+ * - Polls for session data when needed
  */
 
-import { useQuery, useLensClient, useEnabledRuleIds, useSelectedAgentId, useThemeColors } from "@sylphx/code-client";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getClient, useEnabledRuleIds, useSelectedAgentId, useThemeColors } from "@sylphx/code-client";
 import { formatTokenCount } from "@sylphx/code-core";
 import { Box, Spacer, Text } from "ink";
-import { useMemo } from "react";
 import { getAgentById } from "../embedded-context.js";
 import { useMCPStatus } from "../hooks/client/useMCPStatus.js";
 import { useModelDetails } from "../hooks/client/useModelDetails.js";
@@ -29,13 +27,8 @@ interface StatusBarProps {
  *
  * ARCHITECTURE: Client-agnostic design
  * - No hardcoded provider knowledge
- * - Uses tRPC hooks for all server communication
+ * - Uses Lens .fetch() for all server communication
  * - Provider IDs are opaque strings to client
- *
- * SECURITY: Uses tRPC server endpoints for all data
- * - No API keys exposed on client side
- * - All business logic on server
- * - Safe for Web GUI and remote mode
  */
 interface StatusBarPropsInternal extends StatusBarProps {
 	sessionId: string | null;
@@ -48,7 +41,11 @@ function StatusBarInternal({
 	modelStatus,
 	usedTokens = 0,
 }: StatusBarPropsInternal) {
-	const client = useLensClient();
+	// Local state for session data
+	const [sessionTokens, setSessionTokens] = useState(0);
+
+	// Local state for bash processes
+	const [backgroundBashCount, setBackgroundBashCount] = useState(0);
 
 	// Subscribe to current agent from store (event-driven, no polling!)
 	const selectedAgentId = useSelectedAgentId();
@@ -59,26 +56,50 @@ function StatusBarInternal({
 	const enabledRuleIds = useEnabledRuleIds();
 	const enabledRulesCount = enabledRuleIds.length;
 
-	// Frontend-Driven Pattern: Direct useQuery for session data
-	// ✅ Lens auto-handles: state, subscription, optimistic updates, cleanup
-	// ✅ Field selection: only fetch totalTokens (bandwidth optimization)
-	// ✅ Conditional query: null = skip (supported in @sylphx/lens-react@1.2.0+)
-	const { data: session } = useQuery(
-		sessionId
-			? client.getSession({ id: sessionId }).select({
-					totalTokens: true, // Only need tokens for status bar
-			  })
-			: null,
-	);
-	const totalTokens = session?.totalTokens || 0;
+	// Fetch session data (using .fetch() to avoid React instance conflict)
+	const fetchSessionData = useCallback(async () => {
+		if (!sessionId) {
+			setSessionTokens(0);
+			return;
+		}
+		try {
+			const client = getClient();
+			const session = await client.getSession.fetch({
+				input: { id: sessionId },
+			}) as { totalTokens?: number } | null;
+			setSessionTokens(session?.totalTokens || 0);
+		} catch {
+			// Ignore errors for status bar
+		}
+	}, [sessionId]);
 
-	// Frontend-Driven Pattern: Direct useQuery for bash processes
-	// ✅ Lens handles subscription to bash events automatically
-	const { data: bashProcesses } = useQuery(client.listBash());
-	const backgroundBashCount = useMemo(
-		() => bashProcesses?.filter((p: any) => !p.isActive && p.status === "running").length || 0,
-		[bashProcesses]
-	);
+	// Fetch bash data
+	const fetchBashData = useCallback(async () => {
+		try {
+			const client = getClient();
+			const bashProcesses = await client.listBash.fetch({}) as Array<{ isActive?: boolean; status?: string }> | null;
+			const count = bashProcesses?.filter((p) => !p.isActive && p.status === "running").length || 0;
+			setBackgroundBashCount(count);
+		} catch {
+			// Ignore errors for status bar
+		}
+	}, []);
+
+	// Initial fetch and periodic refresh
+	useEffect(() => {
+		fetchSessionData();
+		fetchBashData();
+
+		// Refresh every 5 seconds for status bar (lower frequency than streaming)
+		const interval = setInterval(() => {
+			fetchSessionData();
+			fetchBashData();
+		}, 5000);
+
+		return () => clearInterval(interval);
+	}, [fetchSessionData, fetchBashData]);
+
+	const totalTokens = sessionTokens;
 
 	// MCP status (event-driven via eventBus, not Lens)
 	const mcpStatus = useMCPStatus();
@@ -195,10 +216,9 @@ function StatusBarInternal({
 }
 
 /**
- * ARCHITECTURE NOTE: Frontend-Driven Lens Pattern
- * - Direct useQuery for session and bash data
- * - Lens automatically handles reactivity and re-renders
- * - No signals, no manual subscription management
- * - Component re-renders when Lens data updates
+ * ARCHITECTURE NOTE: Promise-based Pattern
+ * - Uses .fetch() with local state for Lens data
+ * - Avoids React instance conflicts with lens-react
+ * - Component manages its own state and polling
  */
 export default StatusBarInternal;

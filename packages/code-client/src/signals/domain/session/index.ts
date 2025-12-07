@@ -1,14 +1,18 @@
 /**
  * Session Domain Signals
  * Manages chat sessions and messages
+ *
+ * Uses new Lens API (flat namespace):
+ * - client.createSession.fetch(input) → Promise
+ * - client.getSession.fetch(input) → Promise
+ * - client.listSessions.fetch(input) → Promise
  */
 
 import type { ProviderId, Session, SessionMessage } from "@sylphx/code-core";
 import { zen, computed } from "@sylphx/zen";
 import { useZen } from "../../react-bridge.js";
 import { eventBus } from "../../../lib/event-bus.js";
-import { getLensClientGlobal as getLensClient } from "../../../lens-client-global.js";
-import type { API } from "@sylphx/code-api";
+import { getClient } from "../../../lens.js";
 
 // Core session signals
 export const currentSessionId = zen<string | null>(null);
@@ -96,19 +100,17 @@ export const updateRecentSessions = (sessions: Session[]) => { (recentSessions a
 export const updateSessionsLoading = (loading: boolean) => { (sessionsLoading as any).value = loading };
 
 // Session CRUD operations (async, server-side)
+// Uses new Lens flat namespace API
 export const createSession = async (
 	provider: ProviderId,
 	model: string,
 	agentId?: string,
 	enabledRuleIds?: string[],
 ) => {
-	const client = getLensClient<API>();
-	const session = await client.session.create.mutate({
-		provider,
-		model,
-		agentId,
-		enabledRuleIds,
-	});
+	const client = getClient();
+	const session = (await client.createSession.fetch({
+		input: { provider, model, agentId, enabledRuleIds },
+	})) as Session;
 
 	// Set as current session (UI state only)
 	setCurrentSessionId(session.id);
@@ -123,8 +125,8 @@ export const createSession = async (
 };
 
 export const updateSessionModel = async (sessionId: string, model: string) => {
-	const client = getLensClient<API>();
-	await client.session.updateModel.mutate({ sessionId, model });
+	const client = getClient();
+	await client.updateSession.fetch({ input: { id: sessionId, model } });
 };
 
 export const updateSessionProvider = async (
@@ -132,29 +134,29 @@ export const updateSessionProvider = async (
 	provider: ProviderId,
 	model: string,
 ) => {
-	const client = getLensClient<API>();
-	await client.session.updateProvider.mutate({ sessionId, provider, model });
+	const client = getClient();
+	await client.updateSession.fetch({ input: { id: sessionId, provider, model } });
 };
 
 export const updateSessionAgent = async (sessionId: string, agentId: string) => {
-	const client = getLensClient<API>();
-	await client.session.updateAgent.mutate({ sessionId, agentId });
+	const client = getClient();
+	await client.updateSession.fetch({ input: { id: sessionId, agentId } });
 };
 
 export const updateSessionTitle = async (sessionId: string, title: string) => {
-	const client = getLensClient<API>();
-	const updatedSession = await client.session.updateTitle.mutate({ sessionId, title });
+	const client = getClient();
+	const updatedSession = await client.updateSession.fetch({ input: { id: sessionId, title } });
 
 	// Update local state if this is the current session
 	const session = currentSession.value;
 	if (session && session.id === sessionId) {
-		updateCurrentSession(updatedSession);
+		updateCurrentSession(updatedSession as Session);
 	}
 };
 
 export const updateSessionRules = async (sessionId: string, enabledRuleIds: string[]) => {
-	const client = getLensClient<API>();
-	await client.session.updateRules.mutate({ sessionId, enabledRuleIds });
+	const client = getClient();
+	await client.updateSession.fetch({ input: { id: sessionId, enabledRuleIds } });
 
 	// Emit event for other stores to react (if current session)
 	if (currentSessionId.value === sessionId) {
@@ -169,11 +171,13 @@ export const deleteSession = async (sessionId: string) => {
 	}
 
 	// Delete from database via Lens
-	const client = getLensClient<API>();
-	await client.session.delete.mutate({ sessionId });
+	const client = getClient();
+	await client.deleteSession.fetch({ input: { id: sessionId } });
 };
 
 // Message operations
+// Note: Lens uses sendMessage mutation for adding messages with AI response
+// For simple message persistence, use triggerStream mutation
 export const addMessageAsync = async (params: {
 	sessionId: string | null;
 	role: "user" | "assistant";
@@ -187,28 +191,24 @@ export const addMessageAsync = async (params: {
 	provider?: ProviderId;
 	model?: string;
 }) => {
-	const client = getLensClient<API>();
+	const client = getClient();
 
 	// Normalize content for wire format
 	const wireContent =
 		typeof params.content === "string"
-			? [{ type: "text", content: params.content }]
+			? [{ type: "text" as const, content: params.content }]
 			: params.content;
 
-	// Persist via Lens
-	const result = await client.message.add.mutate({
-		sessionId: params.sessionId || undefined,
-		provider: params.provider,
-		model: params.model,
-		role: params.role,
-		content: wireContent,
-		attachments: params.attachments,
-		usage: params.usage,
-		finishReason: params.finishReason,
-		metadata: params.metadata,
-		todoSnapshot: params.todoSnapshot,
-		status: params.status,
-	});
+	// Use triggerStream for message + AI response
+	// This is the main way to send messages in Lens architecture
+	const result = (await client.triggerStream.fetch({
+		input: {
+			sessionId: params.sessionId || undefined,
+			provider: params.provider,
+			model: params.model,
+			content: wireContent,
+		},
+	})) as { sessionId: string };
 
 	return result.sessionId;
 };
@@ -235,11 +235,11 @@ export const loadRecentSessions = async (limit = 20) => {
 	(sessionsError as any).value = null;
 
 	try {
-		const client = getLensClient<API>();
-		const sessions = await client.session.list.query({ limit });
+		const client = getClient();
+		const sessions = await client.listSessions.fetch({ input: { limit } });
 
 		// Update signal
-		updateRecentSessions(sessions);
+		updateRecentSessions(sessions as Session[]);
 	} catch (error) {
 		console.error("[loadRecentSessions] Failed to load:", error);
 		(sessionsError as any).value = error instanceof Error ? error.message : "Failed to load sessions";

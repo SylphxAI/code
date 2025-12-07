@@ -6,12 +6,12 @@
  * - Server: Handles all AI logic (createAIStream, processStream, providers)
  * - Client: Calls mutation and receives streaming updates
  *
- * Uses NEW Lens flat namespace API.
+ * Uses lens-react v4 pattern with module singleton.
  */
 
 import type { FileAttachment, TokenUsage } from "@sylphx/code-core";
 import { useCallback } from "react";
-import { lensClient, setError } from "@sylphx/code-client";
+import { getClient, setError } from "@sylphx/code-client";
 import { useCurrentSession, useCurrentSessionId } from "./useCurrentSession.js";
 
 /**
@@ -115,117 +115,117 @@ export function useChat() {
 			}
 
 			try {
-				// Use NEW Lens flat namespace for streaming mutation
-				// lensClient.sendMessage() instead of lensClient.message.streamResponse.subscribe()
-				const client = lensClient as any;
-				const subscription = client
-					.sendMessage({
-						sessionId: currentSessionId,
-						content: [{ type: "text", content: message }],
-					})
-					.subscribe({
-						next: (event: any) => {
-							// Handle streaming events from server
-							switch (event.type) {
-								case "session-created":
-									onSessionCreated?.(
-										event.sessionId,
-										event.provider,
-										event.model,
-									);
-									break;
+				// Get the initialized Lens client
+				const client = getClient();
 
-								case "session-title-start":
-									onSessionTitleStart?.();
-									break;
+				// Use lens-react v4 pattern for streaming mutation
+				// client.sendMessage() returns a subscribable
+				const subscription = (client.sendMessage as any)({
+					sessionId: currentSessionId,
+					content: [{ type: "text", content: message }],
+				}).subscribe({
+					next: (event: any) => {
+						// Handle streaming events from server
+						switch (event.type) {
+							case "session-created":
+								onSessionCreated?.(
+									event.sessionId,
+									event.provider,
+									event.model,
+								);
+								break;
 
-								case "session-title-delta":
-									onSessionTitleDelta?.(event.text);
-									break;
+							case "session-title-start":
+								onSessionTitleStart?.();
+								break;
 
-								case "session-title-complete":
-									onSessionTitleComplete?.(event.title);
-									break;
+							case "session-title-delta":
+								onSessionTitleDelta?.(event.text);
+								break;
 
-								case "assistant-message-created":
-									onAssistantMessageCreated?.(event.messageId);
-									break;
+							case "session-title-complete":
+								onSessionTitleComplete?.(event.title);
+								break;
 
-								case "text-start":
-									onTextStart?.();
-									break;
+							case "assistant-message-created":
+								onAssistantMessageCreated?.(event.messageId);
+								break;
 
-								case "text-delta":
-									onTextDelta?.(event.text);
-									break;
+							case "text-start":
+								onTextStart?.();
+								break;
 
-								case "text-end":
-									onTextEnd?.();
-									break;
+							case "text-delta":
+								onTextDelta?.(event.text);
+								break;
 
-								case "reasoning-start":
-									onReasoningStart?.();
-									break;
+							case "text-end":
+								onTextEnd?.();
+								break;
 
-								case "reasoning-delta":
-									onReasoningDelta?.(event.text);
-									break;
+							case "reasoning-start":
+								onReasoningStart?.();
+								break;
 
-								case "reasoning-end":
-									onReasoningEnd?.(event.duration);
-									break;
+							case "reasoning-delta":
+								onReasoningDelta?.(event.text);
+								break;
 
-								case "tool-call":
-									onToolCall?.(event.toolCallId, event.toolName, event.input);
-									break;
+							case "reasoning-end":
+								onReasoningEnd?.(event.duration);
+								break;
 
-								case "tool-result":
-									onToolResult?.(
-										event.toolCallId,
-										event.toolName,
-										event.result,
-										event.duration,
-									);
-									break;
+							case "tool-call":
+								onToolCall?.(event.toolCallId, event.toolName, event.input);
+								break;
 
-								case "tool-error":
-									onToolError?.(
-										event.toolCallId,
-										event.toolName,
-										event.error,
-										event.duration,
-									);
-									break;
+							case "tool-result":
+								onToolResult?.(
+									event.toolCallId,
+									event.toolName,
+									event.result,
+									event.duration,
+								);
+								break;
 
-								case "ask-question":
-									onAskQuestion?.(event.questionId, event.questions);
-									break;
+							case "tool-error":
+								onToolError?.(
+									event.toolCallId,
+									event.toolName,
+									event.error,
+									event.duration,
+								);
+								break;
 
-								case "complete":
-									onFinish?.(event.usage, event.finishReason);
-									onComplete?.();
-									break;
+							case "ask-question":
+								onAskQuestion?.(event.questionId, event.questions);
+								break;
 
-								case "error":
-									onError?.(event.error);
-									setError(event.error);
-									break;
+							case "complete":
+								onFinish?.(event.usage, event.finishReason);
+								onComplete?.();
+								break;
 
-								case "abort":
-									onAbort?.();
-									break;
-							}
-						},
-						error: (error: any) => {
-							const errorMessage =
-								error instanceof Error ? error.message : "Streaming error";
-							onError?.(errorMessage);
-							setError(errorMessage);
-						},
-						complete: () => {
-							// Subscription completed
-						},
-					});
+							case "error":
+								onError?.(event.error);
+								setError(event.error);
+								break;
+
+							case "abort":
+								onAbort?.();
+								break;
+						}
+					},
+					error: (error: any) => {
+						const errorMessage =
+							error instanceof Error ? error.message : "Streaming error";
+						onError?.(errorMessage);
+						setError(errorMessage);
+					},
+					complete: () => {
+						// Subscription completed
+					},
+				});
 
 				// Return unsubscribe function
 				return () => subscription.unsubscribe();

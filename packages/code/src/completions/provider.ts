@@ -30,8 +30,8 @@ async function _getAIConfig(client: LensClient<any, any>): Promise<AIConfig | nu
 
 	// First access - lazy load from server
 	try {
-		// Lens flat namespace: client.loadConfig()
-		const result = await client.loadConfig({});
+		// Lens flat namespace: client.loadConfig.fetch({})
+		const result = await client.loadConfig.fetch({}) as { success: boolean; config: AIConfig };
 
 		if (result.success) {
 			// Cache in zen signal (stays until explicitly updated)
@@ -58,8 +58,8 @@ export async function getProviderCompletions(
 	partial = "",
 ): Promise<CompletionOption[]> {
 	try {
-		// Lens flat namespace: client.getProviders()
-		const result = await client.getProviders();
+		// Lens flat namespace: client.getProviders.fetch({})
+		const result = await client.getProviders.fetch({}) as { [key: string]: any };
 
 		const providers = Object.keys(result);
 		const filtered = partial
@@ -110,8 +110,8 @@ export async function getProviderKeyCompletions(
 	providerId: ProviderId,
 ): Promise<CompletionOption[]> {
 	try {
-		// Lens flat namespace: client.getProviderSchema()
-		const result = await client.getProviderSchema({ providerId });
+		// Lens flat namespace: client.getProviderSchema.fetch({ input })
+		const result = await client.getProviderSchema.fetch({ input: { providerId } }) as { success: boolean; schema?: any[] };
 
 		if (!result.success || !result.schema) {
 			return [];

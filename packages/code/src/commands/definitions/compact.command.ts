@@ -45,10 +45,10 @@ export const compactCommand: Command = {
 				return "⚠️ Compaction cancelled.";
 			}
 
-			// Lens flat namespace: client.compactSession()
-			const result = await client.compactSession({
-				sessionId: currentSession.id,
-			});
+			// Lens flat namespace: client.compactSession.fetch({ input })
+			const result = await client.compactSession.fetch({
+				input: { sessionId: currentSession.id },
+			}) as { success: boolean; error?: string; newSessionId?: string; messageCount?: number; oldSessionTitle?: string };
 
 			// Clear compacting status
 			setCompacting(false);
@@ -62,10 +62,10 @@ export const compactCommand: Command = {
 
 			// Fetch new session to get the system message (summary)
 			// Filter out any active messages (those are being streamed and will come via event stream)
-			// Lens flat namespace: client.getSession()
-			const newSession = await client.getSession({
-				id: result.newSessionId!,
-			});
+			// Lens flat namespace: client.getSession.fetch({ input })
+			const newSession = await client.getSession.fetch({
+				input: { id: result.newSessionId! },
+			}) as { messages: Array<{ status: string }> } | null;
 
 			if (!newSession) {
 				return `❌ Failed to load new session`;

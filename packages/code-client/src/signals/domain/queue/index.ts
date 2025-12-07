@@ -138,12 +138,13 @@ export const useSessionQueues = () => {
 
 /**
  * Client Actions
- * These call Lens mutations which emit events back to all clients
+ * TODO: These need queue mutations to be added to Lens server
+ * For now, queue operations are handled via local state only
  */
 
 /**
- * Enqueue message
- * Adds message to server queue, emits queue-message-added event
+ * Enqueue message (local only)
+ * TODO: Add enqueueMessage mutation to Lens server
  */
 export async function enqueueMessage(
 	sessionId: string,
@@ -155,32 +156,38 @@ export async function enqueueMessage(
 		mimeType?: string;
 	}> = [],
 ): Promise<QueuedMessage> {
-	const { getLensClient } = await import("../../../lens-provider.js");
-	const { API } = await import("@sylphx/code-api");
-	const client = getLensClient<typeof API>();
-
-	return await client.message.enqueueMessage.mutate({
+	// Create local queued message
+	const message: QueuedMessage = {
+		id: crypto.randomUUID(),
 		sessionId,
 		content,
-		attachments,
-	});
+		attachments: attachments.map(a => ({
+			fileId: a.path,
+			relativePath: a.relativePath,
+			size: a.size,
+			mediaType: a.mimeType || "application/octet-stream",
+		})),
+		timestamp: Date.now(),
+		status: "queued",
+	};
+
+	// Add to local queue
+	handleQueueMessageAdded({ sessionId, message });
+
+	return message;
 }
 
 /**
- * Clear queue
- * Removes all queued messages from server queue, emits queue-cleared event
+ * Clear queue (local only)
+ * TODO: Add clearQueue mutation to Lens server
  */
 export async function clearQueue(sessionId: string): Promise<void> {
-	const { getLensClient } = await import("../../../lens-provider.js");
-	const { API } = await import("@sylphx/code-api");
-	const client = getLensClient<typeof API>();
-
-	await client.message.clearQueue.mutate({ sessionId });
+	handleQueueCleared({ sessionId });
 }
 
 /**
- * Update queued message
- * Updates message content/attachments by ID in server queue, emits queue-message-updated event
+ * Update queued message (local only)
+ * TODO: Add updateQueuedMessage mutation to Lens server
  */
 export async function updateQueuedMessage(
 	sessionId: string,
@@ -193,29 +200,29 @@ export async function updateQueuedMessage(
 		mimeType?: string;
 	}> = [],
 ): Promise<QueuedMessage> {
-	const { getLensClient } = await import("../../../lens-provider.js");
-	const { API } = await import("@sylphx/code-api");
-	const client = getLensClient<typeof API>();
-
-	return await client.message.updateQueuedMessage.mutate({
+	const message: QueuedMessage = {
+		id: messageId,
 		sessionId,
-		messageId,
 		content,
-		attachments,
-	});
+		attachments: attachments.map(a => ({
+			fileId: a.path,
+			relativePath: a.relativePath,
+			size: a.size,
+			mediaType: a.mimeType || "application/octet-stream",
+		})),
+		timestamp: Date.now(),
+		status: "queued",
+	};
+
+	handleQueueMessageUpdated({ sessionId, message });
+
+	return message;
 }
 
 /**
- * Remove specific queued message
- * Removes message by ID from server queue, emits queue-message-removed event
+ * Remove specific queued message (local only)
+ * TODO: Add removeQueuedMessage mutation to Lens server
  */
 export async function removeQueuedMessage(sessionId: string, messageId: string): Promise<void> {
-	const { getLensClient } = await import("../../../lens-provider.js");
-	const { API } = await import("@sylphx/code-api");
-	const client = getLensClient<typeof API>();
-
-	await client.message.removeQueuedMessage.mutate({
-		sessionId,
-		messageId,
-	});
+	handleQueueMessageRemoved({ sessionId, messageId });
 }

@@ -122,7 +122,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				const abortSessionId = mutationSessionId || currentSessionId;
 
 				if (abortSessionId) {
-					await client.abortStream({ sessionId: abortSessionId });
+					await client.abortStream.fetch({ input: { sessionId: abortSessionId } });
 					logSession("Server notified of abort");
 				}
 			} catch (error) {
@@ -149,12 +149,14 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			// 4. Start AI streaming
 			// 5. Update in-memory state (polled by client)
 			// 6. useCurrentSession polls and React re-renders
-			const result = await client.triggerStream({
-				sessionId: currentSessionId,
-				provider: currentSessionId ? undefined : provider,
-				model: currentSessionId ? undefined : model,
-				content,
-			});
+			const result = await client.triggerStream.fetch({
+				input: {
+					sessionId: currentSessionId,
+					provider: currentSessionId ? undefined : provider,
+					model: currentSessionId ? undefined : model,
+					content,
+				},
+			}) as { data?: { sessionId?: string }; sessionId?: string };
 
 			logSession("Mutation completed:", result);
 

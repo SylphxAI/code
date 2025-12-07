@@ -50,8 +50,8 @@ export {
 	Todo,
 } from "./entities.js";
 
-// Relations
-export { relations } from "./relations.js";
+// Relations (not yet supported by lens-server)
+// export { relations } from "./relations.js";
 
 // Operations (for direct access if needed)
 export * as queries from "./queries.js";

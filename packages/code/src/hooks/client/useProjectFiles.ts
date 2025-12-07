@@ -22,7 +22,7 @@ export function useProjectFiles() {
 			setFilesLoadingSignal(true);
 			try {
 				// Lens flat namespace: client.scanProjectFiles()
-				const result = await client.scanProjectFiles();
+				const result = await client.scanProjectFiles.fetch({}) as { files: any[] };
 				setProjectFilesSignal(result.files);
 			} catch (error) {
 				console.error("Failed to load project files:", error);

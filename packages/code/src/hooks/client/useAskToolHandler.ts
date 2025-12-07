@@ -8,11 +8,13 @@
  * 3. Displays UI for user to answer
  * 4. User answers → calls answerAsk mutation
  * 5. Server receives answer and continues AI stream
+ *
+ * Uses lens-react v4 pattern with module singleton.
  */
 
 import { useCallback } from "react";
-import { lensClient } from "@sylphx/code-client";
-import type {  WaitForInputOptions  } from "@sylphx/code-client";
+import { getClient } from "@sylphx/code-client";
+import type { WaitForInputOptions } from "@sylphx/code-client";
 
 interface UseAskToolHandlerProps {
 	currentSessionId: string | null;
@@ -68,10 +70,9 @@ export function useAskToolHandler({
 				const answerRecord = typeof answers === "string" ? { "0": answers } : answers;
 
 				try {
-					// Send answer to server via mutation
-					// Use NEW Lens flat namespace: lensClient.answerAsk() instead of lensClient.message.answerAsk.mutate()
-					const client = lensClient as any;
-					await client.answerAsk({
+					// Get client and call answerAsk mutation
+					const client = getClient();
+					await client.answerAsk.fetch({
 						sessionId: currentSessionId,
 						questionId,
 						answers: answerRecord,

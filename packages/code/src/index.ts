@@ -57,11 +57,14 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-	createHTTPClient as createHTTPClientFromLib,
-	createInProcessClient,
-	TRPCProvider,
-	type TypedTRPCClient,
-	LensProvider,
+	// New Lens client factory
+	createCodeClient,
+	direct,
+	initClient,
+	// Legacy tRPC (will be removed after migration)
+	// createInProcessClient,
+	// TRPCProvider,
+	// type TypedTRPCClient,
 } from "@sylphx/code-client";
 import { CodeServer, createLensServer } from "@sylphx/code-server";
 import chalk from "chalk";
@@ -148,9 +151,6 @@ async function main() {
 				return;
 			}
 
-			// Setup tRPC client
-			let client: TypedTRPCClient;
-
 			if (options.serverUrl) {
 				// Remote mode: Connect to existing HTTP server
 				if (!options.quiet) {
@@ -167,35 +167,38 @@ async function main() {
 					process.exit(1);
 				}
 
-				client = createHTTPClientFromLib(options.serverUrl);
-			} else {
-				// In-process mode (default): Embed servers
-				// Headless mode should be quiet by default (unless --verbose)
-				const isHeadless = Boolean(prompt || options.print);
-				const shouldBeQuiet = isHeadless ? !options.verbose : options.quiet;
+				// TODO: Remote mode not yet implemented with new Lens client
+				// For now, only in-process mode is supported
+				console.error(chalk.yellow("Remote mode not yet implemented with new Lens architecture"));
+				console.error(chalk.dim("Use in-process mode instead (remove --server-url flag)"));
+				process.exit(1);
+			}
 
-				const { codeServer, lensServer: lens } = await initEmbeddedServers({ quiet: shouldBeQuiet });
+			// In-process mode (default): Embed servers
+			// Headless mode should be quiet by default (unless --verbose)
+			const isHeadless = Boolean(prompt || options.print);
+			const shouldBeQuiet = isHeadless ? !options.verbose : options.quiet;
 
-				// Create in-process tRPC client (legacy, for compatibility)
-				client = createInProcessClient({
-					router: codeServer.getRouter(),
-					createContext: codeServer.getContext(),
-				});
+			const { codeServer, lensServer: lens } = await initEmbeddedServers({ quiet: shouldBeQuiet });
 
-				// Store lens server globally for TUI
-				lensServer = lens;
+			// Create Lens client with direct transport (in-process)
+			// This is the new pattern - no Context Provider needed
+			const lensClient = createCodeClient(direct({ app: lens }));
+			initClient(lensClient); // Register for global access (signals, utilities)
 
-				// If --web flag, start HTTP server
-				if (options.web) {
-					if (!options.quiet) {
-						console.error(chalk.dim("Starting HTTP server for Web GUI..."));
-					}
-					await codeServer.startHTTP(3000);
+			// Store lens server globally for TUI
+			lensServer = lens;
 
-					// Open browser
-					const { launchWeb } = await import("./web-launcher.js");
-					await launchWeb();
+			// If --web flag, start HTTP server
+			if (options.web) {
+				if (!options.quiet) {
+					console.error(chalk.dim("Starting HTTP server for Web GUI..."));
 				}
+				await codeServer.startHTTP(3000);
+
+				// Open browser
+				const { launchWeb } = await import("./web-launcher.js");
+				await launchWeb();
 			}
 
 			// Headless mode: if prompt provided OR --print flag
@@ -234,24 +237,10 @@ async function main() {
 				throw new Error("Embedded server not initialized");
 			}
 
-			// Get Lens server for in-process transport
-			// LensServer implements getMetadata() and execute() for transport handshake
-			const lensServerInstance = embeddedServer.getLensServer();
-
-			// Wrap App with both providers (dual-mode during migration)
-			// LensProvider uses Lens server for zero-overhead in-process communication
-			// tRPC provider for legacy code
-			render(
-				React.createElement(
-					TRPCProvider,
-					{ client },
-					React.createElement(
-						LensProvider,
-						{ server: lensServerInstance },
-						React.createElement(App)
-					)
-				)
-			);
+			// Lens client already initialized above via initClient()
+			// No providers needed - lens-react v4 uses module singleton pattern
+			// Components access client via getClient() or lens-react hooks
+			render(React.createElement(App));
 		});
 
 	try {

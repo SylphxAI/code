@@ -76,11 +76,13 @@ export const contextCommand: Command = {
 				return;
 			}
 
-			// Lens flat namespace: client.getModelDetails()
-			const modelDetailsResult = await client.getModelDetails({
-				providerId: providerId,
-				modelId: modelName,
-			});
+			// Lens flat namespace: client.getModelDetails.fetch({ input })
+			const modelDetailsResult = await client.getModelDetails.fetch({
+				input: {
+					providerId: providerId,
+					modelId: modelName,
+				},
+			}) as { success: boolean; error?: string; details: { contextLength: number } };
 
 			if (!modelDetailsResult.success) {
 				commandContext.setInputComponent(
@@ -115,13 +117,24 @@ export const contextCommand: Command = {
 			);
 
 			console.log("[Context] Calling Lens getContextInfo...");
-			// Lens flat namespace: client.getContextInfo()
-			const result = await client.getContextInfo({
-				sessionId: sessionId,
-				model: modelName, // Pass current model for dynamic calculation
-				agentId: agentId, // Pass current agent for SSOT
-				enabledRuleIds: ruleIds, // Pass current rules for SSOT
-			});
+			// Lens flat namespace: client.getContextInfo.fetch({ input })
+			const result = await client.getContextInfo.fetch({
+				input: {
+					sessionId: sessionId,
+					model: modelName, // Pass current model for dynamic calculation
+					agentId: agentId, // Pass current agent for SSOT
+					enabledRuleIds: ruleIds, // Pass current rules for SSOT
+				},
+			}) as {
+				success: boolean;
+				error?: string;
+				systemPromptTokens: number;
+				systemPromptBreakdown: Record<string, number>;
+				toolsTokensTotal: number;
+				toolTokens: Record<string, number>;
+				messagesTokens: number;
+				toolCount: number;
+			};
 
 			console.log("[Context] tRPC result:", result.success ? "success" : `error: ${result.error}`);
 			if (!result.success) {

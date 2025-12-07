@@ -19,8 +19,8 @@ export function useBackgroundBashCount(): number {
 	useEffect(() => {
 		const updateCount = async () => {
 			try {
-				// Lens flat namespace: client.listBash()
-				const processes = await client.listBash();
+				// Lens flat namespace: client.listBash.fetch({})
+				const processes = await client.listBash.fetch({}) as Array<{ isActive?: boolean; status?: string }>;
 				// Count background processes (not active, still running)
 				const bgCount = processes.filter(
 					(p: any) => !p.isActive && p.status === "running",

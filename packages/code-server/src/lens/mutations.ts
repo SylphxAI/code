@@ -164,28 +164,8 @@ export const sendMessage = mutation()
 			assistantMessage: Message,
 		}),
 	)
-	// Explicit optimistic (complex multi-entity return)
-	.optimistic(({ input }) => ({
-		session: input.sessionId
-			? { id: input.sessionId }
-			: { id: tempId(), title: "New Chat" },
-		userMessage: {
-			id: tempId(),
-			sessionId: input.sessionId || tempId(),
-			role: "user",
-			status: "completed",
-			timestamp: Date.now(),
-			ordering: 0,
-		},
-		assistantMessage: {
-			id: tempId(),
-			sessionId: input.sessionId || tempId(),
-			role: "assistant",
-			status: "active",
-			timestamp: Date.now(),
-			ordering: 1,
-		},
-	}))
+	// Note: optimistic disabled - API changed in lens-core
+	// TODO: Update to new optimistic step builder pattern
 	.resolve(async function* ({ input, ctx }: { input: { sessionId?: string | null; content: any[]; agentId?: string; provider?: string; model?: string }; ctx: LensContext }) {
 		// Import streaming service
 		const { triggerStreamMutation } = await import(

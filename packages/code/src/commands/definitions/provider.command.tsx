@@ -137,10 +137,10 @@ export const providerCommand: Command = {
 				}
 
 				// Check if field is secret - use dedicated endpoint
-				// Lens flat namespace: client.getProviderSchema()
-				const providerSchemaResult = await client.getProviderSchema({
-					providerId: providerId as any,
-				});
+				// Lens flat namespace: client.getProviderSchema.fetch({ input })
+				const providerSchemaResult = await client.getProviderSchema.fetch({
+					input: { providerId: providerId as any },
+				}) as { success: boolean; error?: string; schema: Array<{ key: string; secret?: boolean }> };
 
 				if (!providerSchemaResult.success) {
 					return `Error: ${providerSchemaResult.error}`;
@@ -153,12 +153,14 @@ export const providerCommand: Command = {
 
 				if (field.secret) {
 					// Secret field - use dedicated setProviderSecret endpoint
-					// Lens flat namespace: client.setProviderSecret()
-					const result = await client.setProviderSecret({
-						providerId,
-						fieldName: key,
-						value: String(value),
-					});
+					// Lens flat namespace: client.setProviderSecret.fetch({ input })
+					const result = await client.setProviderSecret.fetch({
+						input: {
+							providerId,
+							fieldName: key,
+							value: String(value),
+						},
+					}) as { success: boolean; error?: string };
 
 					if (!result.success) {
 						return `Error: ${result.error}`;
@@ -272,7 +274,7 @@ export const providerCommand: Command = {
 						try {
 							context.addLog(`Loading models from ${providerId}...`);
 							// Use client from context (passed from React hook)
-							const result = await client.fetchModels({ providerId: providerId as any });
+							const result = await client.fetchModels.fetch({ input: { providerId: providerId as any } }) as { success: boolean; models?: Array<{ id: string }>; error?: string };
 
 							if (result.success && result.models && result.models.length > 0) {
 								const firstModel = result.models[0];
@@ -325,10 +327,10 @@ export const providerCommand: Command = {
 					// Use client from context (passed from React hook)
 
 					// Get provider schema to separate secrets from non-secrets
-					// Lens flat namespace: client.getProviderSchema()
-					const schemaResult = await client.getProviderSchema({
-						providerId: providerId as any,
-					});
+					// Lens flat namespace: client.getProviderSchema.fetch({ input })
+					const schemaResult = await client.getProviderSchema.fetch({
+						input: { providerId: providerId as any },
+					}) as { success: boolean; error?: string; schema: Array<{ key: string; secret?: boolean }> };
 
 					if (!schemaResult.success) {
 						context.addLog(`[provider] Error: ${schemaResult.error}`);
@@ -352,13 +354,15 @@ export const providerCommand: Command = {
 					}
 
 					// Save secrets using dedicated endpoint
-					// Lens flat namespace: client.setProviderSecret()
+					// Lens flat namespace: client.setProviderSecret.fetch({ input })
 					for (const [fieldName, value] of Object.entries(secrets)) {
-						const result = await client.setProviderSecret({
-							providerId,
-							fieldName,
-							value,
-						});
+						const result = await client.setProviderSecret.fetch({
+							input: {
+								providerId,
+								fieldName,
+								value,
+							},
+						}) as { success: boolean; error?: string };
 
 						if (!result.success) {
 							context.addLog(`[provider] Error setting ${fieldName}: ${result.error}`);

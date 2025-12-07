@@ -3,18 +3,48 @@
  * Framework-agnostic client utilities
  *
  * This package provides:
+ * - Lens client factory (createCodeClient)
+ * - Transport re-exports (direct, http)
  * - Framework-agnostic state management (signals)
  * - Utility functions
  * - Shared types
- * - tRPC client setup
  *
  * React hooks are now in the TUI package (packages/code/src/hooks/client/)
  */
 
 // ============================================================================
+// Lens Client (Type-safe, transport-agnostic)
+// ============================================================================
+export {
+	// Factory
+	createCodeClient,
+	// Global client (module singleton)
+	getClient,
+	initClient,
+	isClientInitialized,
+	// React hooks (backward compatibility)
+	useLensClient,
+	LensProvider,
+	useQuery,
+	// Transports
+	direct,
+	http,
+	// Types
+	type CodeClient,
+	type DirectTransportOptions,
+	type HttpTransportOptions,
+	type LensServerInterface,
+	type Transport,
+} from "./lens.js";
+
+// Backward compatibility aliases
+export { useLensClient as useTRPCClient } from "./lens.js";
+
+// ============================================================================
 // Types (re-exported from dependencies)
 // ============================================================================
 export type { MessagePart, Session } from "@sylphx/code-core";
+
 // ============================================================================
 // Event Bus (Re-exported from code-core to prevent circular dependency)
 // ============================================================================
@@ -38,10 +68,10 @@ export {
 	type ScrollViewportResult,
 	truncateString,
 } from "@sylphx/code-core";
-export type { AppRouter } from "@sylphx/code-server";
 
 // API functions
 export { getLastSession, getRecentSessions } from "./api/sessions.js";
+
 // Cross-domain computed signals
 export * from "./signals/computed/index.js";
 export * from "./signals/domain/ai/index.js";
@@ -54,14 +84,17 @@ export * from "./signals/domain/providers/index.js";
 export * from "./signals/domain/models/index.js";
 export * from "./signals/domain/mcp/index.js";
 export * from "./signals/domain/bash/index.js";
+
 // ============================================================================
 // Optimistic Updates
 // ============================================================================
 export * from "./optimistic/index.js";
+
 // ============================================================================
 // Screen Type (for backwards compatibility in component imports)
 // ============================================================================
 export type { Screen } from "./signals/domain/ui/index.js";
+
 // ============================================================================
 // State Management (Zen Signals)
 // ============================================================================
@@ -71,59 +104,7 @@ export * from "./signals/domain/ui/index.js";
 export * from "./signals/effects/index.js";
 // Event system
 export * from "./signals/events/index.js";
-// ============================================================================
-// Lens Client (Type-safe, pre-configured with API)
-// ============================================================================
-export {
-	// Type-safe client (API type baked in)
-	lensClient,
-	getLensClient,  // Legacy backward compat
-	useLensClient,
-} from "./lens-client.js";
 
-// ============================================================================
-// Lens Provider (React Context API - Low-level, use lensClient/useLensClient instead)
-// ============================================================================
-export {
-	_initGlobalClient as _initGlobalLensClient,
-	// Client factories
-	createInProcessClient as createInProcessLensClient,
-	createHttpClient as createHttpLensClient,
-	// React Context API
-	LensProvider,
-	type LensProviderProps,
-} from "./lens-provider.js";
-// ============================================================================
-// Lens HTTP Transport (for Web UI)
-// ============================================================================
-export { createHTTPTransport } from "./lens-http-client.js";
-// ============================================================================
-// Lens React Hooks (Frontend-Driven Pattern)
-// ============================================================================
-export { useQuery, useMutation, useLazyQuery } from "@sylphx/lens-react";
-// ============================================================================
-// tRPC Links (Low-level, use createInProcessClient instead)
-// ============================================================================
-export {
-	type InProcessLinkOptions,
-	inProcessLink,
-} from "./trpc-links/index.js";
-// ============================================================================
-// tRPC Provider (React Context API)
-// ============================================================================
-export {
-	_initGlobalClient,
-	createHTTPClient,
-	// Client factories
-	createInProcessClient,
-	// Internal API for Zen signals (DO NOT USE in React components)
-	getTRPCClient,
-	// React Context API
-	TRPCProvider,
-	type TRPCProviderProps,
-	type TypedTRPCClient,
-	useTRPCClient,
-} from "./trpc-provider.js";
 // ============================================================================
 // Command Types
 // ============================================================================
@@ -136,6 +117,7 @@ export type {
 	WaitForInputOptions,
 } from "./types/command-types.js";
 export type { ToolConfig, ToolDisplayProps } from "./types/tool.types.js";
+
 // ============================================================================
 // Utilities
 // ============================================================================

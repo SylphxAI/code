@@ -1,0 +1,8 @@
+# Bun configuration for the code project
+# This ensures all packages use the same React instance
+
+[install]
+# Package aliasing to avoid duplicate React instances
+# Forces lens-react to use the React from this workspace
+[install.scopes]
+"@sylphx" = { registry = "https://registry.npmjs.org" }

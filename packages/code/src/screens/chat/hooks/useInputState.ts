@@ -54,8 +54,8 @@ export function useInputState(): InputState {
 	useEffect(() => {
 		const loadHistory = async () => {
 			try {
-				const result = await client.getRecentUserMessages({
-					limit: 100,
+				const result = await client.getRecentUserMessages.fetch({
+					input: { limit: 100 },
 				});
 				// Extract messages array from paginated result
 				const messages = Array.isArray(result) ? result : result?.messages || [];

@@ -13,8 +13,8 @@ export function useAIConfig() {
 	const loadConfig = useCallback(async () => {
 		setLoading(true);
 		try {
-			// Lens flat namespace: client.loadConfig()
-			const result = await client.loadConfig();
+			// Lens flat namespace: client.loadConfig.fetch({})
+			const result = await client.loadConfig.fetch({}) as { success: boolean; config: AIConfig; error?: string };
 
 			if (result.success) {
 				// Use setAIConfig to trigger logic for loading defaultEnabledRuleIds and defaultAgentId
@@ -35,8 +35,8 @@ export function useAIConfig() {
 		async (config: AIConfig) => {
 			setLoading(true);
 			try {
-				// Lens flat namespace: client.saveConfig()
-				const result = await client.saveConfig({ config });
+				// Lens flat namespace: client.saveConfig.fetch({ input })
+				const result = await client.saveConfig.fetch({ input: { config } }) as { success: boolean; error?: string };
 
 				if (result.success) {
 					setAIConfig(config);

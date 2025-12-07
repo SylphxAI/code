@@ -1,15 +1,15 @@
 /**
  * Headless Mode - Execute prompt and stream response
  *
- * ARCHITECTURE: React Ink component using LensProvider + Lens Live Query
- * - Uses useLensClient() for mutations (triggerStream)
- * - Uses useQuery(getSession) for streaming state (automatic updates via emit)
+ * ARCHITECTURE: React Ink component using Lens v4 (module singleton)
+ * - Uses getClient() for accessing the initialized client
+ * - Uses client.getSession({ id }) as a hook for streaming state
  * - Lens handles all synchronization automatically
  *
  * Data Flow:
  * 1. Load AI config and validate provider
  * 2. Create or get session
- * 3. useQuery(getSession) subscribes to session data
+ * 3. client.getSession({ id }) subscribes to session data (hook)
  * 4. Call triggerStream mutation → Server starts streaming
  * 5. Server uses emit API → session.textContent updates automatically
  * 6. Print textContent delta to stdout
@@ -17,7 +17,7 @@
  * 8. Exit process
  */
 
-import { useQuery, useLensClient } from "@sylphx/code-client";
+import { getClient } from "@sylphx/code-client";
 import { loadAIConfig } from "@sylphx/code-core";
 import chalk from "chalk";
 import { Box, Text, render } from "ink";
@@ -35,23 +35,45 @@ interface HeadlessProps {
 
 /**
  * HeadlessApp - React component for headless mode
- * Uses useQuery(getSession) - data updates automatically via emit
+ * Uses lens-react v4 pattern: client.xxx() IS the hook
  */
 function HeadlessApp({ prompt, options }: HeadlessProps) {
-	const client = useLensClient();
 	const [error, setError] = useState<string | null>(null);
 	const [sessionId, setSessionId] = useState<string | null>(null);
 	const lastPrintedLengthRef = useRef(0);
 	const wasStreamingRef = useRef(false);
 
-	// Live Query: Subscribe to session data
-	// When server uses emit.delta("textContent", ...), this data updates automatically
-	// Use skip when no session ID (Apollo/GraphQL pattern)
-	const { data: session } = useQuery(
-		(lensClient) => lensClient.getSession,
-		{ id: sessionId ?? "" },
-		{ skip: !sessionId }
-	);
+	// Get the initialized client (module singleton)
+	const client = getClient();
+
+	// Live Query: Poll for session data (avoid lens-react hooks due to React instance conflict)
+	// Server updates session.textContent via emit API, we poll to get updates
+	const [session, setSession] = useState<any>(null);
+
+	useEffect(() => {
+		if (!sessionId) return;
+
+		let mounted = true;
+		const fetchSession = async () => {
+			try {
+				const data = await client.getSession.fetch({ input: { id: sessionId } });
+				if (mounted) setSession(data);
+			} catch (e) {
+				// Ignore errors during polling
+			}
+		};
+
+		// Initial fetch
+		fetchSession();
+
+		// Poll every 100ms while streaming
+		const interval = setInterval(fetchSession, 100);
+
+		return () => {
+			mounted = false;
+			clearInterval(interval);
+		};
+	}, [sessionId, client]);
 
 	// Effect: Print new text content as it streams
 	useEffect(() => {
@@ -125,9 +147,9 @@ function HeadlessApp({ prompt, options }: HeadlessProps) {
 				// Handle continue mode: load last session
 				let existingSessionId: string | null = null;
 				if (options.continue) {
-					const lastSession = await client.getLastSession().select({ id: true });
+					const lastSession = await client.getLastSession.fetch({});
 					if (lastSession) {
-						existingSessionId = lastSession.id;
+						existingSessionId = (lastSession as any).id;
 					}
 				}
 
@@ -135,14 +157,14 @@ function HeadlessApp({ prompt, options }: HeadlessProps) {
 				const content = [{ type: "text" as const, content: prompt }];
 
 				// Trigger streaming via mutation
-				const triggerResult = await client.triggerStream({
-					sessionId: existingSessionId,
-					provider: existingSessionId ? undefined : provider,
-					model: existingSessionId ? undefined : model,
-					content,
-				}).select({
-					sessionId: true,
-				});
+				const triggerResult = await client.triggerStream.fetch({
+					input: {
+						sessionId: existingSessionId,
+						provider: existingSessionId ? undefined : provider,
+						model: existingSessionId ? undefined : model,
+						content,
+					},
+				}) as { sessionId?: string };
 
 				if (!mounted) return;
 
@@ -156,7 +178,7 @@ function HeadlessApp({ prompt, options }: HeadlessProps) {
 					console.error(chalk.dim(`Session: ${triggerResult.sessionId}`));
 				}
 
-				// Set sessionId to activate useQuery subscription
+				// Set sessionId to activate hook subscription
 				setSessionId(triggerResult.sessionId);
 			} catch (err) {
 				if (!mounted) return;
@@ -203,24 +225,22 @@ function HeadlessApp({ prompt, options }: HeadlessProps) {
 /**
  * Run headless mode with React + Lens architecture
  *
+ * Note: Client must be initialized via initClient() before calling this
+ *
  * @param prompt - User prompt to send to AI
  * @param options - Headless options (continue, verbose)
- * @param lensServer - Lens server instance for in-process transport
+ * @param _lensServer - Lens server instance (unused - client already initialized)
  */
 export async function runHeadless(
 	prompt: string,
 	options: HeadlessOptions,
-	lensServer: any,
+	_lensServer: any,
 ): Promise<void> {
 	const React = await import("react");
-	const { LensProvider } = await import("@sylphx/code-client");
 
-	// Render HeadlessApp wrapped in LensProvider (same pattern as TUI)
+	// No provider needed - lens-react v4 uses module singleton pattern
+	// Client is already initialized via initClient() in index.ts
 	render(
-		React.createElement(
-			LensProvider,
-			{ server: lensServer },
-			React.createElement(HeadlessApp, { prompt, options }),
-		),
+		React.createElement(HeadlessApp, { prompt, options }),
 	);
 }

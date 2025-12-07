@@ -11,12 +11,12 @@
  * Exports AppRouter type for client type inference.
  */
 
-import { createServer } from "@lens/server";
+import { createApp } from "@lens/server";
 import type { AppContext } from "../context.js";
 
 // Schema
 import * as entities from "./entities.js";
-import { relations } from "./relations.js";
+// Note: relations not yet supported by lens-server
 
 // Operations
 import * as queries from "./queries.js";
@@ -269,9 +269,8 @@ export function createLensServer(appContext: AppContext) {
 	// Create resolvers with db closure
 	const resolvers = createResolvers(db);
 
-	const server = createServer({
+	const app = createApp({
 		entities,
-		relations,
 		queries,
 		mutations,
 		resolvers,
@@ -285,7 +284,7 @@ export function createLensServer(appContext: AppContext) {
 		},
 	});
 
-	return server;
+	return app;
 }
 
 /**

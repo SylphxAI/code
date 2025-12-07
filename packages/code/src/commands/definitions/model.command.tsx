@@ -54,7 +54,7 @@ export const modelCommand: Command = {
 				context.addLog(`Loading models from ${provider}...`);
 				// Use client from context (passed from React hook)
 				const client = context.client;
-				const result = await client.fetchModels({ providerId: provider });
+				const result = await client.fetchModels.fetch({ input: { providerId: provider } }) as { success: boolean; models: Array<{ id: string; name: string }>; error?: string };
 
 				if (result.success) {
 					const modelExists = result.models.some((m) => m.id === modelId);
@@ -176,9 +176,9 @@ export const modelCommand: Command = {
 		const client = context.client;
 
 		try {
-			const result = await client.fetchModels({
-				providerId: currentProviderId,
-			});
+			const result = await client.fetchModels.fetch({
+				input: { providerId: currentProviderId },
+			}) as { success: boolean; models: Array<{ id: string; name: string }>; error?: string };
 
 			if (!result.success) {
 				modelsState.loading = false;

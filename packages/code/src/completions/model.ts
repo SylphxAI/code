@@ -37,8 +37,8 @@ export async function getModelCompletions(
 			return [];
 		}
 
-		// Lens flat namespace: client.fetchModels()
-		const result = await client.fetchModels({ providerId: currentProviderId });
+		// Lens flat namespace: client.fetchModels.fetch({ input })
+		const result = await client.fetchModels.fetch({ input: { providerId: currentProviderId } }) as { success: boolean; models: any[]; error?: string };
 
 		if (!result.success) {
 			console.error("[completions] Failed to fetch models:", result.error);

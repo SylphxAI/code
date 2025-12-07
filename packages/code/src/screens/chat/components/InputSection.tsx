@@ -227,11 +227,13 @@ export function InputSection({
 									const answerString = typeof value === "string" ? value : String(value);
 
 									try {
-										// Lens flat namespace: client.answerAsk()
-										await client.answerAsk({
-											sessionId,
-											toolCallId,
-											answer: answerString,
+										// Lens flat namespace: client.answerAsk.fetch({ input })
+										await client.answerAsk.fetch({
+											input: {
+												sessionId,
+												toolCallId,
+												answer: answerString,
+											},
 										});
 										// Server will emit ask-question-answered event which clears pendingInput
 									} catch (error) {
@@ -388,11 +390,11 @@ export function InputSection({
 									}}
 									onPasteImage={onPasteImage}
 									onCtrlB={() => {
-										// Lens flat namespace: client.getActiveBash() and client.demoteBash()
-										client.getActiveBash()
+										// Lens flat namespace: client.getActiveBash.fetch() and client.demoteBash.fetch()
+										client.getActiveBash.fetch({})
 											.then((active: any) => {
 												if (active) {
-													return client.demoteBash({ bashId: active.id });
+													return client.demoteBash.fetch({ input: { bashId: active.id } });
 												}
 											})
 											.catch((error: any) => {

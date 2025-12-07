@@ -72,8 +72,9 @@ function TestHarnessApp({ message, timeout, outputFile }: TestHarnessProps) {
 			try {
 				log("Starting test with message:", message);
 
-				// Subscribe to streaming response
-				const subscription = client.sendMessage({
+				// Subscribe to streaming response (legacy subscription pattern)
+				// NOTE: sendMessage may need to be updated when lens API changes
+				const subscription = (client.sendMessage as any)({
 					sessionId: null,
 					provider: "openrouter",
 					model: "x-ai/grok-code-fast-1",

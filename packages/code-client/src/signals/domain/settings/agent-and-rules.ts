@@ -12,7 +12,6 @@
 import { loadSettings, saveSettings } from "@sylphx/code-core";
 import { zen } from "@sylphx/zen";
 import { useZen } from "../../react-bridge.js";
-import { getTRPCClient } from "../../../trpc-provider.js";
 
 // Global default signals
 export const selectedAgentId = zen<string | null>(null);
