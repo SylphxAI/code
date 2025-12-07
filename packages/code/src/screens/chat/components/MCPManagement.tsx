@@ -9,6 +9,9 @@
  */
 
 import type { MCPServerWithId } from "@sylphx/code-core";
+import { useEffect } from "react";
+import { InlineSelection } from "../../../components/selection/index.js";
+import type { SelectionOption } from "../../../hooks/useSelection.js";
 import {
 	useMCPManagementStep,
 	useMCPServers,
@@ -20,10 +23,7 @@ import {
 	setSelectedMCPServer as setSelectedMCPServerSignal,
 	setConnectedMCPServers as setConnectedMCPServersSignal,
 	setMCPToolCounts as setMCPToolCountsSignal,
-} from "@sylphx/code-client";
-import { useEffect } from "react";
-import { InlineSelection } from "../../../components/selection/index.js";
-import type { SelectionOption } from "../../../hooks/useSelection.js";
+} from "../../../mcp-state.js";
 import { MCPAddForm } from "./MCPAddForm.js";
 import { MCPServerDetails } from "./MCPServerDetails.js";
 
@@ -116,13 +116,17 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 	];
 
 	// Handle server selection - go directly to details
-	const handleServerSelect = async (value: string) => {
-		if (value === "__add__") {
+	const handleServerSelect = (value: string | string[]) => {
+		// Single select only, so value should be a string
+		const selectedValue = Array.isArray(value) ? value[0] : value;
+		if (!selectedValue) return;
+
+		if (selectedValue === "__add__") {
 			setMCPManagementStepSignal("add-server");
 			return;
 		}
 
-		const server = servers.find((s) => s.id === value);
+		const server = servers.find((s) => s.id === selectedValue);
 		if (server) {
 			setSelectedMCPServerSignal(server);
 			setMCPManagementStepSignal("server-details");
@@ -135,7 +139,8 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 			<InlineSelection
 				options={serverOptions}
 				subtitle="Select a server to view details or add a new one"
-				placeholder="Select a server or add new..."
+				filter={servers.length > 5}
+				filterPlaceholder="Filter servers..."
 				onSelect={handleServerSelect}
 				onCancel={() => {
 					console.log("[MCPManagement] ESC pressed on list-servers");
@@ -143,7 +148,6 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 						onComplete();
 					}
 				}}
-				showSearch={servers.length > 5}
 			/>
 		);
 	}
@@ -181,20 +185,20 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 						await reloadMCPServerTools(selectedServer.id);
 					}
 					await loadServers();
-					setStep("list-servers");
+					setMCPManagementStepSignal("list-servers");
 				}}
 				onDisconnect={async () => {
 					const { getMCPManager } = await import("@sylphx/code-core");
 					const mcpManager = getMCPManager();
 					await mcpManager.disconnect(selectedServer.id);
 					await loadServers();
-					setStep("list-servers");
+					setMCPManagementStepSignal("list-servers");
 				}}
 				onEnable={async () => {
 					const { enableMCPServer } = await import("@sylphx/code-core");
 					await enableMCPServer(selectedServer.id);
 					await loadServers();
-					setStep("list-servers");
+					setMCPManagementStepSignal("list-servers");
 				}}
 				onDisable={async () => {
 					const { getMCPManager, disableMCPServer } = await import("@sylphx/code-core");
@@ -204,7 +208,7 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 					}
 					await disableMCPServer(selectedServer.id);
 					await loadServers();
-					setStep("list-servers");
+					setMCPManagementStepSignal("list-servers");
 				}}
 				onRemove={async () => {
 					const { getMCPManager, removeMCPServer } = await import("@sylphx/code-core");
@@ -214,7 +218,7 @@ export function MCPManagement({ onComplete }: MCPManagementProps) {
 					}
 					await removeMCPServer(selectedServer.id);
 					await loadServers();
-					setStep("list-servers");
+					setMCPManagementStepSignal("list-servers");
 				}}
 			/>
 		);
