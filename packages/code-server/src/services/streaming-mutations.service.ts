@@ -88,18 +88,13 @@ async function persistStreamingState(
 
 	acc.lastPersistTime = now;
 
-	// Persist to DB (fire-and-forget for performance, but catch errors)
-	sessionRepository.update(sessionId, {
-		textContent: acc.textContent,
-		reasoningContent: acc.reasoningContent,
-		streamingStatus: acc.streamingStatus,
-		isTextStreaming: acc.isTextStreaming,
-		isReasoningStreaming: acc.isReasoningStreaming,
-		currentTool: acc.currentTool,
-		askQuestion: acc.askQuestion,
-	}).catch((err) => {
-		console.error("[StreamingState] DB persist error:", err);
-	});
+	// NOTE: Streaming state (textContent, reasoningContent, etc.) is kept in-memory
+	// and delivered via Lens emit system. DB persistence for streaming state is disabled
+	// because SessionRepository doesn't have a generic update method for these fields.
+	// The streaming state is ephemeral - clients get updates via real-time events.
+	//
+	// TODO: If DB persistence is needed for late subscribers, add updateStreamingState()
+	// method to SessionRepository with the relevant schema columns.
 
 	return true;
 }

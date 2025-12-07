@@ -14,8 +14,8 @@ import { updateCurrentSession } from "@sylphx/code-client";
  */
 export async function refetchCurrentSession(client: LensClient<any, any>, sessionId: string): Promise<void> {
 	console.log("[refetchCurrentSession] Refetching session:", sessionId);
-	// Lens flat namespace: client.getSession()
-	const session = await client.getSession({ id: sessionId });
+	// Lens flat namespace: client.getSession.fetch({ input })
+	const session = await client.getSession.fetch({ input: { id: sessionId } }) as any;
 
 	console.log("[refetchCurrentSession] Session fetched. Todos count:", session?.todos?.length || 0);
 	if (session) {
