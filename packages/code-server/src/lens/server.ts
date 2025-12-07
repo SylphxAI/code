@@ -11,7 +11,7 @@
  * Exports AppRouter type for client type inference.
  */
 
-import { createServer } from "@sylphx/lens-server";
+import { createApp } from "@sylphx/lens-server";
 import type { AppContext } from "../context.js";
 
 // Schema
@@ -269,7 +269,7 @@ export function createLensServer(appContext: AppContext) {
 	// Create resolvers with db closure
 	const resolvers = createResolvers(db);
 
-	const app = createServer({
+	const app = createApp({
 		entities,
 		queries,
 		mutations,
