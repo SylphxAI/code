@@ -1,19 +1,19 @@
 /**
  * Session List Hook
- * Provides reactive session list with loading/error states using Zen signals
+ * Provides reactive session list with loading/error states using local state
  */
 
 import type { SessionMetadata } from "@sylphx/code-core";
 import { useCallback } from "react";
+import { useLensClient } from "@sylphx/code-client";
 import {
-	getRecentSessions,
 	useRecentSessions,
 	useSessionsLoading,
 	useSessionsError,
 	setRecentSessions as setRecentSessionsSignal,
 	setSessionsLoading as setSessionsLoadingSignal,
 	setSessionsError as setSessionsErrorSignal,
-} from "@sylphx/code-client";
+} from "../../session-list-state.js";
 
 export interface UseSessionListReturn {
 	sessions: SessionMetadata[];
@@ -24,7 +24,7 @@ export interface UseSessionListReturn {
 
 /**
  * Hook for managing session list
- * Data stored in Zen signals for global access
+ * Data stored in local state for global access
  *
  * @returns Session list with loading/error states and refresh function
  *
@@ -38,6 +38,7 @@ export interface UseSessionListReturn {
  * ```
  */
 export function useSessionList(): UseSessionListReturn {
+	const client = useLensClient();
 	const sessions = useRecentSessions();
 	const loading = useSessionsLoading();
 	const error = useSessionsError();
@@ -46,8 +47,9 @@ export function useSessionList(): UseSessionListReturn {
 		setSessionsLoadingSignal(true);
 		setSessionsErrorSignal(null);
 		try {
-			const result = await getRecentSessions(limit);
-			setRecentSessionsSignal(result);
+			// Use lens client to fetch sessions
+			const result = await client.listSessions.fetch({ input: { limit } }) as SessionMetadata[];
+			setRecentSessionsSignal(result || []);
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : "Failed to load sessions";
 			setSessionsErrorSignal(errorMessage);
@@ -55,7 +57,7 @@ export function useSessionList(): UseSessionListReturn {
 		} finally {
 			setSessionsLoadingSignal(false);
 		}
-	}, []);
+	}, [client]);
 
 	return {
 		sessions,

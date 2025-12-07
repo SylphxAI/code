@@ -1,33 +1,35 @@
 /**
  * MCP Status Hook
- * Track MCP server connection status via event bus using Zen signals
+ * Track MCP server connection status via event bus
  *
  * ARCHITECTURE: Pure UI Client
  * - No business logic in client
  * - Listens to events from core
  * - Core calculates and emits status
- * - Status stored in Zen signals for global access
+ * - Status stored in local state for global access
  */
 
 import { useEffect } from "react";
+import { eventBus } from "@sylphx/code-client";
 import {
-	eventBus,
-	useMCPStatus as useMCPStatusSignal,
+	useMCPStatus as useMCPStatusState,
 	setMCPStatus as setMCPStatusSignal,
 	type MCPStatus,
-} from "@sylphx/code-client";
+} from "../../mcp-state.js";
+
+export type { MCPStatus };
 
 /**
  * Hook to get MCP connection status
  * Event-driven - updates when core emits status change events
- * Data stored in Zen signals for global access
+ * Data stored in local state for global access
  */
 export function useMCPStatus(): MCPStatus {
-	const status = useMCPStatusSignal();
+	const status = useMCPStatusState();
 
 	useEffect(() => {
 		// Subscribe to MCP status change events
-		const unsubscribe = eventBus.on("mcp:statusChanged", (data) => {
+		const unsubscribe = eventBus.on("mcp:statusChanged", (data: MCPStatus) => {
 			setMCPStatusSignal(data);
 		});
 

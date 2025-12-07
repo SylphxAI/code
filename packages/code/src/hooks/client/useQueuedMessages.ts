@@ -2,7 +2,7 @@
  * Hook to access queued messages for current session
  */
 
-import { useSessionQueues } from "@sylphx/code-client";
+import { useSessionQueues } from "../../queue-state.js";
 import { useCurrentSessionId } from "../../session-state.js";
 
 export function useQueuedMessages() {

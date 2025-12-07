@@ -1,15 +1,14 @@
 /**
  * useModelDetails Hook
  * Get model details including context length, capabilities, and tokenizer info
- * State stored in Zen signals for global caching
+ * State stored in local state for global caching
  *
  * ARCHITECTURE: Promise-based API using client.xxx.fetch({ input })
- * Avoids React instance conflicts between lens-react and the app.
  */
 
 import { useEffect } from "react";
+import { getClient } from "@sylphx/code-client";
 import {
-	getClient,
 	useModelDetailsCache,
 	useModelDetailsLoading,
 	useModelDetailsError,
@@ -17,7 +16,9 @@ import {
 	setModelDetailsLoading as setModelDetailsLoadingSignal,
 	setModelDetailsError as setModelDetailsErrorSignal,
 	type ModelDetails,
-} from "@sylphx/code-client";
+} from "../../model-details-state.js";
+
+export type { ModelDetails };
 
 /**
  * Hook to fetch model details from server
@@ -64,7 +65,7 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 				const [detailsResult, tokInfo] = await Promise.all([
 					client.getModelDetails.fetch({ input: { providerId, modelId } }) as Promise<{
 						success: boolean;
-						details?: { contextLength?: number; capabilities?: any };
+						details?: { contextLength?: number; capabilities?: Record<string, boolean> };
 					}>,
 					client.getTokenizerInfo.fetch({ input: { model: modelId } }) as Promise<{
 						name: string;
@@ -84,7 +85,7 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 							? detailsResult.details.capabilities || null
 							: null;
 
-					const modelDetails = {
+					const modelDetails: ModelDetails = {
 						contextLength,
 						capabilities,
 						tokenizerInfo: tokInfo,
