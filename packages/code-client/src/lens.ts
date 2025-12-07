@@ -51,13 +51,17 @@ import {
  * Callable as hook (in React components) or via .fetch() for promises
  */
 interface QueryEndpoint<TInput = unknown, TOutput = unknown> {
-	(options?: { input?: TInput; select?: Record<string, unknown>; skip?: boolean }): {
+	(options?: TInput extends void
+		? { select?: Record<string, unknown>; skip?: boolean }
+		: { input?: TInput; select?: Record<string, unknown>; skip?: boolean }): {
 		data: TOutput | null;
 		loading: boolean;
 		error: Error | null;
 		refetch: () => void;
 	};
-	fetch: (options?: { input?: TInput; select?: Record<string, unknown> }) => Promise<TOutput>;
+	fetch: TInput extends void
+		? (options?: { select?: Record<string, unknown> }) => Promise<TOutput>
+		: (options?: { input?: TInput; select?: Record<string, unknown> }) => Promise<TOutput>;
 }
 
 /**
@@ -86,55 +90,333 @@ interface MutationEndpoint<TInput = unknown, TOutput = unknown> {
  * - client.endpointName.fetch({ input }) - Promise (SSR/signals)
  */
 export interface CodeClient {
-	// Queries
-	getSession: QueryEndpoint;
-	listSessions: QueryEndpoint;
-	getLastSession: QueryEndpoint;
-	searchSessions: QueryEndpoint;
-	getSessionCount: QueryEndpoint;
-	getMessage: QueryEndpoint;
-	listMessages: QueryEndpoint;
-	getRecentUserMessages: QueryEndpoint;
-	getStep: QueryEndpoint;
-	listSteps: QueryEndpoint;
-	getPart: QueryEndpoint;
-	listParts: QueryEndpoint;
-	listTodos: QueryEndpoint;
-	subscribeSession: QueryEndpoint;
-	subscribeSessionList: QueryEndpoint;
-	subscribeToSession: QueryEndpoint;
-	loadConfig: QueryEndpoint;
-	getProviders: QueryEndpoint;
-	getProviderSchema: QueryEndpoint;
-	fetchModels: QueryEndpoint;
-	scanProjectFiles: QueryEndpoint;
-	countFileTokens: QueryEndpoint;
-	listBash: QueryEndpoint;
-	getBash: QueryEndpoint;
-	getActiveBash: QueryEndpoint;
+	// Session Queries
+	getSession: QueryEndpoint<{ id: string }, Session | null>;
+	listSessions: QueryEndpoint<{ limit?: number; cursor?: number }, Session[]>;
+	getLastSession: QueryEndpoint<void, Session | null>;
+	searchSessions: QueryEndpoint<{ query: string; limit?: number }, Session[]>;
+	getSessionCount: QueryEndpoint<void, number>;
 
-	// Mutations
-	createSession: MutationEndpoint;
-	updateSession: MutationEndpoint;
-	deleteSession: MutationEndpoint;
-	sendMessage: MutationEndpoint;
-	abortStream: MutationEndpoint;
-	createTodo: MutationEndpoint;
-	updateTodo: MutationEndpoint;
-	deleteTodo: MutationEndpoint;
-	syncTodos: MutationEndpoint;
-	saveConfig: MutationEndpoint;
-	setProviderSecret: MutationEndpoint;
-	executeBash: MutationEndpoint;
-	killBash: MutationEndpoint;
-	demoteBash: MutationEndpoint;
-	promoteBash: MutationEndpoint;
-	uploadFile: MutationEndpoint;
-	answerAsk: MutationEndpoint;
-	triggerStream: MutationEndpoint;
+	// Message Queries
+	getMessage: QueryEndpoint<{ id: string }, Message | null>;
+	listMessages: QueryEndpoint<{ sessionId: string; limit?: number }, Message[]>;
+	getRecentUserMessages: QueryEndpoint<{ limit?: number }, UserMessageHistory[]>;
+	getStep: QueryEndpoint<{ id: string }, Step | null>;
+	listSteps: QueryEndpoint<{ messageId: string }, Step[]>;
+	getPart: QueryEndpoint<{ id: string }, Part | null>;
+	listParts: QueryEndpoint<{ stepId: string }, Part[]>;
+	listTodos: QueryEndpoint<{ sessionId: string }, Todo[]>;
+
+	// Subscription Queries
+	subscribeSession: QueryEndpoint<{ id: string }, Session>;
+	subscribeSessionList: QueryEndpoint<void, Session[]>;
+	subscribeToSession: QueryEndpoint<{ sessionId: string; replayLast?: number }, StreamEvent>;
+
+	// Config Queries
+	loadConfig: QueryEndpoint<{ cwd?: string }, ConfigResult>;
+	getProviders: QueryEndpoint<{ cwd?: string }, Record<string, ProviderInfo>>;
+	getProviderSchema: QueryEndpoint<{ providerId: string }, ProviderSchemaResult>;
+	fetchModels: QueryEndpoint<{ providerId: string; cwd?: string }, FetchModelsResult>;
+	getTokenizerInfo: QueryEndpoint<{ model: string }, TokenizerInfo>;
+	getModelDetails: QueryEndpoint<{ providerId: string; modelId: string; cwd?: string }, ModelDetailsResult>;
+
+	// File Queries
+	scanProjectFiles: QueryEndpoint<{ cwd?: string; query?: string }, { files: ProjectFile[] }>;
+	countFileTokens: QueryEndpoint<{ filePath: string; model?: string }, CountTokensResult>;
+
+	// Bash Queries
+	listBash: QueryEndpoint<void, BashProcess[]>;
+	getBash: QueryEndpoint<{ bashId: string }, BashProcess>;
+	getActiveBash: QueryEndpoint<void, BashProcess | null>;
+
+	// Session Mutations
+	createSession: MutationEndpoint<CreateSessionInput, Session>;
+	updateSession: MutationEndpoint<UpdateSessionInput, Session>;
+	deleteSession: MutationEndpoint<{ id: string }, Session>;
+
+	// Message Mutations
+	sendMessage: MutationEndpoint<SendMessageInput, SendMessageResult>;
+	abortStream: MutationEndpoint<{ sessionId: string }, { success: boolean }>;
+	triggerStream: MutationEndpoint<TriggerStreamInput, TriggerStreamResult>;
+
+	// Todo Mutations
+	createTodo: MutationEndpoint<CreateTodoInput, Todo>;
+	updateTodo: MutationEndpoint<UpdateTodoInput, Todo>;
+	deleteTodo: MutationEndpoint<{ sessionId: string; id: number }, { success: boolean }>;
+	syncTodos: MutationEndpoint<SyncTodosInput, Todo[]>;
+
+	// Config Mutations
+	saveConfig: MutationEndpoint<{ config: unknown; cwd?: string }, SuccessResult>;
+	setProviderSecret: MutationEndpoint<SetProviderSecretInput, SuccessResult>;
+
+	// Bash Mutations
+	executeBash: MutationEndpoint<ExecuteBashInput, ExecuteBashResult>;
+	killBash: MutationEndpoint<{ bashId: string }, { success: boolean; bashId: string }>;
+	demoteBash: MutationEndpoint<{ bashId: string }, { success: boolean; bashId: string; mode: string }>;
+	promoteBash: MutationEndpoint<{ bashId: string }, { success: boolean; bashId: string; mode: string }>;
+
+	// File Mutations
+	uploadFile: MutationEndpoint<UploadFileInput, { fileId: string }>;
+
+	// Ask Mutations
+	answerAsk: MutationEndpoint<AnswerAskInput, { success: boolean }>;
 
 	// Dynamic access for any endpoint
-	[key: string]: QueryEndpoint | MutationEndpoint | undefined;
+	[key: string]: QueryEndpoint<any, any> | MutationEndpoint<any, any> | undefined;
+}
+
+// =============================================================================
+// Entity Types
+// =============================================================================
+
+export interface Session {
+	id: string;
+	title: string;
+	agentId: string;
+	modelId?: string;
+	provider?: string;
+	model?: string;
+	enabledRuleIds: string[];
+	nextTodoId: number;
+	createdAt: number;
+	updatedAt: number;
+}
+
+export interface Message {
+	id: string;
+	sessionId: string;
+	role: "user" | "assistant";
+	timestamp: number;
+	ordering: number;
+	status: "active" | "completed" | "error";
+}
+
+export interface Step {
+	id: string;
+	messageId: string;
+	stepIndex: number;
+	status: string;
+}
+
+export interface Part {
+	id: string;
+	stepId: string;
+	ordering: number;
+	type: string;
+	content: unknown;
+}
+
+export interface Todo {
+	id: number;
+	sessionId: string;
+	content: string;
+	activeForm: string;
+	status: "pending" | "in_progress" | "completed";
+	ordering: number;
+	createdAt: number;
+	completedAt?: number;
+}
+
+// =============================================================================
+// Input/Output Types
+// =============================================================================
+
+export interface UserMessageHistory {
+	text: string;
+	files: Array<{
+		fileId: string;
+		relativePath: string;
+		mediaType: string;
+		size: number;
+	}>;
+}
+
+export interface StreamEvent {
+	id: string;
+	cursor: { timestamp: number; sequence: number };
+	channel: string;
+	type: string;
+	timestamp: number;
+	payload: unknown;
+}
+
+export interface ConfigResult {
+	success: boolean;
+	config?: unknown;
+	error?: string;
+}
+
+export interface ProviderInfo {
+	id: string;
+	name: string;
+	description: string;
+	isConfigured: boolean;
+}
+
+export interface ProviderSchemaResult {
+	success: boolean;
+	schema?: Array<{ key: string; label: string; type: string; secret?: boolean; required?: boolean }>;
+	error?: string;
+}
+
+export interface FetchModelsResult {
+	success: boolean;
+	models?: Array<{ id: string; name: string }>;
+	error?: string;
+}
+
+export interface TokenizerInfo {
+	name: string;
+	modelId: string;
+	source: string;
+}
+
+export interface ModelDetailsResult {
+	success: boolean;
+	details?: {
+		contextLength?: number;
+		capabilities?: Record<string, boolean>;
+		[key: string]: unknown;
+	};
+	error?: string;
+}
+
+export interface ProjectFile {
+	path: string;
+	name: string;
+	type: string;
+	size?: number;
+}
+
+export interface CountTokensResult {
+	success: boolean;
+	count?: number;
+	error?: string;
+}
+
+export interface BashProcess {
+	id: string;
+	command: string;
+	mode: "active" | "background";
+	status: string;
+	isActive?: boolean;
+	startTime: number;
+	endTime?: number;
+	exitCode?: number;
+	cwd: string;
+	duration: number;
+	stdout?: string;
+	stderr?: string;
+}
+
+export interface CreateSessionInput {
+	title?: string;
+	agentId?: string;
+	modelId?: string;
+	provider?: string;
+	model?: string;
+	enabledRuleIds?: string[];
+}
+
+export interface UpdateSessionInput {
+	id: string;
+	title?: string;
+	agentId?: string;
+	modelId?: string;
+	provider?: string;
+	model?: string;
+	enabledRuleIds?: string[];
+}
+
+export interface SendMessageInput {
+	sessionId?: string | null;
+	content: Array<{ type: string; content?: string; [key: string]: unknown }>;
+	agentId?: string;
+	provider?: string;
+	model?: string;
+}
+
+export interface SendMessageResult {
+	session: Session;
+	userMessage: Message;
+	assistantMessage: Message;
+}
+
+export interface TriggerStreamInput {
+	sessionId?: string | null;
+	agentId?: string;
+	provider?: string;
+	model?: string;
+	content: Array<{ type: string; content?: string; [key: string]: unknown }>;
+}
+
+export interface TriggerStreamResult {
+	success: boolean;
+	sessionId: string;
+	queued?: boolean;
+}
+
+export interface CreateTodoInput {
+	sessionId: string;
+	content: string;
+	activeForm: string;
+	status?: "pending" | "in_progress" | "completed";
+}
+
+export interface UpdateTodoInput {
+	sessionId: string;
+	id: number;
+	content?: string;
+	activeForm?: string;
+	status?: "pending" | "in_progress" | "completed";
+}
+
+export interface SyncTodosInput {
+	sessionId: string;
+	todos: Array<{
+		id?: number;
+		content: string;
+		activeForm: string;
+		status: "pending" | "in_progress" | "completed";
+	}>;
+}
+
+export interface SetProviderSecretInput {
+	providerId: string;
+	fieldName: string;
+	value: string;
+	cwd?: string;
+}
+
+export interface ExecuteBashInput {
+	command: string;
+	mode?: "active" | "background";
+	cwd?: string;
+	timeout?: number;
+}
+
+export interface ExecuteBashResult {
+	bashId: string;
+	command: string;
+	mode: string;
+}
+
+export interface UploadFileInput {
+	relativePath: string;
+	mediaType: string;
+	size: number;
+	content: string;
+}
+
+export interface AnswerAskInput {
+	sessionId: string;
+	messageId: string;
+	answer: "yes" | "no" | "always" | "never";
+}
+
+export interface SuccessResult {
+	success: boolean;
+	error?: string;
 }
 
 // =============================================================================
