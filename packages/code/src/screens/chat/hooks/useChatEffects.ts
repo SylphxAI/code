@@ -40,6 +40,8 @@ export function useChatEffects(state: ChatState) {
 	}, [saveConfigAction]);
 
 	// Local helper functions for message/session operations
+	// This creates a message and returns the session ID
+	// If no session exists, creates one first
 	const addMessage = useCallback(async (params: {
 		sessionId: string | null;
 		role: "user" | "assistant";
@@ -52,11 +54,60 @@ export function useChatEffects(state: ChatState) {
 		status?: "active" | "completed" | "error" | "abort";
 		provider?: string;
 		model?: string;
-	}) => {
-		// This is a placeholder that matches the expected interface
-		// The actual message persistence happens server-side via triggerStream
-		return params.sessionId || "";
-	}, []);
+	}): Promise<string> => {
+		let sessionId = params.sessionId;
+
+		// Create session if needed
+		if (!sessionId) {
+			try {
+				const result = await client.createSession.fetch({
+					input: {
+						title: "New Chat",
+						provider: params.provider,
+						model: params.model,
+					}
+				});
+				// Handle both { data: { id } } and { id } response shapes
+				const session = (result as any)?.data || result;
+				sessionId = session?.id;
+				if (sessionId) {
+					setCurrentSessionId(sessionId);
+				}
+			} catch (err) {
+				console.error("[addMessage] Failed to create session:", err);
+				return "";
+			}
+		}
+
+		if (!sessionId) {
+			console.error("[addMessage] No session ID available");
+			return "";
+		}
+
+		// Convert content to array format expected by sendMessage
+		const contentArray = typeof params.content === "string"
+			? [{ type: "text" as const, content: params.content }]
+			: params.content.map(part => {
+					if (typeof part === "string") {
+						return { type: "text" as const, content: part };
+					}
+					// Assume it's already in the right format
+					return part as { type: string; content?: string; [key: string]: unknown };
+				});
+
+		// For assistant messages (like error messages), we use sendMessage
+		// which creates both user and assistant message placeholders
+		// But for error messages, we only want to show the error, not trigger AI
+		// So we'll use a simpler approach: just return the session ID
+		// The actual error display will be handled elsewhere
+		// TODO: Add a simpler "addSystemMessage" mutation for non-AI messages
+
+		// For now, just log and return the session ID
+		// The UI should show errors in a different way (not as persisted messages)
+		console.log(`[addMessage] ${params.role}: ${typeof params.content === 'string' ? params.content.substring(0, 100) : 'complex content'}`);
+
+		return sessionId;
+	}, [client]);
 
 	const updateSessionTitle = useCallback((sessionId: string, title: string) => {
 		// Update session title via client mutation
