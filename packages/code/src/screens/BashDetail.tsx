@@ -1,6 +1,10 @@
 /**
  * Bash Detail Screen
  * Full-screen view of a single bash process with streaming output
+ *
+ * ARCHITECTURE: lens-react hooks pattern
+ * - Queries: client.queryName({ input, skip }) → { data, loading, error, refetch }
+ * - Mutations: const { mutate } = client.mutationName({}) then call mutate({ input })
  */
 
 import { useLensClient } from "@sylphx/code-client";
@@ -33,42 +37,25 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 	const process = processDetails[bashId] || null;
 	const loading = processLoading[bashId] || false;
 
-	// Load process info
+	// Query hook for bash process
+	const bashQuery = client.getBash({
+		input: { bashId },
+	});
+
+	// Mutation hooks
+	const { mutate: killBashMutate } = client.killBash({});
+	const { mutate: promoteBashMutate } = client.promoteBash({});
+
+	// Sync query data to global state
 	useEffect(() => {
-		const loadProcess = async () => {
-			try {
-				setBashProcessDetailLoading(bashId, true);
-				const result = await client.getBash.fetch({ input: { bashId } });
-				setBashProcessDetail(bashId, result);
-				setBashProcessDetailLoading(bashId, false);
-			} catch (error) {
-				console.error("[BashDetail] Failed to load process:", error);
-				setBashProcessDetailLoading(bashId, false);
-			}
-		};
+		setBashProcessDetailLoading(bashId, bashQuery.loading);
+	}, [bashId, bashQuery.loading]);
 
-		loadProcess();
-	}, [bashId, client]);
-
-	// Subscribe to output stream
-	// TODO: Migrate to lens events - currently using polling instead
-	// The lens client has subscribeToSession but may not have bash-specific event subscriptions
-	// For now, we rely on the initial load and manual refresh (kill/promote actions reload the process)
 	useEffect(() => {
-		// Polling fallback: refresh process data every few seconds
-		const interval = setInterval(async () => {
-			try {
-				const result = await client.getBash.fetch({ input: { bashId } });
-				setBashProcessDetail(bashId, result);
-			} catch (error) {
-				console.error("[BashDetail] Failed to refresh process:", error);
-			}
-		}, 2000); // Poll every 2 seconds
-
-		return () => {
-			clearInterval(interval);
-		};
-	}, [bashId, client]);
+		if (bashQuery.data) {
+			setBashProcessDetail(bashId, bashQuery.data);
+		}
+	}, [bashId, bashQuery.data]);
 
 	// Keyboard controls
 	useInput(
@@ -80,13 +67,11 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 
 			// Kill bash
 			if (input === "K") {
-				client.killBash
-					.fetch({ input: { bashId } })
+				killBashMutate({ input: { bashId } })
 					.then(() => {
 						// Reload process info
-						return client.getBash.fetch({ input: { bashId } });
+						bashQuery.refetch();
 					})
-					.then((result) => setBashProcessDetail(bashId, result))
 					.catch((error) => console.error("[BashDetail] Failed to kill:", error));
 				return;
 			}
@@ -94,13 +79,11 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 			// Promote to active
 			if (input === "A") {
 				if (!process?.isActive && process?.status === "running") {
-					client.promoteBash
-						.fetch({ input: { bashId } })
+					promoteBashMutate({ input: { bashId } })
 						.then(() => {
 							// Reload process info
-							return client.getBash.fetch({ input: { bashId } });
+							bashQuery.refetch();
 						})
-						.then((result) => setBashProcessDetail(bashId, result))
 						.catch((error) => console.error("[BashDetail] Failed to promote:", error));
 				}
 				return;

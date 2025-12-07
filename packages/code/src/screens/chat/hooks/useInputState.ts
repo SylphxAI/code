@@ -1,6 +1,9 @@
 /**
  * Input State Hook
  * Manages input field state using local state
+ *
+ * ARCHITECTURE: lens-react hooks pattern
+ * - Queries: client.queryName({ input, skip }) → { data, loading, error, refetch }
  */
 
 import { useLensClient } from "@sylphx/code-client";
@@ -48,50 +51,54 @@ export function useInputState(): InputState {
 	const historyIndex = useHistoryIndex();
 	const tempInput = useTempInput();
 
-	// Load message history via Lens on mount (backend handles database access)
-	// Lens flat namespace: client.getRecentUserMessages()
+	// Query hook for message history
+	const historyQuery = client.getRecentUserMessages({
+		input: { limit: 100 },
+	});
+
+	// Sync query data to global state
 	useEffect(() => {
-		const loadHistory = async () => {
-			try {
-				const result = await client.getRecentUserMessages.fetch({
-					input: { limit: 100 },
-				});
-				// Extract messages array from paginated result
-				const messages = (Array.isArray(result) ? result : (result as any)?.messages || []) as Array<{
-					text: string;
-					files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }>;
-				}>;
+		if (!historyQuery.data) return;
 
-				// Convert DB messages to MessageHistoryEntry format (ChatGPT-style fileId architecture)
-				const entries: MessageHistoryEntry[] = messages.map(
-					(msg: {
-						text: string;
-						files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }>;
-					}) => {
-						// Convert DB files to attachment format (with fileId, no content)
-						const attachments = msg.files.map((file) => ({
-							fileId: file.fileId, // Reference to uploaded file in object storage
-							relativePath: file.relativePath,
-							size: file.size,
-							mimeType: file.mediaType,
-							type: (file.mediaType.startsWith("image/") ? "image" : "file") as "file" | "image",
-						}));
+		// Extract messages array from result
+		const result = historyQuery.data;
+		const messages = (Array.isArray(result) ? result : (result as any)?.messages || []) as Array<{
+			text: string;
+			files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }>;
+		}>;
 
-						return {
-							input: msg.text,
-							attachments,
-						};
-					},
-				);
+		// Convert DB messages to MessageHistoryEntry format (ChatGPT-style fileId architecture)
+		const entries: MessageHistoryEntry[] = messages.map(
+			(msg: {
+				text: string;
+				files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }>;
+			}) => {
+				// Convert DB files to attachment format (with fileId, no content)
+				const attachments = msg.files.map((file) => ({
+					fileId: file.fileId, // Reference to uploaded file in object storage
+					relativePath: file.relativePath,
+					size: file.size,
+					mimeType: file.mediaType,
+					type: (file.mediaType.startsWith("image/") ? "image" : "file") as "file" | "image",
+				}));
 
-				// Reverse to get oldest-first order (for bash-like navigation)
-				setMessageHistorySignal(entries.reverse());
-			} catch (error) {
-				console.error("Failed to load message history:", error);
-			}
-		};
-		loadHistory();
-	}, [client]); // Load when client is ready
+				return {
+					input: msg.text,
+					attachments,
+				};
+			},
+		);
+
+		// Reverse to get oldest-first order (for bash-like navigation)
+		setMessageHistorySignal(entries.reverse());
+	}, [historyQuery.data]);
+
+	// Log errors
+	useEffect(() => {
+		if (historyQuery.error) {
+			console.error("Failed to load message history:", historyQuery.error);
+		}
+	}, [historyQuery.error]);
 
 	// Wrapper for setMessageHistory to support functional updates
 	const setMessageHistory = (

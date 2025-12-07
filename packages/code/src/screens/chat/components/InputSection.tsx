@@ -162,6 +162,13 @@ export function InputSection({
 	// Lens client for API calls
 	const client = useLensClient();
 
+	// Mutation hooks
+	const { mutate: answerAskMutate } = client.answerAsk({});
+	const { mutate: demoteBashMutate } = client.demoteBash({});
+
+	// Query hook for active bash
+	const activeBashQuery = client.getActiveBash({});
+
 	// Use ref to always have the latest isStreaming value in onEscape callback
 	// This avoids stale closure issues with React.memo
 	const isStreamingRef = useRef(isStreaming);
@@ -228,7 +235,6 @@ export function InputSection({
 									const { sessionId, toolCallId } = askToolContextRef.current;
 
 									try {
-										// Lens flat namespace: client.answerAsk.fetch({ input })
 										// AnswerAskInput expects: { sessionId, questionId, answers: Record<string, string | string[]> }
 										// Convert value to Record format
 										let answers: Record<string, string | string[]>;
@@ -240,7 +246,8 @@ export function InputSection({
 											answers = value;
 										}
 
-										await client.answerAsk.fetch({
+										// Use mutation hook
+										await answerAskMutate({
 											input: {
 												sessionId,
 												questionId: toolCallId,
@@ -411,16 +418,13 @@ export function InputSection({
 									}}
 									onPasteImage={onPasteImage}
 									onCtrlB={() => {
-										// Lens flat namespace: client.getActiveBash.fetch() and client.demoteBash.fetch()
-										client.getActiveBash.fetch({})
-											.then((active: any) => {
-												if (active) {
-													return client.demoteBash.fetch({ input: { bashId: active.id } });
-												}
-											})
-											.catch((error: any) => {
+										// Use query data and mutation to demote active bash
+										const active = activeBashQuery.data as { id: string } | null;
+										if (active) {
+											demoteBashMutate({ input: { bashId: active.id } }).catch((error: any) => {
 												console.error("[InputSection] Failed to demote active bash:", error);
 											});
+										}
 									}}
 									onCtrlP={() => {
 										setCurrentScreen("bash-list");

@@ -2,12 +2,15 @@
  * File Attachments Hook (ChatGPT-style architecture)
  * Manages file attachments and synchronization with @file references in input
  * Files are uploaded immediately on paste/select, stored by fileId
+ *
+ * ARCHITECTURE: lens-react hooks pattern
+ * - Mutations: const { mutate } = client.mutationName({}) then call mutate({ input })
  */
 
 import { readFile } from "node:fs/promises";
 import type { FileAttachment } from "@sylphx/code-core";
 import { lookup } from "mime-types";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useLensClient } from "@sylphx/code-client";
 import {
 	extractFileReferences,
@@ -26,6 +29,9 @@ export function useFileAttachments(input: string) {
 	const attachmentTokens = useAttachmentTokens();
 	const validTags = useValidTags();
 
+	// Mutation hook for file upload
+	const { mutate: uploadFileMutate } = client.uploadFile({});
+
 	// Sync pending attachments with @file references in input
 	useEffect(() => {
 		const fileRefs = new Set(extractFileReferences(input));
@@ -37,7 +43,7 @@ export function useFileAttachments(input: string) {
 	}, [input]);
 
 	// Add attachment (ChatGPT-style: immediate upload)
-	const addAttachment = async (
+	const addAttachment = useCallback(async (
 		attachment: Omit<FileAttachment, "fileId"> & {
 			fileId?: string;
 			path?: string;
@@ -52,7 +58,6 @@ export function useFileAttachments(input: string) {
 
 		// Otherwise, upload file immediately to get fileId
 		try {
-
 			// Read file content
 			let base64Content: string;
 			let mimeType: string;
@@ -74,8 +79,8 @@ export function useFileAttachments(input: string) {
 				return;
 			}
 
-			// Lens flat namespace: client.uploadFile.fetch({ input })
-			const result = await client.uploadFile.fetch({
+			// Use mutation hook
+			const result = await uploadFileMutate({
 				input: {
 					relativePath: attachment.relativePath,
 					mediaType: mimeType,
@@ -96,7 +101,7 @@ export function useFileAttachments(input: string) {
 			console.error("[addAttachment] Failed to upload file:", error);
 			// Don't add to state if upload fails
 		}
-	};
+	}, [uploadFileMutate]);
 
 	return {
 		pendingAttachments,

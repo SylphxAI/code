@@ -1,6 +1,10 @@
 /**
  * Bash List Screen
  * Shows all bash processes, press K to kill, Enter to view details
+ *
+ * ARCHITECTURE: lens-react hooks pattern
+ * - Queries: client.queryName({ input, skip }) → { data, loading, error, refetch }
+ * - Mutations: const { mutate } = client.mutationName({}) then call mutate({ input })
  */
 
 import { useLensClient, type BashProcess } from "@sylphx/code-client";
@@ -55,34 +59,22 @@ export default function BashList({ onClose, onSelectBash }: BashListProps) {
 	const loading = useBashProcessesLoading();
 	const subscriptionRef = useRef<any>(null);
 
-	// Load bash list - using polling instead of event-driven
+	// Query hook for bash list
+	const bashListQuery = client.listBash({});
+
+	// Mutation hook
+	const { mutate: killBashMutate } = client.killBash({});
+
+	// Sync query state to global signals
 	useEffect(() => {
-		const loadProcesses = async () => {
-			try {
-				setBashProcessesLoading(true);
-				const result = await client.listBash.fetch({}) as BashProcess[];
-				setBashProcesses(result);
-				setBashProcessesLoading(false);
-			} catch (error) {
-				console.error("[BashList] Failed to load processes:", error);
-				setBashProcessesLoading(false);
-			}
-		};
+		setBashProcessesLoading(bashListQuery.loading);
+	}, [bashListQuery.loading]);
 
-		// Initial load
-		loadProcesses();
-
-		// TODO: Migrate to lens events - currently using polling instead
-		// The lens client has subscribeToSession but may not have bash-specific event subscriptions
-		// Polling fallback: refresh list every few seconds
-		const interval = setInterval(() => {
-			loadProcesses();
-		}, 2000); // Poll every 2 seconds
-
-		return () => {
-			clearInterval(interval);
-		};
-	}, [client]);
+	useEffect(() => {
+		if (bashListQuery.data) {
+			setBashProcesses(bashListQuery.data as BashProcess[]);
+		}
+	}, [bashListQuery.data]);
 
 	// Transform processes to SelectionOption[]
 	const options: SelectionOption[] = useMemo(
@@ -126,8 +118,8 @@ export default function BashList({ onClose, onSelectBash }: BashListProps) {
 			if (char === "K") {
 				const selectedProc = processes[selection.selectedIndex];
 				if (selectedProc) {
-					client.killBash
-						.fetch({ input: { bashId: selectedProc.id } })
+					killBashMutate({ input: { bashId: selectedProc.id } })
+						.then(() => bashListQuery.refetch())
 						.catch((error) => console.error("[BashList] Failed to kill:", error));
 				}
 				return true; // Consumed

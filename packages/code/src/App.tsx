@@ -36,6 +36,10 @@ function AppContent() {
 	const commandPaletteCommand = useCommandPaletteCommand();
 	const selectedBashId = useSelectedBashId();
 
+	// Query and mutation hooks
+	const activeBashQuery = client.getActiveBash({});
+	const { mutate: demoteBashMutate } = client.demoteBash({});
+
 	// Load AI config on mount
 	const { loadConfig } = useAIConfigActions();
 
@@ -49,16 +53,12 @@ function AppContent() {
 		(input, key) => {
 			// Ctrl+B: Demote active bash to background
 			if (key.ctrl && input === "b") {
-				client.getActiveBash
-					.fetch({})
-					.then((active: { id: string } | null) => {
-						if (active) {
-							return client.demoteBash.fetch({ input: { bashId: active.id } });
-						}
-					})
-					.catch((err: Error) => {
+				const active = activeBashQuery.data as { id: string } | null;
+				if (active) {
+					demoteBashMutate({ input: { bashId: active.id } }).catch((err: Error) => {
 						console.error("[App] Failed to demote active bash:", err);
 					});
+				}
 				return;
 			}
 

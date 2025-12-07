@@ -28,10 +28,24 @@ const logSession = createLogger("subscription:session");
 export type TriggerAIOptions = {};
 
 /**
+ * Trigger stream input type
+ */
+export interface TriggerStreamInput {
+	sessionId: string | null;
+	provider?: string;
+	model?: string;
+	content: Array<{ type: string; content?: string; [key: string]: unknown }>;
+}
+
+/**
  * Parameters for subscription adapter
+ * Note: Uses mutate functions from hooks instead of raw client
  */
 export interface SubscriptionAdapterParams {
-	client: CodeClient;
+	// Mutation functions from hooks (not raw client)
+	triggerStreamMutate: (options: { input: TriggerStreamInput }) => Promise<{ sessionId?: string; data?: { sessionId?: string } }>;
+	abortStreamMutate: (options: { input: { sessionId: string } }) => Promise<{ success: boolean }>;
+
 	aiConfig: AIConfig | null;
 	currentSessionId: string | null;
 	selectedProvider: string | null;
@@ -72,7 +86,8 @@ export interface SubscriptionAdapterParams {
  */
 export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapterParams) {
 	const {
-		client,
+		triggerStreamMutate,
+		abortStreamMutate,
 		currentSessionId,
 		selectedProvider,
 		selectedModel,
@@ -123,7 +138,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				const abortSessionId = mutationSessionId || currentSessionId;
 
 				if (abortSessionId) {
-					await client.abortStream.fetch({ input: { sessionId: abortSessionId } });
+					await abortStreamMutate({ input: { sessionId: abortSessionId } });
 					logSession("Server notified of abort");
 				}
 			} catch (error) {
@@ -150,14 +165,14 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			// 4. Start AI streaming
 			// 5. Update in-memory state (polled by client)
 			// 6. useCurrentSession polls and React re-renders
-			const result = await client.triggerStream.fetch({
+			const result = await triggerStreamMutate({
 				input: {
 					sessionId: currentSessionId,
 					provider: currentSessionId ? undefined : provider,
 					model: currentSessionId ? undefined : model,
 					content,
 				},
-			}) as { data?: { sessionId?: string }; sessionId?: string };
+			});
 
 			logSession("Mutation completed:", result);
 

@@ -1,10 +1,9 @@
 /**
  * Headless Mode - Execute prompt and stream response
  *
- * ARCHITECTURE: React Ink component using Lens v4 (module singleton)
- * - Uses getClient() for accessing the initialized client
- * - Uses client.getSession({ id }) as a hook for streaming state
- * - Lens handles all synchronization automatically
+ * ARCHITECTURE: lens-react hooks pattern
+ * - Queries: client.queryName({ input, skip }) → { data, loading, error, refetch }
+ * - Mutations: const { mutate } = client.mutationName({}) then call mutate({ input })
  *
  * Data Flow:
  * 1. Load AI config and validate provider
@@ -17,7 +16,7 @@
  * 8. Exit process
  */
 
-import { getClient } from "@sylphx/code-client";
+import { useLensClient } from "@sylphx/code-client";
 import { loadAIConfig } from "@sylphx/code-core";
 import chalk from "chalk";
 import { Box, Text, render } from "ink";
@@ -35,7 +34,7 @@ interface HeadlessProps {
 
 /**
  * HeadlessApp - React component for headless mode
- * Uses lens-react v4 pattern: client.xxx() IS the hook
+ * Uses lens-react hooks pattern
  */
 function HeadlessApp({ prompt, options }: HeadlessProps) {
 	const [error, setError] = useState<string | null>(null);
@@ -43,37 +42,24 @@ function HeadlessApp({ prompt, options }: HeadlessProps) {
 	const lastPrintedLengthRef = useRef(0);
 	const wasStreamingRef = useRef(false);
 
-	// Get the initialized client (module singleton)
-	const client = getClient();
+	// Use lens client hook
+	const client = useLensClient();
 
-	// Live Query: Poll for session data (avoid lens-react hooks due to React instance conflict)
-	// Server updates session.textContent via emit API, we poll to get updates
-	const [session, setSession] = useState<any>(null);
+	// Query hooks
+	const sessionQuery = client.getSession({
+		input: { id: sessionId || "" },
+		skip: !sessionId,
+	});
 
-	useEffect(() => {
-		if (!sessionId) return;
+	const lastSessionQuery = client.getLastSession({
+		skip: !options.continue,
+	});
 
-		let mounted = true;
-		const fetchSession = async () => {
-			try {
-				const data = await client.getSession.fetch({ input: { id: sessionId } });
-				if (mounted) setSession(data);
-			} catch (e) {
-				// Ignore errors during polling
-			}
-		};
+	// Mutation hooks
+	const { mutate: triggerStreamMutate } = client.triggerStream({});
 
-		// Initial fetch
-		fetchSession();
-
-		// Poll every 100ms while streaming
-		const interval = setInterval(fetchSession, 100);
-
-		return () => {
-			mounted = false;
-			clearInterval(interval);
-		};
-	}, [sessionId, client]);
+	// Extract session from query
+	const session = sessionQuery.data;
 
 	// Effect: Print new text content as it streams
 	useEffect(() => {
@@ -146,18 +132,15 @@ function HeadlessApp({ prompt, options }: HeadlessProps) {
 
 				// Handle continue mode: load last session
 				let existingSessionId: string | null = null;
-				if (options.continue) {
-					const lastSession = await client.getLastSession.fetch({});
-					if (lastSession) {
-						existingSessionId = (lastSession as any).id;
-					}
+				if (options.continue && lastSessionQuery.data) {
+					existingSessionId = (lastSessionQuery.data as any).id;
 				}
 
 				// Parse user input into content parts
 				const content = [{ type: "text" as const, content: prompt }];
 
 				// Trigger streaming via mutation
-				const triggerResult = await client.triggerStream.fetch({
+				const triggerResult = await triggerStreamMutate({
 					input: {
 						sessionId: existingSessionId,
 						provider: existingSessionId ? undefined : provider,
@@ -207,7 +190,7 @@ function HeadlessApp({ prompt, options }: HeadlessProps) {
 		return () => {
 			mounted = false;
 		};
-	}, [client, prompt, options]);
+	}, [triggerStreamMutate, lastSessionQuery.data, prompt, options]);
 
 	// Minimal UI - headless mode outputs to stdout directly
 	if (error) {

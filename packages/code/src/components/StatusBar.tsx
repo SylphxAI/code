@@ -2,13 +2,12 @@
  * Status Bar Component
  * Display important session info at the bottom
  *
- * ARCHITECTURE: Promise-based Pattern (no lens-react hooks)
- * - Uses .fetch() with local state to avoid React instance conflicts
- * - Polls for session data when needed
+ * ARCHITECTURE: lens-react hooks pattern
+ * - Queries: client.queryName({ input, skip }) → { data, loading, error, refetch }
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getClient } from "@sylphx/code-client";
+import { useEffect, useMemo, useState } from "react";
+import { useLensClient } from "@sylphx/code-client";
 import { formatTokenCount } from "@sylphx/code-core";
 import { useEnabledRuleIds, useSelectedAgentId } from "../session-state.js";
 import { Box, Spacer, Text } from "ink";
@@ -29,7 +28,7 @@ interface StatusBarProps {
  *
  * ARCHITECTURE: Client-agnostic design
  * - No hardcoded provider knowledge
- * - Uses Lens .fetch() for all server communication
+ * - Uses lens-react hooks for all server communication
  * - Provider IDs are opaque strings to client
  */
 interface StatusBarPropsInternal extends StatusBarProps {
@@ -43,10 +42,10 @@ function StatusBarInternal({
 	modelStatus,
 	usedTokens = 0,
 }: StatusBarPropsInternal) {
-	// Local state for session data
-	const [sessionTokens, setSessionTokens] = useState(0);
+	const client = useLensClient();
 
-	// Local state for bash processes
+	// Local state for derived values
+	const [sessionTokens, setSessionTokens] = useState(0);
 	const [backgroundBashCount, setBackgroundBashCount] = useState(0);
 
 	// Subscribe to current agent from store (event-driven, no polling!)
@@ -58,48 +57,32 @@ function StatusBarInternal({
 	const enabledRuleIds = useEnabledRuleIds();
 	const enabledRulesCount = enabledRuleIds.length;
 
-	// Fetch session data (using .fetch() to avoid React instance conflict)
-	const fetchSessionData = useCallback(async () => {
-		if (!sessionId) {
-			setSessionTokens(0);
-			return;
-		}
-		try {
-			const client = getClient();
-			const session = await client.getSession.fetch({
-				input: { id: sessionId },
-			}) as { totalTokens?: number } | null;
-			setSessionTokens(session?.totalTokens || 0);
-		} catch {
-			// Ignore errors for status bar
-		}
-	}, [sessionId]);
+	// Query hooks for session and bash data
+	const sessionQuery = client.getSession({
+		input: { id: sessionId || "" },
+		skip: !sessionId,
+	});
 
-	// Fetch bash data
-	const fetchBashData = useCallback(async () => {
-		try {
-			const client = getClient();
-			const bashProcesses = await client.listBash.fetch({}) as Array<{ isActive?: boolean; status?: string }> | null;
+	const bashQuery = client.listBash({});
+
+	// Sync session data to local state
+	useEffect(() => {
+		if (sessionQuery.data) {
+			const session = sessionQuery.data as { totalTokens?: number } | null;
+			setSessionTokens(session?.totalTokens || 0);
+		} else if (!sessionId) {
+			setSessionTokens(0);
+		}
+	}, [sessionQuery.data, sessionId]);
+
+	// Sync bash data to local state
+	useEffect(() => {
+		if (bashQuery.data) {
+			const bashProcesses = bashQuery.data as Array<{ isActive?: boolean; status?: string }> | null;
 			const count = bashProcesses?.filter((p) => !p.isActive && p.status === "running").length || 0;
 			setBackgroundBashCount(count);
-		} catch {
-			// Ignore errors for status bar
 		}
-	}, []);
-
-	// Initial fetch and periodic refresh
-	useEffect(() => {
-		fetchSessionData();
-		fetchBashData();
-
-		// Refresh every 5 seconds for status bar (lower frequency than streaming)
-		const interval = setInterval(() => {
-			fetchSessionData();
-			fetchBashData();
-		}, 5000);
-
-		return () => clearInterval(interval);
-	}, [fetchSessionData, fetchBashData]);
+	}, [bashQuery.data]);
 
 	const totalTokens = sessionTokens;
 
@@ -218,9 +201,8 @@ function StatusBarInternal({
 }
 
 /**
- * ARCHITECTURE NOTE: Promise-based Pattern
- * - Uses .fetch() with local state for Lens data
- * - Avoids React instance conflicts with lens-react
- * - Component manages its own state and polling
+ * ARCHITECTURE NOTE: lens-react hooks pattern
+ * - Uses query hooks for reactive data fetching
+ * - Automatic cache management and refetching
  */
 export default StatusBarInternal;

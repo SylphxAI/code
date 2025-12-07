@@ -1,10 +1,13 @@
 /**
  * Session List Hook
- * Provides reactive session list with loading/error states using local state
+ * Provides reactive session list with loading/error states using lens-react
+ *
+ * ARCHITECTURE: lens-react hooks pattern
+ * - Queries: client.queryName({ input, skip }) → { data, loading, error, refetch }
  */
 
 import type { SessionMetadata } from "@sylphx/code-core";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useLensClient } from "@sylphx/code-client";
 import {
 	useRecentSessions,
@@ -42,24 +45,38 @@ export function useSessionList(): UseSessionListReturn {
 	const sessions = useRecentSessions();
 	const loading = useSessionsLoading();
 	const error = useSessionsError();
+	const limitRef = useRef(100);
 
-	const loadSessions = useCallback(async (limit: number = 100) => {
-		setSessionsLoadingSignal(true);
-		setSessionsErrorSignal(null);
-		try {
-			// Use lens client to fetch sessions
-			// listSessions returns Session[] from the entity, but we expect SessionMetadata[]
-			// They have compatible shapes (id, title, updatedAt, etc.)
-			const result = await client.listSessions.fetch({ input: { limit } }) as unknown as SessionMetadata[];
-			setRecentSessionsSignal(result || []);
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : "Failed to load sessions";
+	// Query hook - reactive data fetching
+	const sessionsQuery = client.listSessions({
+		input: { limit: limitRef.current },
+	});
+
+	// Sync query state to global signals
+	useEffect(() => {
+		setSessionsLoadingSignal(sessionsQuery.loading);
+	}, [sessionsQuery.loading]);
+
+	useEffect(() => {
+		if (sessionsQuery.error) {
+			const errorMessage = sessionsQuery.error.message || "Failed to load sessions";
 			setSessionsErrorSignal(errorMessage);
-			setRecentSessionsSignal([]);
-		} finally {
-			setSessionsLoadingSignal(false);
+		} else {
+			setSessionsErrorSignal(null);
 		}
-	}, [client]);
+	}, [sessionsQuery.error]);
+
+	useEffect(() => {
+		if (sessionsQuery.data) {
+			setRecentSessionsSignal((sessionsQuery.data as unknown as SessionMetadata[]) || []);
+		}
+	}, [sessionsQuery.data]);
+
+	// Imperative load (just triggers refetch)
+	const loadSessions = useCallback(async (limit: number = 100) => {
+		limitRef.current = limit;
+		sessionsQuery.refetch();
+	}, [sessionsQuery]);
 
 	return {
 		sessions,

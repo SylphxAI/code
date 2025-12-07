@@ -9,11 +9,12 @@
  * 4. User answers → calls answerAsk mutation
  * 5. Server receives answer and continues AI stream
  *
- * Uses lens-react v4 pattern with module singleton.
+ * ARCHITECTURE: lens-react hooks pattern
+ * - Mutations: const { mutate } = client.mutationName({}) then call mutate({ input })
  */
 
 import { useCallback } from "react";
-import { getClient } from "@sylphx/code-client";
+import { useLensClient } from "@sylphx/code-client";
 import type { WaitForInputOptions } from "@sylphx/code-client";
 
 interface UseAskToolHandlerProps {
@@ -39,6 +40,11 @@ export function useAskToolHandler({
 	inputResolver,
 	addDebugLog,
 }: UseAskToolHandlerProps) {
+	const client = useLensClient();
+
+	// Mutation hook for answering questions
+	const { mutate: answerAskMutate } = client.answerAsk({});
+
 	/**
 	 * Handle ask-question event from streaming
 	 * Called when server sends ask-question event
@@ -70,9 +76,8 @@ export function useAskToolHandler({
 				const answerRecord = typeof answers === "string" ? { "0": answers } : answers;
 
 				try {
-					// Get client and call answerAsk mutation
-					const client = getClient();
-					await client.answerAsk.fetch({
+					// Use mutation hook
+					await answerAskMutate({
 						input: {
 							sessionId: currentSessionId,
 							questionId,
@@ -113,6 +118,7 @@ export function useAskToolHandler({
 		[
 			currentSessionId,
 			addDebugLog,
+			answerAskMutate,
 			setPendingInput,
 			setMultiSelectionPage,
 			setMultiSelectionAnswers,

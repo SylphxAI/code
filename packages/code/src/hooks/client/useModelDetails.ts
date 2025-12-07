@@ -3,11 +3,12 @@
  * Get model details including context length, capabilities, and tokenizer info
  * State stored in local state for global caching
  *
- * ARCHITECTURE: Promise-based API using client.xxx.fetch({ input })
+ * ARCHITECTURE: lens-react hooks pattern
+ * - Queries: client.queryName({ input, skip }) → { data, loading, error, refetch }
  */
 
 import { useEffect } from "react";
-import { getClient } from "@sylphx/code-client";
+import { useLensClient } from "@sylphx/code-client";
 import {
 	useModelDetailsCache,
 	useModelDetailsLoading,
@@ -30,6 +31,7 @@ export type { ModelDetails };
  * - Client shouldn't need updates when new providers are added
  */
 export function useModelDetails(providerId: string | null, modelId: string | null) {
+	const client = useLensClient();
 	const detailsCache = useModelDetailsCache();
 	const loading = useModelDetailsLoading();
 	const error = useModelDetailsError();
@@ -38,84 +40,75 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 	const cacheKey = providerId && modelId ? `${providerId}:${modelId}` : null;
 	const details = cacheKey ? detailsCache[cacheKey] : null;
 
+	// Skip queries if already cached or missing params
+	const skipQueries = !providerId || !modelId || (cacheKey != null && detailsCache[cacheKey] != null);
+
+	// Query hooks - reactive data fetching
+	const modelDetailsQuery = client.getModelDetails({
+		input: { providerId: providerId || "", modelId: modelId || "" },
+		skip: skipQueries,
+	});
+
+	const tokenizerQuery = client.getTokenizerInfo({
+		input: { model: modelId || "" },
+		skip: skipQueries,
+	});
+
+	// Sync loading state
 	useEffect(() => {
 		if (!providerId || !modelId) {
 			setModelDetailsLoadingSignal(false);
 			setModelDetailsErrorSignal(null);
 			return;
 		}
+		setModelDetailsLoadingSignal(modelDetailsQuery.loading || tokenizerQuery.loading);
+	}, [providerId, modelId, modelDetailsQuery.loading, tokenizerQuery.loading]);
 
-		// Skip if already cached
-		if (cacheKey && detailsCache[cacheKey]) {
-			setModelDetailsLoadingSignal(false);
-			return;
+	// Sync error state
+	useEffect(() => {
+		const err = modelDetailsQuery.error || tokenizerQuery.error;
+		if (err) {
+			setModelDetailsErrorSignal(err.message || "Failed to load model details");
+		} else {
+			setModelDetailsErrorSignal(null);
 		}
+	}, [modelDetailsQuery.error, tokenizerQuery.error]);
 
-		let mounted = true;
+	// Cache results when both queries complete
+	useEffect(() => {
+		if (!providerId || !modelId) return;
+		if (cacheKey && detailsCache[cacheKey]) return; // Already cached
 
-		async function fetchDetails() {
-			try {
-				setModelDetailsLoadingSignal(true);
-				setModelDetailsErrorSignal(null);
+		if (modelDetailsQuery.data && tokenizerQuery.data) {
+			const detailsResult = modelDetailsQuery.data as {
+				success: boolean;
+				details?: { contextLength?: number; capabilities?: Record<string, boolean> };
+			};
+			const tokInfo = tokenizerQuery.data as {
+				name: string;
+				modelId: string;
+				source: string;
+			};
 
-				const client = getClient();
+			const contextLength =
+				detailsResult.success && detailsResult.details
+					? detailsResult.details.contextLength || null
+					: null;
 
-				// Fetch model details and tokenizer info in parallel
-				// Lens flat namespace: client.xxx.fetch({ input })
-				// providerId and modelId are guaranteed non-null here due to early return check
-				const [detailsResult, tokInfo] = await Promise.all([
-					client.getModelDetails.fetch({ input: { providerId: providerId!, modelId: modelId! } }) as Promise<{
-						success: boolean;
-						details?: { contextLength?: number; capabilities?: Record<string, boolean> };
-					}>,
-					client.getTokenizerInfo.fetch({ input: { model: modelId! } }) as Promise<{
-						name: string;
-						modelId: string;
-						source: string;
-					}>,
-				]);
+			const capabilities =
+				detailsResult.success && detailsResult.details
+					? detailsResult.details.capabilities || null
+					: null;
 
-				if (mounted) {
-					const contextLength =
-						detailsResult.success && detailsResult.details
-							? detailsResult.details.contextLength || null
-							: null;
+			const modelDetails: ModelDetails = {
+				contextLength,
+				capabilities,
+				tokenizerInfo: tokInfo,
+			};
 
-					const capabilities =
-						detailsResult.success && detailsResult.details
-							? detailsResult.details.capabilities || null
-							: null;
-
-					const modelDetails: ModelDetails = {
-						contextLength,
-						capabilities,
-						tokenizerInfo: tokInfo,
-					};
-
-					// Cache the result
-					if (providerId && modelId) {
-						setModelDetailsSignal(providerId, modelId, modelDetails);
-					}
-				}
-			} catch (err) {
-				if (mounted) {
-					setModelDetailsErrorSignal(
-						err instanceof Error ? err.message : "Failed to load model details"
-					);
-				}
-			} finally {
-				if (mounted) {
-					setModelDetailsLoadingSignal(false);
-				}
-			}
+			setModelDetailsSignal(providerId, modelId, modelDetails);
 		}
-
-		fetchDetails();
-
-		return () => {
-			mounted = false;
-		};
-	}, [providerId, modelId, cacheKey, detailsCache]);
+	}, [providerId, modelId, cacheKey, detailsCache, modelDetailsQuery.data, tokenizerQuery.data]);
 
 	return {
 		details: details || { contextLength: null, capabilities: null, tokenizerInfo: null },

@@ -1,10 +1,14 @@
 /**
  * AI Config Hook
  * Load and save AI configuration via Lens (backend handles file system)
+ *
+ * ARCHITECTURE: lens-react hooks pattern
+ * - Queries: client.queryName({ input, skip }) → { data, loading, error, refetch }
+ * - Mutations: const { mutate } = client.mutationName({}) then call mutate({ input })
  */
 
 import type { AIConfig } from "@sylphx/code-core";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useLensClient } from "@sylphx/code-client";
 import { setAIConfig } from "../../ai-config-state.js";
 import { setError } from "../../ui-state.js";
@@ -12,29 +16,43 @@ import { setError } from "../../ui-state.js";
 export function useAIConfig() {
 	const client = useLensClient();
 
-	const loadConfig = useCallback(async () => {
-		try {
-			// Lens flat namespace: client.loadConfig.fetch({})
-			const result = await client.loadConfig.fetch({}) as { success: boolean; config: AIConfig; error?: string };
+	// Query hook - auto-loads config on mount
+	const configQuery = client.loadConfig({});
 
-			if (result.success) {
-				// Use setAIConfig to trigger logic for loading defaultEnabledRuleIds and defaultAgentId
+	// Mutation hook - for saving config
+	const { mutate: saveConfigMutate } = client.saveConfig({});
+
+	// Sync config to global state when data changes
+	useEffect(() => {
+		if (configQuery.data) {
+			const result = configQuery.data as { success: boolean; config: AIConfig; error?: string };
+			if (result.success && result.config) {
 				setAIConfig(result.config);
 			} else {
 				// No config yet, start with empty
 				setAIConfig({ providers: {} });
 			}
-		} catch (err) {
-			console.error("[useAIConfig] Load error:", err);
-			setError(err instanceof Error ? err.message : "Failed to load AI config");
 		}
-	}, [client]);
+	}, [configQuery.data]);
 
+	// Handle errors
+	useEffect(() => {
+		if (configQuery.error) {
+			console.error("[useAIConfig] Load error:", configQuery.error);
+			setError(configQuery.error.message || "Failed to load AI config");
+		}
+	}, [configQuery.error]);
+
+	// Imperative load (just triggers refetch)
+	const loadConfig = useCallback(async () => {
+		configQuery.refetch();
+	}, [configQuery]);
+
+	// Save config using mutation
 	const saveConfig = useCallback(
 		async (config: AIConfig) => {
 			try {
-				// Lens flat namespace: client.saveConfig.fetch({ input })
-				const result = await client.saveConfig.fetch({ input: { config } }) as { success: boolean; error?: string };
+				const result = await saveConfigMutate({ input: { config } }) as { success: boolean; error?: string };
 
 				if (result.success) {
 					setAIConfig(config);
@@ -47,7 +65,7 @@ export function useAIConfig() {
 				return false;
 			}
 		},
-		[client],
+		[saveConfigMutate],
 	);
 
 	return { loadConfig, saveConfig };

@@ -34,6 +34,12 @@ export function useChatEffects(state: ChatState) {
 	const { saveConfig: saveConfigAction } = useAIConfigActions();
 	const client = useLensClient();
 
+	// Mutation hooks - call at top level to get mutate functions
+	const { mutate: addSystemMessageMutate } = client.addSystemMessage({});
+	const { mutate: updateSessionMutate } = client.updateSession({});
+	const { mutate: triggerStreamMutate } = client.triggerStream({});
+	const { mutate: abortStreamMutate } = client.abortStream({});
+
 	// Wrapper for saveConfig to match expected signature (Promise<void> instead of Promise<boolean>)
 	const saveConfig = useCallback(async (config: any) => {
 		await saveConfigAction(config);
@@ -66,7 +72,7 @@ export function useChatEffects(state: ChatState) {
 
 		try {
 			// Use addSystemMessage mutation to persist the message
-			const result = await client.addSystemMessage.fetch({
+			const result = await addSystemMessageMutate({
 				input: {
 					sessionId: params.sessionId,
 					role: params.role,
@@ -91,22 +97,23 @@ export function useChatEffects(state: ChatState) {
 			console.error("[addMessage] Failed to add message:", err);
 			return params.sessionId || "";
 		}
-	}, [client]);
+	}, [addSystemMessageMutate]);
 
 	const updateSessionTitle = useCallback((sessionId: string, title: string) => {
 		// Update session title via client mutation
-		client.updateSession.fetch({
+		updateSessionMutate({
 			input: { id: sessionId, title }
 		}).catch(err => {
 			console.error("Failed to update session title:", err);
 		});
-	}, [client]);
+	}, [updateSessionMutate]);
 
 	// Create sendUserMessageToAI function
 	// NOTE: Streaming state comes from server via emit API, not client-side setters
 	const sendUserMessageToAI = useCallback(
 		createSubscriptionSendUserMessageToAI({
-			client,
+			triggerStreamMutate,
+			abortStreamMutate,
 			aiConfig: state.aiConfig,
 			currentSessionId: state.currentSessionId,
 			selectedProvider: state.selectedProvider,
@@ -120,7 +127,8 @@ export function useChatEffects(state: ChatState) {
 			// NOTE: No setters passed - streaming state is server-driven via emit API
 		}),
 		[
-			client,
+			triggerStreamMutate,
+			abortStreamMutate,
 			state.aiConfig,
 			state.currentSessionId,
 			state.selectedProvider,
