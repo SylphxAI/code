@@ -3,15 +3,8 @@
  * Extract duplicated provider selection and switching logic
  */
 
-import {
-	aiConfig as aiConfigSignal,
-	currentSessionId as currentSessionIdSignal,
-	get,
-	setAIConfig,
-	setSelectedModel,
-	setSelectedProvider,
-	updateSessionProvider,
-} from "@sylphx/code-client";
+import { getAIConfig, setAIConfig } from "../../ai-config-state.js";
+import { getCurrentSessionId, setSelectedModel, setSelectedProvider } from "../../session-state.js";
 import type { ProviderId } from "@sylphx/code-core";
 import type { CommandContext } from "../types.js";
 import { configureProvider } from "./provider-config.js";
@@ -24,7 +17,7 @@ export async function getProviderOptions(
 ): Promise<Array<{ label: string; value: string }>> {
 	const { AI_PROVIDERS } = await import("@sylphx/code-core");
 	const { getProvider } = await import("@sylphx/code-core");
-	const aiConfig = aiConfigSignal();
+	const aiConfig = getAIConfig();
 
 	return Object.values(AI_PROVIDERS).map((p) => {
 		let isConfigured = false;
@@ -79,7 +72,7 @@ export async function ensureProviderConfigured(
 ): Promise<{ success: true; config: any } | { success: false; message: string }> {
 	const { AI_PROVIDERS } = await import("@sylphx/code-core");
 	const { getProvider } = await import("@sylphx/code-core");
-	const aiConfig = aiConfigSignal();
+	const aiConfig = getAIConfig();
 
 	const provider = getProvider(providerId);
 	const providerConfig = aiConfig?.providers?.[providerId];
@@ -129,7 +122,7 @@ export async function ensureProviderConfigured(
 	const configResult = await configureProvider(context, providerId);
 
 	// Check if now configured
-	const updatedConfig = aiConfigSignal();
+	const updatedConfig = getAIConfig();
 	const updatedProviderConfig = updatedConfig?.providers?.[providerId];
 
 	if (!updatedProviderConfig || !provider.isConfigured(updatedProviderConfig)) {
@@ -152,7 +145,7 @@ export async function switchToProvider(
 	providerConfig: any,
 ): Promise<string> {
 	const { AI_PROVIDERS } = await import("@sylphx/code-core");
-	const aiConfig = aiConfigSignal();
+	const aiConfig = getAIConfig();
 
 	const newConfig = {
 		...aiConfig!,
@@ -184,9 +177,11 @@ export async function switchToProvider(
 	setSelectedModel(defaultModel);
 
 	// Update current session's provider (preserve history)
-	const currentSessionId = currentSessionIdSignal();
+	const currentSessionId = getCurrentSessionId();
 	if (currentSessionId) {
-		await updateSessionProvider(currentSessionId, providerId, defaultModel);
+		await context.client.updateSession.fetch({
+			input: { id: currentSessionId, provider: providerId, model: defaultModel },
+		});
 	}
 	// No fallback: Config is updated, next message will create session automatically
 

@@ -4,7 +4,7 @@
  */
 
 import type { LensClient } from "@sylphx/lens-client";
-import { aiConfig } from "@sylphx/code-client";
+import { getAIConfig } from "../ai-config-state.js";
 import { getCurrentSession } from "../session-state.js";
 
 export interface CompletionOption {
@@ -31,7 +31,7 @@ export async function getModelCompletions(
 
 		// Get current provider from session or config
 		const currentSessionValue = getCurrentSession();
-		const config = aiConfig.value;
+		const config = getAIConfig();
 		const currentProviderId = currentSessionValue?.provider || config?.defaultProvider;
 
 		if (!currentProviderId) {

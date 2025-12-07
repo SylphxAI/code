@@ -1,10 +1,10 @@
 /**
  * Provider Completions
- * Lazy loading from zen signals, no extra cache needed
+ * Lazy loading from local state, no extra cache needed
  */
 
 import type { LensClient } from "@sylphx/lens-client";
-import { aiConfig, setAIConfig } from "@sylphx/code-client";
+import { getAIConfig, setAIConfig } from "../ai-config-state.js";
 import type { AIConfig, ProviderId } from "@sylphx/code-core";
 
 export interface CompletionOption {
@@ -14,16 +14,16 @@ export interface CompletionOption {
 }
 
 /**
- * Get AI config from zen signals
- * First access: async load from server → cache in zen signal
- * Subsequent access: sync read from zen signal cache
+ * Get AI config from local state
+ * First access: async load from server → cache in local state
+ * Subsequent access: sync read from local state cache
  * Update: event-driven via setAIConfig()
  *
  * @param client - Lens client (passed from React hook useLensClient)
  */
 async function _getAIConfig(client: LensClient<any, any>): Promise<AIConfig | null> {
-	// Already in zen signal? Return cached (fast!)
-	const currentConfig = aiConfig.value;
+	// Already in local state? Return cached (fast!)
+	const currentConfig = getAIConfig();
 	if (currentConfig) {
 		return currentConfig;
 	}
@@ -34,7 +34,7 @@ async function _getAIConfig(client: LensClient<any, any>): Promise<AIConfig | nu
 		const result = await client.loadConfig.fetch({}) as { success: boolean; config: AIConfig };
 
 		if (result.success) {
-			// Cache in zen signal (stays until explicitly updated)
+			// Cache in local state (stays until explicitly updated)
 			setAIConfig(result.config);
 			return result.config;
 		}

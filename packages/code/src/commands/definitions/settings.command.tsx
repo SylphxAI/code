@@ -3,6 +3,7 @@
  * Configure tool display settings and other preferences
  */
 
+import { getAIConfig, setAIConfig } from "../../ai-config-state.js";
 import { SettingsManagement } from "../../screens/chat/components/SettingsManagement.js";
 import type { Command } from "../types.js";
 
@@ -14,9 +15,7 @@ export const settingsCommand: Command = {
 
 	execute: async (context) => {
 		// Get current config
-		const { get } = await import("@sylphx/code-client");
-		const { aiConfig: aiConfigSignal } = await import("@sylphx/code-client");
-		const aiConfig = aiConfigSignal();
+		const aiConfig = getAIConfig();
 
 		// Show settings UI
 		context.setInputComponent(
@@ -27,8 +26,7 @@ export const settingsCommand: Command = {
 					context.addLog("[settings] Settings management closed");
 				}}
 				onSave={async (updatedConfig) => {
-					// Update zen signal
-					const { setAIConfig } = await import("@sylphx/code-client");
+					// Update AI config
 					setAIConfig(updatedConfig);
 
 					// Save to file

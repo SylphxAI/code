@@ -86,8 +86,8 @@ export async function setProviderConfigValue(
 	schema: Array<{ key: string; label: string; secret?: boolean }>,
 ): Promise<string> {
 	const { AI_PROVIDERS } = await import("@sylphx/code-core");
-	const { useAIConfig, setAIConfig } = await import("@sylphx/code-client");
-	const aiConfig = useAIConfig();
+	const { getAIConfig, setAIConfig } = await import("../../ai-config-state.js");
+	const aiConfig = getAIConfig();
 
 	const newConfig = {
 		...aiConfig!,
@@ -104,7 +104,7 @@ export async function setProviderConfigValue(
 		newConfig.defaultProvider = providerId;
 	}
 
-	await setAIConfig(newConfig);
+	setAIConfig(newConfig);
 	await context.saveConfig(newConfig);
 
 	// Mask secret values in response

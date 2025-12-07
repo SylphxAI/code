@@ -64,11 +64,14 @@ export function getRuleById(id: string): Rule | null {
 }
 
 /**
- * Get enabled rule IDs from SolidJS signals
+ * Get enabled rule IDs from local state
  */
 export function getCurrentEnabledRuleIds(): string[] {
 	return getEnabledRuleIds();
 }
+
+// Alias for backward compatibility
+export { getEnabledRuleIds } from "./session-state.js";
 
 /**
  * Set enabled rules in local state
