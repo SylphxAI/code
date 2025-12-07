@@ -5,13 +5,16 @@
  * - Client calls triggerStream mutation to start streaming
  * - Server uses emit API to push updates to session
  * - Client uses useQuery(getSession) to receive live updates
- * - NO callbacks, NO client-side state management!
  *
- * The server emit is fast enough. Client just reads from useQuery.
+ * inProcess Polling:
+ * - For inProcess transport, emit doesn't work
+ * - We set streamingExpected = true before mutation
+ * - useCurrentSession polls while streamingExpected is true
+ * - Polling stops when streamingStatus becomes "idle"
  */
 
 import type { LensClient } from "@lens/client";
-import { parseUserInput, setCurrentSessionId } from "@sylphx/code-client";
+import { parseUserInput, setCurrentSessionId, setStreamingExpected } from "@sylphx/code-client";
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
 import type React from "react";
@@ -134,17 +137,18 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			const { parts: content } = parseUserInput(userMessage, attachments || []);
 			logSession("Parsed content:", content.length, "parts");
 
+			// Enable polling for inProcess transport
+			// useCurrentSession will poll while this is true
+			setStreamingExpected(true);
+
 			// Call triggerStream mutation
 			// Server will:
 			// 1. Create session if needed
 			// 2. Create user message
 			// 3. Create assistant message (placeholder)
 			// 4. Start AI streaming
-			// 5. Emit updates via emit API:
-			//    - emit.merge({ streamingStatus: "streaming" }) at start
-			//    - emit.delta("textContent", ...) for text
-			//    - emit.merge({ streamingStatus: "idle" }) at end
-			// 6. useQuery auto-receives updates → React re-renders
+			// 5. Update in-memory state (polled by client)
+			// 6. useCurrentSession polls and React re-renders
 			const result = await client.triggerStream({
 				sessionId: currentSessionId,
 				provider: currentSessionId ? undefined : provider,
@@ -153,12 +157,15 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			});
 
 			logSession("Mutation completed:", result);
-			mutationSessionId = result.sessionId;
+
+			// Extract sessionId from result.data (Lens mutation response wrapper)
+			const sessionId = result.data?.sessionId || result.sessionId;
+			mutationSessionId = sessionId;
 
 			// Update sessionId if new session was created
-			if (result.sessionId && result.sessionId !== currentSessionId) {
-				logSession("New session created:", result.sessionId);
-				setCurrentSessionId(result.sessionId);
+			if (sessionId && sessionId !== currentSessionId) {
+				logSession("New session created:", sessionId);
+				setCurrentSessionId(sessionId);
 			}
 
 			// Note: Streaming state comes from server via emit
@@ -170,7 +177,8 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		} catch (error) {
 			logSession("Mutation error:", error);
 			addLog(`[subscriptionAdapter] Error: ${error instanceof Error ? error.message : String(error)}`);
-			// Note: Server will emit streamingStatus: "idle" on error
+			// Clear streaming expected on error (stop polling)
+			setStreamingExpected(false);
 			throw error;
 		}
 	};

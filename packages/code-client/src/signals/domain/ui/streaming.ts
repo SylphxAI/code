@@ -1,8 +1,9 @@
 /**
- * Streaming Domain - DEPRECATED
+ * Streaming Domain
  *
  * LENS ARCHITECTURE:
- * All streaming state now comes from server via useQuery, NOT client signals.
+ * Streaming state comes from server via useQuery. However, emit only works
+ * with WebSocket transport - for inProcess transport, we need polling.
  *
  * Get streaming state from session:
  *   const { data: session } = useQuery(client.getSession({ id }))
@@ -10,9 +11,46 @@
  *   const isTitleStreaming = session?.isTitleStreaming
  *   const title = session?.title  // Streamed via emit.delta
  *
- * This file only exports placeholder hooks that log deprecation warnings.
- * Migrate to reading directly from useQuery session data.
+ * For inProcess transport (TUI):
+ *   - Set streamingExpected = true before calling triggerStream
+ *   - useCurrentSession polls while streamingExpected is true
+ *   - Polling stops when streamingStatus becomes "idle"
  */
+
+import { zen } from "@sylphx/zen";
+import { useZen } from "../../react-bridge.js";
+
+// =============================================================================
+// Streaming Expected Signal (for inProcess polling)
+// =============================================================================
+
+/**
+ * Signal to track when streaming is expected
+ * Used by useCurrentSession to enable polling for inProcess transport
+ */
+const streamingExpected = zen(false);
+
+/**
+ * Set streaming expected state
+ * Call before triggerStream mutation to enable polling
+ */
+export function setStreamingExpected(expected: boolean): void {
+	(streamingExpected as any).value = expected;
+}
+
+/**
+ * Hook to read streaming expected state
+ */
+export function useStreamingExpected(): boolean {
+	return useZen(streamingExpected);
+}
+
+/**
+ * Get streaming expected state (non-reactive)
+ */
+export function getStreamingExpected(): boolean {
+	return streamingExpected.value;
+}
 
 // =============================================================================
 // DEPRECATED - Use useQuery session data instead

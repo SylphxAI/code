@@ -1,44 +1,87 @@
 /**
  * useCurrentSession Hook
- * Provides current session data via Live Query
+ * Provides current session data via Live Query with inProcess polling support
  *
- * ARCHITECTURE: Live Query Pattern
- * =================================
- * Uses useQuery(client.getSession({ id })) - data updates automatically via emit.
- * No manual fetch, no event callbacks needed.
+ * ARCHITECTURE: tRPC-style API (lens-react 2.2.0)
+ * ==============================================
+ * Uses client.getSession({ input: { id } }) for session data.
  *
- * Server uses emit API to push streaming updates:
- * - emit.delta("textContent", ...) for text streaming
- * - emit.set("currentTool", ...) for tool status
- * - emit.merge({ streamingStatus: ... }) for status changes
+ * Transport handling:
+ * - WebSocket: Server uses emit API to push updates automatically
+ * - inProcess: Polling mode - refetch every 100ms when streaming is expected
  *
- * Client just reads session fields - all updates are automatic!
+ * Polling is enabled when:
+ * 1. streamingExpected signal is true (set before triggerStream mutation)
+ * 2. Polling continues until streamingStatus becomes "idle"
  *
  * For session navigation, we still use currentSessionId signal.
  */
 
-import { useQuery, useCurrentSessionId } from "@sylphx/code-client";
+import { useEffect, useRef } from "react";
+import { client, useCurrentSessionId, useStreamingExpected, setStreamingExpected } from "@sylphx/code-client";
+
+// Polling interval for inProcess transport (ms)
+const POLLING_INTERVAL = 100;
 
 export function useCurrentSession() {
 	const currentSessionId = useCurrentSessionId();
+	const streamingExpected = useStreamingExpected();
+
+	// Skip query when no valid session ID (Apollo/GraphQL pattern)
+	const shouldQuery = Boolean(currentSessionId && currentSessionId !== "temp-session");
 
 	// Live Query: Subscribe to session with streaming state
-	// Server uses emit API to update, Lens syncs automatically
-	// Use skip when no valid session ID (Apollo/GraphQL pattern)
-	const shouldQuery = Boolean(currentSessionId && currentSessionId !== "temp-session");
-	const { data: session, loading: isLoading, error } = useQuery(
-		(client) => client.getSession,
-		{ id: currentSessionId ?? "" },
-		{ skip: !shouldQuery }
-	);
+	// For inProcess, we need polling; for WebSocket, emit works automatically
+	const { data: session, loading: isLoading, error, refetch } = client.getSession({
+		input: { id: currentSessionId ?? "" },
+		skip: !shouldQuery,
+	});
 
 	// Derive isStreaming from session state
-	// streamingStatus is updated by server via emit API
 	const isStreaming = session?.streamingStatus === "streaming" ||
 		session?.streamingStatus === "waiting_input" ||
 		session?.isTextStreaming ||
 		session?.isReasoningStreaming ||
 		!!session?.currentTool;
+
+	// Track if streaming completed (to clear streamingExpected)
+	const wasStreaming = useRef(false);
+
+	// Polling effect for inProcess transport
+	// Poll while streamingExpected is true, stop when streaming completes
+	useEffect(() => {
+		// Only poll when:
+		// 1. We have a valid session
+		// 2. Streaming is expected (mutation was called)
+		// 3. We're actually streaming (status is not idle)
+		const shouldPoll = shouldQuery && streamingExpected;
+
+		if (!shouldPoll) {
+			return;
+		}
+
+		// Check if streaming has completed
+		if (wasStreaming.current && session?.streamingStatus === "idle") {
+			// Streaming completed - stop polling
+			setStreamingExpected(false);
+			wasStreaming.current = false;
+			return;
+		}
+
+		// Track that we've seen streaming
+		if (isStreaming) {
+			wasStreaming.current = true;
+		}
+
+		// Set up polling interval
+		const pollId = setInterval(() => {
+			refetch();
+		}, POLLING_INTERVAL);
+
+		return () => {
+			clearInterval(pollId);
+		};
+	}, [shouldQuery, streamingExpected, session?.streamingStatus, isStreaming, refetch]);
 
 	return {
 		currentSession: session ?? null,
