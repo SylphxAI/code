@@ -17,7 +17,7 @@ import {
 	setMCPServerDetailsLoading as setMCPServerDetailsLoadingSignal,
 	setMCPServerConnected as setMCPServerConnectedSignal,
 	setMCPServerConnectionInfo as setMCPServerConnectionInfoSignal,
-} from "@sylphx/code-client";
+} from "../../../mcp-state.js";
 import { Box, Text, useInput } from "ink";
 import { useEffect } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
@@ -165,20 +165,23 @@ export function MCPServerDetails({
 		});
 	}
 
-	const handleOverviewAction = async (action: string) => {
-		if (action === "view-tools") {
+	const handleOverviewAction = async (action: string | string[]) => {
+		const actionValue = Array.isArray(action) ? action[0] : action;
+		if (!actionValue) return;
+
+		if (actionValue === "view-tools") {
 			setMCPServerDetailsViewSignal(server.id, "tools-list");
-		} else if (action === "connect" && onConnect) {
+		} else if (actionValue === "connect" && onConnect) {
 			await onConnect();
-		} else if (action === "disconnect" && onDisconnect) {
+		} else if (actionValue === "disconnect" && onDisconnect) {
 			await onDisconnect();
-		} else if (action === "enable" && onEnable) {
+		} else if (actionValue === "enable" && onEnable) {
 			await onEnable();
-		} else if (action === "disable" && onDisable) {
+		} else if (actionValue === "disable" && onDisable) {
 			await onDisable();
-		} else if (action === "remove" && onRemove) {
+		} else if (actionValue === "remove" && onRemove) {
 			await onRemove();
-		} else if (action === "refresh") {
+		} else if (actionValue === "refresh") {
 			setMCPServerDetailsLoadingSignal(server.id, true);
 			// Reload details
 			const { getMCPManager } = await import("@sylphx/code-core");
@@ -211,14 +214,17 @@ export function MCPServerDetails({
 	};
 
 	// Tools list view
-	const toolListOptions: SelectionOption[] = tools.map((tool) => ({
+	const toolListOptions: SelectionOption[] = tools.map((tool: MCPToolInfo) => ({
 		label: tool.name,
 		value: tool.name,
-		description: tool.description ? `${tool.description.split("\n")[0].substring(0, 100)}...` : "",
+		description: tool.description ? `${tool.description.split("\n")[0]?.substring(0, 100) || ""}...` : "",
 	}));
 
-	const handleToolSelect = (toolName: string) => {
-		const tool = tools.find((t) => t.name === toolName);
+	const handleToolSelect = (toolName: string | string[]) => {
+		const name = Array.isArray(toolName) ? toolName[0] : toolName;
+		if (!name) return;
+
+		const tool = tools.find((t: MCPToolInfo) => t.name === name);
 		if (tool) {
 			setMCPSelectedToolSignal(server.id, tool);
 			setMCPServerDetailsViewSignal(server.id, "tool-detail");
@@ -238,10 +244,10 @@ export function MCPServerDetails({
 				<InlineSelection
 					options={toolListOptions}
 					subtitle="Select a tool to view details • ESC: Back to overview"
-					placeholder="Select tool..."
+					filterPlaceholder="Filter tools..."
 					onSelect={handleToolSelect}
 					onCancel={() => setMCPServerDetailsViewSignal(server.id, "overview")}
-					showSearch={tools.length > 10}
+					filter={tools.length > 10}
 				/>
 			</Box>
 		);
@@ -341,10 +347,10 @@ export function MCPServerDetails({
 						<InlineSelection
 							options={overviewActionOptions}
 							subtitle="Choose an action • ESC: Back to server list"
-							placeholder="Select action..."
+							filterPlaceholder="Filter actions..."
 							onSelect={handleOverviewAction}
 							onCancel={onBack}
-							showSearch={false}
+							filter={false}
 						/>
 					</Box>
 				</Box>
