@@ -3,15 +3,15 @@
  * Full-screen view of a single bash process with streaming output
  */
 
+import { useTRPCClient } from "@sylphx/code-client";
 import {
-	useTRPCClient,
 	useBashProcessDetails,
 	useBashProcessOutputs,
 	useBashProcessDetailsLoading,
-	setBashProcessDetail as setBashProcessDetailSignal,
-	setBashProcessOutput as setBashProcessOutputSignal,
-	setBashProcessDetailLoading as setBashProcessDetailLoadingSignal,
-} from "@sylphx/code-client";
+	setBashProcessDetail,
+	setBashProcessOutput,
+	setBashProcessDetailLoading,
+} from "../bash-state.js";
 import { Box, Text, useInput } from "ink";
 import { useEffect } from "react";
 import Spinner from "../components/Spinner.js";
@@ -37,13 +37,13 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 	useEffect(() => {
 		const loadProcess = async () => {
 			try {
-				setBashProcessDetailLoadingSignal(bashId, true);
+				setBashProcessDetailLoading(bashId, true);
 				const result = await trpc.bash.get.query({ bashId });
-				setBashProcessDetailSignal(bashId, result);
-				setBashProcessDetailLoadingSignal(bashId, false);
+				setBashProcessDetail(bashId, result);
+				setBashProcessDetailLoading(bashId, false);
 			} catch (error) {
 				console.error("[BashDetail] Failed to load process:", error);
-				setBashProcessDetailLoadingSignal(bashId, false);
+				setBashProcessDetailLoading(bashId, false);
 			}
 		};
 
@@ -62,14 +62,14 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 					onData: (event: any) => {
 						if (event.payload?.type === "output") {
 							const chunk = event.payload.output;
-							setBashProcessOutputSignal(bashId, (prev) => prev + chunk.data);
+							setBashProcessOutput(bashId, (prev) => prev + chunk.data);
 						} else if (event.payload?.type === "started") {
-							setBashProcessOutputSignal(bashId, ""); // Clear on restart
+							setBashProcessOutput(bashId, ""); // Clear on restart
 						} else if (event.payload?.type === "completed" || event.payload?.type === "failed") {
 							// Reload process info to get final status
 							trpc.bash.get
 								.query({ bashId })
-								.then((result) => setBashProcessDetailSignal(bashId, result))
+								.then((result) => setBashProcessDetail(bashId, result))
 								.catch(console.error);
 						}
 					},
@@ -105,7 +105,7 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 						// Reload process info
 						return trpc.bash.get.query({ bashId });
 					})
-					.then((result) => setBashProcessDetailSignal(bashId, result))
+					.then((result) => setBashProcessDetail(bashId, result))
 					.catch((error) => console.error("[BashDetail] Failed to kill:", error));
 				return;
 			}
@@ -119,7 +119,7 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 							// Reload process info
 							return trpc.bash.get.query({ bashId });
 						})
-						.then((result) => setProcess(result))
+						.then((result) => setBashProcessDetail(bashId, result))
 						.catch((error) => console.error("[BashDetail] Failed to promote:", error));
 				}
 				return;
