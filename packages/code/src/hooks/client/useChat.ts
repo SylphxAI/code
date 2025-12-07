@@ -2,20 +2,24 @@
  * Chat Hook
  * Handle AI chat with streaming support via Lens
  *
- * Architecture: Thin client calling server-side streaming
- * - Server: Handles all AI logic (createAIStream, processStream, providers)
- * - Client: Calls mutation and receives streaming updates
+ * DEPRECATED: This hook is no longer the primary way to send messages.
+ * Use createSubscriptionSendUserMessageToAI from subscriptionAdapter.ts instead.
  *
- * Uses lens-react v4 pattern with module singleton.
+ * The new architecture uses:
+ * - triggerStream.fetch() to start streaming (mutation)
+ * - useCurrentSession with polling for streaming state updates
+ * - Server emits updates, client polls for changes
+ *
+ * This hook is kept for backward compatibility but sendMessage is a no-op.
  */
 
 import type { FileAttachment, TokenUsage } from "@sylphx/code-core";
 import { useCallback } from "react";
-import { getClient, setError } from "@sylphx/code-client";
-import { useCurrentSession, useCurrentSessionId } from "./useCurrentSession.js";
+import { useCurrentSessionId } from "./useCurrentSession.js";
 
 /**
  * Options for sending a message
+ * @deprecated Use createSubscriptionSendUserMessageToAI from subscriptionAdapter.ts
  */
 export interface SendMessageOptions {
 	// Data
@@ -80,163 +84,25 @@ export interface SendMessageOptions {
 	) => void;
 }
 
+/**
+ * @deprecated Use createSubscriptionSendUserMessageToAI from subscriptionAdapter.ts
+ *
+ * This hook is kept for backward compatibility.
+ * The sendMessage function is now a no-op - use the subscription adapter instead.
+ */
 export function useChat() {
 	const currentSessionId = useCurrentSessionId();
-	const { currentSession } = useCurrentSession();
 
+	// No-op sendMessage - the real implementation is in subscriptionAdapter.ts
+	// This prevents lens-react subscription patterns that cause React instance conflicts
 	const sendMessage = useCallback(
-		async (message: string, options: SendMessageOptions = {}) => {
-			const {
-				attachments = [],
-				onComplete,
-				onAbort,
-				onError,
-				onFinish,
-				onToolCall,
-				onToolResult,
-				onToolError,
-				onReasoningStart,
-				onReasoningDelta,
-				onReasoningEnd,
-				onTextStart,
-				onTextDelta,
-				onTextEnd,
-				onSessionCreated,
-				onSessionTitleStart,
-				onSessionTitleDelta,
-				onSessionTitleComplete,
-				onAssistantMessageCreated,
-				onAskQuestion,
-			} = options;
-
-			if (!currentSession || !currentSessionId) {
-				console.error("[useChat] No active session");
-				return;
-			}
-
-			try {
-				// Get the initialized Lens client
-				const client = getClient();
-
-				// Use lens-react v4 pattern for streaming mutation
-				// client.sendMessage() returns a subscribable
-				const subscription = (client.sendMessage as any)({
-					sessionId: currentSessionId,
-					content: [{ type: "text", content: message }],
-				}).subscribe({
-					next: (event: any) => {
-						// Handle streaming events from server
-						switch (event.type) {
-							case "session-created":
-								onSessionCreated?.(
-									event.sessionId,
-									event.provider,
-									event.model,
-								);
-								break;
-
-							case "session-title-start":
-								onSessionTitleStart?.();
-								break;
-
-							case "session-title-delta":
-								onSessionTitleDelta?.(event.text);
-								break;
-
-							case "session-title-complete":
-								onSessionTitleComplete?.(event.title);
-								break;
-
-							case "assistant-message-created":
-								onAssistantMessageCreated?.(event.messageId);
-								break;
-
-							case "text-start":
-								onTextStart?.();
-								break;
-
-							case "text-delta":
-								onTextDelta?.(event.text);
-								break;
-
-							case "text-end":
-								onTextEnd?.();
-								break;
-
-							case "reasoning-start":
-								onReasoningStart?.();
-								break;
-
-							case "reasoning-delta":
-								onReasoningDelta?.(event.text);
-								break;
-
-							case "reasoning-end":
-								onReasoningEnd?.(event.duration);
-								break;
-
-							case "tool-call":
-								onToolCall?.(event.toolCallId, event.toolName, event.input);
-								break;
-
-							case "tool-result":
-								onToolResult?.(
-									event.toolCallId,
-									event.toolName,
-									event.result,
-									event.duration,
-								);
-								break;
-
-							case "tool-error":
-								onToolError?.(
-									event.toolCallId,
-									event.toolName,
-									event.error,
-									event.duration,
-								);
-								break;
-
-							case "ask-question":
-								onAskQuestion?.(event.questionId, event.questions);
-								break;
-
-							case "complete":
-								onFinish?.(event.usage, event.finishReason);
-								onComplete?.();
-								break;
-
-							case "error":
-								onError?.(event.error);
-								setError(event.error);
-								break;
-
-							case "abort":
-								onAbort?.();
-								break;
-						}
-					},
-					error: (error: any) => {
-						const errorMessage =
-							error instanceof Error ? error.message : "Streaming error";
-						onError?.(errorMessage);
-						setError(errorMessage);
-					},
-					complete: () => {
-						// Subscription completed
-					},
-				});
-
-				// Return unsubscribe function
-				return () => subscription.unsubscribe();
-			} catch (error) {
-				const errorMessage =
-					error instanceof Error ? error.message : "Failed to send message";
-				onError?.(errorMessage);
-				setError(errorMessage);
-			}
+		async (_message: string, _options: SendMessageOptions = {}) => {
+			console.warn(
+				"[useChat] sendMessage is deprecated. Use createSubscriptionSendUserMessageToAI from subscriptionAdapter.ts instead.",
+			);
+			// No-op - actual message sending is done via subscriptionAdapter.ts
 		},
-		[currentSessionId, currentSession],
+		[],
 	);
 
 	return { sendMessage };

@@ -2,11 +2,14 @@
  * useModelDetails Hook
  * Get model details including context length, capabilities, and tokenizer info
  * State stored in Zen signals for global caching
+ *
+ * ARCHITECTURE: Promise-based API using client.xxx.fetch({ input })
+ * Avoids React instance conflicts between lens-react and the app.
  */
 
 import { useEffect } from "react";
 import {
-	useTRPCClient,
+	getClient,
 	useModelDetailsCache,
 	useModelDetailsLoading,
 	useModelDetailsError,
@@ -26,7 +29,6 @@ import {
  * - Client shouldn't need updates when new providers are added
  */
 export function useModelDetails(providerId: string | null, modelId: string | null) {
-	const trpc = useTRPCClient();
 	const detailsCache = useModelDetailsCache();
 	const loading = useModelDetailsLoading();
 	const error = useModelDetailsError();
@@ -55,10 +57,20 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 				setModelDetailsLoadingSignal(true);
 				setModelDetailsErrorSignal(null);
 
+				const client = getClient();
+
 				// Fetch model details and tokenizer info in parallel
+				// Lens flat namespace: client.xxx.fetch({ input })
 				const [detailsResult, tokInfo] = await Promise.all([
-					trpc.config.getModelDetails.query({ providerId, modelId }),
-					trpc.config.getTokenizerInfo.query({ model: modelId }),
+					client.getModelDetails.fetch({ input: { providerId, modelId } }) as Promise<{
+						success: boolean;
+						details?: { contextLength?: number; capabilities?: any };
+					}>,
+					client.getTokenizerInfo.fetch({ input: { model: modelId } }) as Promise<{
+						name: string;
+						modelId: string;
+						source: string;
+					}>,
 				]);
 
 				if (mounted) {
@@ -101,7 +113,7 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 		return () => {
 			mounted = false;
 		};
-	}, [trpc, providerId, modelId, cacheKey, detailsCache]);
+	}, [providerId, modelId, cacheKey, detailsCache]);
 
 	return {
 		details: details || { contextLength: null, capabilities: null, tokenizerInfo: null },

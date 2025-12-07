@@ -525,3 +525,89 @@ export const getActiveBash = query()
 			duration: (proc.endTime || Date.now()) - proc.startTime,
 		};
 	});
+
+// =============================================================================
+// Model Detail Queries
+// =============================================================================
+
+/**
+ * Get tokenizer info for a model
+ * Returns tokenizer name and status
+ */
+export const getTokenizerInfo = query()
+	.input(z.object({ model: z.string() }))
+	.returns(z.object({
+		name: z.string(),
+		modelId: z.string(),
+		source: z.string(),
+	}))
+	.resolve(async ({ input }: { input: { model: string } }) => {
+		const { getTokenizerInfo: getInfo } = await import("@sylphx/code-core");
+		return getInfo(input.model);
+	});
+
+/**
+ * Get model details (context length, pricing, capabilities, etc.)
+ */
+export const getModelDetails = query()
+	.input(z.object({
+		providerId: z.string(),
+		modelId: z.string(),
+		cwd: z.string().optional(),
+	}))
+	.returns(z.object({
+		success: z.boolean(),
+		details: z.any().optional(),
+		error: z.string().optional(),
+	}))
+	.resolve(async ({ input }: { input: { providerId: string; modelId: string; cwd?: string } }) => {
+		try {
+			const { getProvider, loadAIConfig, getProviderConfigWithApiKey, enrichModelDetails, enrichCapabilities } = await import("@sylphx/code-core");
+			const provider = getProvider(input.providerId as any);
+			const cwd = input.cwd || process.cwd();
+
+			// Try to get provider config with API key (optional)
+			let config: any;
+			try {
+				const aiConfigResult = await loadAIConfig(cwd);
+				if (aiConfigResult.success) {
+					config = await getProviderConfigWithApiKey(aiConfigResult.data, input.providerId);
+				}
+			} catch {
+				// Config not available - continue without it
+			}
+
+			// Get model details and capabilities from provider
+			const details = await provider.getModelDetails(input.modelId, config);
+			const providerCapabilities = provider.getModelCapabilities(input.modelId);
+
+			// Enrich with models.dev fallback (fills missing fields)
+			const enrichedDetails = await enrichModelDetails(input.modelId, details);
+
+			// Fetch models.dev data for capabilities enrichment
+			const modelsDevData = await fetch("https://models.dev/api.json", {
+				signal: AbortSignal.timeout(10000),
+			})
+				.then((res) => (res.ok ? res.json() : null))
+				.catch(() => null);
+
+			const enrichedCapabilities = enrichCapabilities(
+				input.modelId,
+				providerCapabilities,
+				modelsDevData,
+			);
+
+			return {
+				success: true,
+				details: {
+					...enrichedDetails,
+					capabilities: enrichedCapabilities,
+				},
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : "Failed to get model details",
+			};
+		}
+	});
