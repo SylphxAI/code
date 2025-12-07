@@ -8,8 +8,8 @@ import { readFile } from "node:fs/promises";
 import type { FileAttachment } from "@sylphx/code-core";
 import { lookup } from "mime-types";
 import { useEffect } from "react";
+import { useLensClient } from "@sylphx/code-client";
 import {
-	useLensClient,
 	extractFileReferences,
 	usePendingAttachments,
 	setPendingAttachments as setPendingAttachmentsSignal,
@@ -18,7 +18,7 @@ import {
 	useAttachmentTokens,
 	setAttachmentTokenCount as setAttachmentTokenCountSignal,
 	useValidTags,
-} from "@sylphx/code-client";
+} from "../../attachment-state.js";
 
 export function useFileAttachments(input: string) {
 	const client = useLensClient();

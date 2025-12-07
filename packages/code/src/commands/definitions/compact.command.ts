@@ -1,24 +1,20 @@
 /**
  * Compact Command
  * Server-side session compaction with AI summarization
- * ARCHITECTURE: All logic on server, multi-client sync via tRPC events
+ * ARCHITECTURE: All logic on server, multi-client sync via lens live queries
  * UI FLOW: Uses normal message flow with status indicator (doesn't block input)
  */
 
 import type { Command } from "../types.js";
+import { setCompacting, setCompactAbortController } from "../../ui-state.js";
+import { getCurrentSession, setCurrentSessionId, setCurrentSession } from "../../session-state.js";
 
 export const compactCommand: Command = {
 	id: "compact",
 	label: "/compact",
 	description: "Summarize current session and create a new session with the summary",
 	execute: async (context) => {
-		const { setCompacting, setCompactAbortController } = await import(
-			"@sylphx/code-client"
-		);
-		const { currentSession: currentSessionSignal } = await import("@sylphx/code-client");
-		const { get } = await import("@sylphx/zen");
-
-		const currentSession = currentSessionSignal();
+		const currentSession = getCurrentSession();
 
 		if (!currentSession) {
 			return "No active session to compact.";
@@ -61,7 +57,6 @@ export const compactCommand: Command = {
 			const sessionTitle = result.oldSessionTitle || currentSession.title || "Untitled session";
 
 			// Fetch new session to get the system message (summary)
-			// Filter out any active messages (those are being streamed and will come via event stream)
 			// Lens flat namespace: client.getSession.fetch({ input })
 			const newSession = await client.getSession.fetch({
 				input: { id: result.newSessionId! },
@@ -72,21 +67,17 @@ export const compactCommand: Command = {
 			}
 
 			// Only include completed messages (system message)
-			// Active messages are being streamed and will be added by event stream handlers
 			const completedMessages = newSession.messages.filter((m) => m.status === "completed");
 
 			// Switch to new session with completed messages only
-			const { setCurrentSessionId, set, currentSession: currentSessionSignal2 } = await import("@sylphx/code-client");
-
 			setCurrentSessionId(result.newSessionId!);
-			set(currentSessionSignal2, {
+			setCurrentSession({
 				...newSession,
-				messages: completedMessages, // Only completed messages (system message)
-			});
+				messages: completedMessages,
+			} as typeof currentSession);
 
 			// Server auto-triggers AI streaming in background (business logic on server)
-			// Events are delivered via event stream to all clients
-			// useEventStream with replayLast:50 will catch streaming events (assistant message, reasoning, text)
+			// Lens live queries will automatically update the UI
 			context.sendMessage(
 				`✓ Compacted session "${sessionTitle}" (${messageCount} messages)\n✓ Created new session with AI-generated summary\n✓ Switched to new session\n✓ AI is processing the summary...`,
 			);

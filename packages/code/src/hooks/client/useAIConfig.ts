@@ -5,7 +5,8 @@
 
 import type { AIConfig } from "@sylphx/code-core";
 import { useCallback } from "react";
-import { setAIConfig, useLensClient } from "@sylphx/code-client";
+import { useLensClient } from "@sylphx/code-client";
+import { setAIConfig } from "../../ai-config-state.js";
 import { setError } from "../../ui-state.js";
 
 export function useAIConfig() {

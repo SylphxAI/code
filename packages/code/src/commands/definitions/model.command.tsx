@@ -23,22 +23,20 @@ export const modelCommand: Command = {
 		},
 	],
 	execute: async (context) => {
-		// Get zen signals
-		const { get } = await import("@sylphx/code-client");
+		// Get local state getters/setters
 		const {
-			aiConfig: aiConfigSignal,
-			currentSession: currentSessionSignal,
-			selectedProvider: selectedProviderSignal,
-			currentSessionId: currentSessionIdSignal,
-			setAIConfig,
-			updateSessionModel,
-		} = await import("@sylphx/code-client");
+			getCurrentSession,
+			getCurrentSessionId,
+			getSelectedProvider,
+			setSelectedModel,
+		} = await import("../../session-state.js");
+		const { getAIConfig, setAIConfig } = await import("../../ai-config-state.js");
 
 		// If arg provided, switch directly
 		if (context.args.length > 0) {
 			const modelId = context.args[0];
-			const currentSession = currentSessionSignal.value;
-			const aiConfig = aiConfigSignal.value;
+			const currentSession = getCurrentSession();
+			const aiConfig = getAIConfig();
 			const provider = currentSession?.provider || aiConfig?.defaultProvider;
 
 			if (!provider) {

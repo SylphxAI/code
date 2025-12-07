@@ -4,6 +4,7 @@
  */
 
 import { getActionCompletions, getTypeCompletions } from "../../completions/notifications.js";
+import { getNotificationSettings, updateNotificationSettings } from "../../notification-state.js";
 import { NotificationsManagement } from "../../screens/chat/components/NotificationsManagement.js";
 import type { Command } from "../types.js";
 

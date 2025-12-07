@@ -6,6 +6,8 @@
 import { getAgentCompletions } from "../../completions/agent.js";
 import { AgentSelection } from "../../screens/chat/components/AgentSelection.js";
 import type { Command } from "../types.js";
+import { getAllAgents, getAgentById, setSelectedAgent } from "../../embedded-context.js";
+import { getSelectedAgentId, getCurrentSessionId } from "../../session-state.js";
 
 export const agentCommand: Command = {
 	id: "agent",
@@ -22,11 +24,6 @@ export const agentCommand: Command = {
 		},
 	],
 	execute: async (context) => {
-		const { getAllAgentsAgentById } = await import("../../embedded-context.js");
-		const { get } = await import("@sylphx/code-client");
-		const { selectedAgentId: selectedAgentIdSignal, currentSessionId: currentSessionIdSignal, setSelectedAgent, updateSessionAgent } =
-			await import("@sylphx/code-client");
-
 		// If arg provided, switch directly
 		if (context.args.length > 0) {
 			const agentId = context.args[0];
@@ -36,13 +33,15 @@ export const agentCommand: Command = {
 				return `Agent not found: ${agentId}. Use /agent to see available agents.`;
 			}
 
-			// Update global default (always)
+			// Update global default
 			await setSelectedAgent(agentId);
 
-			// Update current session if exists
-			const currentSessionId = currentSessionIdSignal();
+			// Update current session if exists (via lens mutation)
+			const currentSessionId = getCurrentSessionId();
 			if (currentSessionId) {
-				await updateSessionAgent(currentSessionId, agentId);
+				await context.client.updateSession.fetch({
+					input: { id: currentSessionId, agentId },
+				});
 			}
 
 			return `Switched to agent: ${agent.metadata.name}\n${agent.metadata.description}`;
@@ -50,8 +49,8 @@ export const agentCommand: Command = {
 
 		// No args - show agent selection UI
 		const agents = getAllAgents();
-		const selectedAgentId = selectedAgentIdSignal();
-		const currentAgent = getAgentById(selectedAgentId);
+		const selectedAgentId = getSelectedAgentId();
+		const currentAgent = selectedAgentId ? getAgentById(selectedAgentId) : null;
 
 		if (!currentAgent) {
 			return "Current agent not found.";
@@ -73,10 +72,6 @@ export const agentCommand: Command = {
 				agents={agentsList}
 				currentAgentId={currentAgent.id}
 				onSelect={async (agentId) => {
-					const { get } = await import("@sylphx/code-client");
-					const { currentSessionId: currentSessionIdSignal2, setSelectedAgent, updateSessionAgent } = await import(
-						"@sylphx/code-client"
-					);
 					const selectedAgent = getAgentById(agentId);
 
 					if (!selectedAgent) {
@@ -85,13 +80,15 @@ export const agentCommand: Command = {
 						return;
 					}
 
-					// Update global default (always)
+					// Update global default
 					await setSelectedAgent(agentId);
 
-					// Update current session if exists
-					const currentSessionId = currentSessionIdSignal2();
+					// Update current session if exists (via lens mutation)
+					const currentSessionId = getCurrentSessionId();
 					if (currentSessionId) {
-						await updateSessionAgent(currentSessionId, agentId);
+						await context.client.updateSession.fetch({
+							input: { id: currentSessionId, agentId },
+						});
 					}
 
 					context.addLog(`[agent] Switched to agent: ${selectedAgent.metadata.name}`);

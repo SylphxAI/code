@@ -6,7 +6,7 @@
  * They will be replaced with proper tRPC calls in the future.
  */
 
-import { getEnabledRuleIds } from "./session-state.js";
+import { getEnabledRuleIds, setEnabledRuleIds, getCurrentSessionId, setSelectedAgentId } from "./session-state.js";
 import type { Agent, Rule } from "@sylphx/code-core";
 import type { CodeServer } from "@sylphx/code-server";
 
@@ -71,28 +71,17 @@ export function getCurrentEnabledRuleIds(): string[] {
 }
 
 /**
- * Set enabled rules in zen signals and persist
+ * Set enabled rules in local state
  * UNIFIED ARCHITECTURE: Always updates both global AND session (if exists)
  * - Global: To predict user's future preferences
  * - Session: To apply immediately to current conversation
  * - Old sessions: Never affected
  */
 export async function setEnabledRules(ruleIds: string[]): Promise<boolean> {
-	const {
-		setGlobalEnabledRules,
-		updateSessionRules,
-		getCurrentSessionId,
-	} = require("@sylphx/code-client");
+	// Update local state (global default)
+	setEnabledRuleIds(ruleIds);
 
-	// 1. Update global default (always)
-	await setGlobalEnabledRules(ruleIds);
-
-	// 2. Update current session if exists
-	const currentSessionId = getCurrentSessionId();
-	if (currentSessionId) {
-		await updateSessionRules(currentSessionId, ruleIds);
-	}
-
+	// Session updates handled via lens mutations (caller's responsibility)
 	return true;
 }
 
@@ -106,25 +95,22 @@ export async function toggleRule(ruleId: string): Promise<boolean> {
 		return false;
 	}
 
-	const {
-		setGlobalEnabledRules,
-		updateSessionRules,
-		getCurrentSessionId,
-	} = require("@sylphx/code-client");
 	const currentEnabled = getCurrentEnabledRuleIds();
 
 	const newRuleIds = currentEnabled.includes(ruleId)
 		? currentEnabled.filter((id) => id !== ruleId) // Disable: remove from list
 		: [...currentEnabled, ruleId]; // Enable: add to list
 
-	// 1. Update global default (always)
-	await setGlobalEnabledRules(newRuleIds);
+	// Update local state
+	setEnabledRuleIds(newRuleIds);
 
-	// 2. Update current session if exists
-	const currentSessionId = getCurrentSessionId();
-	if (currentSessionId) {
-		await updateSessionRules(currentSessionId, newRuleIds);
-	}
-
+	// Session updates handled via lens mutations (caller's responsibility)
 	return true;
+}
+
+/**
+ * Set selected agent in local state
+ */
+export async function setSelectedAgent(agentId: string): Promise<void> {
+	setSelectedAgentId(agentId);
 }

@@ -36,7 +36,16 @@ function useStore<T>(store: ReturnType<typeof createState<T>>): T {
 // Screen / Routing
 // ============================================================================
 
-export type Screen = "chat" | "logs" | "settings" | "provider" | "model" | "bash" | "bash-detail" | "mcp";
+export type Screen =
+	| "chat"
+	| "logs"
+	| "settings"
+	| "provider-management"
+	| "model-selection"
+	| "command-palette"
+	| "bash-list"
+	| "bash-detail"
+	| "mcp";
 
 const screenState = createState<Screen>("chat");
 export const setCurrentScreen = screenState.set;

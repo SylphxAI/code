@@ -19,21 +19,21 @@ export const contextCommand: Command = {
 				"@sylphx/code-core"
 			);
 			const {
-				currentSessionSignal,
-				selectedModelSignal,
-				selectedProviderSignal,
-				selectedAgentIdSignal,
-				enabledRuleIdsSignal,
-			} = await import("@sylphx/code-client");
+				getCurrentSession,
+				getSelectedModel,
+				getSelectedProvider,
+				getSelectedAgentId,
+				getEnabledRuleIds,
+			} = await import("../../session-state.js");
 
 			console.log("[Context] Imports loaded");
 			commandContext.addLog("[Context] Imports loaded");
 
-			const currentSession = get(currentSessionSignal);
-			const selectedModel = get(selectedModelSignal);
-			const selectedProvider = get(selectedProviderSignal);
-			const selectedAgentId = get(selectedAgentIdSignal);
-			const enabledRuleIds = get(enabledRuleIdsSignal);
+			const currentSession = getCurrentSession();
+			const selectedModel = getSelectedModel();
+			const selectedProvider = getSelectedProvider();
+			const selectedAgentId = getSelectedAgentId();
+			const enabledRuleIds = getEnabledRuleIds();
 
 			// Get model, provider, agent, and rules from session or selection (match StatusBar logic)
 			const modelName = currentSession?.model || selectedModel || null;
