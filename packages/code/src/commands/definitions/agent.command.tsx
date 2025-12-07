@@ -39,10 +39,10 @@ export const agentCommand: Command = {
 			// Update global default
 			await setSelectedAgent(agentId);
 
-			// Update current session if exists (via lens mutation)
+			// Update current session if exists (via vanilla client call)
 			const currentSessionId = getCurrentSessionId();
 			if (currentSessionId) {
-				await context.client.updateSession.fetch({
+				await context.client.updateSession({
 					input: { id: currentSessionId, agentId },
 				});
 			}
@@ -86,10 +86,10 @@ export const agentCommand: Command = {
 					// Update global default
 					await setSelectedAgent(agentId);
 
-					// Update current session if exists (via lens mutation)
+					// Update current session if exists (via vanilla client call)
 					const currentSessionId = getCurrentSessionId();
 					if (currentSessionId) {
-						await context.client.updateSession.fetch({
+						await context.client.updateSession({
 							input: { id: currentSessionId, agentId },
 						});
 					}

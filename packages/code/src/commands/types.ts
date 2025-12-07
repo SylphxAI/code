@@ -1,6 +1,11 @@
 /**
  * Command Types
  * Shared types for command system
+ *
+ * ARCHITECTURE: lens-react v5 API
+ * ===============================
+ * - await client.xxx({ input }) → Vanilla JS Promise (commands use this)
+ * - client.xxx.useQuery({ input }) → React hook (components)
  */
 
 import type { CodeClient } from "@sylphx/code-client";
@@ -59,14 +64,12 @@ export type WaitForInputOptions =
 /**
  * Command execution context
  *
- * ARCHITECTURE:
- * - Commands should use context.client for API calls (React hook pattern)
- * - Commands should directly use useAppStore for most operations
- * - CommandContext only provides UI-specific operations that need React context
- * - For store operations: import { useAppStore } from '@sylphx/code-client'
+ * ARCHITECTURE: lens-react v5 API
+ * - Commands use vanilla client calls: await context.client.xxx({ input })
+ * - CommandContext provides UI-specific operations that need React context
  */
 export interface CommandContext {
-	// Lens client (passed from React hook - useLensClient())
+	// Lens client for vanilla API calls: await client.xxx({ input })
 	client: CodeClient;
 
 	// Command arguments

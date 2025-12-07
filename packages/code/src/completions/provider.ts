@@ -1,6 +1,11 @@
 /**
  * Provider Completions
  * Lazy loading from local state, no extra cache needed
+ *
+ * ARCHITECTURE: lens-react v5 API
+ * ===============================
+ * - await client.xxx({ input }) → Vanilla JS Promise (this file)
+ * - client.xxx.useQuery({ input }) → React hook (components)
  */
 
 import type { CodeClient } from "@sylphx/code-client";
@@ -19,7 +24,7 @@ export interface CompletionOption {
  * Subsequent access: sync read from local state cache
  * Update: event-driven via setAIConfig()
  *
- * @param client - Lens client (passed from React hook useLensClient)
+ * @param client - Lens client for vanilla API calls
  */
 async function _getAIConfig(client: CodeClient): Promise<AIConfig | null> {
 	// Already in local state? Return cached (fast!)
@@ -30,13 +35,13 @@ async function _getAIConfig(client: CodeClient): Promise<AIConfig | null> {
 
 	// First access - lazy load from server
 	try {
-		// Lens flat namespace: client.loadConfig.fetch({})
-		const result = await client.loadConfig.fetch({});
+		// Use vanilla client call
+		const result = await client.loadConfig({}) as { success: boolean; config?: AIConfig };
 
 		if (result.success && result.config) {
 			// Cache in local state (stays until explicitly updated)
-			setAIConfig(result.config as AIConfig);
-			return result.config as AIConfig;
+			setAIConfig(result.config);
+			return result.config;
 		}
 
 		return null;
@@ -50,7 +55,7 @@ async function _getAIConfig(client: CodeClient): Promise<AIConfig | null> {
  * Get provider completion options
  * Returns ALL available providers from the registry (not just configured ones)
  *
- * @param client - Lens client (passed from React hook useLensClient)
+ * @param client - Lens client for vanilla API calls
  * @param partial - Partial search string for filtering
  */
 export async function getProviderCompletions(
@@ -58,8 +63,8 @@ export async function getProviderCompletions(
 	partial = "",
 ): Promise<CompletionOption[]> {
 	try {
-		// Lens flat namespace: client.getProviders.fetch({})
-		const result = await client.getProviders.fetch({});
+		// Use vanilla client call
+		const result = await client.getProviders({ input: {} });
 
 		const providers = Object.keys(result);
 		const filtered = partial
@@ -102,7 +107,7 @@ export function getSubactionCompletions(): CompletionOption[] {
  * Get provider configuration key completions
  * Dynamically fetches schema from provider
  *
- * @param client - Lens client (passed from React hook useLensClient)
+ * @param client - Lens client for vanilla API calls
  * @param providerId - Provider ID to get schema for
  */
 export async function getProviderKeyCompletions(
@@ -110,8 +115,11 @@ export async function getProviderKeyCompletions(
 	providerId: ProviderId,
 ): Promise<CompletionOption[]> {
 	try {
-		// Lens flat namespace: client.getProviderSchema.fetch({ input })
-		const result = await client.getProviderSchema.fetch({ input: { providerId } });
+		// Use vanilla client call
+		const result = await client.getProviderSchema({ input: { providerId } }) as {
+			success: boolean;
+			schema?: Array<{ key: string }>;
+		};
 
 		if (!result.success || !result.schema) {
 			return [];

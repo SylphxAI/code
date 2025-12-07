@@ -3,8 +3,8 @@
  * Get model details including context length, capabilities, and tokenizer info
  * State stored in local state for global caching
  *
- * ARCHITECTURE: lens-react hooks pattern
- * - Queries: client.queryName({ input, skip }) → { data, loading, error, refetch }
+ * ARCHITECTURE: lens-react v5 API
+ * - client.xxx.useQuery({ input }) → React hook { data, loading, error, refetch }
  */
 
 import { useEffect } from "react";
@@ -44,12 +44,12 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 	const skipQueries = !providerId || !modelId || (cacheKey != null && detailsCache[cacheKey] != null);
 
 	// Query hooks - reactive data fetching
-	const modelDetailsQuery = client.getModelDetails({
+	const modelDetailsQuery = client.getModelDetails.useQuery({
 		input: { providerId: providerId || "", modelId: modelId || "" },
 		skip: skipQueries,
 	});
 
-	const tokenizerQuery = client.getTokenizerInfo({
+	const tokenizerQuery = client.getTokenizerInfo.useQuery({
 		input: { model: modelId || "" },
 		skip: skipQueries,
 	});

@@ -197,7 +197,7 @@ export async function switchToProvider(
 	// Update current session's provider (preserve history)
 	const currentSessionId = getCurrentSessionId();
 	if (currentSessionId) {
-		await context.client.updateSession.fetch({
+		await context.client.updateSession({
 			input: { id: currentSessionId, provider: providerId, model: defaultModel },
 		});
 	}

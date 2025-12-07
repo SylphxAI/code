@@ -61,9 +61,6 @@ export const contextCommand: Command = {
 				commandContext.addLog(`[Context] No active session, using selected model: ${modelName}`);
 			}
 
-			// Use client from context (passed from React hook)
-			const client = commandContext.client;
-
 			// Get model context limit from server (NO HARDCODED VALUES!)
 			if (!providerId) {
 				commandContext.setInputComponent(
@@ -76,8 +73,8 @@ export const contextCommand: Command = {
 				return undefined;
 			}
 
-			// Lens flat namespace: client.getModelDetails.fetch({ input })
-			const modelDetailsResult = (await client.getModelDetails.fetch({
+			// Use vanilla client call
+			const modelDetailsResult = (await commandContext.client.getModelDetails({
 				input: {
 					providerId: providerId,
 					modelId: modelName,

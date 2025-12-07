@@ -10,25 +10,18 @@
  *
  * Usage:
  * ```typescript
- * // TUI (in-process with emit support)
+ * // Initialize client
  * import { createCodeClient, direct, initClient } from "@sylphx/code-client";
  * const client = createCodeClient(direct({ app: lensServer }));
- * initClient(client); // Register for global access
+ * initClient(client);
  *
- * // Web (HTTP transport)
- * import { createCodeClient, http, initClient } from "@sylphx/code-client";
- * const client = createCodeClient(http({ url: "/api/lens" }));
- * initClient(client); // Register for global access
+ * // Vanilla JS (anywhere - commands, utilities, SSR):
+ * const session = await client.getSession({ input: { id } });
+ * const result = await client.createSession({ input: { title: "New" } });
  *
- * // React components (hooks):
- * const { data, loading } = client.getSession({ id });
- *
- * // Promise-based (SSR, utilities, signals):
- * const session = await client.getSession.fetch({ id });
- *
- * // From signals (after initialization):
- * import { getClient } from "@sylphx/code-client";
- * const client = getClient();
+ * // React hooks (in components only):
+ * const { data, loading } = client.getSession.useQuery({ input: { id } });
+ * const { mutate } = client.createSession.useMutation();
  * ```
  */
 
@@ -47,47 +40,63 @@ import {
 // =============================================================================
 
 /**
+ * Query hook result
+ */
+interface QueryHookResult<TOutput> {
+	data: TOutput | null;
+	loading: boolean;
+	error: Error | null;
+	refetch: () => void;
+}
+
+/**
+ * Mutation hook result
+ */
+interface MutationHookResult<TInput, TOutput> {
+	mutate: (options: { input: TInput }) => Promise<TOutput>;
+	loading: boolean;
+	error: Error | null;
+	data: TOutput | null;
+}
+
+/**
  * Query endpoint interface
- * Callable as hook (in React components) or via .fetch() for promises
+ * - Direct call: await client.xxx({ input }) → Promise
+ * - React hook: client.xxx.useQuery({ input }) → { data, loading, error }
  */
 interface QueryEndpoint<TInput = unknown, TOutput = unknown> {
+	// Vanilla JS - direct Promise call
 	(options?: TInput extends void
+		? { select?: Record<string, unknown> }
+		: { input?: TInput; select?: Record<string, unknown> }): Promise<TOutput>;
+	// React hook
+	useQuery: (options?: TInput extends void
 		? { select?: Record<string, unknown>; skip?: boolean }
-		: { input?: TInput; select?: Record<string, unknown>; skip?: boolean }): {
-		data: TOutput | null;
-		loading: boolean;
-		error: Error | null;
-		refetch: () => void;
-	};
-	fetch: TInput extends void
-		? (options?: { select?: Record<string, unknown> }) => Promise<TOutput>
-		: (options?: { input?: TInput; select?: Record<string, unknown> }) => Promise<TOutput>;
+		: { input?: TInput; select?: Record<string, unknown>; skip?: boolean }) => QueryHookResult<TOutput>;
 }
 
 /**
  * Mutation endpoint interface
- * Callable as hook or via .fetch() for promises
+ * - Direct call: await client.xxx({ input }) → Promise
+ * - React hook: client.xxx.useMutation() → { mutate, loading, error }
  */
 interface MutationEndpoint<TInput = unknown, TOutput = unknown> {
-	(options?: { onSuccess?: (data: TOutput) => void; onError?: (error: Error) => void }): {
-		mutate: (options: { input: TInput }) => Promise<TOutput>;
-		loading: boolean;
-		error: Error | null;
-		data: TOutput | null;
-	};
-	fetch: (options: { input: TInput }) => Promise<TOutput>;
+	// Vanilla JS - direct Promise call
+	(options: { input: TInput }): Promise<TOutput>;
+	// React hook
+	useMutation: (options?: {
+		onSuccess?: (data: TOutput) => void;
+		onError?: (error: Error) => void
+	}) => MutationHookResult<TInput, TOutput>;
 }
 
 /**
  * Type-safe Lens client for Code API
  *
- * Note: Type inference from LensRouter._types is not working due to
- * bundler not preserving return types. Using dynamic client type for now.
- * Runtime behavior is correct - lens-client creates proxies dynamically.
- *
  * All endpoints can be accessed as:
- * - client.endpointName({ input }) - React hook
- * - client.endpointName.fetch({ input }) - Promise (SSR/signals)
+ * - await client.xxx({ input }) - Vanilla JS (Promise)
+ * - client.xxx.useQuery({ input }) - React hook for queries
+ * - client.xxx.useMutation() - React hook for mutations
  */
 export interface CodeClient {
 	// Session Queries

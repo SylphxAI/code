@@ -2,9 +2,9 @@
  * AI Config Hook
  * Load and save AI configuration via Lens (backend handles file system)
  *
- * ARCHITECTURE: lens-react hooks pattern
- * - Queries: client.queryName({ input, skip }) → { data, loading, error, refetch }
- * - Mutations: const { mutate } = client.mutationName({}) then call mutate({ input })
+ * ARCHITECTURE: lens-react v5 API
+ * - client.xxx.useQuery({ input }) → React hook { data, loading, error, refetch }
+ * - client.xxx.useMutation() → React hook { mutate, loading, error }
  */
 
 import type { AIConfig } from "@sylphx/code-core";
@@ -17,10 +17,10 @@ export function useAIConfig() {
 	const client = useLensClient();
 
 	// Query hook - auto-loads config on mount
-	const configQuery = client.loadConfig({});
+	const configQuery = client.loadConfig.useQuery({});
 
 	// Mutation hook - for saving config
-	const { mutate: saveConfigMutate } = client.saveConfig({});
+	const { mutate: saveConfigMutate } = client.saveConfig.useMutation();
 
 	// Sync config to global state when data changes
 	useEffect(() => {

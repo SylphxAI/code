@@ -2,8 +2,8 @@
  * Session List Hook
  * Provides reactive session list with loading/error states using lens-react
  *
- * ARCHITECTURE: lens-react hooks pattern
- * - Queries: client.queryName({ input, skip }) → { data, loading, error, refetch }
+ * ARCHITECTURE: lens-react v5 API
+ * - client.xxx.useQuery({ input }) → React hook { data, loading, error, refetch }
  */
 
 import type { SessionMetadata } from "@sylphx/code-core";
@@ -48,7 +48,7 @@ export function useSessionList(): UseSessionListReturn {
 	const limitRef = useRef(100);
 
 	// Query hook - reactive data fetching
-	const sessionsQuery = client.listSessions({
+	const sessionsQuery = client.listSessions.useQuery({
 		input: { limit: limitRef.current },
 	});
 

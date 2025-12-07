@@ -9,8 +9,8 @@
  * 4. User answers → calls answerAsk mutation
  * 5. Server receives answer and continues AI stream
  *
- * ARCHITECTURE: lens-react hooks pattern
- * - Mutations: const { mutate } = client.mutationName({}) then call mutate({ input })
+ * ARCHITECTURE: lens-react v5 API
+ * - client.xxx.useMutation() → React hook { mutate, loading, error }
  */
 
 import { useCallback } from "react";
@@ -43,7 +43,7 @@ export function useAskToolHandler({
 	const client = useLensClient();
 
 	// Mutation hook for answering questions
-	const { mutate: answerAskMutate } = client.answerAsk({});
+	const { mutate: answerAskMutate } = client.answerAsk.useMutation();
 
 	/**
 	 * Handle ask-question event from streaming

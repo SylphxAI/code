@@ -11,6 +11,11 @@
  * - We set streamingExpected = true before mutation
  * - useCurrentSession polls while streamingExpected is true
  * - Polling stops when streamingStatus becomes "idle"
+ *
+ * ARCHITECTURE: lens-react v5 API
+ * ===============================
+ * - await client.xxx({ input }) → Vanilla JS Promise (this file)
+ * - client.xxx.useQuery({ input }) → React hook (components)
  */
 
 import { parseUserInput, type CodeClient } from "@sylphx/code-client";
@@ -28,23 +33,12 @@ const logSession = createLogger("subscription:session");
 export type TriggerAIOptions = {};
 
 /**
- * Trigger stream input type
- */
-export interface TriggerStreamInput {
-	sessionId: string | null;
-	provider?: string;
-	model?: string;
-	content: Array<{ type: string; content?: string; [key: string]: unknown }>;
-}
-
-/**
  * Parameters for subscription adapter
- * Note: Uses mutate functions from hooks instead of raw client
+ * Uses vanilla client calls: await client.xxx({ input })
  */
 export interface SubscriptionAdapterParams {
-	// Mutation functions from hooks (not raw client)
-	triggerStreamMutate: (options: { input: TriggerStreamInput }) => Promise<{ sessionId?: string; data?: { sessionId?: string } }>;
-	abortStreamMutate: (options: { input: { sessionId: string } }) => Promise<{ success: boolean }>;
+	// Lens client for vanilla API calls
+	client: CodeClient;
 
 	aiConfig: AIConfig | null;
 	currentSessionId: string | null;
@@ -86,8 +80,7 @@ export interface SubscriptionAdapterParams {
  */
 export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapterParams) {
 	const {
-		triggerStreamMutate,
-		abortStreamMutate,
+		client,
 		currentSessionId,
 		selectedProvider,
 		selectedModel,
@@ -138,7 +131,8 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 				const abortSessionId = mutationSessionId || currentSessionId;
 
 				if (abortSessionId) {
-					await abortStreamMutate({ input: { sessionId: abortSessionId } });
+					// Use vanilla client call
+					await client.abortStream({ input: { sessionId: abortSessionId } });
 					logSession("Server notified of abort");
 				}
 			} catch (error) {
@@ -157,7 +151,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			// useCurrentSession will poll while this is true
 			setStreamingExpected(true);
 
-			// Call triggerStream mutation
+			// Call triggerStream via vanilla client call
 			// Server will:
 			// 1. Create session if needed
 			// 2. Create user message
@@ -165,20 +159,20 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			// 4. Start AI streaming
 			// 5. Update in-memory state (polled by client)
 			// 6. useCurrentSession polls and React re-renders
-			const result = await triggerStreamMutate({
+			const result = await client.triggerStream({
 				input: {
 					sessionId: currentSessionId,
 					provider: currentSessionId ? undefined : provider,
 					model: currentSessionId ? undefined : model,
 					content,
 				},
-			});
+			}) as { sessionId?: string; data?: { sessionId?: string } };
 
 			logSession("Mutation completed:", result);
 
-			// Extract sessionId from result.data (Lens mutation response wrapper)
+			// Extract sessionId from result
 			const sessionId = result.data?.sessionId || result.sessionId;
-			mutationSessionId = sessionId;
+			mutationSessionId = sessionId || null;
 
 			// Update sessionId if new session was created
 			if (sessionId && sessionId !== currentSessionId) {

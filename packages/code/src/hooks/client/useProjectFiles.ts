@@ -24,7 +24,7 @@ interface ProjectFile {
 export function useProjectFiles() {
 	const client = useLensClient();
 
-	const { data, loading, error, refetch } = client.scanProjectFiles({}) as {
+	const { data, loading, error, refetch } = client.scanProjectFiles.useQuery({}) as {
 		data: { files: ProjectFile[] } | null;
 		loading: boolean;
 		error: Error | null;

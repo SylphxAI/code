@@ -3,8 +3,8 @@
  * Manages file attachments and synchronization with @file references in input
  * Files are uploaded immediately on paste/select, stored by fileId
  *
- * ARCHITECTURE: lens-react hooks pattern
- * - Mutations: const { mutate } = client.mutationName({}) then call mutate({ input })
+ * ARCHITECTURE: lens-react v5 API
+ * - client.xxx.useMutation() → React hook { mutate, loading, error }
  */
 
 import { readFile } from "node:fs/promises";
@@ -30,7 +30,7 @@ export function useFileAttachments(input: string) {
 	const validTags = useValidTags();
 
 	// Mutation hook for file upload
-	const { mutate: uploadFileMutate } = client.uploadFile({});
+	const { mutate: uploadFileMutate } = client.uploadFile.useMutation();
 
 	// Sync pending attachments with @file references in input
 	useEffect(() => {

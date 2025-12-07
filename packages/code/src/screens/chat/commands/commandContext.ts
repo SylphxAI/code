@@ -1,6 +1,13 @@
 /**
  * Command Context Factory
  * Creates CommandContext objects for command execution
+ *
+ * ARCHITECTURE: lens-react v5 API
+ * ===============================
+ * - await client.xxx({ input }) → Vanilla JS Promise (commands use this)
+ * - client.xxx.useQuery({ input }) → React hook (components)
+ *
+ * Commands receive client directly and use vanilla calls.
  */
 
 import type { CodeClient } from "@sylphx/code-client";
@@ -12,13 +19,12 @@ import { getSelectedProvider, getSelectedModel } from "../../../session-state.js
 /**
  * Parameters needed to create command context
  *
- * ARCHITECTURE:
- * - Client passed from React hook (useLensClient) - never use getLensClient()
- * - Only pass what's truly needed for UI interaction
- * - Commands use useAppStore directly for most operations
+ * ARCHITECTURE: lens-react v5 API
+ * - client is passed for vanilla calls: await client.xxx({ input })
+ * - Commands use vanilla calls directly, not mutation hooks
  */
 export interface CommandContextParams {
-	// Lens client from React hook (useLensClient)
+	// Lens client for vanilla API calls: await client.xxx({ input })
 	client: CodeClient;
 
 	// For message operations (complex logic)
@@ -75,7 +81,7 @@ export interface CommandContextParams {
  * Create a CommandContext for command execution
  *
  * Factory function that creates a CommandContext object with all required methods.
- * Extracted from Chat.tsx to improve modularity and testability.
+ * Commands use vanilla client calls: await context.client.xxx({ input })
  */
 export function createCommandContext(args: string[], params: CommandContextParams): CommandContext {
 	const {

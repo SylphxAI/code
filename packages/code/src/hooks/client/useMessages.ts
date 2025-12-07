@@ -3,10 +3,8 @@
  * Fetches messages for the current session using lens-react hooks
  * and converts them to SessionMessage format with steps and parts
  *
- * ARCHITECTURE: lens-react hooks pattern
- * ======================================
- * Uses client.listMessages({ input }) as a React hook - returns { data, loading, error }.
- * Lens handles caching, refetching, and real-time updates automatically.
+ * ARCHITECTURE: lens-react v5 API
+ * - client.xxx.useQuery({ input }) → React hook { data, loading, error, refetch }
  */
 
 import { useLensClient } from "@sylphx/code-client";
@@ -69,8 +67,8 @@ function convertPart(part: { type: string; content: unknown }): MessagePart {
 export function useMessages(sessionId: string | null | undefined) {
 	const client = useLensClient();
 
-	// Use lens-react hook - automatically handles fetching, caching, real-time updates
-	const messagesQuery = client.listMessages({
+	// Use lens-react query hook
+	const messagesQuery = client.listMessages.useQuery({
 		input: { sessionId: sessionId || "" },
 		skip: !sessionId,
 	});

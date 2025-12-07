@@ -50,9 +50,8 @@ export const modelCommand: Command = {
 			// Validate the model exists for this provider
 			try {
 				context.addLog(`Loading models from ${provider}...`);
-				// Use client from context (passed from React hook)
-				const client = context.client;
-				const result = await client.fetchModels.fetch({ input: { providerId: provider } });
+				// Use vanilla client call
+				const result = await context.client.fetchModels({ input: { providerId: provider } });
 
 				if (result.success && result.models) {
 					const modelExists = result.models.some((m) => m.id === modelId);
@@ -87,7 +86,7 @@ export const modelCommand: Command = {
 			// Update current session's model (preserve history)
 			const currentSessionId = getCurrentSessionId();
 			if (currentSessionId) {
-				await context.client.updateSession.fetch({
+				await context.client.updateSession({
 					input: { id: currentSessionId, model: modelId },
 				});
 			}
@@ -153,7 +152,7 @@ export const modelCommand: Command = {
 
 					// Update current session's model (preserve history)
 					if (freshCurrentSessionId) {
-						await context.client.updateSession.fetch({
+						await context.client.updateSession({
 							input: { id: freshCurrentSessionId, model: modelId },
 						});
 					}
@@ -172,11 +171,9 @@ export const modelCommand: Command = {
 		context.setInputComponent(renderModelSelection(), "Model Selection");
 
 		// Fetch models asynchronously
-		// Use client from context (passed from React hook)
-		const client = context.client;
-
+		// Use vanilla client call
 		try {
-			const result = await client.fetchModels.fetch({
+			const result = await context.client.fetchModels({
 				input: { providerId: currentProviderId },
 			});
 

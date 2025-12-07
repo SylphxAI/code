@@ -2,9 +2,10 @@
  * Session API
  * Client-side functions for interacting with sessions via Lens
  *
- * Uses the new Lens client with flat namespace pattern:
- * - client.listSessions.fetch({ limit }) → Promise
- * - client.getLastSession.fetch() → Promise
+ * ARCHITECTURE: lens-react v5 API
+ * ===============================
+ * - await client.xxx({ input }) → Vanilla JS Promise (this file)
+ * - client.xxx.useQuery({ input }) → React hook (components)
  */
 
 import type { ProviderId } from "@sylphx/code-core";
@@ -35,7 +36,8 @@ export async function getRecentSessions(
 	limit: number = 100,
 ): Promise<SessionListItem[]> {
 	const client = getClient();
-	const result = await client.listSessions.fetch({ input: { limit } });
+	// Use vanilla client call
+	const result = await client.listSessions({ input: { limit } });
 
 	// Transform to SessionListItem format
 	return (result as Session[]).map((session) => ({
@@ -57,5 +59,6 @@ export async function getRecentSessions(
  */
 export async function getLastSession(): Promise<Session | null> {
 	const client = getClient();
-	return await client.getLastSession.fetch({}) as Session | null;
+	// Use vanilla client call
+	return await client.getLastSession({}) as Session | null;
 }

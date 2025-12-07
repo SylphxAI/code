@@ -18,7 +18,7 @@ import { useLensClient, type ModelInfo } from "@sylphx/code-client";
 export function useModels(providerId: string | null) {
 	const client = useLensClient();
 
-	const { data, loading, error, refetch } = client.fetchModels({
+	const { data, loading, error, refetch } = client.fetchModels.useQuery({
 		input: { providerId: providerId ?? "" },
 		skip: !providerId, // Skip when no provider selected
 	}) as {

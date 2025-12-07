@@ -18,7 +18,7 @@ interface BashProcess {
 export function useBackgroundBashCount(): number {
 	const client = useLensClient();
 
-	const { data: processes } = client.listBash({}) as {
+	const { data: processes } = client.listBash.useQuery({}) as {
 		data: BashProcess[] | null;
 		loading: boolean;
 		error: Error | null;

@@ -1,6 +1,11 @@
 /**
  * Model Completions
  * Fetches models from provider API for current provider
+ *
+ * ARCHITECTURE: lens-react v5 API
+ * ===============================
+ * - await client.xxx({ input }) → Vanilla JS Promise (this file)
+ * - client.xxx.useQuery({ input }) → React hook (components)
  */
 
 import type { CodeClient } from "@sylphx/code-client";
@@ -15,12 +20,9 @@ export interface CompletionOption {
 
 /**
  * Get model completion options for current provider
- * ARCHITECTURE: Uses Lens endpoint (server-side fetches models)
- * - Client = Pure UI
- * - Server = Business logic + File access
- * - Works for both CLI and Web GUI
+ * Uses vanilla client call for Lens endpoint (server-side fetches models)
  *
- * @param client - Lens client (passed from React hook useLensClient)
+ * @param client - Lens client for vanilla API calls
  * @param partial - Partial search string for filtering
  */
 export async function getModelCompletions(
@@ -28,7 +30,6 @@ export async function getModelCompletions(
 	partial = "",
 ): Promise<CompletionOption[]> {
 	try {
-
 		// Get current provider from session or config
 		const currentSessionValue = getCurrentSession();
 		const config = getAIConfig();
@@ -38,8 +39,12 @@ export async function getModelCompletions(
 			return [];
 		}
 
-		// Lens flat namespace: client.fetchModels.fetch({ input })
-		const result = await client.fetchModels.fetch({ input: { providerId: currentProviderId } });
+		// Use vanilla client call
+		const result = await client.fetchModels({ input: { providerId: currentProviderId } }) as {
+			success: boolean;
+			error?: string;
+			models?: Array<{ id: string; name: string }>;
+		};
 
 		if (!result.success) {
 			console.error("[completions] Failed to fetch models:", result.error);

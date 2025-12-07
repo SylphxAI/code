@@ -2,10 +2,11 @@
  * Provider Management Component (V2 - Composition-based)
  * Uses InlineSelection composition pattern instead of custom selection logic
  *
- * ARCHITECTURE: Composition pattern
+ * ARCHITECTURE: Composition pattern + lens-react v5 API
  * - Uses InlineSelection for step 1 and 2
  * - Custom form for step 3 (provider configuration)
  * - No duplicated filter/selection logic
+ * - Uses vanilla client calls: await client.xxx({ input })
  */
 
 import { useLensClient, type ProviderInfo } from "@sylphx/code-client";
@@ -80,7 +81,8 @@ export function ProviderManagement({
 	useEffect(() => {
 		async function loadProviderMetadata() {
 			try {
-				const result = await client.getProviders.fetch({ input: {} });
+				// Use vanilla client call
+				const result = await client.getProviders({ input: {} }) as Record<string, ProviderInfo>;
 				// Store full provider info including isConfigured status
 				const metadata: Record<
 					string,
@@ -148,9 +150,10 @@ export function ProviderManagement({
 		if (step === "configure-provider" && selectedProvider) {
 			async function loadSchema() {
 				try {
-					const result = await client.getProviderSchema.fetch({
+					// Use vanilla client call
+					const result = await client.getProviderSchema({
 						input: { providerId: selectedProvider! },
-					});
+					}) as { success: boolean; error?: string; schema?: ConfigField[] };
 
 					if (!result.success) {
 						console.error("Failed to load provider schema:", result.error);
@@ -226,7 +229,8 @@ export function ProviderManagement({
 						Promise.resolve(onConfigureProvider(selectedProvider!, formValues)).then(async () => {
 							// Refresh provider metadata to update isConfigured status
 							try {
-								const result = await client.getProviders.fetch({ input: {} });
+								// Use vanilla client call
+								const result = await client.getProviders({ input: {} }) as Record<string, ProviderInfo>;
 								const metadata: Record<
 									string,
 									{ name: string; description: string; isConfigured: boolean }

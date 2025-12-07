@@ -124,14 +124,14 @@ export class FileNavigationModeHandler extends BaseInputHandler {
 				// ARCHITECTURE: Server reads file and counts tokens
 				(async () => {
 					try {
-						// Use client from deps (passed from React hook useLensClient)
+						// Use vanilla client call
 						const client = this.deps.client;
-						const result = await client.countFileTokens.fetch({
+						const result = await client.countFileTokens({
 							input: {
 								filePath: selected.path,
 								model: currentSession?.model,
 							},
-						});
+						}) as { success: boolean; count?: number; error?: string };
 						if (result.success && result.count !== undefined) {
 							setAttachmentTokenCount(selected.path, result.count);
 						} else {

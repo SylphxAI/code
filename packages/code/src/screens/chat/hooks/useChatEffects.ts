@@ -2,12 +2,11 @@
  * Consolidated Chat Effects Hook
  * All useEffect logic and side effects for Chat component
  *
- * ARCHITECTURE: Live Query Pattern
- * =================================
- * Session streaming is handled via Lens Live Query:
- * - useCurrentSession uses useQuery(client.getSession({ id }))
- * - Server uses emit API to push updates
- * - NO event callbacks needed - data updates automatically
+ * ARCHITECTURE: lens-react v5 API
+ * ===============================
+ * - await client.xxx({ input }) → Vanilla JS Promise (commands, callbacks)
+ * - client.xxx.useQuery({ input }) → React hook (components)
+ * - client.xxx.useMutation() → React hook (when you need loading/error state)
  *
  * This file only handles:
  * - Command/autocomplete setup
@@ -33,12 +32,6 @@ import type { ChatState } from "./useChatState.js";
 export function useChatEffects(state: ChatState) {
 	const { saveConfig: saveConfigAction } = useAIConfigActions();
 	const client = useLensClient();
-
-	// Mutation hooks - call at top level to get mutate functions
-	const { mutate: addSystemMessageMutate } = client.addSystemMessage({});
-	const { mutate: updateSessionMutate } = client.updateSession({});
-	const { mutate: triggerStreamMutate } = client.triggerStream({});
-	const { mutate: abortStreamMutate } = client.abortStream({});
 
 	// Wrapper for saveConfig to match expected signature (Promise<void> instead of Promise<boolean>)
 	const saveConfig = useCallback(async (config: any) => {
@@ -71,8 +64,8 @@ export function useChatEffects(state: ChatState) {
 				}).join("\n");
 
 		try {
-			// Use addSystemMessage mutation to persist the message
-			const result = await addSystemMessageMutate({
+			// Use vanilla client call to persist the message
+			const result = await client.addSystemMessage({
 				input: {
 					sessionId: params.sessionId,
 					role: params.role,
@@ -97,23 +90,22 @@ export function useChatEffects(state: ChatState) {
 			console.error("[addMessage] Failed to add message:", err);
 			return params.sessionId || "";
 		}
-	}, [addSystemMessageMutate]);
+	}, [client]);
 
 	const updateSessionTitle = useCallback((sessionId: string, title: string) => {
-		// Update session title via client mutation
-		updateSessionMutate({
+		// Update session title via vanilla client call
+		client.updateSession({
 			input: { id: sessionId, title }
 		}).catch(err => {
 			console.error("Failed to update session title:", err);
 		});
-	}, [updateSessionMutate]);
+	}, [client]);
 
 	// Create sendUserMessageToAI function
 	// NOTE: Streaming state comes from server via emit API, not client-side setters
 	const sendUserMessageToAI = useCallback(
 		createSubscriptionSendUserMessageToAI({
-			triggerStreamMutate,
-			abortStreamMutate,
+			client,
 			aiConfig: state.aiConfig,
 			currentSessionId: state.currentSessionId,
 			selectedProvider: state.selectedProvider,
@@ -124,11 +116,9 @@ export function useChatEffects(state: ChatState) {
 			notificationSettings: DEFAULT_NOTIFICATION_SETTINGS,
 			abortControllerRef: state.streamingState.abortControllerRef,
 			streamingMessageIdRef: state.streamingState.streamingMessageIdRef,
-			// NOTE: No setters passed - streaming state is server-driven via emit API
 		}),
 		[
-			triggerStreamMutate,
-			abortStreamMutate,
+			client,
 			state.aiConfig,
 			state.currentSessionId,
 			state.selectedProvider,
@@ -158,6 +148,7 @@ export function useChatEffects(state: ChatState) {
 	);
 
 	// Command context factory (depends on sendUserMessageToAI)
+	// Commands use vanilla client calls: await client.xxx({ input })
 	const createCommandContextForArgs = useCallback(
 		(args: string[]) =>
 			createCommandContext(args, {

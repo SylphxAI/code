@@ -2,19 +2,10 @@
  * useCurrentSession Hook
  * Provides current session data using lens-react hooks
  *
- * ARCHITECTURE: lens-react hooks pattern
- * ======================================
- * Uses client.getSession({ input, skip }) - the lens-react hook.
- * The hook internally uses useState, useEffect, and useReducer
- * to manage React state, so we don't need manual state or polling.
- *
- * The lens-react hook:
- * - client.xxx({ input }) → React hook with { data, loading, error, refetch }
- * - client.xxx.fetch({ input }) → Promise for SSR/utilities
- *
- * Real-time updates come from:
- * - subscribeToSession subscription for streaming events
- * - refetch() when needed
+ * ARCHITECTURE: lens-react v5 API
+ * ===============================
+ * - client.xxx.useQuery({ input }) → React hook { data, loading, error, refetch }
+ * - await client.xxx({ input }) → Vanilla JS Promise (for commands/utilities)
  */
 
 import { useLensClient, type Session } from "@sylphx/code-client";
@@ -27,9 +18,8 @@ export function useCurrentSession() {
 	// Skip query when no valid session ID
 	const skip = !currentSessionId || currentSessionId === "temp-session";
 
-	// Use lens-react hook directly - no manual state or polling needed!
-	// The hook handles all React state management internally
-	const { data: session, loading, error, refetch } = client.getSession({
+	// Use lens-react query hook
+	const { data: session, loading, error, refetch } = client.getSession.useQuery({
 		input: { id: currentSessionId || "" },
 		skip,
 	}) as {

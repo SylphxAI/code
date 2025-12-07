@@ -17,7 +17,7 @@ import { useLensClient, type Provider } from "@sylphx/code-client";
 export function useProviders() {
 	const client = useLensClient();
 
-	const { data, loading, error, refetch } = client.getProviders({}) as {
+	const { data, loading, error, refetch } = client.getProviders.useQuery({}) as {
 		data: Provider[] | null;
 		loading: boolean;
 		error: Error | null;

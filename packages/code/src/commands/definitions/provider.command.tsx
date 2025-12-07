@@ -83,9 +83,6 @@ export const providerCommand: Command = {
 		// Get current AI config
 		const aiConfig = getAIConfig();
 
-		// Use client from context (passed from React hook)
-		const client = context.client;
-
 		// Handle command-line configuration (set/get/show)
 		if (action === "configure" && providerId && subaction) {
 
@@ -137,8 +134,8 @@ export const providerCommand: Command = {
 				}
 
 				// Check if field is secret - use dedicated endpoint
-				// Lens flat namespace: client.getProviderSchema.fetch({ input })
-				const providerSchemaResult = await client.getProviderSchema.fetch({
+				// Use vanilla client call
+				const providerSchemaResult = await context.client.getProviderSchema({
 					input: { providerId: providerId as any },
 				}) as { success: boolean; error?: string; schema: Array<{ key: string; secret?: boolean }> };
 
@@ -153,8 +150,8 @@ export const providerCommand: Command = {
 
 				if (field.secret) {
 					// Secret field - use dedicated setProviderSecret endpoint
-					// Lens flat namespace: client.setProviderSecret.fetch({ input })
-					const result = await client.setProviderSecret.fetch({
+					// Use vanilla client call
+					const result = await context.client.setProviderSecret({
 						input: {
 							providerId,
 							fieldName: key,
@@ -215,7 +212,7 @@ export const providerCommand: Command = {
 				// Update current session's provider + model (if exists)
 				const currentSessionId = getCurrentSessionId();
 				if (currentSessionId && providerDefaultModel) {
-					await client.updateSession.fetch({
+					await context.client.updateSession({
 						input: {
 							id: currentSessionId,
 							provider: providerId,
@@ -266,8 +263,8 @@ export const providerCommand: Command = {
 					if (!providerDefaultModel) {
 						try {
 							context.addLog(`Loading models from ${providerId}...`);
-							// Use client from context (passed from React hook)
-							const result = await client.fetchModels.fetch({ input: { providerId: providerId as any } }) as { success: boolean; models?: Array<{ id: string }>; error?: string };
+							// Use vanilla client call
+							const result = await context.client.fetchModels({ input: { providerId: providerId as any } }) as { success: boolean; models?: Array<{ id: string }>; error?: string };
 
 							if (result.success && result.models && result.models.length > 0) {
 								const firstModel = result.models[0];
@@ -315,7 +312,7 @@ export const providerCommand: Command = {
 					// Update current session's provider + model (if exists)
 					const currentSessionId = getCurrentSessionId();
 					if (currentSessionId && providerDefaultModel) {
-						await client.updateSession.fetch({
+						await context.client.updateSession({
 							input: {
 								id: currentSessionId,
 								provider: providerId,
@@ -325,11 +322,9 @@ export const providerCommand: Command = {
 					}
 				}}
 				onConfigureProvider={async (providerId, config) => {
-					// Use client from context (passed from React hook)
-
 					// Get provider schema to separate secrets from non-secrets
-					// Lens flat namespace: client.getProviderSchema.fetch({ input })
-					const schemaResult = await client.getProviderSchema.fetch({
+					// Use vanilla client call
+					const schemaResult = await context.client.getProviderSchema({
 						input: { providerId: providerId as any },
 					}) as { success: boolean; error?: string; schema: Array<{ key: string; secret?: boolean }> };
 
@@ -355,9 +350,9 @@ export const providerCommand: Command = {
 					}
 
 					// Save secrets using dedicated endpoint
-					// Lens flat namespace: client.setProviderSecret.fetch({ input })
+					// Use vanilla client call
 					for (const [fieldName, value] of Object.entries(secrets)) {
-						const result = await client.setProviderSecret.fetch({
+						const result = await context.client.setProviderSecret({
 							input: {
 								providerId,
 								fieldName,
