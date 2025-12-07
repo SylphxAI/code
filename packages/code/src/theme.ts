@@ -50,9 +50,43 @@ const darkColors: ThemeColors = {
 	codeBackground: "#2d2d2d",
 };
 
+const lightColors: ThemeColors = {
+	text: "#000000",
+	textDim: "#666666",
+	textMuted: "#999999",
+	background: "#ffffff",
+	backgroundAlt: "#f5f5f5",
+	border: "#cccccc",
+	borderSubtle: "#dddddd",
+	primary: "blue",
+	secondary: "purple",
+	success: "green",
+	warning: "orange",
+	error: "red",
+	info: "blue",
+	user: "blue",
+	assistant: "green",
+	system: "orange",
+	link: "blue",
+	linkHover: "#0000ff",
+	code: "#1a1a1a",
+	codeBackground: "#f0f0f0",
+};
+
+export interface Theme {
+	id: string;
+	name: string;
+	colors: ThemeColors;
+}
+
+const themes: Theme[] = [
+	{ id: "dark", name: "Dark", colors: darkColors },
+	{ id: "light", name: "Light", colors: lightColors },
+];
+
 // Module state
+let _currentThemeId = "dark";
 let _colors = darkColors;
-let _isDark = true;
 const _listeners = new Set<() => void>();
 
 function notify() {
@@ -65,14 +99,37 @@ export function getColors(): ThemeColors {
 }
 
 export function isDarkTheme(): boolean {
-	return _isDark;
+	return _currentThemeId === "dark";
+}
+
+export function getTheme(): Theme {
+	return themes.find((t) => t.id === _currentThemeId) || themes[0];
+}
+
+export function getAvailableThemes(): Theme[] {
+	return themes;
 }
 
 // Setters
-export function setTheme(isDark: boolean) {
-	_isDark = isDark;
-	// Could add light theme colors here
+export function setTheme(themeIdOrBoolean: string | boolean): boolean {
+	let themeId: string;
+
+	// Support both old boolean API and new string ID API
+	if (typeof themeIdOrBoolean === "boolean") {
+		themeId = themeIdOrBoolean ? "dark" : "light";
+	} else {
+		themeId = themeIdOrBoolean;
+	}
+
+	const theme = themes.find((t) => t.id === themeId);
+	if (!theme) {
+		return false;
+	}
+
+	_currentThemeId = theme.id;
+	_colors = theme.colors;
 	notify();
+	return true;
 }
 
 // React hook

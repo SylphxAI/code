@@ -4,6 +4,7 @@
  */
 
 import type { Command } from "../types.js";
+import { getAvailableThemes, getTheme, setTheme } from "../../theme.js";
 
 export const themeCommand: Command = {
 	id: "theme",
@@ -16,7 +17,6 @@ export const themeCommand: Command = {
 			description: "Theme to switch to",
 			required: false,
 			loadOptions: async () => {
-				const { getAvailableThemes, getTheme } = await import("@sylphx/code-client");
 				const themes = getAvailableThemes();
 				const current = getTheme();
 				return themes.map((t) => ({
@@ -29,7 +29,6 @@ export const themeCommand: Command = {
 		},
 	],
 	execute: async (context) => {
-		const { setTheme, getAvailableThemes, getTheme } = await import("@sylphx/code-client");
 
 		// If arg provided, switch directly
 		if (context.args.length > 0) {
