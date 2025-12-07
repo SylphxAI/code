@@ -13,7 +13,7 @@
  * - Polling stops when streamingStatus becomes "idle"
  */
 
-import type { LensClient } from "@lens/client";
+import type { LensClient } from "@sylphx/lens-client";
 import { parseUserInput, setCurrentSessionId, setStreamingExpected } from "@sylphx/code-client";
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";

@@ -3,7 +3,7 @@
  * Fetches models from provider API for current provider
  */
 
-import type { LensClient } from "@lens/client";
+import type { LensClient } from "@sylphx/lens-client";
 import { aiConfig, currentSession } from "@sylphx/code-client";
 
 export interface CompletionOption {

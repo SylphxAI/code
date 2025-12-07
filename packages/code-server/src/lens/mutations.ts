@@ -13,7 +13,7 @@
  * 4. Handles tool calls, errors, abort
  */
 
-import { mutation, tempId } from "@lens/core";
+import { mutation, tempId } from "@sylphx/lens-core";
 import { z } from "zod";
 import { Session, Message, Step, Part, Todo } from "./entities.js";
 import type { LensContext } from "./context.js";

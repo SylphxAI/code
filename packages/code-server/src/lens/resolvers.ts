@@ -21,7 +21,7 @@
  */
 
 import type { LensDB } from "./context.js";
-import type { Resolvers } from "@lens/core";
+import type { Resolvers } from "@sylphx/lens-core";
 
 /**
  * Create entity resolvers with db access via closure

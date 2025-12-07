@@ -10,7 +10,7 @@
  * - StepUsage (1:1) → Step
  */
 
-import { entity, t } from "@lens/core";
+import { entity, t } from "@sylphx/lens-core";
 
 // =============================================================================
 // Session Entity

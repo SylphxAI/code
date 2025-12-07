@@ -3,7 +3,7 @@
  * Refetches session from server and updates client state
  */
 
-import type { LensClient } from "@lens/client";
+import type { LensClient } from "@sylphx/lens-client";
 import { updateCurrentSession } from "@sylphx/code-client";
 
 /**

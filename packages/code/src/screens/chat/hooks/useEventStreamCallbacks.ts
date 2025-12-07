@@ -5,7 +5,7 @@
  * Extracted from Chat.tsx to improve modularity and testability.
  */
 
-import type { LensClient } from "@lens/client";
+import type { LensClient } from "@sylphx/lens-client";
 import { getCurrentSessionId } from "@sylphx/code-client";
 import type { AIConfig } from "@sylphx/code-core";
 import type React from "react";

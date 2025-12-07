@@ -7,7 +7,7 @@
  * Streaming queries use async generators - each yield pushes to client.
  */
 
-import { query } from "@lens/core";
+import { query } from "@sylphx/lens-core";
 import { z } from "zod";
 import { Session, Message, Step, Part, Todo } from "./entities.js";
 import type { LensContext } from "./context.js";

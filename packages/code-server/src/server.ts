@@ -23,7 +23,7 @@ import { type AppRouter, appRouter } from "./trpc/routers/index.js";
 import { initializeLensAPI } from "./lens/index.js";
 import { createLensHTTPHandler } from "./lens/http-handler.js";
 import { createLensServer, type AppRouter as LensAppRouter } from "./lens/server.js";
-import type { LensServer } from "@lens/server";
+import type { LensServer } from "@sylphx/lens-server";
 
 export interface ServerConfig {
 	/**

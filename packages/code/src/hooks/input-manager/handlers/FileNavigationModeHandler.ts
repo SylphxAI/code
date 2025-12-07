@@ -5,7 +5,7 @@
  * Migrated from useFileNavigation hook
  */
 
-import type { LensClient } from "@lens/client";
+import type { LensClient } from "@sylphx/lens-client";
 import type { Key } from "ink";
 import type React from "react";
 import { InputMode, type InputModeContext } from "../types.js";

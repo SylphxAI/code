@@ -3,7 +3,7 @@
  * Shared types for command system
  */
 
-import type { LensClient } from "@lens/client";
+import type { LensClient } from "@sylphx/lens-client";
 import type { AIConfig } from "@sylphx/code-core";
 import type { ReactNode } from "react";
 

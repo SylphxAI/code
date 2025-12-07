@@ -3,7 +3,7 @@
  * Creates CommandContext objects for command execution
  */
 
-import type { LensClient } from "@lens/client";
+import type { LensClient } from "@sylphx/lens-client";
 import type { AIConfig, ProviderId } from "@sylphx/code-core";
 import type { ReactNode } from "react";
 import type { Command, CommandContext, WaitForInputOptions } from "../../../commands/types.js";

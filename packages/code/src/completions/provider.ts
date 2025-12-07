@@ -3,7 +3,7 @@
  * Lazy loading from zen signals, no extra cache needed
  */
 
-import type { LensClient } from "@lens/client";
+import type { LensClient } from "@sylphx/lens-client";
 import { aiConfig, setAIConfig } from "@sylphx/code-client";
 import type { AIConfig, ProviderId } from "@sylphx/code-core";
 

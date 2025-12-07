@@ -11,7 +11,7 @@
  * Exports AppRouter type for client type inference.
  */
 
-import { createApp } from "@lens/server";
+import { createApp } from "@sylphx/lens-server";
 import type { AppContext } from "../context.js";
 
 // Schema
