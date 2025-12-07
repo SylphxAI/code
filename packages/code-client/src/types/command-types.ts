@@ -3,7 +3,9 @@
  * Shared types for command system (used by hooks)
  */
 
+import type { ReactNode } from "react";
 import type { AIConfig, ProviderId, Session } from "@sylphx/code-core";
+import type { CodeClient } from "../lens.js";
 
 /**
  * Option for selection
@@ -48,6 +50,7 @@ export type WaitForInputOptions =
 	  }
 	| {
 			type: "selection";
+			prompt?: string;
 			questions: Question[];
 	  };
 
@@ -56,6 +59,7 @@ export type WaitForInputOptions =
  */
 export interface CommandContext {
 	args: string[];
+	client: CodeClient;
 	sendMessage: (content: string) => Promise<void>;
 	triggerAIResponse: (
 		message: string,
@@ -76,6 +80,8 @@ export interface CommandContext {
 	createSession: (provider: ProviderId, model: string) => Promise<string>;
 	setCurrentSession: (sessionId: string | null) => Promise<void>;
 	getCurrentSessionId: () => string | null;
+	setInputComponent: (component: ReactNode | null, title?: string) => void;
+	addLog: (message: string) => void;
 }
 
 /**
