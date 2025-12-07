@@ -55,58 +55,42 @@ export function useChatEffects(state: ChatState) {
 		provider?: string;
 		model?: string;
 	}): Promise<string> => {
-		let sessionId = params.sessionId;
-
-		// Create session if needed
-		if (!sessionId) {
-			try {
-				const result = await client.createSession.fetch({
-					input: {
-						title: "New Chat",
-						provider: params.provider,
-						model: params.model,
-					}
-				});
-				// Handle both { data: { id } } and { id } response shapes
-				const session = (result as any)?.data || result;
-				sessionId = session?.id;
-				if (sessionId) {
-					setCurrentSessionId(sessionId);
-				}
-			} catch (err) {
-				console.error("[addMessage] Failed to create session:", err);
-				return "";
-			}
-		}
-
-		if (!sessionId) {
-			console.error("[addMessage] No session ID available");
-			return "";
-		}
-
-		// Convert content to array format expected by sendMessage
-		const contentArray = typeof params.content === "string"
-			? [{ type: "text" as const, content: params.content }]
+		// Convert content to string for addSystemMessage
+		const contentStr = typeof params.content === "string"
+			? params.content
 			: params.content.map(part => {
-					if (typeof part === "string") {
-						return { type: "text" as const, content: part };
-					}
-					// Assume it's already in the right format
-					return part as { type: string; content?: string; [key: string]: unknown };
-				});
+					if (typeof part === "string") return part;
+					if (part.type === "text" && "content" in part) return part.content;
+					return JSON.stringify(part);
+				}).join("\n");
 
-		// For assistant messages (like error messages), we use sendMessage
-		// which creates both user and assistant message placeholders
-		// But for error messages, we only want to show the error, not trigger AI
-		// So we'll use a simpler approach: just return the session ID
-		// The actual error display will be handled elsewhere
-		// TODO: Add a simpler "addSystemMessage" mutation for non-AI messages
+		try {
+			// Use addSystemMessage mutation to persist the message
+			const result = await client.addSystemMessage.fetch({
+				input: {
+					sessionId: params.sessionId,
+					role: params.role,
+					content: contentStr,
+					provider: params.provider,
+					model: params.model,
+				}
+			});
 
-		// For now, just log and return the session ID
-		// The UI should show errors in a different way (not as persisted messages)
-		console.log(`[addMessage] ${params.role}: ${typeof params.content === 'string' ? params.content.substring(0, 100) : 'complex content'}`);
+			// Extract sessionId from response
+			const data = (result as any)?.data || result;
+			const sessionId = data?.sessionId;
 
-		return sessionId;
+			if (sessionId && sessionId !== params.sessionId) {
+				// New session was created, update UI
+				setCurrentSessionId(sessionId);
+			}
+
+			console.log(`[addMessage] ${params.role}: ${contentStr.substring(0, 100)}`);
+			return sessionId || "";
+		} catch (err) {
+			console.error("[addMessage] Failed to add message:", err);
+			return params.sessionId || "";
+		}
 	}, [client]);
 
 	const updateSessionTitle = useCallback((sessionId: string, title: string) => {

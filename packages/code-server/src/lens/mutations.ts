@@ -706,6 +706,112 @@ export const answerAsk = mutation()
 	});
 
 // =============================================================================
+// System Message Mutation (for error/info messages without AI)
+// =============================================================================
+
+/**
+ * Add a message without triggering AI
+ *
+ * Used for error messages, system info, etc.
+ * Creates message in DB and updates session.
+ */
+export const addSystemMessage = mutation()
+	.input(
+		z.object({
+			sessionId: z.string().nullable().optional(),
+			role: z.enum(["user", "assistant", "system"]),
+			content: z.string(),
+			provider: z.string().optional(),
+			model: z.string().optional(),
+		}),
+	)
+	.returns(
+		z.object({
+			sessionId: z.string(),
+			messageId: z.string(),
+		}),
+	)
+	.resolve(async ({ input, ctx }: {
+		input: {
+			sessionId?: string | null;
+			role: "user" | "assistant" | "system";
+			content: string;
+			provider?: string;
+			model?: string;
+		};
+		ctx: LensContext;
+	}) => {
+		let sessionId = input.sessionId;
+
+		// Create session if needed
+		if (!sessionId) {
+			const session = await ctx.db.session.create({
+				data: {
+					id: crypto.randomUUID(),
+					title: "New Chat",
+					agentId: "coder",
+					provider: input.provider,
+					model: input.model,
+					enabledRuleIds: [],
+					nextTodoId: 1,
+					createdAt: Date.now(),
+					updatedAt: Date.now(),
+				},
+			});
+			sessionId = session.id;
+		}
+
+		// Get message count for ordering
+		const existingMessages = await ctx.db.message.findMany({
+			where: { sessionId },
+		});
+		const nextOrdering = existingMessages.length;
+
+		// Create message
+		const messageId = crypto.randomUUID();
+		await ctx.db.message.create({
+			data: {
+				id: messageId,
+				sessionId,
+				role: input.role,
+				timestamp: Date.now(),
+				ordering: nextOrdering,
+				status: "completed",
+			},
+		});
+
+		// Create step
+		const stepId = crypto.randomUUID();
+		await ctx.db.step.create({
+			data: {
+				id: stepId,
+				messageId,
+				stepIndex: 0,
+				status: "completed",
+			},
+		});
+
+		// Create text part
+		await ctx.db.part.create({
+			data: {
+				id: crypto.randomUUID(),
+				stepId,
+				ordering: 0,
+				type: "text",
+				content: { type: "text", content: input.content },
+			},
+		});
+
+		// Update session timestamp
+		await ctx.db.session.update({
+			where: { id: sessionId },
+			data: { updatedAt: Date.now() },
+		});
+
+		return { sessionId, messageId };
+	});
+
+// =============================================================================
 // Streaming Mutations (tRPC compatibility)
 // =============================================================================
 
