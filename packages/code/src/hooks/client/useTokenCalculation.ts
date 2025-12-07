@@ -9,10 +9,18 @@
  * - Multi-client sync: all clients see same tokens (from server)
  */
 
-import type { Session } from "@sylphx/code-core";
 import { useMemo } from "react";
 
-export function useTokenCalculation(currentSession: Session | null): number {
+/**
+ * Session-like object that may have totalTokens
+ * Accepts both lens Session and code-core Session types
+ */
+interface SessionLike {
+	id: string;
+	totalTokens?: number;
+}
+
+export function useTokenCalculation(currentSession: SessionLike | null | undefined): number {
 	return useMemo(() => {
 		if (!currentSession) {
 			return 0;

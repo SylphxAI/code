@@ -2,33 +2,27 @@
  * StatusIndicator Component
  * Displays streaming and compacting status with spinner and contextual text
  *
- * Architecture: Hybrid optimistic + backend-controlled status indicator
- * - Optimistic: Local status set immediately on user message send
- * - Backend: Overrides with real-time updates (tool tracking, todos, tokens)
- * - Duration: Local calculation until backend takes over
- * - Multi-client sync: Backend events keep all clients in sync
+ * Architecture: Local UI state for streaming status
+ * - Uses useSessionStatus() from ui-state.ts
+ * - Status is set by streaming orchestration code
+ * - Duration is tracked locally with smooth updates
  */
 
-import { useIsCompacting } from "../../../ui-state.js";
+import { useIsCompacting, useSessionStatus } from "../../../ui-state.js";
 import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
 import Spinner from "../../../components/Spinner.js";
-import { useCurrentSession } from "../../../hooks/client/useCurrentSession.js";
 import { useThemeColors } from "../../../theme.js";
 
 export function StatusIndicator() {
 	const isCompacting = useIsCompacting();
-	const { currentSession } = useCurrentSession();
+	const sessionStatus = useSessionStatus();
 	const colors = useThemeColors();
 
-	// Local duration tracking for optimistic updates
-	// Backend will override this with accurate duration from its timer
+	// Local duration tracking for smooth updates
 	const [localDuration, setLocalDuration] = useState(0);
-	const sessionStatus = currentSession?.status;
 
-	// Update local duration every second when status is active
-	// This provides smooth duration updates for optimistic status
-	// Backend will override with its own duration when events arrive
+	// Update local duration every 100ms when status is active
 	useEffect(() => {
 		if (!sessionStatus?.isActive) {
 			setLocalDuration(0);

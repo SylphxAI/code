@@ -99,6 +99,30 @@ export const getStreamingExpected = streamingExpectedState.get;
 export const useStreamingExpected = () => useStore(streamingExpectedState);
 
 // ============================================================================
+// Session Status (for StatusIndicator)
+// ============================================================================
+
+export interface SessionStatusState {
+	isActive: boolean;
+	text: string;
+	duration: number;
+	tokenUsage: number;
+}
+
+const sessionStatusState = createState<SessionStatusState | null>(null);
+export const setSessionStatus = sessionStatusState.set;
+export const getSessionStatus = sessionStatusState.get;
+export const useSessionStatus = () => useStore(sessionStatusState);
+
+// Helper to update status
+export const updateSessionStatus = (partial: Partial<SessionStatusState>) => {
+	const current = sessionStatusState.get() || { isActive: false, text: "", duration: 0, tokenUsage: 0 };
+	sessionStatusState.set({ ...current, ...partial });
+};
+
+export const clearSessionStatus = () => sessionStatusState.set(null);
+
+// ============================================================================
 // Compacting State
 // ============================================================================
 
@@ -123,3 +147,17 @@ export const addDebugLog = (log: string) => {
 export const clearDebugLogs = () => debugLogsState.set([]);
 export const getDebugLogs = debugLogsState.get;
 export const useDebugLogs = () => useStore(debugLogsState);
+
+// ============================================================================
+// Display Settings
+// ============================================================================
+
+const hideMessageTitlesState = createState(false);
+export const setHideMessageTitles = hideMessageTitlesState.set;
+export const getHideMessageTitles = hideMessageTitlesState.get;
+export const useHideMessageTitles = () => useStore(hideMessageTitlesState);
+
+const hideMessageUsageState = createState(false);
+export const setHideMessageUsage = hideMessageUsageState.set;
+export const getHideMessageUsage = hideMessageUsageState.get;
+export const useHideMessageUsage = () => useStore(hideMessageUsageState);

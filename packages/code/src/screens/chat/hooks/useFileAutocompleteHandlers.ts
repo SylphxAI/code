@@ -5,7 +5,7 @@
  * Extracted from Chat.tsx to improve modularity and testability.
  */
 
-import type { FilteredFile } from "@sylphx/code-client";
+import type { FilteredFile } from "../../../hooks/input-manager/types.js";
 import type React from "react";
 import { useCallback } from "react";
 

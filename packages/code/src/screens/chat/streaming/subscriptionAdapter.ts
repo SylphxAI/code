@@ -13,8 +13,7 @@
  * - Polling stops when streamingStatus becomes "idle"
  */
 
-import type { LensClient } from "@sylphx/lens-client";
-import { parseUserInput } from "@sylphx/code-client";
+import { parseUserInput, type CodeClient } from "@sylphx/code-client";
 import { setCurrentSessionId } from "../../../session-state.js";
 import { setStreamingExpected } from "../../../ui-state.js";
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from "@sylphx/code-core";
@@ -32,7 +31,7 @@ export type TriggerAIOptions = {};
  * Parameters for subscription adapter
  */
 export interface SubscriptionAdapterParams {
-	client: LensClient<any, any>;
+	client: CodeClient;
 	aiConfig: AIConfig | null;
 	currentSessionId: string | null;
 	selectedProvider: string | null;

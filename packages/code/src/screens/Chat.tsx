@@ -119,7 +119,7 @@ export default function Chat(props: ChatProps) {
 						currentlyLoading={state.commandState.currentlyLoading}
 						loadError={state.commandState.loadError}
 						cachedOptions={state.commandState.cachedOptions}
-						hintText={state.hintText}
+						hintText={state.hintText || ""}
 						validTags={new Set(state.validTags)}
 						currentSessionId={state.currentSessionId}
 						setInput={state.inputState.setInput}
