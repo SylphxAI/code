@@ -5,7 +5,7 @@
 
 import { useAIConfigActions } from "./hooks/client/useAIConfig.js";
 import { useSessionPersistence } from "./hooks/client/useSessionPersistence.js";
-import { useTRPCClient } from "@sylphx/code-client";
+import { useLensClient } from "@sylphx/code-client";
 import {
 	setError,
 	setCurrentScreen,
@@ -32,7 +32,7 @@ function AppContent() {
 	const currentScreen = useCurrentScreen();
 	const isLoading = useIsLoading();
 	const error = useUIError();
-	const trpc = useTRPCClient();
+	const client = useLensClient();
 	const commandPaletteCommand = useCommandPaletteCommand();
 	const selectedBashId = useSelectedBashId();
 
@@ -49,15 +49,15 @@ function AppContent() {
 		(input, key) => {
 			// Ctrl+B: Demote active bash to background
 			if (key.ctrl && input === "b") {
-				trpc.bash.getActive
-					.query()
-					.then((active) => {
+				client.getActiveBash
+					.fetch({})
+					.then((active: { id: string } | null) => {
 						if (active) {
-							return trpc.bash.demote.mutate({ bashId: active.id });
+							return client.demoteBash.fetch({ input: { bashId: active.id } });
 						}
 					})
-					.catch((error) => {
-						console.error("[App] Failed to demote active bash:", error);
+					.catch((err: Error) => {
+						console.error("[App] Failed to demote active bash:", err);
 					});
 				return;
 			}

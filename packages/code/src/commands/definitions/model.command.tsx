@@ -85,19 +85,21 @@ export const modelCommand: Command = {
 			await context.saveConfig(newConfig);
 
 			// Update current session's model (preserve history)
-			const currentSessionId = currentSessionIdSignal.value;
+			const currentSessionId = getCurrentSessionId();
 			if (currentSessionId) {
-				await updateSessionModel(currentSessionId, modelId);
+				await context.client.updateSession.fetch({
+					input: { id: currentSessionId, model: modelId },
+				});
 			}
 
 			return `Switched to model: ${modelId} for ${provider}`;
 		}
 
 		// No args - show model selection UI
-		// Get current session's provider or selected provider from zen signals
-		const currentSession = currentSessionSignal.value;
-		const selectedProvider = selectedProviderSignal.value;
-		const aiConfig = aiConfigSignal.value;
+		// Get current session's provider or selected provider from local state
+		const currentSession = getCurrentSession();
+		const selectedProvider = getSelectedProvider();
+		const aiConfig = getAIConfig();
 		const currentProviderId =
 			currentSession?.provider || selectedProvider || aiConfig?.defaultProvider;
 
@@ -126,13 +128,11 @@ export const modelCommand: Command = {
 				onSelect={async (modelId) => {
 					const provider = currentProviderId;
 
-					// Get fresh zen signal values
-					const { get } = await import("@sylphx/code-client");
-					const { aiConfig, currentSessionId, setAIConfig, updateSessionModel } = await import(
-						"@sylphx/code-client"
-					);
-					const freshAIConfig = aiConfig.value;
-					const freshCurrentSessionId = currentSessionId.value;
+					// Get fresh state values
+					const { getCurrentSessionId } = await import("../../session-state.js");
+					const { getAIConfig, setAIConfig } = await import("../../ai-config-state.js");
+					const freshAIConfig = getAIConfig();
+					const freshCurrentSessionId = getCurrentSessionId();
 
 					// Update model and save to provider config
 					const newConfig = {
@@ -153,7 +153,9 @@ export const modelCommand: Command = {
 
 					// Update current session's model (preserve history)
 					if (freshCurrentSessionId) {
-						await updateSessionModel(freshCurrentSessionId, modelId);
+						await context.client.updateSession.fetch({
+							input: { id: freshCurrentSessionId, model: modelId },
+						});
 					}
 
 					context.setInputComponent(null);

@@ -6,6 +6,8 @@
 import { getActionCompletions, getProviderCompletions } from "../../completions/provider.js";
 import { ProviderManagement } from "../../screens/chat/components/ProviderManagementV2.js";
 import type { Command } from "../types.js";
+import { getAIConfig, setAIConfig } from "../../ai-config-state.js";
+import { getCurrentSessionId, setSelectedModel } from "../../session-state.js";
 
 export const providerCommand: Command = {
 	id: "provider",
@@ -78,10 +80,8 @@ export const providerCommand: Command = {
 			return;
 		}
 
-		// Get zen signals
-		const { get } = await import("@sylphx/code-client");
-		const { aiConfig: aiConfigSignal, updateProvider, setAIConfig } = await import("@sylphx/code-client");
-		const aiConfig = aiConfigSignal.value;
+		// Get current AI config
+		const aiConfig = getAIConfig();
 
 		// Use client from context (passed from React hook)
 		const client = context.client;
@@ -177,7 +177,6 @@ export const providerCommand: Command = {
 					};
 
 					// Update provider config (without secrets - they're already on disk)
-					updateProvider(providerId as any, updatedProviderConfig);
 					const updatedConfig = {
 						...aiConfig!,
 						providers: {
@@ -201,7 +200,6 @@ export const providerCommand: Command = {
 			if (action === "use") {
 				// UNIFIED ARCHITECTURE: Update both global AND session (if exists)
 				// Direct provider switch
-				updateProvider(providerId as any, {});
 				const updatedConfig = {
 					...aiConfig,
 					defaultProvider: providerId,
@@ -215,10 +213,15 @@ export const providerCommand: Command = {
 				const providerDefaultModel = providerConfig.defaultModel as string;
 
 				// Update current session's provider + model (if exists)
-				const { currentSessionId: currentSessionIdSignal, updateSessionProvider } = await import("@sylphx/code-client");
-				const currentSessionId = currentSessionIdSignal.value;
+				const currentSessionId = getCurrentSessionId();
 				if (currentSessionId && providerDefaultModel) {
-					await updateSessionProvider(currentSessionId, providerId as any, providerDefaultModel);
+					await client.updateSession.fetch({
+						input: {
+							id: currentSessionId,
+							provider: providerId,
+							model: providerDefaultModel,
+						},
+					});
 				}
 
 				context.addLog(
@@ -243,20 +246,10 @@ export const providerCommand: Command = {
 				}}
 				onSelectProvider={async (providerId) => {
 					// UNIFIED ARCHITECTURE: Update both global AND session (if exists)
-					// Get fresh zen signal values
-					const { get } = await import("@sylphx/code-client");
-					const {
-						aiConfig,
-						currentSessionId: currentSessionIdSignal,
-						updateProvider,
-						setAIConfig,
-						setSelectedModel,
-						updateSessionProvider,
-					} = await import("@sylphx/code-client");
-					const freshAiConfig = aiConfig.value;
+					// Get fresh config
+					const freshAiConfig = getAIConfig();
 
-					// Update zen signal state
-					updateProvider(providerId as any, {});
+					// Update config state
 					const updatedConfig = {
 						...freshAiConfig,
 						defaultProvider: providerId,
@@ -318,9 +311,15 @@ export const providerCommand: Command = {
 					}
 
 					// Update current session's provider + model (if exists)
-					const currentSessionId = currentSessionIdSignal.value;
+					const currentSessionId = getCurrentSessionId();
 					if (currentSessionId && providerDefaultModel) {
-						await updateSessionProvider(currentSessionId, providerId as any, providerDefaultModel);
+						await client.updateSession.fetch({
+							input: {
+								id: currentSessionId,
+								provider: providerId,
+								model: providerDefaultModel,
+							},
+						});
 					}
 				}}
 				onConfigureProvider={async (providerId, config) => {
@@ -370,9 +369,7 @@ export const providerCommand: Command = {
 					}
 
 					// Save non-secrets using regular config save
-					const { get } = await import("@sylphx/code-client");
-					const { aiConfig, setAIConfig } = await import("@sylphx/code-client");
-					const currentConfig = aiConfig.value;
+					const currentConfig = getAIConfig();
 
 					const updatedConfig = {
 						...currentConfig!,

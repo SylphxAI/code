@@ -32,13 +32,9 @@ export const notificationsCommand: Command = {
 	],
 
 	execute: async (context) => {
-		// NOTE: Notification settings not fully implemented yet
-		// Tracked in: .sylphx/technical-debt.md (Medium Priority #5)
-		// Required: Add notificationSettings to store and CommandContext
-		return "⚠️ Notification settings are not yet implemented. Coming soon!";
-
 		// Helper to format settings display
 		const formatSettings = () => {
+			const notificationSettings = getNotificationSettings();
 			return `🔔 Notification Settings:
   OS Notifications: ${notificationSettings.osNotifications ? "✅ Enabled" : "❌ Disabled"}
   Terminal Notifications: ${notificationSettings.terminalNotifications ? "✅ Enabled" : "❌ Disabled"}
@@ -98,7 +94,7 @@ Use /notifications to change settings.`;
 			context.setInputComponent(
 				<NotificationsManagement
 					initialAction={action}
-					currentSettings={notificationSettings}
+					currentSettings={getNotificationSettings()}
 					onComplete={() => {
 						context.setInputComponent(null);
 						context.addLog("[notifications] Notification management closed");
@@ -129,7 +125,7 @@ Use /notifications to change settings.`;
 		// No args - show UI to select action
 		context.setInputComponent(
 			<NotificationsManagement
-				currentSettings={notificationSettings}
+				currentSettings={getNotificationSettings()}
 				onComplete={() => {
 					context.setInputComponent(null);
 					context.addLog("[notifications] Notification management closed");
