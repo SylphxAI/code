@@ -2,11 +2,12 @@
  * Bash Management Screen
  * Real-time bash process management with streaming output
  *
- * Note: Migrated to Lens client for fine-grained frontend-driven architecture
- * TODO: Implement bash output subscription using Lens subscriptions (Phase 5+)
+ * MIGRATED: zen signals → Lens client (2025-01-24)
+ * - Uses getClient() instead of lensClient module export
+ * - TODO: Implement bash output subscription using Lens subscriptions
  */
 
-import { lensClient } from "@sylphx/code-client";
+import { getClient } from "@sylphx/code-client";
 import { useEffect, useState } from "preact/hooks";
 
 interface BashProcess {
@@ -28,9 +29,16 @@ export function BashScreen() {
 	// Load bash list
 	useEffect(() => {
 		const loadProcesses = async () => {
+			const client = getClient();
+			if (!client) {
+				console.warn("[BashScreen] Lens client not initialized");
+				return;
+			}
+
 			try {
-				const result = await lensClient.bash.list.query();
-				setProcesses(result);
+				const result = await client.listBashProcesses.fetch({});
+				const data = (result as any)?.data || result || [];
+				setProcesses(data);
 			} catch (error) {
 				console.error("[BashScreen] Failed to load processes:", error);
 			}
@@ -65,8 +73,11 @@ export function BashScreen() {
 	}, [selectedBashId]);
 
 	const handleKill = async (bashId: string) => {
+		const client = getClient();
+		if (!client) return;
+
 		try {
-			await lensClient.bash.kill.mutate({ bashId });
+			await client.killBashProcess.fetch({ input: { bashId } });
 			console.log(`[BashScreen] Killed bash ${bashId}`);
 		} catch (error) {
 			console.error("[BashScreen] Failed to kill:", error);
@@ -74,8 +85,11 @@ export function BashScreen() {
 	};
 
 	const handleDemote = async (bashId: string) => {
+		const client = getClient();
+		if (!client) return;
+
 		try {
-			await lensClient.bash.demote.mutate({ bashId });
+			await client.demoteBashProcess.fetch({ input: { bashId } });
 			console.log(`[BashScreen] Demoted bash ${bashId}`);
 		} catch (error) {
 			console.error("[BashScreen] Failed to demote:", error);
@@ -83,8 +97,11 @@ export function BashScreen() {
 	};
 
 	const handlePromote = async (bashId: string) => {
+		const client = getClient();
+		if (!client) return;
+
 		try {
-			await lensClient.bash.promote.mutate({ bashId });
+			await client.promoteBashProcess.fetch({ input: { bashId } });
 			console.log(`[BashScreen] Promoted bash ${bashId}`);
 		} catch (error) {
 			console.error("[BashScreen] Failed to promote:", error);
