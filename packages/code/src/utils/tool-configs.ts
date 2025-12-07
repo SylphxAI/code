@@ -106,7 +106,7 @@ export const toolConfigs = {
 			}
 
 			// Format with diff-style line numbers (space marker for context)
-			const formattedLines = displayLines.map((line, i) => {
+			const formattedLines = displayLines.map((line: string, i: number) => {
 				if (line.includes("...") && line.includes("omitted")) {
 					return `       ${line}`;
 				}
@@ -211,7 +211,7 @@ export const toolConfigs = {
 				const lineCount = lines.length;
 
 				// Format with line numbers and separator
-				let formattedLines = lines.map((line, i) => `${(i + 1).toString().padStart(6)} │ ${line}`);
+				let formattedLines = lines.map((line: string, i: number) => `${(i + 1).toString().padStart(6)} │ ${line}`);
 
 				// Truncate to 20 lines
 				if (lineCount > 20) {
@@ -412,7 +412,7 @@ export const toolConfigs = {
  * Get tool display component
  */
 export const getToolComponent = (toolName: string): ToolConfig | null => {
-	return toolConfigs[toolName] || null;
+	return toolConfigs[toolName as keyof typeof toolConfigs] || null;
 };
 
 /**
@@ -439,5 +439,5 @@ export const isBuiltInTool = (toolName: string): boolean => {
  * ```
  */
 export const registerTool = (toolName: string, component: ToolConfig): void => {
-	toolConfigs[toolName] = component;
+	(toolConfigs as Record<string, ToolConfig>)[toolName] = component;
 };

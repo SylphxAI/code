@@ -3,7 +3,7 @@
  * Refetches session from server and updates client state
  */
 
-import type { LensClient } from "@sylphx/lens-client";
+import type { CodeClient } from "@sylphx/code-client";
 import { updateCurrentSession } from "../session-state.js";
 
 /**
@@ -12,14 +12,15 @@ import { updateCurrentSession } from "../session-state.js";
  * @param client - Lens client (passed from React hook useLensClient)
  * @param sessionId - Session ID to refetch
  */
-export async function refetchCurrentSession(client: LensClient<any, any>, sessionId: string): Promise<void> {
+export async function refetchCurrentSession(client: CodeClient, sessionId: string): Promise<void> {
 	console.log("[refetchCurrentSession] Refetching session:", sessionId);
 	// Lens flat namespace: client.getSession.fetch({ input })
-	const session = await client.getSession.fetch({ input: { id: sessionId } }) as any;
+	const session = await client.getSession.fetch({ input: { id: sessionId } });
 
 	console.log("[refetchCurrentSession] Session fetched. Todos count:", session?.todos?.length || 0);
 	if (session) {
-		updateCurrentSession(session);
+		// Cast to code-core Session type (lens Session is a subset)
+		updateCurrentSession(session as any);
 		console.log("[refetchCurrentSession] Session updated in store");
 	}
 }

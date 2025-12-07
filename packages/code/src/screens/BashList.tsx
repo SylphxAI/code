@@ -87,7 +87,7 @@ export default function BashList({ onClose, onSelectBash }: BashListProps) {
 	// Transform processes to SelectionOption[]
 	const options: SelectionOption[] = useMemo(
 		() =>
-			processes.map((proc: BashProcess) => {
+			processes.map((proc) => {
 				const modeLabel = proc.isActive ? "[ACTIVE]" : proc.mode === "background" ? "[BG]" : "";
 				const statusLabel = proc.status.toUpperCase();
 				const durationLabel = formatDuration(proc.duration);
@@ -157,7 +157,7 @@ export default function BashList({ onClose, onSelectBash }: BashListProps) {
 				</Text>
 				<Text color={colors.textDim}>
 					{" "}
-					│ {processes.length} total, {processes.filter((p: BashProcess) => p.status === "running").length} running
+					│ {processes.length} total, {processes.filter((p) => p.status === "running").length} running
 				</Text>
 			</Box>
 

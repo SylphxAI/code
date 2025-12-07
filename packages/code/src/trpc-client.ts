@@ -2,11 +2,13 @@
  * tRPC Client for code CLI
  * Connects to code-server via HTTP/SSE
  *
- * NOTE: This file is only used for remote connections (--server-url flag)
- * Default mode uses in-process tRPC link (zero overhead)
+ * NOTE: This file is DEPRECATED - we've migrated to Lens
+ * Kept for backward compatibility during transition
+ * Use @sylphx/code-client lens client for new code
  */
 
-import type { AppRouter } from "@sylphx/code-client";
+// NOTE: AppRouter type removed - migrated to Lens
+// import type { AppRouter } from "@sylphx/code-client";
 import { getServerURL } from "@sylphx/code-core";
 import {
 	createTRPCProxyClient,
@@ -28,7 +30,7 @@ import { EventSource } from "eventsource";
  * SECURITY: Supports API key authentication for HTTP connections
  * Set SYLPHX_API_KEY environment variable to authenticate
  */
-export function createHTTPClient(serverUrl?: string, apiKey?: string) {
+export function createHTTPClient(serverUrl?: string, apiKey?: string): any {
 	const url = serverUrl || process.env.CODE_SERVER_URL || getServerURL();
 	const key = apiKey || process.env.SYLPHX_API_KEY;
 
@@ -46,7 +48,9 @@ export function createHTTPClient(serverUrl?: string, apiKey?: string) {
 		return baseHeaders;
 	};
 
-	return createTRPCProxyClient<AppRouter>({
+	// NOTE: Returning any type since AppRouter is removed
+	// This function is deprecated - use lens client instead
+	return createTRPCProxyClient<any>({
 		links: [
 			splitLink({
 				condition: (op) => op.type === "subscription",

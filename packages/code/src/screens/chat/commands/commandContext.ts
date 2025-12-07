@@ -3,10 +3,11 @@
  * Creates CommandContext objects for command execution
  */
 
-import type { LensClient } from "@sylphx/lens-client";
+import type { CodeClient } from "@sylphx/code-client";
 import type { AIConfig, ProviderId } from "@sylphx/code-core";
 import type { ReactNode } from "react";
 import type { Command, CommandContext, WaitForInputOptions } from "../../../commands/types.js";
+import { getSelectedProvider, getSelectedModel } from "../../../session-state.js";
 
 /**
  * Parameters needed to create command context
@@ -18,7 +19,7 @@ import type { Command, CommandContext, WaitForInputOptions } from "../../../comm
  */
 export interface CommandContextParams {
 	// Lens client from React hook (useLensClient)
-	client: LensClient<any, any>;
+	client: CodeClient;
 
 	// For message operations (complex logic)
 	addMessage: (params: {
@@ -103,10 +104,9 @@ export function createCommandContext(args: string[], params: CommandContextParam
 		args,
 
 		sendMessage: async (content: string) => {
-			// Get selected provider/model from SolidJS signals directly
-			const { selectedProvider: selectedProviderSignal, selectedModel: selectedModelSignal } = await import("@sylphx/code-client");
-			const providerValue = selectedProviderSignal();
-			const modelValue = selectedModelSignal();
+			// Get selected provider/model from session state
+			const providerValue = getSelectedProvider();
+			const modelValue = getSelectedModel();
 			const provider = (providerValue || "openrouter") as ProviderId;
 			const model = modelValue || "anthropic/claude-3.5-sonnet";
 

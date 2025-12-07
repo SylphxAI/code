@@ -226,15 +226,25 @@ export function InputSection({
 								// Server-side ask tool: submit answer via mutation
 								if (askToolContextRef.current) {
 									const { sessionId, toolCallId } = askToolContextRef.current;
-									const answerString = typeof value === "string" ? value : String(value);
 
 									try {
 										// Lens flat namespace: client.answerAsk.fetch({ input })
+										// AnswerAskInput expects: { sessionId, questionId, answers: Record<string, string | string[]> }
+										// Convert value to Record format
+										let answers: Record<string, string | string[]>;
+										if (typeof value === "string") {
+											answers = { answer: value };
+										} else if (Array.isArray(value)) {
+											answers = { answer: value };
+										} else {
+											answers = value;
+										}
+
 										await client.answerAsk.fetch({
 											input: {
 												sessionId,
-												toolCallId,
-												answer: answerString,
+												questionId: toolCallId,
+												answers,
 											},
 										});
 										// Server will emit ask-question-answered event which clears pendingInput
@@ -246,7 +256,16 @@ export function InputSection({
 								}
 								// Legacy client-side ask tool: resolve promise
 								else if (inputResolver.current) {
-									inputResolver.current(value);
+									// Convert value to expected format
+									let resolvedValue: string | Record<string, string | string[]>;
+									if (typeof value === "string") {
+										resolvedValue = value;
+									} else if (Array.isArray(value)) {
+										resolvedValue = { answer: value };
+									} else {
+										resolvedValue = value;
+									}
+									inputResolver.current(resolvedValue);
 									inputResolver.current = null;
 									setPendingInput(null);
 								}
@@ -298,18 +317,18 @@ export function InputSection({
 										<Text color={colors.textDim}>Attachments ({pendingAttachments.length}):</Text>
 									</Box>
 									{pendingAttachments.map((att) => (
-										<Box key={`pending-att-${att.path}`} marginLeft={2}>
+										<Box key={`pending-att-${att.fileId}`} marginLeft={2}>
 											<Text color={colors.primary}>{att.relativePath}</Text>
 											<Text color={colors.textDim}> (</Text>
 											{att.size ? (
 												<>
 													<Text color={colors.textDim}>{(att.size / 1024).toFixed(1)}KB</Text>
-													{attachmentTokens.has(att.path) && <Text color={colors.textDim}>, </Text>}
+													{attachmentTokens.has(att.fileId) && <Text color={colors.textDim}>, </Text>}
 												</>
 											) : null}
-											{attachmentTokens.has(att.path) ? (
+											{attachmentTokens.has(att.fileId) ? (
 												<Text color={colors.textDim}>
-													{formatTokenCount(attachmentTokens.get(att.path)!)} Tokens
+													{formatTokenCount(attachmentTokens.get(att.fileId)!)} Tokens
 												</Text>
 											) : null}
 											<Text color={colors.textDim}>)</Text>

@@ -31,7 +31,7 @@ export async function ensureServerRunning(): Promise<boolean> {
 		serverProcess.unref(); // Allow parent to exit independently
 
 		// Wait for server to be ready
-		const ready = await waitForServer(10000);
+		const ready = await waitForServer(undefined, 10000);
 
 		if (ready) {
 			console.error("✅ code-server started successfully\n");

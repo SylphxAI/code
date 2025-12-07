@@ -1,10 +1,10 @@
 /**
  * Input State Hook
- * Manages input field state using Zen signals
+ * Manages input field state using local state
  */
 
+import { useLensClient } from "@sylphx/code-client";
 import {
-	useLensClient,
 	useInput,
 	setInput as setInputSignal,
 	useCursor,
@@ -17,8 +17,7 @@ import {
 	useTempInput,
 	setTempInput as setTempInputSignal,
 	type MessageHistoryEntry,
-} from "@sylphx/code-client";
-import type { FileAttachment } from "@sylphx/code-core";
+} from "../../../input-state.js";
 import { useEffect } from "react";
 
 // Re-export type for backwards compatibility
@@ -58,7 +57,10 @@ export function useInputState(): InputState {
 					input: { limit: 100 },
 				});
 				// Extract messages array from paginated result
-				const messages = Array.isArray(result) ? result : result?.messages || [];
+				const messages = (Array.isArray(result) ? result : (result as any)?.messages || []) as Array<{
+					text: string;
+					files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }>;
+				}>;
 
 				// Convert DB messages to MessageHistoryEntry format (ChatGPT-style fileId architecture)
 				const entries: MessageHistoryEntry[] = messages.map(
@@ -66,17 +68,17 @@ export function useInputState(): InputState {
 						text: string;
 						files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }>;
 					}) => {
-						// Convert DB files to FileAttachment format (with fileId, no content)
-						const attachments: FileAttachment[] = msg.files.map((file) => ({
+						// Convert DB files to attachment format (with fileId, no content)
+						const attachments = msg.files.map((file) => ({
 							fileId: file.fileId, // Reference to uploaded file in object storage
 							relativePath: file.relativePath,
 							size: file.size,
 							mimeType: file.mediaType,
-							type: file.mediaType.startsWith("image/") ? "image" : "file",
+							type: (file.mediaType.startsWith("image/") ? "image" : "file") as "file" | "image",
 						}));
 
 						return {
-							text: msg.text,
+							input: msg.text,
 							attachments,
 						};
 					},

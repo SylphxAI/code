@@ -123,34 +123,38 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 					setTempAttachments(pendingAttachments);
 					const newIndex = messageHistory.length - 1;
 					const entry = messageHistory[newIndex];
+					if (!entry) return;
 					console.log("[MessageHistory] Loading entry:", {
 						index: newIndex,
-						text: entry.text.substring(0, 50),
-						attachments: entry.attachments.length,
+						text: entry.input.substring(0, 50),
+						attachments: entry.attachments?.length ?? 0,
 					});
-					if (entry.attachments.length > 0) {
-						console.log("[MessageHistory] First attachment:", {
-							relativePath: entry.attachments[0].relativePath,
-							type: entry.attachments[0].type,
-							hasImageData: !!entry.attachments[0].imageData,
-						});
+					if (entry.attachments && entry.attachments.length > 0) {
+						const firstAttachment = entry.attachments[0];
+						if (firstAttachment) {
+							console.log("[MessageHistory] First attachment:", {
+								relativePath: firstAttachment.relativePath,
+								type: firstAttachment.type,
+							});
+						}
 					}
 					setHistoryIndex(newIndex);
-					setInput(entry.text);
-					setPendingAttachments(entry.attachments);
+					setInput(entry.input);
+					setPendingAttachments(entry.attachments ?? []);
 					setCursor(0);
 				} else if (historyIndex > 0) {
 					// Navigate up in history
 					const newIndex = historyIndex - 1;
 					const entry = messageHistory[newIndex];
+					if (!entry) return;
 					console.log("[MessageHistory] Navigate up:", {
 						newIndex,
-						text: entry.text.substring(0, 50),
-						attachments: entry.attachments.length,
+						text: entry.input.substring(0, 50),
+						attachments: entry.attachments?.length ?? 0,
 					});
 					setHistoryIndex(newIndex);
-					setInput(entry.text);
-					setPendingAttachments(entry.attachments);
+					setInput(entry.input);
+					setPendingAttachments(entry.attachments ?? []);
 					setCursor(0);
 				}
 			});
@@ -173,9 +177,10 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 					// Navigate down in history
 					const newIndex = historyIndex + 1;
 					const entry = messageHistory[newIndex];
+					if (!entry) return;
 					setHistoryIndex(newIndex);
-					setInput(entry.text);
-					setPendingAttachments(entry.attachments);
+					setInput(entry.input);
+					setPendingAttachments(entry.attachments ?? []);
 					setCursor(0);
 				}
 			});

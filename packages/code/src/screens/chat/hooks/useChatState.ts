@@ -3,7 +3,6 @@
  * Single source of truth for all Chat component state
  */
 
-import { useAIConfig } from "../../../hooks/client/useAIConfig.js";
 import { useAskToolHandler } from "../../../hooks/client/useAskToolHandler.js";
 import { useChat } from "../../../hooks/client/useChat.js";
 import { useCurrentSession } from "../../../hooks/client/useCurrentSession.js";
@@ -11,15 +10,15 @@ import { useFileAttachments } from "../../../hooks/client/useFileAttachments.js"
 import { useMessages } from "../../../hooks/client/useMessages.js";
 import { useProjectFiles } from "../../../hooks/client/useProjectFiles.js";
 import { useTokenCalculation } from "../../../hooks/client/useTokenCalculation.js";
+import { useSelectedModel, useSelectedProvider } from "../../../session-state.js";
 import {
-	useSelectedModel,
-	useSelectedProvider,
+	addDebugLog,
 	useHideMessageTitles,
 	useHideMessageUsage,
 	setHideMessageTitles as setHideMessageTitlesSignal,
 	setHideMessageUsage as setHideMessageUsageSignal,
-} from "@sylphx/code-client";
-import { addDebugLog } from "../../../ui-state.js";
+} from "../../../ui-state.js";
+import { useAIConfigState } from "../../../ai-config-state.js";
 import type { FileAttachment } from "@sylphx/code-core";
 import { loadSettings } from "@sylphx/code-core";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -33,7 +32,7 @@ import { useStreamingState } from "./useStreamingState.js";
 
 export function useChatState(_props: ChatProps) {
 	// Zen signals
-	const aiConfig = useAIConfig();
+	const aiConfig = useAIConfigState();
 	const selectedProvider = useSelectedProvider();
 	const selectedModel = useSelectedModel();
 
@@ -53,7 +52,7 @@ export function useChatState(_props: ChatProps) {
 
 	// Client actions
 	const { sendMessage } = useChat();
-	const usedTokens = useTokenCalculation(currentSession || null);
+	const usedTokens = useTokenCalculation(currentSession);
 
 	// State hooks (already extracted)
 	const inputState = useInputState();
@@ -106,12 +105,12 @@ export function useChatState(_props: ChatProps) {
 
 	// Ask tool handler setup
 	useAskToolHandler({
+		currentSessionId,
 		setPendingInput: selectionState.setPendingInput,
 		setMultiSelectionPage: selectionState.setMultiSelectionPage,
 		setMultiSelectionAnswers: selectionState.setMultiSelectionAnswers,
 		setSelectionFilter: selectionState.setSelectionFilter,
 		setSelectedCommandIndex,
-		setAskQueueLength: selectionState.setAskQueueLength,
 		inputResolver: selectionState.inputResolver,
 		addDebugLog,
 	});

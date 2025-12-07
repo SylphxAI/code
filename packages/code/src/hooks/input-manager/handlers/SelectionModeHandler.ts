@@ -606,7 +606,10 @@ export class SelectionModeHandler extends BaseInputHandler {
 			setMultiSelectChoices(new Set()); // Clear choices for next question
 
 			// Check if all questions are answered
-			const allAnswered = questions.every((q: { id: string }) => newAnswers[q.id]);
+			const allAnswered = questions.every((q: { id: string }) => {
+				const answer = newAnswers[q.id as keyof typeof newAnswers];
+				return answer !== undefined;
+			});
 
 			if (allAnswered) {
 				// All answered: auto-submit
@@ -620,9 +623,11 @@ export class SelectionModeHandler extends BaseInputHandler {
 				setIsFilterMode(false);
 			} else {
 				// Move to next unanswered question
-				const nextUnanswered = questions.findIndex(
-					(q: { id: string }, idx) => idx > multiSelectionPage && !newAnswers[q.id],
-				);
+				const nextUnanswered = questions.findIndex((q: { id: string }, idx) => {
+					if (idx <= multiSelectionPage) return false;
+					const answer = newAnswers[q.id as keyof typeof newAnswers];
+					return answer === undefined;
+				});
 				if (nextUnanswered !== -1) {
 					setMultiSelectionPage(nextUnanswered);
 				}

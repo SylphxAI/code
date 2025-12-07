@@ -103,7 +103,7 @@ export function isDarkTheme(): boolean {
 }
 
 export function getTheme(): Theme {
-	return themes.find((t) => t.id === _currentThemeId) || themes[0];
+	return themes.find((t) => t.id === _currentThemeId) ?? themes[0]!;
 }
 
 export function getAvailableThemes(): Theme[] {

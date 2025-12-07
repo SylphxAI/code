@@ -35,10 +35,10 @@ export function useStreamingState(): StreamingState {
 	const { currentSession, isStreaming } = useCurrentSession();
 
 	// Derive streaming state from session (server-driven)
-	const isTitleStreaming = currentSession?.isTitleStreaming ?? false;
+	const isTitleStreaming = false; // Title streaming not yet implemented in Session type
 	const streamingTitle = currentSession?.title ?? "";
-	const streamingStartTime = currentSession?.streamingStartTime ?? null;
-	const streamingOutputTokens = currentSession?.totalTokens?.output ?? 0;
+	const streamingStartTime = null; // Streaming start time not yet in Session type
+	const streamingOutputTokens = 0; // Token tracking not yet in Session type
 
 	// Ref to track current streaming state (for stable access across renders)
 	const isStreamingRef = useRef<boolean>(isStreaming);

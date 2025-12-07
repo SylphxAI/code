@@ -3,7 +3,7 @@
  * Entry point with navigation options
  */
 
-import { useAIConfig } from "../hooks/client/useAIConfig.js";
+import { useAIConfigState } from "../ai-config-state.js";
 import { setCurrentScreen } from "../ui-state.js";
 import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
@@ -16,7 +16,7 @@ interface MenuItem {
 
 export default function MainMenu() {
 	const colors = useThemeColors();
-	const aiConfig = useAIConfig();
+	const aiConfig = useAIConfigState();
 
 	const configuredCount = Object.keys(aiConfig?.providers || {}).length;
 	const hasDefaultModel = !!(aiConfig?.defaultProvider && aiConfig?.defaultModel);
@@ -43,10 +43,10 @@ export default function MainMenu() {
 	const handleSelect = (item: MenuItem) => {
 		switch (item.value) {
 			case "providers":
-				setCurrentScreen("provider");
+				setCurrentScreen("provider-management");
 				break;
 			case "models":
-				setCurrentScreen("model");
+				setCurrentScreen("model-selection");
 				break;
 			case "chat":
 				setCurrentScreen("chat");

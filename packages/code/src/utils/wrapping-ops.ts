@@ -49,10 +49,10 @@ export function moveCursorUpPhysical(value: string, cursor: number, width: numbe
 	const beforeCursor = value.substring(0, cursor);
 	const lines = beforeCursor.split("\n");
 	const currentLogicalLine = lines.length - 1;
-	const currentLogicalCol = lines[currentLogicalLine].length;
+	const currentLogicalCol = lines[currentLogicalLine]?.length ?? 0;
 
 	const { physicalLine: currentPhysicalLine, physicalCol: currentPhysicalCol } =
-		getPhysicalCursorPos(lines[currentLogicalLine], currentLogicalCol, width);
+		getPhysicalCursorPos(lines[currentLogicalLine] ?? "", currentLogicalCol, width);
 
 	// If we're not on the first physical line of this logical line, move up within it
 	if (currentPhysicalLine > 0) {
@@ -66,14 +66,14 @@ export function moveCursorUpPhysical(value: string, cursor: number, width: numbe
 	}
 
 	// Get previous logical line
-	const prevLogicalLine = lines[currentLogicalLine - 1];
+	const prevLogicalLine = lines[currentLogicalLine - 1] ?? "";
 	const wrappedPrevLines = wrapLine(prevLogicalLine, width);
 	const targetPhysicalLine = wrappedPrevLines.length - 1; // Last wrapped line of previous logical line
 
 	// Try to maintain column position
 	const targetPhysicalCol = Math.min(
 		currentPhysicalCol,
-		wrappedPrevLines[targetPhysicalLine].length,
+		wrappedPrevLines[targetPhysicalLine]?.length ?? 0,
 	);
 	const targetLogicalCol = targetPhysicalLine * width + targetPhysicalCol;
 
@@ -97,11 +97,11 @@ export function moveCursorDownPhysical(value: string, cursor: number, width: num
 	const beforeCursor = value.substring(0, cursor);
 	const lines = beforeCursor.split("\n");
 	const currentLogicalLine = lines.length - 1;
-	const currentLogicalCol = lines[currentLogicalLine].length;
+	const currentLogicalCol = lines[currentLogicalLine]?.length ?? 0;
 
 	// Get all logical lines
 	const allLines = value.split("\n");
-	const currentFullLine = allLines[currentLogicalLine];
+	const currentFullLine = allLines[currentLogicalLine] ?? "";
 
 	const { physicalLine: currentPhysicalLine, physicalCol: currentPhysicalCol } =
 		getPhysicalCursorPos(currentFullLine, currentLogicalCol, width);
@@ -120,11 +120,11 @@ export function moveCursorDownPhysical(value: string, cursor: number, width: num
 	}
 
 	// Get next logical line
-	const nextLogicalLine = allLines[currentLogicalLine + 1];
+	const nextLogicalLine = allLines[currentLogicalLine + 1] ?? "";
 	const wrappedNextLines = wrapLine(nextLogicalLine, width);
 
 	// Try to maintain column position
-	const targetPhysicalCol = Math.min(currentPhysicalCol, wrappedNextLines[0].length);
+	const targetPhysicalCol = Math.min(currentPhysicalCol, wrappedNextLines[0]?.length ?? 0);
 
 	// Calculate absolute position
 	const charsBeforeNextLine = allLines.slice(0, currentLogicalLine + 1).reduce(

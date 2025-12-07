@@ -8,8 +8,7 @@
  * - No duplicated filter/selection logic
  */
 
-import { useTRPCClient } from "@sylphx/code-client";
-import type { ConfigField } from "@sylphx/code-core";
+import { useLensClient, type ProviderInfo } from "@sylphx/code-client";
 import { Box, Text, useInput } from "ink";
 import { useEffect, useState } from "react";
 import { InlineSelection } from "../../../components/selection/index.js";
@@ -17,6 +16,17 @@ import TextInputWithHint from "../../../components/TextInputWithHint.js";
 import type { SelectionOption } from "../../../hooks/useSelection.js";
 import { InputContentLayout } from "./InputContentLayout.js";
 import { useThemeColors, getColors } from "../../../theme.js";
+
+// Local type definition for ConfigField from provider schema
+interface ConfigField {
+	key: string;
+	label: string;
+	type: string;
+	secret?: boolean;
+	required?: boolean;
+	description?: string;
+	placeholder?: string;
+}
 
 interface ProviderManagementProps {
 	initialAction?: "use" | "configure";
@@ -38,7 +48,7 @@ export function ProviderManagement({
 	onConfigureProvider,
 }: ProviderManagementProps) {
 	const colors = useThemeColors();
-	const trpc = useTRPCClient();
+	const client = useLensClient();
 
 	// If initialProviderId is provided, skip to the appropriate step
 	const initialStep: Step = initialProviderId
@@ -70,7 +80,7 @@ export function ProviderManagement({
 	useEffect(() => {
 		async function loadProviderMetadata() {
 			try {
-				const result = await trpc.config.getProviders.query();
+				const result = await client.getProviders.fetch({ input: {} });
 				// Store full provider info including isConfigured status
 				const metadata: Record<
 					string,
@@ -89,7 +99,7 @@ export function ProviderManagement({
 			}
 		}
 		loadProviderMetadata();
-	}, [trpc]);
+	}, [client]);
 
 	// Get configured providers from aiConfig (for reading existing config)
 	const providers = aiConfig?.providers || {};
@@ -138,8 +148,8 @@ export function ProviderManagement({
 		if (step === "configure-provider" && selectedProvider) {
 			async function loadSchema() {
 				try {
-					const result = await trpc.config.getProviderSchema.query({
-						providerId: selectedProvider as any,
+					const result = await client.getProviderSchema.fetch({
+						input: { providerId: selectedProvider! },
 					});
 
 					if (!result.success) {
@@ -147,11 +157,11 @@ export function ProviderManagement({
 						return;
 					}
 
-					const schema = result.schema;
+					const schema = result.schema || [];
 					setConfigSchema(schema);
 
 					// Initialize form values with existing config
-					const existingConfig = providers[selectedProvider] || {};
+					const existingConfig = selectedProvider ? providers[selectedProvider] || {} : {};
 					const initialValues: Record<string, string | number | boolean> = {};
 
 					schema.forEach((field) => {
@@ -181,7 +191,7 @@ export function ProviderManagement({
 
 			loadSchema();
 		}
-	}, [step, selectedProvider, providers, trpc]);
+	}, [step, selectedProvider, providers, client]);
 
 	// Keyboard handling for step 3 (configure provider)
 	// IMPORTANT: Must be called unconditionally (before any returns) to satisfy React Hooks rules
@@ -216,7 +226,7 @@ export function ProviderManagement({
 						Promise.resolve(onConfigureProvider(selectedProvider!, formValues)).then(async () => {
 							// Refresh provider metadata to update isConfigured status
 							try {
-								const result = await trpc.config.getProviders.query();
+								const result = await client.getProviders.fetch({ input: {} });
 								const metadata: Record<
 									string,
 									{ name: string; description: string; isConfigured: boolean }
@@ -237,12 +247,12 @@ export function ProviderManagement({
 					} else {
 						const field = configSchema[currentFieldIndex];
 
-						if (field.type === "boolean") {
+						if (field && field.type === "boolean") {
 							setFormValues((prev) => ({
 								...prev,
 								[field.key]: !prev[field.key],
 							}));
-						} else {
+						} else if (field) {
 							setEditingField(true);
 							setTempStringValue(String(formValues[field.key] || ""));
 						}

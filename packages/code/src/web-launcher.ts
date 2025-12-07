@@ -3,7 +3,7 @@
  * Launches Web GUI mode
  */
 
-import { getServerURL } from "@sylphx/code-core/constants/config";
+import { getServerURL } from "@sylphx/code-core";
 import chalk from "chalk";
 import { ensureServer } from "./server-manager.js";
 

@@ -52,11 +52,12 @@ export function MCPAddForm({ onComplete, onCancel }: MCPAddFormProps) {
 	];
 
 	// Handle transport selection
-	const handleTransportSelect = (value: string) => {
-		setTransportType(value as MCPTransportType);
+	const handleTransportSelect = (value: string | string[]) => {
+		const transportValue = Array.isArray(value) ? value[0] : value;
+		setTransportType(transportValue as MCPTransportType);
 
 		// Move to next field based on transport type
-		if (value === "http" || value === "sse") {
+		if (transportValue === "http" || transportValue === "sse") {
 			setCurrentField("url");
 		} else {
 			setCurrentField("command");
@@ -100,7 +101,7 @@ export function MCPAddForm({ onComplete, onCancel }: MCPAddFormProps) {
 	});
 
 	return (
-		<InputContentLayout title="Add MCP Server">
+		<InputContentLayout helpText="Press ESC to cancel">
 			<Box flexDirection="column" gap={1}>
 				{/* Server ID (Required) */}
 				<Box flexDirection="column">
@@ -132,10 +133,10 @@ export function MCPAddForm({ onComplete, onCancel }: MCPAddFormProps) {
 								<InlineSelection
 									options={transportOptions}
 									subtitle="Choose transport type • ESC: Cancel"
-									placeholder="Select transport..."
+									filterPlaceholder="Select transport..."
 									onSelect={handleTransportSelect}
 									onCancel={onCancel}
-									showSearch={false}
+									filter={false}
 								/>
 							</Box>
 						)}
@@ -242,9 +243,6 @@ export function MCPAddForm({ onComplete, onCancel }: MCPAddFormProps) {
 					</Box>
 				)}
 
-				<Box marginTop={1}>
-					<Text color={colors.textDim}>Press ESC to cancel</Text>
-				</Box>
 			</Box>
 		</InputContentLayout>
 	);

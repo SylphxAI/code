@@ -2,10 +2,11 @@
  * Bash State - Local bash process tracking
  *
  * Tracks bash process details and outputs for the UI.
- * Updated by event subscriptions and trpc queries.
+ * Updated by event subscriptions and lens queries.
  */
 
 import { useSyncExternalStore } from "react";
+import type { BashProcess } from "@sylphx/code-client";
 
 // ============================================================================
 // State pattern
@@ -38,16 +39,8 @@ function useStore<T>(store: ReturnType<typeof createState<T>>): T {
 // Types
 // ============================================================================
 
-export interface BashProcessDetails {
-	id: string;
-	command: string;
-	cwd: string;
-	status: string;
-	exitCode?: number | null;
-	duration: number;
-	isActive?: boolean;
-	mode?: string;
-}
+// Re-export BashProcess from lens client for convenience
+export type { BashProcess } from "@sylphx/code-client";
 
 export interface BashProcessOutput {
 	stdout: string;
@@ -58,12 +51,12 @@ export interface BashProcessOutput {
 // Bash Process Details (maps bashId to process details)
 // ============================================================================
 
-const bashProcessDetailsState = createState<Record<string, BashProcessDetails>>({});
+const bashProcessDetailsState = createState<Record<string, BashProcess>>({});
 export const getBashProcessDetails = bashProcessDetailsState.get;
 export const useBashProcessDetails = () => useStore(bashProcessDetailsState);
 
 // Helper to set a single process detail
-export const setBashProcessDetail = (bashId: string, details: BashProcessDetails) => {
+export const setBashProcessDetail = (bashId: string, details: BashProcess) => {
 	const current = bashProcessDetailsState.get();
 	bashProcessDetailsState.set({
 		...current,
@@ -108,3 +101,21 @@ export const setBashProcessDetailLoading = (bashId: string, loading: boolean) =>
 		[bashId]: loading,
 	});
 };
+
+// ============================================================================
+// Bash Process List (for BashList screen)
+// ============================================================================
+
+const bashProcessesState = createState<BashProcess[]>([]);
+export const getBashProcesses = bashProcessesState.get;
+export const useBashProcesses = () => useStore(bashProcessesState);
+export const setBashProcesses = bashProcessesState.set;
+
+// ============================================================================
+// Bash Process List Loading State
+// ============================================================================
+
+const bashProcessesLoadingState = createState<boolean>(false);
+export const getBashProcessesLoading = bashProcessesLoadingState.get;
+export const useBashProcessesLoading = () => useStore(bashProcessesLoadingState);
+export const setBashProcessesLoading = bashProcessesLoadingState.set;

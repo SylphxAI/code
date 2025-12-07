@@ -57,12 +57,7 @@ export interface InputHandlerDeps {
 	createCommandContext: (args: string[]) => CommandContext;
 
 	// File navigation mode dependencies
-	filteredFileInfo: {
-		hasAt: boolean;
-		files: Array<{ path: string; relativePath: string; size: number }>;
-		query: string;
-		atIndex: number;
-	};
+	filteredFileInfo: FilteredFile;
 	selectedFileIndex: number;
 	currentSession: any;
 	input: string;

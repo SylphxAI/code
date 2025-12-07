@@ -48,8 +48,8 @@ export function AskToolSelection({ pendingInput, onSelect, onCancel }: AskToolSe
 	const selectionOptions: SelectionOption[] = currentQuestion.options.map((opt) => ({
 		label: opt.label,
 		value: opt.value || opt.label,
-		description: opt.description,
 		// TODO: Handle freeText options
+		// Note: SelectOption doesn't have description field, so we can't map it
 	}));
 
 	// Get pre-selected values for multi-select

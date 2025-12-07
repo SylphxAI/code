@@ -10,6 +10,17 @@ import SelectInput from "ink-select-input";
 import { useState } from "react";
 import { useThemeColors, getColors } from "../../../theme.js";
 
+// ProjectSettings interface type - we extract it from the Parameters of saveSettings
+// to avoid confusion with the ProjectSettings class
+type ProjectSettingsData = {
+	defaultTarget?: string;
+	version?: string;
+	useAccurateTokenizer?: boolean;
+	contextReserveRatio?: number;
+	hideMessageTitles?: boolean;
+	hideMessageUsage?: boolean;
+};
+
 interface SettingsManagementProps {
 	aiConfig: AIConfig | null;
 	onComplete: () => void;
@@ -46,11 +57,11 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 
 	// Get tool display items with current settings
 	const getToolDisplayItems = (): ToolDisplayItem[] => {
-		const toolNames = Object.keys(DEFAULT_TOOL_DISPLAY_SETTINGS);
+		const toolNames = Object.keys(DEFAULT_TOOL_DISPLAY_SETTINGS ?? {});
 
 		return toolNames.map((toolName) => {
 			const userSetting = toolDisplaySettings[toolName];
-			const defaultSetting = DEFAULT_TOOL_DISPLAY_SETTINGS[toolName];
+			const defaultSetting = DEFAULT_TOOL_DISPLAY_SETTINGS?.[toolName] ?? true;
 			const isDefault = userSetting === undefined;
 			const enabled = userSetting !== undefined ? userSetting : defaultSetting;
 
@@ -89,7 +100,7 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 		}
 	};
 
-	const handleToolDisplaySelect = (item: ToolDisplayItem) => {
+	const handleToolDisplaySelect = (item: { value: string; toolName?: string }) => {
 		if (item.value === "save") {
 			// Save settings
 			const updatedConfig = {
@@ -113,25 +124,26 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 		}
 
 		// Toggle tool setting
-		const currentValue = toolDisplaySettings[item.toolName];
-		const defaultValue = DEFAULT_TOOL_DISPLAY_SETTINGS[item.toolName];
+		const toolName = item.toolName ?? item.value;
+		const currentValue = toolDisplaySettings[toolName];
+		const defaultValue = DEFAULT_TOOL_DISPLAY_SETTINGS?.[toolName] ?? true;
 
 		if (currentValue === undefined) {
 			// No user override, set opposite of default
 			setToolDisplaySettings({
 				...toolDisplaySettings,
-				[item.toolName]: !defaultValue,
+				[toolName]: !defaultValue,
 			});
 		} else if (currentValue === defaultValue) {
 			// User override matches default, remove it
 			const newSettings = { ...toolDisplaySettings };
-			delete newSettings[item.toolName];
+			delete newSettings[toolName];
 			setToolDisplaySettings(newSettings);
 		} else {
 			// User override differs from default, toggle it
 			setToolDisplaySettings({
 				...toolDisplaySettings,
-				[item.toolName]: !currentValue,
+				[toolName]: !currentValue,
 			});
 		}
 	};
@@ -234,13 +246,13 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 						const { loadSettings, saveSettings } = await import("@sylphx/code-core");
 						const cwd = process.cwd();
 						const settingsResult = await loadSettings(cwd);
-						const currentSettings = settingsResult.success ? settingsResult.data : {};
+						const currentSettings: ProjectSettingsData = settingsResult.success ? settingsResult.data : {};
 
 						await saveSettings(
 							{
 								...currentSettings,
 								useAccurateTokenizer: useAccurate,
-							},
+							} as any,
 							cwd,
 						);
 
@@ -288,13 +300,13 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 						const { loadSettings, saveSettings } = await import("@sylphx/code-core");
 						const cwd = process.cwd();
 						const settingsResult = await loadSettings(cwd);
-						const currentSettings = settingsResult.success ? settingsResult.data : {};
+						const currentSettings: ProjectSettingsData = settingsResult.success ? settingsResult.data : {};
 
 						await saveSettings(
 							{
 								...currentSettings,
 								hideMessageTitles: hideTitles,
-							},
+							} as any,
 							cwd,
 						);
 
@@ -339,13 +351,13 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 						const { loadSettings, saveSettings } = await import("@sylphx/code-core");
 						const cwd = process.cwd();
 						const settingsResult = await loadSettings(cwd);
-						const currentSettings = settingsResult.success ? settingsResult.data : {};
+						const currentSettings: ProjectSettingsData = settingsResult.success ? settingsResult.data : {};
 
 						await saveSettings(
 							{
 								...currentSettings,
 								hideMessageUsage: hideUsage,
-							},
+							} as any,
 							cwd,
 						);
 
@@ -397,13 +409,13 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 						const { loadSettings, saveSettings } = await import("@sylphx/code-core");
 						const cwd = process.cwd();
 						const settingsResult = await loadSettings(cwd);
-						const currentSettings = settingsResult.success ? settingsResult.data : {};
+						const currentSettings: ProjectSettingsData = settingsResult.success ? settingsResult.data : {};
 
 						await saveSettings(
 							{
 								...currentSettings,
 								contextReserveRatio: reserveRatio,
-							},
+							} as any,
 							cwd,
 						);
 

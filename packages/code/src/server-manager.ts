@@ -97,7 +97,7 @@ export async function ensureServer(
 		serverProcess.unref();
 
 		// 5. Wait for server to be ready
-		const ready = await waitForServer(timeout);
+		const ready = await waitForServer(undefined, timeout);
 
 		if (ready) {
 			if (!quiet) {

@@ -59,10 +59,11 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 	];
 
 	// Handle transport selection
-	const handleTransportSelect = (value: string) => {
-		setTransportType(value as MCPTransportType);
+	const handleTransportSelect = (value: string | string[]) => {
+		const transportValue = Array.isArray(value) ? value[0] : value;
+		setTransportType(transportValue as MCPTransportType);
 
-		if (value === "http" || value === "sse") {
+		if (transportValue === "http" || transportValue === "sse") {
 			setStep("input-url");
 		} else {
 			setStep("input-command");
@@ -119,7 +120,7 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 	});
 
 	return (
-		<InputContentLayout title="Add MCP Server">
+		<InputContentLayout helpText="Press ESC to cancel">
 			<Box flexDirection="column" gap={1}>
 				{step === "input-id" && (
 					<Box flexDirection="column">
@@ -171,10 +172,10 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 					<InlineSelection
 						options={transportOptions}
 						subtitle="Choose transport type"
-						placeholder="Select transport..."
+						filterPlaceholder="Select transport..."
 						onSelect={handleTransportSelect}
 						onCancel={onCancel}
-						showSearch={false}
+						filter={false}
 					/>
 				)}
 
@@ -224,9 +225,6 @@ export function MCPAddWizard({ onComplete, onCancel }: MCPAddWizardProps) {
 					</Box>
 				)}
 
-				<Box marginTop={1}>
-					<Text color={colors.textDim}>Press ESC to cancel</Text>
-				</Box>
 			</Box>
 		</InputContentLayout>
 	);

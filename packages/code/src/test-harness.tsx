@@ -14,7 +14,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { LensProvider, useLensClient } from "@sylphx/code-client";
+import { createCodeClient, direct, initClient, useLensClient } from "@sylphx/code-client";
 import { CodeServer } from "@sylphx/code-server";
 import { createLogger } from "@sylphx/code-core";
 import { render } from "ink";
@@ -205,14 +205,14 @@ async function main() {
 
 	// Parse arguments
 	let message = args[0];
-	let outputFile = "";
+	let outputFile: string | undefined = undefined;
 
 	for (let i = 1; i < args.length; i++) {
 		if (args[i] === "--output" && i + 1 < args.length) {
-			outputFile = args[i + 1];
+			outputFile = args[i + 1]!;
 			i++;
 		} else if (args[i] === "--input" && i + 1 < args.length) {
-			message = fs.readFileSync(args[i + 1], "utf-8").trim();
+			message = fs.readFileSync(args[i + 1]!, "utf-8").trim();
 			i++;
 		}
 	}
@@ -239,13 +239,16 @@ async function main() {
 	await server.initialize();
 	const lensServer = server.getLensServer();
 
-	// Render test harness with LensProvider
+	// Create Lens client with direct transport (in-process)
+	const lensClient = createCodeClient(direct({ app: lensServer }));
+	initClient(lensClient); // Register for global access
+
+	// Render test harness (no LensProvider needed with module singleton)
+	// Both message and outputFile are guaranteed to be set by this point
+	const finalMessage: string = message!;
+	const finalOutputFile: string = outputFile!;
 	render(
-		React.createElement(
-			LensProvider,
-			{ server: lensServer },
-			React.createElement(TestHarnessApp, { message, timeout, outputFile }),
-		),
+		React.createElement(TestHarnessApp, { message: finalMessage, timeout, outputFile: finalOutputFile }),
 	);
 }
 

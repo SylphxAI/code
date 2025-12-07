@@ -3,9 +3,9 @@
  * Add, edit, remove AI providers
  */
 
-import { useAIConfig, useAIConfigActions } from "../hooks/client/useAIConfig.js";
+import { useAIConfigActions } from "../hooks/client/useAIConfig.js";
+import { useAIConfigState } from "../ai-config-state.js";
 import { useKeyboard } from "../hooks/client/useKeyboard.js";
-import { removeProvider, updateProvider } from "@sylphx/code-client";
 import { setCurrentScreen } from "../ui-state.js";
 import { AI_PROVIDERS, type ProviderId } from "@sylphx/code-core";
 import { Box, Text } from "ink";
@@ -28,7 +28,7 @@ export default function ProviderManagement() {
 	const [selectedProvider, setSelectedProvider] = useState<ProviderId | null>(null);
 	const [apiKeyInput, setApiKeyInput] = useState("");
 
-	const aiConfig = useAIConfig();
+	const aiConfig = useAIConfigState();
 	const { saveConfig } = useAIConfigActions();
 
 	const configuredProviders = Object.keys(aiConfig?.providers || {}) as ProviderId[];
@@ -145,12 +145,7 @@ export default function ProviderManagement() {
 
 		// Claude Code uses CLI authentication
 		if (selectedProvider === "claude-code") {
-			useKeyboard({
-				onEscape: () => {
-					setSelectedProvider(null);
-					setMode("menu");
-				},
-			});
+			useKeyboard();
 
 			return (
 				<Box flexDirection="column" flexGrow={1}>
@@ -199,8 +194,18 @@ export default function ProviderManagement() {
 				return;
 			}
 
-			updateProvider(selectedProvider, { apiKey: value.trim() });
-			await saveConfig({ ...aiConfig!, providers: { ...aiConfig?.providers } });
+			// Update provider config directly
+			const updatedConfig = {
+				...aiConfig!,
+				providers: {
+					...aiConfig?.providers,
+					[selectedProvider]: {
+						...aiConfig?.providers?.[selectedProvider],
+						apiKey: value.trim(),
+					},
+				},
+			};
+			await saveConfig(updatedConfig);
 
 			setSelectedProvider(null);
 			setApiKeyInput("");
@@ -214,7 +219,7 @@ export default function ProviderManagement() {
 				</Box>
 
 				<Box flexShrink={0} paddingBottom={1}>
-					<Text color={colors.textDim}>Enter your {provider.keyName}</Text>
+					<Text color={colors.textDim}>Enter your API Key</Text>
 				</Box>
 
 				<Box flexGrow={1} flexDirection="column" paddingY={1}>
@@ -249,8 +254,13 @@ export default function ProviderManagement() {
 
 		const handleSelect = async (item: MenuItem) => {
 			const providerId = item.value as ProviderId;
-			removeProvider(providerId);
-			await saveConfig({ ...aiConfig!, providers: { ...aiConfig?.providers } });
+			// Remove provider from config
+			const { [providerId]: _, ...remainingProviders } = aiConfig?.providers || {};
+			const updatedConfig = {
+				...aiConfig!,
+				providers: remainingProviders,
+			};
+			await saveConfig(updatedConfig);
 			setMode("menu");
 		};
 

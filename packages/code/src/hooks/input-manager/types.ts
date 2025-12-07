@@ -111,10 +111,10 @@ export interface InputModeManagerConfig {
  * Used by autocomplete and file navigation
  */
 export interface FilteredFile {
-	path: string;
-	name: string;
-	type: string;
-	files?: FilteredFile[];
+	hasAt: boolean;
+	files: Array<{ path: string; relativePath: string; size: number }>;
+	query: string;
+	atIndex: number;
 }
 
 /**

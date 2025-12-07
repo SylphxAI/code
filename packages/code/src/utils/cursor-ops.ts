@@ -40,12 +40,12 @@ export function findWordStart(value: string, cursor: number): number {
 	let pos = cursor;
 
 	// Skip any whitespace immediately before cursor
-	while (pos > 0 && /\s/.test(value[pos - 1])) {
+	while (pos > 0 && /\s/.test(value[pos - 1] ?? "")) {
 		pos--;
 	}
 
 	// Move backwards to start of word
-	while (pos > 0 && !/\s/.test(value[pos - 1])) {
+	while (pos > 0 && !/\s/.test(value[pos - 1] ?? "")) {
 		pos--;
 	}
 
@@ -61,12 +61,12 @@ export function findWordEnd(value: string, cursor: number): number {
 	let pos = cursor;
 
 	// Skip any whitespace at cursor
-	while (pos < value.length && /\s/.test(value[pos])) {
+	while (pos < value.length && /\s/.test(value[pos] ?? "")) {
 		pos++;
 	}
 
 	// Move forwards to end of word
-	while (pos < value.length && !/\s/.test(value[pos])) {
+	while (pos < value.length && !/\s/.test(value[pos] ?? "")) {
 		pos++;
 	}
 

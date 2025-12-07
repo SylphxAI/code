@@ -1,6 +1,6 @@
 /**
  * Selection State Hook
- * Manages multi-selection, pending input, and filter state using Zen signals
+ * Manages multi-selection, pending input, and filter state using local state
  */
 
 import {
@@ -22,8 +22,8 @@ import {
 	setIsFreeTextMode as setIsFreeTextModeSignal,
 	useAskQueueLength,
 	setAskQueueLength as setAskQueueLengthSignal,
-	type WaitForInputOptions,
-} from "@sylphx/code-client";
+} from "../../../selection-state.js";
+import type { WaitForInputOptions } from "@sylphx/code-client";
 import { useRef } from "react";
 
 export interface SelectionState {

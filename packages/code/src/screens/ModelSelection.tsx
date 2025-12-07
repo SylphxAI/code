@@ -3,10 +3,10 @@
  * Select provider and model with dynamic loading
  */
 
-import { useAIConfig, useAIConfigActions } from "../hooks/client/useAIConfig.js";
+import { useAIConfigActions } from "../hooks/client/useAIConfig.js";
+import { useAIConfigState } from "../ai-config-state.js";
 import { useModels } from "../hooks/client/useModels.js";
 import { useProviders } from "../hooks/client/useProviders.js";
-import { updateProvider } from "@sylphx/code-client";
 import { setSelectedModel, setSelectedProvider, useSelectedModel, useSelectedProvider } from "../session-state.js";
 import { setCurrentScreen, setError } from "../ui-state.js";
 import { Box, Text } from "ink";
@@ -37,7 +37,7 @@ export default function ModelSelection() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const colors = useThemeColors();
 
-	const aiConfig = useAIConfig();
+	const aiConfig = useAIConfigState();
 	const selectedProvider = useSelectedProvider();
 	const _selectedModel = useSelectedModel();
 	const { saveConfig } = useAIConfigActions();
@@ -45,7 +45,13 @@ export default function ModelSelection() {
 	const configuredProviders = Object.keys(aiConfig?.providers || {});
 
 	// Load AI providers from server
-	const { providers: aiProviders, loading: loadingProviders } = useProviders();
+	const { providers: aiProvidersArray, loading: loadingProviders } = useProviders();
+
+	// Transform providers array to Record for easy lookup
+	const aiProviders = aiProvidersArray.reduce((acc, provider) => {
+		acc[provider.id] = provider;
+		return acc;
+	}, {} as Record<string, { id: string; name: string; isConfigured: boolean }>);
 
 	// Load models when provider is selected
 	const { models, loading: isLoadingModels, error: modelsError } = useModels(selectedProvider);
@@ -56,13 +62,6 @@ export default function ModelSelection() {
 			setError(modelsError);
 		}
 	}, [modelsError]);
-
-	// Auto-select default model when models are loaded
-	useEffect(() => {
-		if (selectedProvider && mode === "model" && models.length > 0 && !isLoadingModels) {
-			loadModelsAndSelectDefault();
-		}
-	}, [selectedProvider, mode, models, isLoadingModels, loadModelsAndSelectDefault]);
 
 	const loadModelsAndSelectDefault = async () => {
 		if (!selectedProvider || models.length === 0) return;
@@ -90,8 +89,7 @@ export default function ModelSelection() {
 				},
 			};
 
-			// Update store
-			await updateProvider(selectedProvider, { defaultModel: modelToSelect });
+			// Save config
 			await saveConfig(newConfig);
 
 			// Reset and go back to chat
@@ -101,6 +99,14 @@ export default function ModelSelection() {
 			setCurrentScreen("chat");
 		}
 	};
+
+	// Auto-select default model when models are loaded
+	useEffect(() => {
+		if (selectedProvider && mode === "model" && models.length > 0 && !isLoadingModels) {
+			loadModelsAndSelectDefault();
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [selectedProvider, mode, models, isLoadingModels]);
 
 	// Provider selection
 	if (mode === "provider") {
@@ -181,21 +187,10 @@ export default function ModelSelection() {
 		);
 
 		const items: MenuItem[] = filteredModels.slice(0, 20).map((model) => {
-			// Format capabilities with emoji
-			const caps: string[] = [];
-			if (model.capabilities && model.capabilities.size > 0) {
-				if (model.capabilities.has("image-input")) caps.push("👁️");
-				if (model.capabilities.has("file-input")) caps.push("📎");
-				if (model.capabilities.has("image-output")) caps.push("🎨");
-				if (model.capabilities.has("tools")) caps.push("🔧");
-				if (model.capabilities.has("reasoning")) caps.push("🧠");
-			}
-			const capsLabel = caps.length > 0 ? ` ${caps.join("")}` : "";
-
 			const nameLabel = model.name !== model.id ? `${model.name} (${model.id})` : model.id;
 
 			return {
-				label: `${nameLabel}${capsLabel}`,
+				label: nameLabel,
 				value: model.id,
 			};
 		});
@@ -219,8 +214,7 @@ export default function ModelSelection() {
 				},
 			};
 
-			// Update store
-			await updateProvider(selectedProvider, { defaultModel: item.value });
+			// Save config
 			await saveConfig(newConfig);
 
 			// Reset and go back
@@ -272,13 +266,8 @@ export default function ModelSelection() {
 					)}
 				</Box>
 
-				<Box flexShrink={0} paddingTop={1} flexDirection="column">
-					<Box marginBottom={1}>
-						<Text color={colors.textDim}>👁️=Vision 📎=Files 🎨=Image Gen 🔧=Tools 🧠=Reasoning</Text>
-					</Box>
-					<Box>
-						<Text color={colors.textDim}>↑↓ Navigate · Type Search · Enter Select · Esc Cancel</Text>
-					</Box>
+				<Box flexShrink={0} paddingTop={1}>
+					<Text color={colors.textDim}>↑↓ Navigate · Type Search · Enter Select · Esc Cancel</Text>
 				</Box>
 			</Box>
 		);

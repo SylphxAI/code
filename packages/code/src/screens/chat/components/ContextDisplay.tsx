@@ -117,7 +117,7 @@ function parseContextOutput(output: string): ParsedContextData | null {
 			}
 			if (inBreakdown && line.trim() && line.includes(":")) {
 				const match = line.match(/\s*(.+?):\s*(\d+\.?\d*[KM]?)\s*tokens/);
-				if (match) {
+				if (match && match[1] && match[2]) {
 					data.systemPromptBreakdown.push({ name: match[1].trim(), tokens: match[2] });
 				}
 			}
@@ -136,7 +136,7 @@ function parseContextOutput(output: string): ParsedContextData | null {
 			}
 			if (inTools && line.trim() && line.includes(":")) {
 				const match = line.match(/\s*(.+?):\s*(\d+\.?\d*[KM]?)\s*tokens/);
-				if (match) {
+				if (match && match[1] && match[2]) {
 					data.tools.push({ name: match[1].trim(), tokens: match[2] });
 				}
 			}

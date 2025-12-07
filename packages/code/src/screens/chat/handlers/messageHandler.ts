@@ -8,6 +8,14 @@ import type { FileAttachment } from "@sylphx/code-core";
 import type { CommandContext } from "../../../commands/types.js";
 
 /**
+ * Message history entry with text and attachments
+ */
+export interface MessageHistoryEntry {
+	text: string;
+	attachments: FileAttachment[];
+}
+
+/**
  * Parameters needed to create handleSubmit
  */
 export interface MessageHandlerParams {
@@ -43,7 +51,7 @@ export interface MessageHandlerParams {
 	setInput: (value: string) => void;
 	setPendingInput: (options: WaitForInputOptions | null) => void;
 	setPendingCommand: (command: { command: Command; currentInput: string } | null) => void;
-	setMessageHistory: (updater: (prev: string[]) => string[]) => void;
+	setMessageHistory: (updater: (prev: MessageHistoryEntry[]) => MessageHistoryEntry[]) => void;
 	clearAttachments: () => void;
 
 	// Refs
@@ -75,7 +83,14 @@ import type { Command, WaitForInputOptions } from "../../../commands/types.js";
  * Auto-resolve missing file references from user message
  *
  * When user types @file without using autocomplete, the file isn't in pendingAttachments.
- * This function finds those missing files from projectFiles and adds them.
+ *
+ * NOTE: In the current fileId architecture, files must be uploaded via client.uploadFile.fetch()
+ * to get a fileId before they can be attached. Since this function is synchronous and we can't
+ * upload files here, we simply return the existing pendingAttachments. Users must use the
+ * autocomplete system to properly attach files.
+ *
+ * TODO: Consider implementing async file upload for @file references that weren't autocompleted,
+ * or show a warning message when unresolved @file references are detected.
  */
 function autoResolveFileReferences(
 	userMessage: string,
@@ -95,26 +110,16 @@ function autoResolveFileReferences(
 	// Find missing file references
 	const missingRefs = Array.from(fileRefs).filter((ref) => !attachedFiles.has(ref));
 
-	if (missingRefs.length === 0) {
-		return pendingAttachments;
+	if (missingRefs.length > 0) {
+		// Log warning about missing file references
+		console.warn(
+			`[autoResolveFileReferences] Found ${missingRefs.length} unresolved @file references: ${missingRefs.join(", ")}. ` +
+			"Files must be attached via autocomplete to be included in messages."
+		);
 	}
 
-	// Try to resolve missing refs from projectFiles
-	const resolvedAttachments: FileAttachment[] = [...pendingAttachments];
-
-	for (const ref of missingRefs) {
-		const projectFile = projectFiles.find((f) => f.relativePath === ref);
-		if (projectFile) {
-			resolvedAttachments.push({
-				path: projectFile.path,
-				relativePath: projectFile.relativePath,
-				size: projectFile.size,
-				mimeType: undefined, // Will be inferred by server from file extension
-			});
-		}
-	}
-
-	return resolvedAttachments;
+	// Return existing attachments only (files must be uploaded via autocomplete to get fileId)
+	return pendingAttachments;
 }
 
 /**
@@ -406,10 +411,12 @@ export function createHandleSubmit(params: MessageHandlerParams) {
 		// Add to message history with attachments (append since we store oldest-first)
 		setMessageHistory((prev) => {
 			// Don't add if it's the same as the last entry (most recent)
+			const lastEntry = prev[prev.length - 1];
 			if (
 				prev.length > 0 &&
-				prev[prev.length - 1].text === userMessage &&
-				prev[prev.length - 1].attachments.length === attachmentsForMessage.length
+				lastEntry &&
+				lastEntry.text === userMessage &&
+				lastEntry.attachments.length === attachmentsForMessage.length
 			) {
 				return prev;
 			}
