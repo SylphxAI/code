@@ -2,7 +2,7 @@
  * @sylphx/code-client
  *
  * Lens client + utilities for Sylphx Code.
- * All server data via lens-react live queries.
+ * All types auto-inferred from server.
  */
 
 // ============================================================================
@@ -14,61 +14,21 @@ export {
 	initClient,
 	isClientInitialized,
 	useLensClient,
-	LensProvider,
-	useQuery,
 	direct,
 	http,
 	type CodeClient,
-	type DirectTransportOptions,
-	type HttpTransportOptions,
-	type LensServerInterface,
 	type Transport,
-	// Entity types
-	type Session,
-	type Message,
-	type Step,
-	type Part,
-	type Todo,
-	// Input/Output types
-	type UserMessageHistory,
-	type StreamEvent,
-	type ConfigResult,
-	type ProviderInfo,
-	type ProviderSchemaResult,
-	type FetchModelsResult,
-	type TokenizerInfo,
-	type ModelDetailsResult,
-	type ProjectFile,
-	type CountTokensResult,
-	type BashProcess,
-	type CreateSessionInput,
-	type UpdateSessionInput,
-	type SendMessageInput,
-	type SendMessageResult,
-	type TriggerStreamInput,
-	type TriggerStreamResult,
-	type CreateTodoInput,
-	type UpdateTodoInput,
-	type SyncTodosInput,
-	type SetProviderSecretInput,
-	type ExecuteBashInput,
-	type ExecuteBashResult,
-	type UploadFileInput,
-	type AnswerAskInput,
-	type SuccessResult,
 } from "./lens.js";
 
 // Backward compatibility
 export { useLensClient as useTRPCClient } from "./lens.js";
 
 // ============================================================================
-// Types
+// Types from code-core
 // ============================================================================
-// Note: Session type is exported from lens.ts (our CodeClient Session type)
-// MessagePart and ProviderId come from code-core
 export type { MessagePart, ProviderId } from "@sylphx/code-core";
 
-// Provider and Model types
+// Provider and Model types (used by hooks)
 export interface Provider {
 	id: string;
 	name: string;
@@ -80,6 +40,22 @@ export interface ModelInfo {
 	name: string;
 	contextWindow?: number;
 	maxOutputTokens?: number;
+}
+
+// Bash process type (used by hooks)
+export interface BashProcess {
+	id: string;
+	command: string;
+	mode: "active" | "background";
+	status: string;
+	isActive?: boolean;
+	startTime: number;
+	endTime?: number;
+	exitCode?: number;
+	cwd: string;
+	duration: number;
+	stdout?: string;
+	stderr?: string;
 }
 
 // ============================================================================
