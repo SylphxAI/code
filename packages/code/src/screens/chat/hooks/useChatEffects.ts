@@ -17,6 +17,7 @@
 import { useAIConfigActions } from "../../../hooks/client/useAIConfig.js";
 import { useLensClient, type ProjectFile } from "@sylphx/code-client";
 import { setCurrentSessionId, setSelectedAgentId, setEnabledRuleIds } from "../../../session-state.js";
+import { setSessionStatus, clearSessionStatus } from "../../../ui-state.js";
 import { clearUserInputHandler, setUserInputHandler, type FileInfo, type MessagePart, type FileAttachment, type TokenUsage } from "@sylphx/code-core";
 import { useEventStream } from "../../../hooks/client/useEventStream.js";
 import { useCallback, useEffect, useMemo } from "react";
@@ -230,13 +231,25 @@ export function useChatEffects(state: ChatState) {
 	// EVENT STREAM SUBSCRIPTION
 	// =========================
 	// Subscribe to session events for streaming (text, tools, etc.)
-	// NOTE: Session status is now handled by getSession live query
-	// No need for status callbacks here - StatusIndicator reads from session.status
+	// Status is managed via callbacks, not Lens live query (due to race conditions)
 	useEventStream({
 		replayLast: 10,
 		callbacks: {
-			// Status callbacks removed - now handled by getSession live query
-			// StatusIndicator reads session.status directly from useCurrentSession()
+			// Handle session-updated events to update status
+			"session-updated": (event: any) => {
+				const status = event?.session?.status;
+				if (status) {
+					setSessionStatus(status);
+				}
+			},
+			// Clear status when streaming completes
+			"stream-complete": () => {
+				clearSessionStatus();
+			},
+			// Clear status on error
+			"stream-error": () => {
+				clearSessionStatus();
+			},
 		},
 	});
 

@@ -41,63 +41,17 @@ export const getSession = query()
 	.input(z.object({ id: z.string() }))
 	.returns(Session)
 	.resolve(async ({ input, ctx }: { input: { id: string }; ctx: any }) => {
-		// Fetch initial session from DB
-		const fetchSession = async () => {
-			return ctx.db.session.findUnique({ where: { id: input.id } });
-		};
+		// Fetch session from DB
+		const dbSession = await ctx.db.session.findUnique({ where: { id: input.id } });
+		if (!dbSession) return null;
 
-		// Set up live query subscription if emit is available
-		// DEBUG: Log availability of emit/onCleanup
-		console.log(`[getSession] Live query for ${input.id}, emit=${!!ctx.emit}, onCleanup=${!!ctx.onCleanup}`);
-
-		if (ctx.emit && ctx.onCleanup) {
-			const channel = `session-stream:${input.id}`;
-			let cancelled = false;
-
-			console.log(`[getSession] Setting up subscription to ${channel}`);
-
-			// Subscribe to streaming events
-			(async () => {
-				try {
-					for await (const event of ctx.eventStream.subscribeWithHistory(channel, 10)) {
-						if (cancelled) break;
-
-						// DEBUG: Log received events
-						console.log(`[getSession] Event received:`, JSON.stringify(event).substring(0, 200));
-
-						// Event payload contains session update with streaming status
-						const payload = (event as any)?.payload;
-						if (payload?.type === "session-updated" && payload?.session) {
-							// Merge DB session with event data (includes status, totalTokens, etc.)
-							const dbSession = await fetchSession();
-							const merged = {
-								...dbSession,
-								...payload.session, // Includes status from session-status-manager
-							};
-
-							// DEBUG: Log emit call
-							console.log(`[getSession] Calling emit with status:`, merged.status);
-
-							ctx.emit(merged);
-						}
-					}
-				} catch (err) {
-					console.error(`[getSession] Subscription error:`, err);
-				}
-			})();
-
-			// Register cleanup
-			ctx.onCleanup(() => {
-				console.log(`[getSession] Cleanup called for ${input.id}`);
-				cancelled = true;
-			});
-		} else {
-			// DEBUG: Log when emit is NOT available
-			console.log(`[getSession] WARN: emit/onCleanup NOT available for ${input.id}`);
-		}
-
-		// Return initial session
-		return fetchSession();
+		// NOTE: Status is NOT included here - it's managed client-side via event stream
+		// The live query emit pattern doesn't work reliably due to race conditions
+		// with React re-renders causing rapid subscribe/unsubscribe cycles.
+		//
+		// Instead, the client uses useEventStream to receive status updates directly
+		// and manages status in local state (StatusIndicator component).
+		return dbSession;
 	});
 
 /**

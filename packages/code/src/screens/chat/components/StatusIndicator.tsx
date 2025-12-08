@@ -2,15 +2,19 @@
  * StatusIndicator Component
  * Displays streaming and compacting status with spinner and contextual text
  *
- * Architecture: Lens Live Query
- * - Uses session.status from getSession live query
- * - Server pushes updates via ctx.emit when status changes
- * - No local state management needed - reactive via Lens
+ * Architecture: Client-side State via Event Stream
+ * - Uses useSessionStatus() which is updated via event stream callbacks
+ * - Server pushes session-updated events during streaming
+ * - Client receives events and updates local state
  * - Duration is tracked locally for smooth 100ms updates
+ *
+ * NOTE: We don't use Lens live query for status because:
+ * - React re-renders cause rapid subscribe/unsubscribe cycles
+ * - The async emit pattern races with cleanup
+ * - Client-side state via event stream is more reliable
  */
 
-import { useIsCompacting } from "../../../ui-state.js";
-import { useCurrentSession } from "../../../hooks/client/useCurrentSession.js";
+import { useIsCompacting, useSessionStatus } from "../../../ui-state.js";
 import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
 import Spinner from "../../../components/Spinner.js";
@@ -18,12 +22,8 @@ import { useThemeColors } from "../../../theme.js";
 
 export function StatusIndicator() {
 	const isCompacting = useIsCompacting();
-	const { currentSession } = useCurrentSession();
-	const sessionStatus = currentSession?.status;
+	const sessionStatus = useSessionStatus();
 	const colors = useThemeColors();
-
-	// DEBUG: Log session status
-	console.log(`[StatusIndicator] session=${currentSession?.id?.substring(0, 8)}, status=`, sessionStatus);
 
 	// Local duration tracking for smooth updates
 	const [localDuration, setLocalDuration] = useState(0);
