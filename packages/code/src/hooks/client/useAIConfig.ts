@@ -14,11 +14,16 @@ import { setAIConfig } from "../../ai-config-state.js";
 import { setError } from "../../ui-state.js";
 import { getSelectedProvider, setSelectedProvider, getSelectedModel, setSelectedModel, getSelectedAgentId, setSelectedAgentId, getEnabledRuleIds, setEnabledRuleIds } from "../../session-state.js";
 
+// Stable query options to prevent infinite re-renders
+// lens-react uses options.input as a useMemo dependency, so it must be stable
+const LOAD_CONFIG_OPTIONS = { input: {} };
+
 export function useAIConfig() {
 	const client = useLensClient();
 
 	// Query hook - auto-loads config on mount
-	const configQuery = client.loadConfig.useQuery({ input: {} });
+	// IMPORTANT: Use stable reference for options to prevent query recreation on each render
+	const configQuery = client.loadConfig.useQuery(LOAD_CONFIG_OPTIONS);
 
 	// Mutation hook - for saving config
 	const { mutate: saveConfigMutate } = client.saveConfig.useMutation();
@@ -43,8 +48,8 @@ export function useAIConfig() {
 
 				// Sync defaultAgentId to selectedAgentId if not already set
 				// Only set if server provides defaultAgentId in config
-				if (result.config.defaultAgentId && !getSelectedAgentId()) {
-					setSelectedAgentId(result.config.defaultAgentId);
+				if ((result.config as any).defaultAgentId && !getSelectedAgentId()) {
+					setSelectedAgentId((result.config as any).defaultAgentId);
 				}
 
 				// Sync enabledRuleIds if not already set

@@ -397,8 +397,16 @@ export const loadConfig = query()
 			// Sanitize config (remove secrets)
 			const { sanitizeAIConfig } = await import("./config-utils.js");
 			const sanitizedConfig = sanitizeAIConfig(result.data);
-			// Merge with defaults (config overrides defaults)
-			return { success: true, config: { ...defaults, ...sanitizedConfig } };
+
+			// Merge with defaults, but undefined values in config should NOT override defaults
+			// This ensures server-provided defaults are used when config doesn't specify a value
+			const merged = { ...defaults };
+			for (const [key, value] of Object.entries(sanitizedConfig)) {
+				if (value !== undefined) {
+					(merged as any)[key] = value;
+				}
+			}
+			return { success: true, config: merged };
 		}
 		return { success: true, config: defaults };
 	});
