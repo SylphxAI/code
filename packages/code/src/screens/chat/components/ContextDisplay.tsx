@@ -142,6 +142,10 @@ function parseContextOutput(output: string): ParsedContextData | null {
 			}
 		}
 
+		// Validate essential data was parsed - if not, return null to show raw output
+		if (!data.usedTokens || !data.contextLimit || !data.modelName) {
+			return null;
+		}
 		return data;
 	} catch (_error) {
 		return null;

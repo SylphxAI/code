@@ -657,3 +657,110 @@ export const getModelDetails = query()
 			};
 		}
 	});
+
+// =============================================================================
+// Context Info Query
+// =============================================================================
+
+/**
+ * Get detailed context usage information
+ * Returns breakdown of tokens for system prompt, tools, and messages
+ */
+export const getContextInfo = query()
+	.input(z.object({
+		sessionId: z.string().nullable(),
+		model: z.string(),
+		agentId: z.string(),
+		enabledRuleIds: z.array(z.string()),
+	}))
+	.returns(z.object({
+		success: z.boolean(),
+		error: z.string().optional(),
+		systemPromptTokens: z.number(),
+		systemPromptBreakdown: z.record(z.number()),
+		toolsTokensTotal: z.number(),
+		toolTokens: z.record(z.number()),
+		messagesTokens: z.number(),
+		toolCount: z.number(),
+	}))
+	.resolve(async ({ input, ctx }: { input: { sessionId: string | null; model: string; agentId: string; enabledRuleIds: string[] }; ctx: LensContext }) => {
+		try {
+			const { countTokens, loadAllAgents, loadAllRules, getAISDKTools, buildSystemPrompt, TokenCalculator, DEFAULT_AGENT_ID } = await import("@sylphx/code-core");
+			const cwd = process.cwd();
+
+			// Load agents and rules
+			const allAgents = await loadAllAgents(cwd);
+			const allRules = await loadAllRules(cwd);
+			const enabledRules = allRules.filter((rule: any) => input.enabledRuleIds.includes(rule.id));
+			const tools = await getAISDKTools();
+
+			// Find agent
+			const agent = allAgents.find((a: any) => a.id === input.agentId) ||
+				allAgents.find((a: any) => a.id === DEFAULT_AGENT_ID);
+
+			// Calculate system prompt breakdown
+			const systemPromptBreakdown: Record<string, number> = {};
+			let systemPromptTokens = 0;
+
+			if (agent) {
+				const agentTokens = await countTokens(agent.systemPrompt, input.model);
+				systemPromptBreakdown["Agent"] = agentTokens;
+				systemPromptTokens += agentTokens;
+			}
+
+			for (const rule of enabledRules) {
+				const ruleTokens = await countTokens((rule as any).content, input.model);
+				systemPromptBreakdown[(rule as any).metadata?.name || rule.id] = ruleTokens;
+				systemPromptTokens += ruleTokens;
+			}
+
+			// Calculate tool tokens breakdown
+			const toolTokens: Record<string, number> = {};
+			let toolsTokensTotal = 0;
+
+			for (const [toolName, toolDef] of Object.entries(tools)) {
+				const toolRepresentation = {
+					name: toolName,
+					description: (toolDef as any).description || "",
+					parameters: (toolDef as any).parameters || {},
+				};
+				const toolJson = JSON.stringify(toolRepresentation, null, 0);
+				const tokens = await countTokens(toolJson, input.model);
+				toolTokens[toolName] = tokens;
+				toolsTokensTotal += tokens;
+			}
+
+			// Calculate message tokens from session
+			let messagesTokens = 0;
+			if (input.sessionId) {
+				const session = await ctx.db.session.findUnique({ where: { id: input.sessionId } });
+				if (session) {
+					// Use stored totalTokens if available (more accurate)
+					// Subtract base context tokens (system + tools) to get messages only
+					const baseContextTokens = systemPromptTokens + toolsTokensTotal;
+					messagesTokens = Math.max(0, (session.totalTokens || 0) - baseContextTokens);
+				}
+			}
+
+			return {
+				success: true,
+				systemPromptTokens,
+				systemPromptBreakdown,
+				toolsTokensTotal,
+				toolTokens,
+				messagesTokens,
+				toolCount: Object.keys(tools).length,
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : "Failed to get context info",
+				systemPromptTokens: 0,
+				systemPromptBreakdown: {},
+				toolsTokensTotal: 0,
+				toolTokens: {},
+				messagesTokens: 0,
+				toolCount: 0,
+			};
+		}
+	});
