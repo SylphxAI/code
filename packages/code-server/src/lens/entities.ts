@@ -55,9 +55,9 @@ export const Session = entity("Session", {
 	// Todo tracking
 	nextTodoId: t.int(),
 
-	// Timestamps (Unix ms)
-	createdAt: t.int(),
-	updatedAt: t.int(),
+	// Timestamps (Unix ms) - match database column names
+	created: t.int(),
+	updated: t.int(),
 	lastAccessedAt: t.int().optional(),
 });
 

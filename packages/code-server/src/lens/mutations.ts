@@ -71,8 +71,8 @@ export const createSession = mutation()
 				model: input.model,
 				enabledRuleIds: input.enabledRuleIds || [],
 				nextTodoId: 1,
-				createdAt: now,
-				updatedAt: now,
+				created: now,
+				updated: now,
 			},
 		});
 
@@ -105,7 +105,7 @@ export const updateSession = mutation()
 			where: { id },
 			data: {
 				...data,
-				updatedAt: Date.now(),
+				updated: Date.now(),
 			},
 		});
 	});
@@ -187,8 +187,8 @@ export const sendMessage = mutation()
 					model: input.model,
 					enabledRuleIds: [],
 					nextTodoId: 1,
-					createdAt: Date.now(),
-					updatedAt: Date.now(),
+					created: Date.now(),
+					updated: Date.now(),
 				},
 			});
 			sessionId = session.id;
@@ -351,7 +351,7 @@ export const createTodo = mutation()
 				activeForm: input.activeForm,
 				status: input.status || "pending",
 				ordering: todoId,
-				createdAt: Date.now(),
+				created: Date.now(),
 			},
 		});
 
@@ -463,7 +463,7 @@ export const syncTodos = mutation()
 						activeForm: todo.activeForm,
 						status: todo.status,
 						ordering: i,
-						createdAt: Date.now(),
+						created: Date.now(),
 					},
 				});
 				results.push(created);
@@ -754,8 +754,8 @@ export const addSystemMessage = mutation()
 					model: input.model,
 					enabledRuleIds: [],
 					nextTodoId: 1,
-					createdAt: Date.now(),
-					updatedAt: Date.now(),
+					created: Date.now(),
+					updated: Date.now(),
 				},
 			});
 			sessionId = session.id;
@@ -805,7 +805,7 @@ export const addSystemMessage = mutation()
 		// Update session timestamp
 		await ctx.db.session.update({
 			where: { id: sessionId },
-			data: { updatedAt: Date.now() },
+			data: { updated: Date.now() },
 		});
 
 		return { sessionId, messageId };
