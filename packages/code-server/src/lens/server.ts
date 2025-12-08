@@ -12,6 +12,7 @@
  */
 
 import { createApp } from "@sylphx/lens-server";
+import { router } from "@sylphx/lens-core";
 import type { AppContext } from "../context.js";
 
 // Schema
@@ -21,6 +22,21 @@ import * as entities from "./entities.js";
 // Operations
 import * as queries from "./queries.js";
 import * as mutations from "./mutations.js";
+
+// =============================================================================
+// Router Definition (TypeScript-first)
+// =============================================================================
+
+/**
+ * App router combining all queries and mutations.
+ * This creates a proper RouterDef type for client type inference.
+ */
+export const appRouter = router({
+	// Queries
+	...queries,
+	// Mutations
+	...mutations,
+});
 
 // Entity Resolvers Factory
 import { createResolvers } from "./resolvers.js";
@@ -292,14 +308,14 @@ export function createLensServer(appContext: AppContext) {
  *
  * Usage on client:
  * ```typescript
- * import type { AppRouter } from '@code/server/lens/server'
+ * import type { AppRouter } from '@sylphx/code-server'
  *
  * const client = createClient<AppRouter>({
- *   links: [websocketLink({ url: 'ws://...' })]
+ *   transport: http({ url: '/api/lens' }),
  * })
  * ```
  */
-export type AppRouter = ReturnType<typeof createLensServer>["_types"];
+export type AppRouter = typeof appRouter;
 
 // =============================================================================
 // Index Export

@@ -3,7 +3,13 @@
  * Centralized todo display logic - single source of truth
  */
 
-import type { Todo } from "@sylphx/code-core";
+// Minimal Todo interface for formatter functions
+interface Todo {
+	id: number;
+	content: string;
+	activeForm: string;
+	status: "pending" | "in_progress" | "completed" | "removed";
+}
 
 /**
  * Get icon for todo status

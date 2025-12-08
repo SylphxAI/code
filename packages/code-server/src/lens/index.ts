@@ -34,8 +34,8 @@
  * ```
  */
 
-// Server factory
-export { createLensServer, type AppRouter } from "./server.js";
+// Server factory and router
+export { createLensServer, appRouter, type AppRouter } from "./server.js";
 
 // Context types (no composables - use ctx directly in resolvers)
 export type { LensContext, LensDB, LensEventStream } from "./context.js";

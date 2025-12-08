@@ -14,22 +14,27 @@ export {
 // ============================================================================
 export { CodeServer, type ServerConfig } from "./server.js";
 // ============================================================================
-// Lens Server (new Three-Layer Architecture)
+// Lens Server (Three-Layer Architecture)
 // ============================================================================
-export { createLensServer, type AppRouter as LensRouter } from "./lens/index.js";
+export {
+	createLensServer,
+	appRouter,
+	type AppRouter,
+} from "./lens/index.js";
+
+// Note: Entity types are automatically inferred from AppRouter.
+// No explicit exports needed - TypeScript-first approach.
+
 // ============================================================================
 // Ask Queue Service
 // ============================================================================
 export { enqueueAsk, registerAskObserver } from "./services/ask-queue.service.js";
+
 // ============================================================================
 // Streaming Service
 // ============================================================================
 export type { StreamEvent } from "./services/streaming.service.js";
-export { type Context, createContext } from "./trpc/context.js";
-// ============================================================================
-// tRPC Router & Context (for in-process use)
-// ============================================================================
-export { type AppRouter, appRouter } from "./trpc/routers/index.js";
+
 // ============================================================================
 // Lens API (for type inference)
 // ============================================================================

@@ -1,26 +1,25 @@
 /**
  * Lens Client for Sylphx Code
  *
- * Simple client setup. Types inferred from server.
+ * TypeScript-first: Types auto-inferred from server's AppRouter.
  */
 
-import { createClient } from "@sylphx/lens-react";
+import { createClient, type TypedClient } from "@sylphx/lens-react";
 import { direct, http, type Transport } from "@sylphx/lens-client";
+import type { AppRouter } from "@sylphx/code-server";
 
 // =============================================================================
-// Client Type
+// Client Type (inferred from AppRouter)
 // =============================================================================
 
-// Dynamic client type - methods are accessed dynamically at runtime
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type CodeClient = Record<string, any>;
+export type CodeClient = TypedClient<AppRouter>;
 
 // =============================================================================
 // Factory
 // =============================================================================
 
 export function createCodeClient(transport: Transport): CodeClient {
-	return createClient({ transport }) as CodeClient;
+	return createClient<AppRouter>({ transport });
 }
 
 // =============================================================================

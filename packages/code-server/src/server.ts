@@ -1,16 +1,14 @@
 /**
  * CodeServer
- * Embeddable server class for in-process or HTTP tRPC
+ * Embeddable Lens server for in-process or HTTP
  *
  * Design Philosophy:
  * - Default: In-process (zero overhead, direct function calls)
  * - Optional: HTTP server (Web GUI, remote connections)
- * - Inspired by graphql-yoga, @trpc/server
- * - Uses functional provider pattern via AppContext
+ * - Lens-only architecture (no tRPC)
  */
 
 import type { Server } from "node:http";
-import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import express, { type Express } from "express";
 import {
 	type AppContext,
@@ -18,11 +16,9 @@ import {
 	createAppContext,
 	initializeAppContext,
 } from "./context.js";
-import { type Context, createContext } from "./trpc/context.js";
-import { type AppRouter, appRouter } from "./trpc/routers/index.js";
 import { initializeLensAPI } from "./lens/index.js";
 import { createLensHTTPHandler } from "./lens/http-handler.js";
-import { createLensServer, type AppRouter as LensAppRouter } from "./lens/server.js";
+import { createLensServer, appRouter, type AppRouter } from "./lens/server.js";
 import type { LensServer } from "@sylphx/lens-server";
 
 export interface ServerConfig {
@@ -45,15 +41,14 @@ export interface ServerConfig {
 }
 
 /**
- * CodeServer - Embeddable tRPC server
+ * CodeServer - Embeddable Lens server
  *
  * Usage:
  *
  * // In-process (TUI, fast):
  * const server = new CodeServer({ dbPath: '...' });
  * await server.initialize();
- * const router = server.getRouter();
- * const context = await server.getContext();
+ * const lensServer = server.getLensServer();
  *
  * // HTTP (Web GUI, remote):
  * const server = new CodeServer({ port: 3000 });
@@ -79,7 +74,7 @@ export class CodeServer {
 
 	/**
 	 * Initialize server resources (database, agent/rule managers)
-	 * Must be called before getRouter() or startHTTP()
+	 * Must be called before getLensServer() or startHTTP()
 	 * Uses functional provider pattern via AppContext
 	 */
 	async initialize(): Promise<void> {
@@ -102,28 +97,10 @@ export class CodeServer {
 	}
 
 	/**
-	 * Get tRPC router for in-process use
-	 * Use with inProcessLink for zero-overhead communication
+	 * Get AppRouter for type inference
 	 */
 	getRouter(): AppRouter {
-		if (!this.initialized) {
-			throw new Error("Server not initialized. Call initialize() first.");
-		}
 		return appRouter;
-	}
-
-	/**
-	 * Get context factory for in-process use
-	 * Binds AppContext to context creation
-	 */
-	getContext(): () => Promise<Context> {
-		if (!this.initialized || !this.appContext) {
-			throw new Error("Server not initialized. Call initialize() first.");
-		}
-
-		// Bind appContext to createContext via closure
-		const appContext = this.appContext;
-		return () => createContext({ appContext });
 	}
 
 	/**
@@ -141,20 +118,9 @@ export class CodeServer {
 		if (!this.expressApp) {
 			this.expressApp = express();
 
-			// tRPC middleware with SSE support
-			// Bind appContext to createContext via closure
-			const appContext = this.appContext;
-			this.expressApp.use(
-				"/trpc",
-				createExpressMiddleware({
-					router: appRouter,
-					createContext: ({ req, res }) => createContext({ appContext: appContext!, req, res }),
-				}),
-			);
-
 			// Lens HTTP middleware
 			// Initialize Lens API with AppContext (context is pre-bound)
-			const lensAPI = initializeLensAPI(appContext!);
+			const lensAPI = initializeLensAPI(this.appContext!);
 			const lensHandler = createLensHTTPHandler(lensAPI);
 
 			// Parse JSON body for Lens requests
@@ -174,10 +140,10 @@ export class CodeServer {
 				?.listen(finalPort, () => {
 					console.log(`\n🚀 Sylphx Code Server`);
 					console.log(`   HTTP Server: http://localhost:${finalPort}`);
-					console.log(`   tRPC Endpoint: http://localhost:${finalPort}/trpc`);
+					console.log(`   Lens Endpoint: http://localhost:${finalPort}/lens`);
 					console.log(`\n📡 Accepting connections from:`);
-					console.log(`   - code (TUI): in-process tRPC`);
-					console.log(`   - code-web (GUI): HTTP/SSE tRPC`);
+					console.log(`   - code (TUI): in-process Lens`);
+					console.log(`   - code-web (GUI): HTTP Lens`);
 					console.log(`\n💾 All clients share same data source\n`);
 					resolve(this.httpServer!);
 				})
@@ -209,8 +175,8 @@ export class CodeServer {
 
 				// SPA fallback - serve index.html for all non-API routes
 				this.expressApp.use((req, res, next) => {
-					// Skip if it's a tRPC request
-					if (req.path.startsWith("/trpc")) {
+					// Skip if it's a Lens request
+					if (req.path.startsWith("/lens")) {
 						return next();
 					}
 
@@ -223,11 +189,11 @@ export class CodeServer {
 					res.send(`
             <html>
               <body style="font-family: sans-serif; padding: 40px; max-width: 600px; margin: 0 auto;">
-                <h1>🚀 Sylphx Flow Web Server</h1>
+                <h1>🚀 Sylphx Code Server</h1>
                 <p>Server is running, but Web UI is not built yet.</p>
                 <p><strong>To build the Web UI:</strong></p>
                 <pre>cd src/web && bun install && bun run build</pre>
-                <p><strong>API Status:</strong> ✅ tRPC endpoints available at <code>/trpc</code></p>
+                <p><strong>API Status:</strong> ✅ Lens endpoints available at <code>/lens</code></p>
               </body>
             </html>
           `);

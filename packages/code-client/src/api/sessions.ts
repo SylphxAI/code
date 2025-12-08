@@ -9,8 +9,10 @@
  */
 
 import type { ProviderId } from "@sylphx/code-core";
-import type { Session } from "../lens.js";
-import { getClient } from "../lens.js";
+import { getClient, type CodeClient } from "../lens.js";
+
+// Infer Session type from client
+type Session = NonNullable<Awaited<ReturnType<CodeClient["getSession"]>>>;
 
 /**
  * Session metadata for listing (lightweight, no messages/todos)

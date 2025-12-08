@@ -1,1 +1,0 @@
-{"version":3,"file":"todo-tool.d.ts","sourceRoot":"","sources":["todo-tool.ts"],"names":[],"mappings":"AAAA;;;;;;;;;GASG;AAEH,OAAO,KAAK,EAAE,UAAU,EAAE,MAAM,kBAAkB,CAAC;AACnD,OAAO,EAAkB,KAAK,iBAAiB,EAAwB,MAAM,mBAAmB,CAAC;AAEjG;;;;;;;;;;;;;;GAcG;AACH,wBAAgB,oBAAoB,CACnC,SAAS,EAAE,MAAM,EACjB,iBAAiB,EAAE,iBAAiB,EACpC,UAAU,EAAE,UAAU;;;;;;;;;;;;;;;;;;;;;GAiCtB"}
