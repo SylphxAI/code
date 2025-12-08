@@ -108,13 +108,15 @@ export const getMessage = query()
 	});
 
 /**
- * List messages for a session with nested steps and parts
+ * List messages for a session
  *
  * LIVE QUERY: Uses emit pattern to push updates when streaming events occur.
- * Returns inline nested structure for client compatibility.
+ * Returns [Message] - nested steps/parts are resolved via entity resolvers.
  *
- * Note: Entity resolvers are available for future field-level live queries.
- * Currently returns full nested data for backwards compatibility.
+ * Architecture:
+ * - listMessages → returns [Message], handles list-level ops (push/remove)
+ * - Message resolver → steps field with emit for step updates
+ * - Step resolver → parts field with emit for part updates
  */
 export const listMessages = query()
 	.input(
@@ -123,55 +125,15 @@ export const listMessages = query()
 			limit: z.number().optional(),
 		}),
 	)
-	.returns(z.array(z.object({
-		id: z.string(),
-		sessionId: z.string(),
-		role: z.string(),
-		timestamp: z.number(),
-		ordering: z.number(),
-		status: z.string(),
-		steps: z.array(z.object({
-			id: z.string(),
-			messageId: z.string(),
-			stepIndex: z.number(),
-			status: z.string(),
-			parts: z.array(z.object({
-				id: z.string(),
-				stepId: z.string(),
-				ordering: z.number(),
-				type: z.string(),
-				content: z.unknown(),
-			})),
-		})),
-	})))
+	.returns([Message])
 	.resolve(async ({ input, ctx }: { input: { sessionId: string; limit?: number }; ctx: any }) => {
-		// Helper to fetch and transform messages with nested steps/parts
+		// Fetch messages (nested steps/parts included from getSessionMessages)
 		const fetchMessages = async () => {
 			const messages = await ctx.db.message.findMany({
 				where: { sessionId: input.sessionId },
 			});
 			const limited = input.limit ? messages.slice(0, input.limit) : messages;
-			return limited.map((msg: any, msgIndex: number) => ({
-				id: msg.id,
-				sessionId: input.sessionId,
-				role: msg.role,
-				timestamp: msg.timestamp || Date.now(),
-				ordering: msgIndex,
-				status: msg.status || "completed",
-				steps: (msg.steps || []).map((step: any, stepIndex: number) => ({
-					id: step.id,
-					messageId: msg.id,
-					stepIndex: step.stepIndex ?? stepIndex,
-					status: step.status || "completed",
-					parts: (step.parts || []).map((part: any, partIndex: number) => ({
-						id: `${step.id}-part-${partIndex}`,
-						stepId: step.id,
-						ordering: partIndex,
-						type: part.type,
-						content: part,
-					})),
-				})),
-			}));
+			return limited;
 		};
 
 		// Set up live query subscription if emit is available
