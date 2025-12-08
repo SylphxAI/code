@@ -17,7 +17,7 @@ export function useAIConfig() {
 	const client = useLensClient();
 
 	// Query hook - auto-loads config on mount
-	const configQuery = client.loadConfig.useQuery({});
+	const configQuery = client.loadConfig.useQuery({ input: {} });
 
 	// Mutation hook - for saving config
 	const { mutate: saveConfigMutate } = client.saveConfig.useMutation();
