@@ -17,13 +17,44 @@ import type { LensContext } from "./context.js";
 // =============================================================================
 
 /**
- * Get session by ID
+ * Get session by ID (Live Query)
+ *
+ * This is a LIVE QUERY that automatically updates when session changes.
+ * - Returns initial session data
+ * - Subscribes to session-stream:{id} channel
+ * - Yields updated session when events arrive
+ *
+ * Client usage:
+ *   const { data: session } = client.getSession.useQuery({ input: { id } });
+ *   // session automatically updates when server emits changes
+ *
+ * NOTE: Streaming status (text, duration, isActive) is in-memory only.
+ * It's included in the event payload, not persisted to DB.
  */
 export const getSession = query()
 	.input(z.object({ id: z.string() }))
 	.returns(Session)
-	.resolve(async ({ input, ctx }: { input: { id: string }; ctx: LensContext }) => {
-		return ctx.db.session.findUnique({ where: { id: input.id } });
+	.resolve(async function* ({ input, ctx }: { input: { id: string }; ctx: LensContext }) {
+		// 1. Yield initial session data from DB
+		const initialSession = await ctx.db.session.findUnique({ where: { id: input.id } });
+		yield initialSession;
+
+		// 2. Subscribe to session updates and yield changes
+		// Channel: session-stream:{sessionId} - same channel used by streaming mutations
+		const channel = `session-stream:${input.id}`;
+		for await (const event of ctx.eventStream.subscribe(channel)) {
+			// Event payload contains session update with streaming status
+			// Streaming status (text, duration, isActive) is NOT in DB - only in event
+			const payload = (event as any)?.payload;
+			if (payload?.type === "session-updated" && payload?.session) {
+				// Merge event data with DB data for complete session
+				const dbSession = await ctx.db.session.findUnique({ where: { id: input.id } });
+				yield {
+					...dbSession,
+					...payload.session, // Includes status, totalTokens, etc.
+				};
+			}
+		}
 	});
 
 /**

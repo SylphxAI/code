@@ -19,7 +19,6 @@ import { useLensClient, type ProjectFile } from "@sylphx/code-client";
 import { setCurrentSessionId, setSelectedAgentId, setEnabledRuleIds } from "../../../session-state.js";
 import { clearUserInputHandler, setUserInputHandler, type FileInfo, type MessagePart, type FileAttachment, type TokenUsage } from "@sylphx/code-core";
 import { useEventStream } from "../../../hooks/client/useEventStream.js";
-import { setSessionStatus, clearSessionStatus } from "../../../ui-state.js";
 import { useCallback, useEffect, useMemo } from "react";
 import { commands } from "../../../commands/registry.js";
 import { useCommandAutocomplete } from "../autocomplete/commandAutocomplete.js";
@@ -230,44 +229,16 @@ export function useChatEffects(state: ChatState) {
 
 	// EVENT STREAM SUBSCRIPTION
 	// =========================
-	// Subscribe to session events for status indicator updates.
-	// The server sends session-updated events with status embedded.
-	// replayLast: 10 - replay last 10 events to catch up on status if we subscribed late
+	// Subscribe to session events for streaming (text, tools, etc.)
+	// NOTE: Session status is now handled by getSession live query
+	// No need for status callbacks here - StatusIndicator reads from session.status
 	useEventStream({
 		replayLast: 10,
 		callbacks: {
-			onSessionUpdated: (_sessionId, session) => {
-				// Extract status from session-updated event
-				if (session?.status) {
-					setSessionStatus({
-						isActive: session.status.isActive ?? false,
-						text: session.status.text ?? "",
-						duration: session.status.duration ?? 0,
-						tokenUsage: session.status.tokenUsage ?? 0,
-						totalTokens: session.totalTokens, // For real-time StatusBar updates
-					});
-				}
-			},
-			onSessionStatusUpdated: (_sessionId, status) => {
-				// Legacy event handler (deprecated but still supported)
-				if (status) {
-					setSessionStatus({
-						isActive: status.isActive ?? false,
-						text: status.text ?? "",
-						duration: status.duration ?? 0,
-						tokenUsage: status.tokenUsage ?? 0,
-					});
-				}
-			},
+			// Status callbacks removed - now handled by getSession live query
+			// StatusIndicator reads session.status directly from useCurrentSession()
 		},
 	});
-
-	// Clear session status when session changes
-	useEffect(() => {
-		if (!state.currentSessionId) {
-			clearSessionStatus();
-		}
-	}, [state.currentSessionId]);
 
 	// Create handleSubmit function
 	const handleSubmit = useMemo(

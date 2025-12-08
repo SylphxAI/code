@@ -2,13 +2,15 @@
  * StatusIndicator Component
  * Displays streaming and compacting status with spinner and contextual text
  *
- * Architecture: Local UI state for streaming status
- * - Uses useSessionStatus() from ui-state.ts
- * - Status is set by streaming orchestration code
- * - Duration is tracked locally with smooth updates
+ * Architecture: Lens Live Query
+ * - Uses session.status from getSession live query
+ * - Server pushes updates via ctx.emit when status changes
+ * - No local state management needed - reactive via Lens
+ * - Duration is tracked locally for smooth 100ms updates
  */
 
-import { useIsCompacting, useSessionStatus } from "../../../ui-state.js";
+import { useIsCompacting } from "../../../ui-state.js";
+import { useCurrentSession } from "../../../hooks/client/useCurrentSession.js";
 import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
 import Spinner from "../../../components/Spinner.js";
@@ -16,7 +18,8 @@ import { useThemeColors } from "../../../theme.js";
 
 export function StatusIndicator() {
 	const isCompacting = useIsCompacting();
-	const sessionStatus = useSessionStatus();
+	const { currentSession } = useCurrentSession();
+	const sessionStatus = currentSession?.status;
 	const colors = useThemeColors();
 
 	// Local duration tracking for smooth updates
