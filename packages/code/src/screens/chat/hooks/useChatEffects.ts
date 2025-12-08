@@ -16,8 +16,7 @@
 
 import { useAIConfigActions } from "../../../hooks/client/useAIConfig.js";
 import { useLensClient, type ProjectFile } from "@sylphx/code-client";
-import { setCurrentSessionId, setSelectedAgentId, setEnabledRuleIds } from "../../../session-state.js";
-import { setSessionStatus, clearSessionStatus } from "../../../ui-state.js";
+import { setCurrentSessionId, setSelectedAgentId, setEnabledRuleIds, setSessionStatus } from "../../../session-state.js";
 import { clearUserInputHandler, setUserInputHandler, type FileInfo, type MessagePart, type FileAttachment, type TokenUsage } from "@sylphx/code-core";
 import { useEventStream } from "../../../hooks/client/useEventStream.js";
 import { useCallback, useEffect, useMemo } from "react";
@@ -214,41 +213,28 @@ export function useChatEffects(state: ChatState) {
 		commands,
 	);
 
-	// LIVE QUERY ARCHITECTURE
-	// =======================
-	// Session streaming is handled by useCurrentSession which uses:
-	//   useQuery(client.getSession({ id }))
-	//
-	// Server emits updates via emit API (emit.delta, emit.set, emit.merge).
-	// Client receives updates automatically - NO callbacks needed!
-	//
-	// Streaming state (isStreaming, isTitleStreaming, etc.) is derived in:
-	//   - useCurrentSession() for isStreaming
-	//   - useStreamingState() for all streaming state from session
-	//
-	// No need for useEffect to sync streaming state - it's already reactive via useQuery!
+	// SESSION STATUS ARCHITECTURE
+	// ===========================
+	// Session data comes from lens-react query (client.getSession.useQuery)
+	// Session status (streaming state) comes from event stream:
+	//   - Server publishes session-updated events with status
+	//   - Client receives via subscribeToSession (below)
+	//   - Status is stored in session-state via setSessionStatus
+	//   - useCurrentSession merges status into session object
 
 	// EVENT STREAM SUBSCRIPTION
 	// =========================
 	// Subscribe to session events for streaming (text, tools, etc.)
-	// Status is managed via callbacks, not Lens live query (due to race conditions)
+	// Session status is updated here and stored in session-state
 	useEventStream({
 		replayLast: 10,
 		callbacks: {
-			// Handle session-updated events to update status
-			"session-updated": (event: any) => {
-				const status = event?.session?.status;
-				if (status) {
-					setSessionStatus(status);
+			// Handle session-updated events to get live status
+			onSessionUpdated: (_sessionId, session) => {
+				// Update session status from event stream
+				if (session?.status) {
+					setSessionStatus(session.status);
 				}
-			},
-			// Clear status when streaming completes
-			"stream-complete": () => {
-				clearSessionStatus();
-			},
-			// Clear status on error
-			"stream-error": () => {
-				clearSessionStatus();
 			},
 		},
 	});

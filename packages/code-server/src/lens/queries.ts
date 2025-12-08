@@ -17,40 +17,23 @@ import type { LensContext } from "./context.js";
 // =============================================================================
 
 /**
- * Get session by ID (Live Query)
+ * Get session by ID
  *
- * This is a LIVE QUERY that automatically updates when session changes.
- * - Returns initial session data
- * - Subscribes to session-stream:{id} channel via ctx.emit()
- * - Pushes updated session when events arrive
+ * Returns session data from DB.
+ *
+ * NOTE: Live status updates come through subscribeToSession event stream,
+ * not through this query. Client merges status from event stream into session.
  *
  * Client usage:
  *   const { data: session } = client.getSession.useQuery({ input: { id } });
- *   // session automatically updates when server emits changes
- *
- * NOTE: Streaming status (text, duration, isActive) is in-memory only.
- * It's included in the event payload, not persisted to DB.
- *
- * Architecture:
- * - Uses ctx.emit() pattern (NOT async generator)
- * - Returns initial data immediately
- * - Background subscription pushes updates via emit
- * - Cleanup registered via ctx.onCleanup()
+ *   // session.status is merged from event stream in useCurrentSession()
  */
 export const getSession = query()
 	.input(z.object({ id: z.string() }))
 	.returns(Session)
-	.resolve(async ({ input, ctx }: { input: { id: string }; ctx: any }) => {
+	.resolve(async ({ input, ctx }: { input: { id: string }; ctx: LensContext }) => {
 		// Fetch session from DB
 		const dbSession = await ctx.db.session.findUnique({ where: { id: input.id } });
-		if (!dbSession) return null;
-
-		// NOTE: Status is NOT included here - it's managed client-side via event stream
-		// The live query emit pattern doesn't work reliably due to race conditions
-		// with React re-renders causing rapid subscribe/unsubscribe cycles.
-		//
-		// Instead, the client uses useEventStream to receive status updates directly
-		// and manages status in local state (StatusIndicator component).
 		return dbSession;
 	});
 

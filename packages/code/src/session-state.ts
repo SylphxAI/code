@@ -92,3 +92,19 @@ const enabledRuleIdsState = createState<string[]>([]);
 export const setEnabledRuleIds = enabledRuleIdsState.set;
 export const getEnabledRuleIds = enabledRuleIdsState.get;
 export const useEnabledRuleIds = () => useStore(enabledRuleIdsState);
+
+// ============================================================================
+// Session Status (live streaming status from event stream)
+// ============================================================================
+
+export interface SessionStatus {
+	text: string;
+	duration: number;
+	tokenUsage: number;
+	isActive: boolean;
+}
+
+const sessionStatusState = createState<SessionStatus | null>(null);
+export const setSessionStatus = sessionStatusState.set;
+export const getSessionStatus = sessionStatusState.get;
+export const useSessionStatus = () => useStore(sessionStatusState);

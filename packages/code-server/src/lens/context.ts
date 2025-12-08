@@ -15,6 +15,25 @@
 import type { AppContext } from "../context.js";
 
 // =============================================================================
+// Emit Type Definition (matches lens-core/emit)
+// =============================================================================
+
+/**
+ * Emit object for object outputs
+ * Allows partial updates, field-level updates, etc.
+ */
+export interface EmitObject<T> {
+	/** Emit full object (merge with current state) */
+	(data: T): void;
+	/** Merge partial data into current state */
+	merge: (partial: Partial<T>) => void;
+	/** Replace entire state */
+	replace: (data: T) => void;
+	/** Set a specific field value */
+	set: <K extends keyof T>(field: K, value: T[K]) => void;
+}
+
+// =============================================================================
 // Context Type Definition
 // =============================================================================
 
@@ -25,7 +44,7 @@ import type { AppContext } from "../context.js";
  * - db: Database access (Prisma-like interface)
  * - eventStream: Real-time event publishing/subscribing
  * - appContext: Full app context for advanced operations
- * - emit: Live query emit function (injected by lens-server)
+ * - emit: Live query emit object (injected by lens-server)
  * - onCleanup: Cleanup registration (injected by lens-server)
  */
 export interface LensContext {
@@ -35,8 +54,8 @@ export interface LensContext {
 	eventStream: LensEventStream;
 	/** Full app context (for streaming, etc.) */
 	appContext: AppContext;
-	/** Live query emit function (injected by lens-server in live mode) */
-	emit?: (value: unknown) => void;
+	/** Live query emit object (injected by lens-server in live mode) */
+	emit?: EmitObject<any>;
 	/** Cleanup registration (injected by lens-server in live mode) */
 	onCleanup?: (fn: () => void) => void;
 }

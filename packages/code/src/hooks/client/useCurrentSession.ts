@@ -1,24 +1,31 @@
 /**
  * useCurrentSession Hook
- * Provides current session data using lens-react hooks
+ * Provides current session data with live status updates
  *
- * ARCHITECTURE: lens-react v5 API
- * ===============================
- * - client.xxx.useQuery({ input }) → React hook { data, loading, error, refetch }
- * - await client.xxx({ input }) → Vanilla JS Promise (for commands/utilities)
+ * ARCHITECTURE:
+ * - Session data: lens-react query (client.getSession.useQuery)
+ * - Live status: Event stream (subscribeToSession -> session-updated events)
+ * - Status merging: useSessionStatus() from session-state
+ *
+ * Flow:
+ * 1. Server publishes session-updated events to session-stream:{id}
+ * 2. Client receives via subscribeToSession (event stream)
+ * 3. useChatEffects extracts status and calls setSessionStatus()
+ * 4. This hook merges status into session via useSessionStatus()
  */
 
 import { useLensClient, type Session } from "@sylphx/code-client";
-import { useCurrentSessionId } from "../../session-state.js";
+import { useCurrentSessionId, useSessionStatus } from "../../session-state.js";
 
 export function useCurrentSession() {
 	const client = useLensClient();
 	const currentSessionId = useCurrentSessionId();
+	const sessionStatus = useSessionStatus();
 
 	// Skip query when no valid session ID
 	const skip = !currentSessionId || currentSessionId === "temp-session";
 
-	// Use lens-react query hook
+	// Use lens-react query hook for session data
 	const { data: session, loading, error, refetch } = client.getSession.useQuery({
 		input: { id: currentSessionId || "" },
 		skip,
@@ -34,15 +41,23 @@ export function useCurrentSession() {
 		refetch: () => void;
 	};
 
-	// Derive isStreaming from session state
-	const isStreaming = session?.streamingStatus === "streaming" ||
+	// Merge session status from event stream into session
+	// Status is updated via useEventStream -> setSessionStatus
+	const sessionWithStatus = session ? {
+		...session,
+		status: sessionStatus,
+	} : null;
+
+	// Derive isStreaming from session status
+	const isStreaming = sessionStatus?.isActive ||
+		session?.streamingStatus === "streaming" ||
 		session?.streamingStatus === "waiting_input" ||
 		session?.isTextStreaming ||
 		session?.isReasoningStreaming ||
 		!!session?.currentTool;
 
 	return {
-		currentSession: session,
+		currentSession: sessionWithStatus,
 		currentSessionId,
 		isStreaming,
 		isLoading: loading,

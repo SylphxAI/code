@@ -49,6 +49,10 @@ export const Session = entity("Session", {
 	baseContextTokens: t.int().optional(),
 	totalTokens: t.int().optional(),
 
+	// Streaming status (in-memory only, not persisted to DB)
+	// { text: string, duration: number, tokenUsage: number, isActive: boolean }
+	status: t.json().optional(),
+
 	// Message queue (for queuing during streaming)
 	messageQueue: t.json().optional(), // QueuedMessage[]
 

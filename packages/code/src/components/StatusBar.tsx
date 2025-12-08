@@ -4,18 +4,18 @@
  *
  * ARCHITECTURE: lens-react hooks pattern
  * - Queries: client.queryName({ input, skip }) → { data, loading, error, refetch }
+ * - getSession is a live query that includes status with totalTokens during streaming
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { useLensClient } from "@sylphx/code-client";
-import { formatTokenCount } from "@sylphx/code-core";
+import { useLensClient, type Session } from "@sylphx/code-client";
+import { formatTokenCount, type SessionStatus } from "@sylphx/code-core";
 import { useEnabledRuleIds, useSelectedAgentId } from "../session-state.js";
 import { Box, Spacer, Text } from "ink";
 import { getAgentById } from "../embedded-context.js";
 import { useThemeColors } from "../theme.js";
 import { useMCPStatus } from "../hooks/client/useMCPStatus.js";
 import { useModelDetails } from "../hooks/client/useModelDetails.js";
-import { useSessionStatus } from "../ui-state.js";
 
 interface StatusBarProps {
 	provider: string | null;
@@ -46,11 +46,7 @@ function StatusBarInternal({
 	const client = useLensClient();
 
 	// Local state for derived values
-	const [sessionTokens, setSessionTokens] = useState(0);
 	const [backgroundBashCount, setBackgroundBashCount] = useState(0);
-
-	// Get real-time session status (includes totalTokens during streaming)
-	const sessionStatus = useSessionStatus();
 
 	// Subscribe to current agent from store (event-driven, no polling!)
 	const selectedAgentId = useSelectedAgentId();
@@ -63,6 +59,7 @@ function StatusBarInternal({
 
 	// Query hooks for session and bash data
 	// IMPORTANT: Use .useQuery() for React hook pattern, not vanilla call
+	// getSession is a LIVE QUERY that includes status with totalTokens during streaming
 	const sessionQuery = client.getSession.useQuery({
 		input: { id: sessionId || "" },
 		skip: !sessionId,
@@ -70,15 +67,8 @@ function StatusBarInternal({
 
 	const bashQuery = client.listBash.useQuery({});
 
-	// Sync session data to local state
-	useEffect(() => {
-		if (sessionQuery.data) {
-			const session = sessionQuery.data as { totalTokens?: number } | null;
-			setSessionTokens(session?.totalTokens || 0);
-		} else if (!sessionId) {
-			setSessionTokens(0);
-		}
-	}, [sessionQuery.data, sessionId]);
+	// Get session with live status from live query
+	const session = sessionQuery.data as (Session & { status?: SessionStatus }) | null;
 
 	// Sync bash data to local state
 	useEffect(() => {
@@ -89,11 +79,11 @@ function StatusBarInternal({
 		}
 	}, [bashQuery.data]);
 
-	// Use real-time streaming tokens if available, otherwise fall back to query data
-	// During streaming, sessionStatus.totalTokens is updated in real-time via EventStream
+	// Get tokens from live query - includes real-time updates during streaming
+	// status.tokenUsage is updated via session-status-manager during streaming
 	const totalTokens = Math.max(
-		sessionTokens,
-		sessionStatus?.totalTokens ?? 0,
+		session?.totalTokens || 0,
+		session?.status?.tokenUsage || 0,
 	);
 
 	// MCP status (event-driven via eventBus, not Lens)
