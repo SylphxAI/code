@@ -152,7 +152,7 @@ export const useDebugLogs = () => useStore(debugLogsState);
 // Display Settings
 // ============================================================================
 
-const hideMessageTitlesState = createState(false);
+const hideMessageTitlesState = createState(true); // Default: hide message titles for cleaner UI
 export const setHideMessageTitles = hideMessageTitlesState.set;
 export const getHideMessageTitles = hideMessageTitlesState.get;
 export const useHideMessageTitles = () => useStore(hideMessageTitlesState);
