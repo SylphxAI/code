@@ -6,13 +6,14 @@
  * ARCHITECTURE: lens-react v5 API
  * - client.xxx.useQuery({ input }) → React hook { data, loading, error, refetch }
  *
- * LIVE QUERY: Uses subscribeMessages for reactive updates.
- * Server yields new message list when streaming events occur.
+ * POLLING: When streamingExpected is true, polls every 100ms
+ * to get updated message content during streaming.
  */
 
 import { useLensClient } from "@sylphx/code-client";
 import type { SessionMessage, MessageStep, MessagePart } from "@sylphx/code-core";
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
+import { useStreamingExpected } from "../../ui-state.js";
 
 /**
  * Convert server Part to client MessagePart format
@@ -69,13 +70,39 @@ function convertPart(part: { type: string; content: unknown }): MessagePart {
 
 export function useMessages(sessionId: string | null | undefined) {
 	const client = useLensClient();
+	const streamingExpected = useStreamingExpected();
+	const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-	// Use subscription query for live updates
-	// Server yields new message list on streaming events
-	const messagesQuery = client.subscribeMessages.useQuery({
+	// Use lens-react query hook
+	const messagesQuery = client.listMessages.useQuery({
 		input: { sessionId: sessionId || "" },
 		skip: !sessionId,
 	});
+
+	// Poll while streaming is expected (for inProcess transport)
+	useEffect(() => {
+		if (streamingExpected && sessionId) {
+			// Start polling
+			pollingRef.current = setInterval(() => {
+				messagesQuery.refetch?.();
+			}, 100);
+		} else {
+			// Stop polling and do one final refetch
+			if (pollingRef.current) {
+				clearInterval(pollingRef.current);
+				pollingRef.current = null;
+				// Final refetch to get completed message
+				messagesQuery.refetch?.();
+			}
+		}
+
+		return () => {
+			if (pollingRef.current) {
+				clearInterval(pollingRef.current);
+				pollingRef.current = null;
+			}
+		};
+	}, [streamingExpected, sessionId, messagesQuery.refetch]);
 
 	// Convert raw messages to SessionMessage format
 	const messages = useMemo((): SessionMessage[] => {
