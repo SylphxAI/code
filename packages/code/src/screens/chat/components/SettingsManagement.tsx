@@ -9,6 +9,7 @@ import { Box, Text } from "ink";
 import SelectInput from "ink-select-input";
 import { useState } from "react";
 import { useThemeColors, getColors } from "../../../theme.js";
+import { setHideMessageTitles, setHideMessageUsage } from "../../../ui-state.js";
 
 // ProjectSettings interface type - we extract it from the Parameters of saveSettings
 // to avoid confusion with the ProjectSettings class
@@ -310,6 +311,9 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 							cwd,
 						);
 
+						// Update UI signal immediately
+						setHideMessageTitles(hideTitles);
+
 						// Go back to main menu
 						setView("main");
 					}}
@@ -360,6 +364,9 @@ export function SettingsManagement({ aiConfig, onComplete, onSave }: SettingsMan
 							} as any,
 							cwd,
 						);
+
+						// Update UI signal immediately
+						setHideMessageUsage(hideUsage);
 
 						// Go back to main menu
 						setView("main");
