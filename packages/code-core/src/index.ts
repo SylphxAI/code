@@ -91,6 +91,7 @@ export {
 	updateStepParts,
 } from "./database/step-repository-helpers.js";
 export { TodoRepository } from "./database/todo-repository.js";
+export { getSessionMessages } from "./database/session/session-parser.js";
 
 // ============================================================================
 // Storage (Functional)

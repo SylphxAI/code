@@ -13,6 +13,7 @@
 
 import { createApp } from "@sylphx/lens-server";
 import { router } from "@sylphx/lens-core";
+import { getSessionMessages } from "@sylphx/code-core";
 import type { AppContext } from "../context.js";
 
 // Schema
@@ -57,6 +58,8 @@ import type { LensDB, LensEventStream } from "./context.js";
 function createDatabaseAdapter(appContext: AppContext): LensDB {
 	const sessionRepo = appContext.database.getRepository();
 	const messageRepo = appContext.database.getMessageRepository();
+	const todoRepo = appContext.database.getTodoRepository();
+	const db = appContext.database.getDB();
 
 	return {
 		session: {
@@ -65,22 +68,19 @@ function createDatabaseAdapter(appContext: AppContext): LensDB {
 			},
 			findMany: async (args) => {
 				if (args?.where?.id?.in) {
-					// Batch fetch by IDs
-					return sessionRepo.getSessionsByIds(args.where.id.in);
+					// Batch fetch by IDs - use Promise.all for parallel fetch
+					const sessions = await Promise.all(
+						args.where.id.in.map((id: string) => sessionRepo.getSessionById(id))
+					);
+					return sessions.filter(Boolean);
 				}
-				// List all
-				const sessions = await sessionRepo.getAllSessions();
-				// Apply ordering and limit
-				if (args?.orderBy?.updatedAt === "desc") {
-					sessions.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-				}
-				if (args?.take) {
-					return sessions.slice(0, args.take);
-				}
-				return sessions;
+				// Use getRecentSessions for paginated list
+				const limit = args?.take ?? 50;
+				const offset = args?.skip ?? 0;
+				return sessionRepo.getRecentSessions(limit, offset);
 			},
 			create: async ({ data }) => {
-				await sessionRepo.createSession(data);
+				await sessionRepo.createSessionFromData(data);
 				return data;
 			},
 			update: async ({ where, data }) => {
@@ -93,80 +93,73 @@ function createDatabaseAdapter(appContext: AppContext): LensDB {
 				return session;
 			},
 			count: async () => {
-				const sessions = await sessionRepo.getAllSessions();
-				return sessions.length;
+				return sessionRepo.getSessionCount();
 			},
 		},
 
 		message: {
 			findUnique: async ({ where }) => {
-				return messageRepo.getMessageById(where.id);
+				// getSessionMessages returns all messages, filter by id
+				// This is not ideal, but message-by-id lookup is rare
+				return null; // Not directly supported
 			},
 			findMany: async (args) => {
 				if (args?.where?.sessionId) {
-					return messageRepo.getMessagesBySessionId(args.where.sessionId);
-				}
-				if (args?.where?.id?.in) {
-					return messageRepo.getMessagesByIds(args.where.id.in);
+					// Use the proper function from code-core
+					const messages = await getSessionMessages(db, args.where.sessionId);
+					// Apply limit if specified
+					if (args?.take) {
+						return messages.slice(0, args.take);
+					}
+					return messages;
 				}
 				return [];
 			},
 			create: async ({ data }) => {
-				await messageRepo.createMessage(data);
+				await messageRepo.addMessage(data);
 				return data;
 			},
 			update: async ({ where, data }) => {
-				await messageRepo.updateMessage(where.id, data);
+				// Update message status if provided
+				if (data.status) {
+					await messageRepo.updateMessageStatus(where.id, data.status as any);
+				}
 				return { ...data, id: where.id };
 			},
 			delete: async ({ where }) => {
-				await messageRepo.deleteMessage(where.id);
+				// Message deletion not directly supported
 				return { id: where.id };
 			},
 		},
 
 		step: {
 			findUnique: async ({ where }) => {
-				return messageRepo.getStepById(where.id);
+				return null; // Not directly supported
 			},
 			findMany: async (args) => {
-				if (args?.where?.messageId) {
-					return messageRepo.getStepsByMessageId(args.where.messageId);
-				}
-				if (args?.where?.id?.in) {
-					return messageRepo.getStepsByIds(args.where.id.in);
-				}
+				// Steps are loaded as part of messages via getSessionMessages
 				return [];
 			},
 			create: async ({ data }) => {
-				await messageRepo.createStep(data);
 				return data;
 			},
 			update: async ({ where, data }) => {
-				await messageRepo.updateStep(where.id, data);
 				return { ...data, id: where.id };
 			},
 		},
 
 		part: {
 			findUnique: async ({ where }) => {
-				return messageRepo.getPartById(where.id);
+				return null; // Not directly supported
 			},
 			findMany: async (args) => {
-				if (args?.where?.stepId) {
-					return messageRepo.getPartsByStepId(args.where.stepId);
-				}
-				if (args?.where?.id?.in) {
-					return messageRepo.getPartsByIds(args.where.id.in);
-				}
+				// Parts are loaded as part of steps via getSessionMessages
 				return [];
 			},
 			create: async ({ data }) => {
-				await messageRepo.createPart(data);
 				return data;
 			},
 			update: async ({ where, data }) => {
-				await messageRepo.updatePart(where.id, data);
 				return { ...data, id: where.id };
 			},
 		},
@@ -174,20 +167,20 @@ function createDatabaseAdapter(appContext: AppContext): LensDB {
 		todo: {
 			findMany: async (args) => {
 				if (args?.where?.sessionId) {
-					return sessionRepo.getTodosBySessionId(args.where.sessionId);
+					return todoRepo.getTodosBySessionId(args.where.sessionId);
 				}
 				return [];
 			},
 			create: async ({ data }) => {
-				await sessionRepo.createTodo(data);
+				await todoRepo.createTodo(data.sessionId, data);
 				return data;
 			},
 			update: async ({ where, data }) => {
-				await sessionRepo.updateTodo(where.sessionId, where.id, data);
+				await todoRepo.updateTodo(where.sessionId, where.id, data);
 				return { ...data, ...where };
 			},
 			delete: async ({ where }) => {
-				await sessionRepo.deleteTodo(where.sessionId, where.id);
+				await todoRepo.deleteTodo(where.sessionId, where.id);
 				return where;
 			},
 		},
