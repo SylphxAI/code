@@ -107,6 +107,7 @@ export interface SessionStatusState {
 	text: string;
 	duration: number;
 	tokenUsage: number;
+	totalTokens?: number; // Total session tokens (for StatusBar real-time updates)
 }
 
 const sessionStatusState = createState<SessionStatusState | null>(null);

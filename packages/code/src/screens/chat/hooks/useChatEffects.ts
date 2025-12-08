@@ -224,6 +224,7 @@ export function useChatEffects(state: ChatState) {
 						text: session.status.text ?? "",
 						duration: session.status.duration ?? 0,
 						tokenUsage: session.status.tokenUsage ?? 0,
+						totalTokens: session.totalTokens, // For real-time StatusBar updates
 					});
 				}
 			},

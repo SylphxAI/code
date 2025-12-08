@@ -5,10 +5,10 @@
  * Architecture: Mutation + Subscription
  * - Client calls triggerStream mutation to start streaming
  * - Client subscribes to session events via subscribeToSession
- * - Server publishes events to session:{id} channel
- * - Client receives strongly-typed SessionEvent
+ * - Server publishes events to session-stream:{id} channel
+ * - Client receives strongly-typed SessionEvent wrapped in StoredEvent
  *
- * Uses lens-react v4 pattern with module singleton.
+ * Uses lens-react v4 vanilla pattern with { input: { ...args } } format.
  */
 
 import { useEffect, useRef } from "react";
@@ -153,10 +153,10 @@ export function useEventStream(options: UseEventStreamOptions = {}) {
 		}
 
 		// Get client and subscribe using lens-react v4 pattern
+		// IMPORTANT: Lens vanilla calls use { input: { ...args } } format
 		const client = getClient();
 		const subscription = (client.subscribeToSession as any)({
-			sessionId: currentSessionId,
-			replayLast,
+			input: { sessionId: currentSessionId, replayLast },
 		}).subscribe({
 			next: (storedEvent: any) => {
 				// Extract event from stored event payload

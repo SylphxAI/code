@@ -15,6 +15,7 @@ import { getAgentById } from "../embedded-context.js";
 import { useThemeColors } from "../theme.js";
 import { useMCPStatus } from "../hooks/client/useMCPStatus.js";
 import { useModelDetails } from "../hooks/client/useModelDetails.js";
+import { useSessionStatus } from "../ui-state.js";
 
 interface StatusBarProps {
 	provider: string | null;
@@ -48,6 +49,9 @@ function StatusBarInternal({
 	const [sessionTokens, setSessionTokens] = useState(0);
 	const [backgroundBashCount, setBackgroundBashCount] = useState(0);
 
+	// Get real-time session status (includes totalTokens during streaming)
+	const sessionStatus = useSessionStatus();
+
 	// Subscribe to current agent from store (event-driven, no polling!)
 	const selectedAgentId = useSelectedAgentId();
 	const currentAgent = selectedAgentId ? getAgentById(selectedAgentId) : null;
@@ -58,12 +62,13 @@ function StatusBarInternal({
 	const enabledRulesCount = enabledRuleIds.length;
 
 	// Query hooks for session and bash data
-	const sessionQuery = client.getSession({
+	// IMPORTANT: Use .useQuery() for React hook pattern, not vanilla call
+	const sessionQuery = client.getSession.useQuery({
 		input: { id: sessionId || "" },
 		skip: !sessionId,
 	});
 
-	const bashQuery = client.listBash({});
+	const bashQuery = client.listBash.useQuery({});
 
 	// Sync session data to local state
 	useEffect(() => {
@@ -84,7 +89,12 @@ function StatusBarInternal({
 		}
 	}, [bashQuery.data]);
 
-	const totalTokens = sessionTokens;
+	// Use real-time streaming tokens if available, otherwise fall back to query data
+	// During streaming, sessionStatus.totalTokens is updated in real-time via EventStream
+	const totalTokens = Math.max(
+		sessionTokens,
+		sessionStatus?.totalTokens ?? 0,
+	);
 
 	// MCP status (event-driven via eventBus, not Lens)
 	const mcpStatus = useMCPStatus();
