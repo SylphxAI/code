@@ -25,6 +25,8 @@ import type { AppContext } from "../context.js";
  * - db: Database access (Prisma-like interface)
  * - eventStream: Real-time event publishing/subscribing
  * - appContext: Full app context for advanced operations
+ * - emit: Live query emit function (injected by lens-server)
+ * - onCleanup: Cleanup registration (injected by lens-server)
  */
 export interface LensContext {
 	/** Database access */
@@ -33,6 +35,10 @@ export interface LensContext {
 	eventStream: LensEventStream;
 	/** Full app context (for streaming, etc.) */
 	appContext: AppContext;
+	/** Live query emit function (injected by lens-server in live mode) */
+	emit?: (value: unknown) => void;
+	/** Cleanup registration (injected by lens-server in live mode) */
+	onCleanup?: (fn: () => void) => void;
 }
 
 /**

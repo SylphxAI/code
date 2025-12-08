@@ -108,11 +108,15 @@ export const getMessage = query()
 	});
 
 /**
- * List messages for a session with nested steps and parts
+ * List messages for a session
  *
- * LIVE QUERY: Uses emit pattern to push updates when streaming events occur.
- * Returns SessionMessage[] format from getSessionMessages, then transforms
- * to wire format expected by client.
+ * LIVE QUERY: Uses emit pattern to push updates when messages are added/removed.
+ * Returns [Message] array - nested steps/parts are resolved by entity resolvers.
+ *
+ * Architecture:
+ * - listMessages → returns [Message], handles list-level ops (push/remove)
+ * - Message resolver → steps field with emit for step updates
+ * - Step resolver → parts field with emit for part updates
  */
 export const listMessages = query()
 	.input(
@@ -121,55 +125,15 @@ export const listMessages = query()
 			limit: z.number().optional(),
 		}),
 	)
-	.returns(z.array(z.object({
-		id: z.string(),
-		sessionId: z.string(),
-		role: z.string(),
-		timestamp: z.number(),
-		ordering: z.number(),
-		status: z.string(),
-		steps: z.array(z.object({
-			id: z.string(),
-			messageId: z.string(),
-			stepIndex: z.number(),
-			status: z.string(),
-			parts: z.array(z.object({
-				id: z.string(),
-				stepId: z.string(),
-				ordering: z.number(),
-				type: z.string(),
-				content: z.unknown(),
-			})),
-		})),
-	})))
+	.returns([Message])
 	.resolve(async ({ input, ctx }: { input: { sessionId: string; limit?: number }; ctx: any }) => {
-		// Helper to fetch and transform messages
+		// Fetch messages (nested steps/parts included from getSessionMessages)
 		const fetchMessages = async () => {
 			const messages = await ctx.db.message.findMany({
 				where: { sessionId: input.sessionId },
 			});
 			const limited = input.limit ? messages.slice(0, input.limit) : messages;
-			return limited.map((msg: any, msgIndex: number) => ({
-				id: msg.id,
-				sessionId: input.sessionId,
-				role: msg.role,
-				timestamp: msg.timestamp || Date.now(),
-				ordering: msgIndex,
-				status: msg.status || "completed",
-				steps: (msg.steps || []).map((step: any, stepIndex: number) => ({
-					id: step.id,
-					messageId: msg.id,
-					stepIndex: step.stepIndex ?? stepIndex,
-					status: step.status || "completed",
-					parts: (step.parts || []).map((part: any, partIndex: number) => ({
-						id: `${step.id}-part-${partIndex}`,
-						stepId: step.id,
-						ordering: partIndex,
-						type: part.type,
-						content: part,
-					})),
-				})),
-			}));
+			return limited;
 		};
 
 		// Set up live query subscription if emit is available
@@ -177,24 +141,22 @@ export const listMessages = query()
 			const channel = `session-stream:${input.sessionId}`;
 			let cancelled = false;
 
-			// Subscribe to streaming events
+			// Subscribe to streaming events - only list-level changes
 			const subscription = (async () => {
 				for await (const event of ctx.eventStream.subscribe(channel)) {
 					if (cancelled) break;
-					// Re-fetch and emit on relevant events
-					const relevantEvents = [
-						"message-created",
-						"text-end",
-						"reasoning-end",
-						"tool-result",
-						"tool-error",
-						"complete",
-						"step-complete",
-					];
-					if (relevantEvents.includes(event.type)) {
+
+					// Handle list-level events
+					if (event.type === "message-created") {
+						// New message added - could use emit.push() for efficiency
+						const updated = await fetchMessages();
+						ctx.emit(updated);
+					} else if (event.type === "complete" || event.type === "error") {
+						// Session complete - final sync
 						const updated = await fetchMessages();
 						ctx.emit(updated);
 					}
+					// Note: Step/part updates are handled by entity resolvers
 				}
 			})();
 
