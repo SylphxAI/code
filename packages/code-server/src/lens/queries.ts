@@ -110,6 +110,7 @@ export const getMessage = query()
 /**
  * List messages for a session with nested steps and parts
  *
+ * LIVE QUERY: Uses emit pattern to push updates when streaming events occur.
  * Returns SessionMessage[] format from getSessionMessages, then transforms
  * to wire format expected by client.
  */
@@ -141,38 +142,70 @@ export const listMessages = query()
 			})),
 		})),
 	})))
-	.resolve(async ({ input, ctx }: { input: { sessionId: string; limit?: number }; ctx: LensContext }) => {
-		// getSessionMessages returns SessionMessage[] (domain objects)
-		const messages = await ctx.db.message.findMany({
-			where: { sessionId: input.sessionId },
-		});
-
-		// Apply limit
-		const limited = input.limit ? messages.slice(0, input.limit) : messages;
-
-		// Transform to wire format expected by client
-		return limited.map((msg: any, msgIndex: number) => ({
-			id: msg.id,
-			sessionId: input.sessionId,
-			role: msg.role,
-			timestamp: msg.timestamp || Date.now(),
-			ordering: msgIndex,
-			status: msg.status || "completed",
-			steps: (msg.steps || []).map((step: any, stepIndex: number) => ({
-				id: step.id,
-				messageId: msg.id,
-				stepIndex: step.stepIndex ?? stepIndex,
-				status: step.status || "completed",
-				parts: (step.parts || []).map((part: any, partIndex: number) => ({
-					id: `${step.id}-part-${partIndex}`,
-					stepId: step.id,
-					ordering: partIndex,
-					type: part.type,
-					// Wrap the part as content for client's convertPart function
-					content: part,
+	.resolve(async ({ input, ctx }: { input: { sessionId: string; limit?: number }; ctx: any }) => {
+		// Helper to fetch and transform messages
+		const fetchMessages = async () => {
+			const messages = await ctx.db.message.findMany({
+				where: { sessionId: input.sessionId },
+			});
+			const limited = input.limit ? messages.slice(0, input.limit) : messages;
+			return limited.map((msg: any, msgIndex: number) => ({
+				id: msg.id,
+				sessionId: input.sessionId,
+				role: msg.role,
+				timestamp: msg.timestamp || Date.now(),
+				ordering: msgIndex,
+				status: msg.status || "completed",
+				steps: (msg.steps || []).map((step: any, stepIndex: number) => ({
+					id: step.id,
+					messageId: msg.id,
+					stepIndex: step.stepIndex ?? stepIndex,
+					status: step.status || "completed",
+					parts: (step.parts || []).map((part: any, partIndex: number) => ({
+						id: `${step.id}-part-${partIndex}`,
+						stepId: step.id,
+						ordering: partIndex,
+						type: part.type,
+						content: part,
+					})),
 				})),
-			})),
-		}));
+			}));
+		};
+
+		// Set up live query subscription if emit is available
+		if (ctx.emit && ctx.onCleanup) {
+			const channel = `session-stream:${input.sessionId}`;
+			let cancelled = false;
+
+			// Subscribe to streaming events
+			const subscription = (async () => {
+				for await (const event of ctx.eventStream.subscribe(channel)) {
+					if (cancelled) break;
+					// Re-fetch and emit on relevant events
+					const relevantEvents = [
+						"message-created",
+						"text-end",
+						"reasoning-end",
+						"tool-result",
+						"tool-error",
+						"complete",
+						"step-complete",
+					];
+					if (relevantEvents.includes(event.type)) {
+						const updated = await fetchMessages();
+						ctx.emit(updated);
+					}
+				}
+			})();
+
+			// Register cleanup
+			ctx.onCleanup(() => {
+				cancelled = true;
+			});
+		}
+
+		// Return initial messages
+		return fetchMessages();
 	});
 
 /**
