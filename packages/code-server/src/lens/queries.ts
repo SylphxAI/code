@@ -282,6 +282,86 @@ export const listTodos = query()
 // =============================================================================
 
 /**
+ * Subscribe to messages for a session
+ *
+ * Uses async generator - yields on session-stream events.
+ * Re-fetches messages when streaming events occur.
+ */
+export const subscribeMessages = query()
+	.input(z.object({ sessionId: z.string() }))
+	.returns(z.array(z.object({
+		id: z.string(),
+		sessionId: z.string(),
+		role: z.string(),
+		timestamp: z.number(),
+		ordering: z.number(),
+		status: z.string(),
+		steps: z.array(z.object({
+			id: z.string(),
+			messageId: z.string(),
+			stepIndex: z.number(),
+			status: z.string(),
+			parts: z.array(z.object({
+				id: z.string(),
+				stepId: z.string(),
+				ordering: z.number(),
+				type: z.string(),
+				content: z.unknown(),
+			})),
+		})),
+	})))
+	.resolve(async function* ({ input, ctx }: { input: { sessionId: string }; ctx: LensContext }) {
+		// Helper to fetch and transform messages
+		const fetchMessages = async () => {
+			const messages = await ctx.db.message.findMany({
+				where: { sessionId: input.sessionId },
+			});
+			return messages.map((msg: any, msgIndex: number) => ({
+				id: msg.id,
+				sessionId: input.sessionId,
+				role: msg.role,
+				timestamp: msg.timestamp || Date.now(),
+				ordering: msgIndex,
+				status: msg.status || "completed",
+				steps: (msg.steps || []).map((step: any, stepIndex: number) => ({
+					id: step.id,
+					messageId: msg.id,
+					stepIndex: step.stepIndex ?? stepIndex,
+					status: step.status || "completed",
+					parts: (step.parts || []).map((part: any, partIndex: number) => ({
+						id: `${step.id}-part-${partIndex}`,
+						stepId: step.id,
+						ordering: partIndex,
+						type: part.type,
+						content: part,
+					})),
+				})),
+			}));
+		};
+
+		// Yield initial messages
+		yield await fetchMessages();
+
+		// Subscribe to session-stream events and re-yield on relevant events
+		const channel = `session-stream:${input.sessionId}`;
+		for await (const event of ctx.eventStream.subscribe(channel)) {
+			// Re-fetch on events that affect messages
+			const relevantEvents = [
+				"message-created",
+				"text-end",
+				"reasoning-end",
+				"tool-result",
+				"tool-error",
+				"complete",
+				"step-complete",
+			];
+			if (relevantEvents.includes(event.type)) {
+				yield await fetchMessages();
+			}
+		}
+	});
+
+/**
  * Subscribe to session updates
  *
  * Uses async generator - yields on every update.
