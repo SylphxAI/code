@@ -382,16 +382,25 @@ export const loadConfig = query()
 		error: z.string().optional(),
 	}))
 	.resolve(async ({ input }: { input?: { cwd?: string } }) => {
-		const { loadAIConfig } = await import("@sylphx/code-core");
+		const { loadAIConfig, DEFAULT_AGENT_ID } = await import("@sylphx/code-core");
 		const cwd = input?.cwd || process.cwd();
 		const result = await loadAIConfig(cwd);
+
+		// Server provides defaults - client is just a player
+		const defaults = {
+			providers: {},
+			defaultAgentId: DEFAULT_AGENT_ID,
+			defaultEnabledRuleIds: [] as string[],
+		};
+
 		if (result.success) {
 			// Sanitize config (remove secrets)
 			const { sanitizeAIConfig } = await import("./config-utils.js");
 			const sanitizedConfig = sanitizeAIConfig(result.data);
-			return { success: true, config: sanitizedConfig };
+			// Merge with defaults (config overrides defaults)
+			return { success: true, config: { ...defaults, ...sanitizedConfig } };
 		}
-		return { success: true, config: { providers: {} } };
+		return { success: true, config: defaults };
 	});
 
 /**

@@ -12,7 +12,7 @@ import { useCallback, useEffect } from "react";
 import { useLensClient } from "@sylphx/code-client";
 import { setAIConfig } from "../../ai-config-state.js";
 import { setError } from "../../ui-state.js";
-import { getSelectedProvider, setSelectedProvider, getSelectedModel, setSelectedModel } from "../../session-state.js";
+import { getSelectedProvider, setSelectedProvider, getSelectedModel, setSelectedModel, getSelectedAgentId, setSelectedAgentId, getEnabledRuleIds, setEnabledRuleIds } from "../../session-state.js";
 
 export function useAIConfig() {
 	const client = useLensClient();
@@ -39,6 +39,18 @@ export function useAIConfig() {
 				const providerConfig = result.config.providers?.[result.config.defaultProvider || ""];
 				if (providerConfig?.defaultModel && !getSelectedModel()) {
 					setSelectedModel(providerConfig.defaultModel);
+				}
+
+				// Sync defaultAgentId to selectedAgentId if not already set
+				// Only set if server provides defaultAgentId in config
+				if (result.config.defaultAgentId && !getSelectedAgentId()) {
+					setSelectedAgentId(result.config.defaultAgentId);
+				}
+
+				// Sync enabledRuleIds if not already set
+				// Only set if server provides defaultEnabledRuleIds in config
+				if (getEnabledRuleIds().length === 0 && (result.config as any).defaultEnabledRuleIds) {
+					setEnabledRuleIds((result.config as any).defaultEnabledRuleIds);
 				}
 			} else {
 				// No config yet, start with empty
