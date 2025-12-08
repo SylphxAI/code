@@ -135,7 +135,23 @@ function createDatabaseAdapter(appContext: AppContext): LensDB {
 				return [];
 			},
 			create: async ({ data }) => {
-				await messageRepo.addMessage(data);
+				// If content is provided, use the full addMessage flow
+				// Otherwise, just insert the message container (for mutations that create steps separately)
+				if (data.content && Array.isArray(data.content)) {
+					await messageRepo.addMessage(data);
+				} else {
+					// Direct insert for message container only
+					const { messages } = await import("@sylphx/code-core");
+					await db.insert(messages).values({
+						id: data.id,
+						sessionId: data.sessionId,
+						role: data.role,
+						timestamp: data.timestamp || Date.now(),
+						ordering: data.ordering || 0,
+						finishReason: data.finishReason || null,
+						status: data.status || "completed",
+					});
+				}
 				return data;
 			},
 			update: async ({ where, data }) => {
@@ -160,6 +176,21 @@ function createDatabaseAdapter(appContext: AppContext): LensDB {
 				return [];
 			},
 			create: async ({ data }) => {
+				// Insert step into database
+				const { messageSteps } = await import("@sylphx/code-core");
+				await db.insert(messageSteps).values({
+					id: data.id,
+					messageId: data.messageId,
+					stepIndex: data.stepIndex || 0,
+					status: data.status || "completed",
+					systemMessages: data.systemMessages ? JSON.stringify(data.systemMessages) : null,
+					provider: data.provider || null,
+					model: data.model || null,
+					duration: data.duration || null,
+					finishReason: data.finishReason || null,
+					startTime: data.startTime || Date.now(),
+					endTime: data.endTime || null,
+				});
 				return data;
 			},
 			update: async ({ where, data }) => {
@@ -176,6 +207,15 @@ function createDatabaseAdapter(appContext: AppContext): LensDB {
 				return [];
 			},
 			create: async ({ data }) => {
+				// Insert part into database
+				const { stepParts } = await import("@sylphx/code-core");
+				await db.insert(stepParts).values({
+					id: data.id,
+					stepId: data.stepId,
+					ordering: data.ordering || 0,
+					type: data.type,
+					content: typeof data.content === "string" ? data.content : JSON.stringify(data.content),
+				});
 				return data;
 			},
 			update: async ({ where, data }) => {
