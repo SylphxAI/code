@@ -22,6 +22,9 @@ export function StatusIndicator() {
 	const sessionStatus = currentSession?.status;
 	const colors = useThemeColors();
 
+	// DEBUG: Log session status
+	console.log(`[StatusIndicator] session=${currentSession?.id?.substring(0, 8)}, status=`, sessionStatus);
+
 	// Local duration tracking for smooth updates
 	const [localDuration, setLocalDuration] = useState(0);
 

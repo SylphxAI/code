@@ -18,6 +18,9 @@ export function useCurrentSession() {
 	// Skip query when no valid session ID
 	const skip = !currentSessionId || currentSessionId === "temp-session";
 
+	// DEBUG: Log when hook is called
+	console.log(`[useCurrentSession] sessionId=${currentSessionId?.substring(0, 8) || 'null'}, skip=${skip}`);
+
 	// Use lens-react query hook
 	const { data: session, loading, error, refetch } = client.getSession.useQuery({
 		input: { id: currentSessionId || "" },
@@ -33,6 +36,9 @@ export function useCurrentSession() {
 		error: Error | null;
 		refetch: () => void;
 	};
+
+	// DEBUG: Log when session data changes
+	console.log(`[useCurrentSession] data received: id=${session?.id?.substring(0, 8) || 'null'}, status=`, session?.status);
 
 	// Derive isStreaming from session state
 	const isStreaming = session?.streamingStatus === "streaming" ||
