@@ -52,7 +52,8 @@ export function useInputState(): InputState {
 	const tempInput = useTempInput();
 
 	// Query hook for message history
-	const historyQuery = client.getRecentUserMessages({
+	// Use .useQuery() for React hook pattern (not vanilla Promise call)
+	const historyQuery = client.getRecentUserMessages.useQuery({
 		input: { limit: 100 },
 	});
 
