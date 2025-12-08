@@ -19,7 +19,7 @@
 		"README.md"
 	],
 	"scripts": {
-		"build": "bunup && node fix-exports.js",
+		"build": "bunup && cp -r assets dist/ && node fix-exports.js",
 		"dev": "bunup --watch",
 		"test": "vitest run",
 		"test:watch": "vitest",
