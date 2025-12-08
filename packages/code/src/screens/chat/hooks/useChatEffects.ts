@@ -232,7 +232,9 @@ export function useChatEffects(state: ChatState) {
 	// =========================
 	// Subscribe to session events for status indicator updates.
 	// The server sends session-updated events with status embedded.
+	// replayLast: 10 - replay last 10 events to catch up on status if we subscribed late
 	useEventStream({
+		replayLast: 10,
 		callbacks: {
 			onSessionUpdated: (_sessionId, session) => {
 				// Extract status from session-updated event
