@@ -49,11 +49,25 @@ interface StepParent {
 }
 
 interface PartParent {
-	id: string;
-	stepId?: string;
-	ordering: number;
-	type: string;
-	content: unknown;
+	// Matches MessagePart discriminated union from code-core
+	type: string; // 'text' | 'reasoning' | 'tool' | 'error' | 'file' | 'file-ref' | 'system-message'
+	status: string;
+	content?: string; // For text/reasoning
+	toolId?: string; // For tool
+	name?: string;
+	mcpServerId?: string;
+	input?: unknown;
+	result?: unknown;
+	error?: string;
+	duration?: number;
+	startTime?: number;
+	relativePath?: string; // For file
+	size?: number;
+	mediaType?: string;
+	base64?: string;
+	fileContentId?: string;
+	messageType?: string; // For system-message
+	timestamp?: number;
 }
 
 // =============================================================================
@@ -208,21 +222,41 @@ const stepResolver = resolver<LensContext>()(Step, (f) => ({
 // =============================================================================
 
 /**
- * Part resolver with live content field
+ * Part resolver - matches MessagePart discriminated union
  *
+ * Exposes all fields from MessagePart types (text, reasoning, tool, etc.)
  * For text parts, content is updated via emit.delta() during streaming.
- * This enables efficient text streaming without full refetch.
  */
 const partResolver = resolver<LensContext>()(Part, (f) => ({
-	// Expose scalar fields
-	id: f.expose("id"),
-	stepId: f.expose("stepId"),
-	ordering: f.expose("ordering"),
+	// Discriminator field
 	type: f.expose("type"),
 
-	// Content field - could use emit.delta for streaming text
-	// For now, expose directly and let parent handle updates
+	// Common fields
+	status: f.expose("status"),
+
+	// Text/Reasoning content
 	content: f.expose("content"),
+
+	// Tool fields
+	toolId: f.expose("toolId"),
+	name: f.expose("name"),
+	mcpServerId: f.expose("mcpServerId"),
+	input: f.expose("input"),
+	result: f.expose("result"),
+	error: f.expose("error"),
+	duration: f.expose("duration"),
+	startTime: f.expose("startTime"),
+
+	// File fields
+	relativePath: f.expose("relativePath"),
+	size: f.expose("size"),
+	mediaType: f.expose("mediaType"),
+	base64: f.expose("base64"),
+	fileContentId: f.expose("fileContentId"),
+
+	// System message fields
+	messageType: f.expose("messageType"),
+	timestamp: f.expose("timestamp"),
 }));
 
 // =============================================================================

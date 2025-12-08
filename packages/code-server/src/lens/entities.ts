@@ -128,25 +128,42 @@ export const Step = entity("Step", {
 // =============================================================================
 
 /**
- * Part - Content part within a step
+ * Part - Content part within a step (matches MessagePart type)
  *
- * Types: text, reasoning, tool, error
- * Content structure varies by type (stored as JSON).
+ * Types: text, reasoning, tool, error, file, file-ref, system-message
+ * This entity matches the MessagePart discriminated union from code-core.
+ * Fields vary by type - only common fields are defined here.
  */
 export const Part = entity("Part", {
-	// Primary key
-	id: t.id(),
+	// Discriminator field (required for all parts)
+	type: t.string(), // 'text' | 'reasoning' | 'tool' | 'error' | 'file' | 'file-ref' | 'system-message'
 
-	// Foreign key (nullable for orphaned uploads)
-	stepId: t.string().optional(),
+	// Common fields
+	status: t.string(), // 'pending' | 'active' | 'completed' | 'error' | 'abort'
 
-	// Metadata
-	ordering: t.int(), // Order within step
-	type: t.string(), // 'text' | 'reasoning' | 'tool' | 'error'
+	// Text/Reasoning content (for type: 'text' | 'reasoning')
+	content: t.string().optional(),
 
-	// Content (JSON, structure varies by type)
-	// All parts include status: 'active' | 'completed' | 'error' | 'abort'
-	content: t.json(),
+	// Tool fields (for type: 'tool')
+	toolId: t.string().optional(),
+	name: t.string().optional(),
+	mcpServerId: t.string().optional(),
+	input: t.json().optional(),
+	result: t.json().optional(),
+	error: t.string().optional(),
+	duration: t.int().optional(),
+	startTime: t.int().optional(),
+
+	// File fields (for type: 'file' | 'file-ref')
+	relativePath: t.string().optional(),
+	size: t.int().optional(),
+	mediaType: t.string().optional(),
+	base64: t.string().optional(), // Legacy file
+	fileContentId: t.string().optional(), // File reference
+
+	// System message fields (for type: 'system-message')
+	messageType: t.string().optional(),
+	timestamp: t.int().optional(),
 });
 
 // =============================================================================

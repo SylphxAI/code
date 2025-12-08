@@ -105,13 +105,32 @@ function createDatabaseAdapter(appContext: AppContext): LensDB {
 			},
 			findMany: async (args) => {
 				if (args?.where?.sessionId) {
+					const sessionId = args.where.sessionId;
 					// Use the proper function from code-core
-					const messages = await getSessionMessages(db, args.where.sessionId);
+					const messages = await getSessionMessages(db, sessionId);
+
+					// Transform SessionMessage[] to include fields expected by Lens entities
+					// SessionMessage doesn't include sessionId/ordering, but Lens Message entity needs them
+					// Parts are kept as MessagePart objects (not wrapped in Part entity structure)
+					// because client code expects direct access to part.type, part.content, etc.
+					const transformedMessages = messages.map((msg, index) => ({
+						...msg,
+						sessionId,
+						ordering: index,
+						// Transform steps to include messageId
+						steps: msg.steps?.map((step) => ({
+							...step,
+							messageId: msg.id,
+							// Keep parts as MessagePart[] - no transformation needed
+							// Client uses part.type and part.content directly
+						})),
+					}));
+
 					// Apply limit if specified
 					if (args?.take) {
-						return messages.slice(0, args.take);
+						return transformedMessages.slice(0, args.take);
 					}
-					return messages;
+					return transformedMessages;
 				}
 				return [];
 			},
