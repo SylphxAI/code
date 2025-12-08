@@ -17,52 +17,76 @@ import { useStreamingExpected } from "../../ui-state.js";
 
 /**
  * Convert server Part to client MessagePart format
+ *
+ * Server returns MessagePart fields directly (not wrapped in content field):
+ * - { type: "text", content: "Hello", status: "completed" }
+ * - { type: "tool", toolId: "...", name: "...", status: "..." }
  */
-function convertPart(part: { type: string; content: unknown }): MessagePart {
-	const content = part.content as Record<string, unknown>;
-
+function convertPart(part: Record<string, unknown>): MessagePart {
 	switch (part.type) {
 		case "text":
 			return {
 				type: "text",
-				content: (content.content as string) || "",
-				status: (content.status as "active" | "completed") || "completed",
+				content: (part.content as string) || "",
+				status: (part.status as "active" | "completed") || "completed",
 			};
-		case "tool-call":
+		case "reasoning":
 			return {
-				type: "tool-call",
-				toolCallId: (content.toolCallId as string) || "",
-				toolName: (content.toolName as string) || "",
-				args: (content.args as Record<string, unknown>) || {},
-				status: (content.status as "active" | "completed") || "completed",
+				type: "reasoning",
+				content: (part.content as string) || "",
+				status: (part.status as "active" | "completed") || "completed",
+				duration: part.duration as number | undefined,
+				startTime: part.startTime as number | undefined,
 			};
-		case "tool-result":
+		case "tool":
 			return {
-				type: "tool-result",
-				toolCallId: (content.toolCallId as string) || "",
-				toolName: (content.toolName as string) || "",
-				result: (content.result as Record<string, unknown>) || {},
-				status: "completed",
+				type: "tool",
+				toolId: (part.toolId as string) || "",
+				name: (part.name as string) || "",
+				mcpServerId: part.mcpServerId as string | undefined,
+				status: (part.status as "active" | "completed" | "error" | "abort") || "completed",
+				input: part.input,
+				result: part.result,
+				error: part.error as string | undefined,
+				duration: part.duration as number | undefined,
+				startTime: part.startTime as number | undefined,
 			};
 		case "file-ref":
 			return {
 				type: "file-ref",
-				fileContentId: (content.fileContentId as string) || "",
-				relativePath: (content.relativePath as string) || "",
-				size: (content.size as number) || 0,
-				mediaType: (content.mediaType as string) || "application/octet-stream",
+				fileContentId: (part.fileContentId as string) || "",
+				relativePath: (part.relativePath as string) || "",
+				size: (part.size as number) || 0,
+				mediaType: (part.mediaType as string) || "application/octet-stream",
+				status: "completed",
+			};
+		case "file":
+			return {
+				type: "file",
+				relativePath: (part.relativePath as string) || "",
+				size: (part.size as number) || 0,
+				mediaType: (part.mediaType as string) || "application/octet-stream",
+				base64: (part.base64 as string) || "",
+				status: "completed",
+			};
+		case "system-message":
+			return {
+				type: "system-message",
+				content: (part.content as string) || "",
+				messageType: (part.messageType as string) || "",
+				timestamp: (part.timestamp as number) || Date.now(),
 				status: "completed",
 			};
 		case "error":
 			return {
 				type: "error",
-				error: (content.error as string) || "Unknown error",
+				error: (part.error as string) || "Unknown error",
 				status: "completed",
 			};
 		default:
 			return {
 				type: "text",
-				content: JSON.stringify(content),
+				content: JSON.stringify(part),
 				status: "completed",
 			};
 	}
