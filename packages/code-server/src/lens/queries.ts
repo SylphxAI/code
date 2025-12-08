@@ -193,7 +193,8 @@ export const listMessages = query()
 					];
 					if (relevantEvents.includes(event.type)) {
 						const updated = await fetchMessages();
-						ctx.emit(updated);
+						// Use replace() for array data (emit() merges, which corrupts arrays)
+						ctx.emit.replace(updated);
 					}
 				}
 			})();
