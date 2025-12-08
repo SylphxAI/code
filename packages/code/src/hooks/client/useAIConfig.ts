@@ -14,16 +14,11 @@ import { setAIConfig } from "../../ai-config-state.js";
 import { setError } from "../../ui-state.js";
 import { getSelectedProvider, setSelectedProvider, getSelectedModel, setSelectedModel, getSelectedAgentId, setSelectedAgentId, getEnabledRuleIds, setEnabledRuleIds } from "../../session-state.js";
 
-// Stable query options to prevent infinite re-renders
-// lens-react uses options.input as a useMemo dependency, so it must be stable
-const LOAD_CONFIG_OPTIONS = { input: {} };
-
 export function useAIConfig() {
 	const client = useLensClient();
 
 	// Query hook - auto-loads config on mount
-	// IMPORTANT: Use stable reference for options to prevent query recreation on each render
-	const configQuery = client.loadConfig.useQuery(LOAD_CONFIG_OPTIONS);
+	const configQuery = client.loadConfig.useQuery({ input: {} });
 
 	// Mutation hook - for saving config
 	const { mutate: saveConfigMutate } = client.saveConfig.useMutation();
