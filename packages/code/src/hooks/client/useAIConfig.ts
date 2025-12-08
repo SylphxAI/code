@@ -12,6 +12,7 @@ import { useCallback, useEffect } from "react";
 import { useLensClient } from "@sylphx/code-client";
 import { setAIConfig } from "../../ai-config-state.js";
 import { setError } from "../../ui-state.js";
+import { getSelectedProvider, setSelectedProvider, getSelectedModel, setSelectedModel } from "../../session-state.js";
 
 export function useAIConfig() {
 	const client = useLensClient();
@@ -28,6 +29,17 @@ export function useAIConfig() {
 			const result = configQuery.data as { success: boolean; config: AIConfig; error?: string };
 			if (result.success && result.config) {
 				setAIConfig(result.config);
+
+				// Sync defaultProvider to selectedProvider if not already set
+				if (result.config.defaultProvider && !getSelectedProvider()) {
+					setSelectedProvider(result.config.defaultProvider);
+				}
+
+				// Sync defaultModel to selectedModel if not already set
+				const providerConfig = result.config.providers?.[result.config.defaultProvider || ""];
+				if (providerConfig?.defaultModel && !getSelectedModel()) {
+					setSelectedModel(providerConfig.defaultModel);
+				}
 			} else {
 				// No config yet, start with empty
 				setAIConfig({ providers: {} });
@@ -38,7 +50,6 @@ export function useAIConfig() {
 	// Handle errors
 	useEffect(() => {
 		if (configQuery.error) {
-			console.error("[useAIConfig] Load error:", configQuery.error);
 			setError(configQuery.error.message || "Failed to load AI config");
 		}
 	}, [configQuery.error]);
