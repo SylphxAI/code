@@ -67,6 +67,7 @@
 		"@libsql/client": "^0.15.15",
 		"@modelcontextprotocol/sdk": "^1.21.0",
 		"@openrouter/ai-sdk-provider": "^1.2.1",
+		"@sylphx/lens-server": "^2.3.1",
 		"@sylphx/zen": "3.47.0",
 		"@sylphx/zen-craft": "^1.0.4",
 		"@sylphx/zen-react": "^1.0.2",
