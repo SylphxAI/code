@@ -22,7 +22,7 @@ import { entity, t } from "@sylphx/lens-core";
  * Contains configuration, metadata, and token tracking.
  * Messages are loaded via relations, not embedded.
  */
-export const Session = entity({
+export const Session = entity("Session", {
 	// Primary key
 	id: t.id(),
 
@@ -71,7 +71,7 @@ export const Session = entity({
  * Container for conversation turns.
  * Steps contain the actual content (text, tool calls, etc.)
  */
-export const Message = entity({
+export const Message = entity("Message", {
 	// Primary key
 	id: t.id(),
 
@@ -98,7 +98,7 @@ export const Message = entity({
  * Each step = one LLM call.
  * Assistant messages may have multiple steps (tool execution loops).
  */
-export const Step = entity({
+export const Step = entity("Step", {
 	// Primary key
 	id: t.id(),
 
@@ -133,7 +133,7 @@ export const Step = entity({
  * Types: text, reasoning, tool, error
  * Content structure varies by type (stored as JSON).
  */
-export const Part = entity({
+export const Part = entity("Part", {
 	// Primary key
 	id: t.id(),
 
@@ -159,7 +159,7 @@ export const Part = entity({
  * 1:1 relationship with Step.
  * Only assistant steps have usage data.
  */
-export const StepUsage = entity({
+export const StepUsage = entity("StepUsage", {
 	// Primary key (same as step ID)
 	stepId: t.id(),
 
@@ -179,7 +179,7 @@ export const StepUsage = entity({
  * Note: id is per-session, not globally unique.
  * Combined primary key: (sessionId, id)
  */
-export const Todo = entity({
+export const Todo = entity("Todo", {
 	// Per-session ID
 	id: t.int(),
 
