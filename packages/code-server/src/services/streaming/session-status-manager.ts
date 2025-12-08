@@ -129,9 +129,14 @@ export function createSessionStatusManager(
 		// Emit to tRPC observable (mutation subscribers)
 		emitSessionUpdated(observer, sessionId, sessionUpdate);
 
-		// Publish session entity to session:${id} channel (Lens format)
-		// useLensSessionSubscription receives session entity directly
-		appContext.eventStream.publish(`session:${sessionId}`, sessionUpdate);
+		// Publish to session-stream:${id} channel for subscribeToSession
+		// EventStream wraps this in StoredEvent { payload: event }
+		// Client accesses storedEvent.payload to get this event
+		appContext.eventStream.publish(`session-stream:${sessionId}`, {
+			type: "session-updated",
+			sessionId,
+			session: sessionUpdate,
+		});
 	}
 
 	/**
