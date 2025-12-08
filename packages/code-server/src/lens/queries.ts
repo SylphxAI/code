@@ -109,6 +109,9 @@ export const getMessage = query()
 
 /**
  * List messages for a session with nested steps and parts
+ *
+ * Returns SessionMessage[] format from getSessionMessages, then transforms
+ * to wire format expected by client.
  */
 export const listMessages = query()
 	.input(
@@ -139,21 +142,37 @@ export const listMessages = query()
 		})),
 	})))
 	.resolve(async ({ input, ctx }: { input: { sessionId: string; limit?: number }; ctx: LensContext }) => {
-		return ctx.db.message.findMany({
+		// getSessionMessages returns SessionMessage[] (domain objects)
+		const messages = await ctx.db.message.findMany({
 			where: { sessionId: input.sessionId },
-			orderBy: { ordering: "asc" },
-			take: input.limit,
-			include: {
-				steps: {
-					orderBy: { stepIndex: "asc" },
-					include: {
-						parts: {
-							orderBy: { ordering: "asc" },
-						},
-					},
-				},
-			},
 		});
+
+		// Apply limit
+		const limited = input.limit ? messages.slice(0, input.limit) : messages;
+
+		// Transform to wire format expected by client
+		return limited.map((msg: any, msgIndex: number) => ({
+			id: msg.id,
+			sessionId: input.sessionId,
+			role: msg.role,
+			timestamp: msg.timestamp || Date.now(),
+			ordering: msgIndex,
+			status: msg.status || "completed",
+			steps: (msg.steps || []).map((step: any, stepIndex: number) => ({
+				id: step.id,
+				messageId: msg.id,
+				stepIndex: step.stepIndex ?? stepIndex,
+				status: step.status || "completed",
+				parts: (step.parts || []).map((part: any, partIndex: number) => ({
+					id: `${step.id}-part-${partIndex}`,
+					stepId: step.id,
+					ordering: partIndex,
+					type: part.type,
+					// Wrap the part as content for client's convertPart function
+					content: part,
+				})),
+			})),
+		}));
 	});
 
 /**
