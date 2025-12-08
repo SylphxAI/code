@@ -39,11 +39,42 @@ function useStore<T>(store: ReturnType<typeof createState<T>>): T {
 }
 
 // ============================================================================
-// Pending Input (from Ask tool)
+// State declarations (must be before setPendingInput which references them)
 // ============================================================================
 
 const pendingInputState = createState<WaitForInputOptions | null>(null);
-export const setPendingInput = pendingInputState.set;
+const selectionFilterState = createState<string>("");
+const isFilterModeState = createState<boolean>(false);
+const multiSelectionPageState = createState<number>(0);
+const multiSelectionAnswersState = createState<Record<string, string | string[]>>({});
+const multiSelectChoicesState = createState<Set<string>>(new Set());
+
+// ============================================================================
+// Pending Input (from Ask tool)
+// ============================================================================
+
+/**
+ * Set pending input with automatic initialization of multiSelectChoices
+ * from preSelected values on the first question
+ */
+export const setPendingInput = (input: WaitForInputOptions | null) => {
+	pendingInputState.set(input);
+
+	// Initialize multiSelectChoices from preSelected when selection mode starts
+	if (input && input.type === "selection" && input.questions?.length > 0) {
+		const firstQuestion = input.questions[0];
+		if (firstQuestion?.multiSelect && firstQuestion?.preSelected) {
+			multiSelectChoicesState.set(new Set(firstQuestion.preSelected));
+		} else {
+			multiSelectChoicesState.set(new Set());
+		}
+		// Reset other selection state
+		multiSelectionPageState.set(0);
+		multiSelectionAnswersState.set({});
+		selectionFilterState.set("");
+		isFilterModeState.set(false);
+	}
+};
 export const getPendingInput = pendingInputState.get;
 export const usePendingInput = () => useStore(pendingInputState);
 
@@ -51,7 +82,6 @@ export const usePendingInput = () => useStore(pendingInputState);
 // Selection Filter
 // ============================================================================
 
-const selectionFilterState = createState<string>("");
 export const setSelectionFilter = selectionFilterState.set;
 export const getSelectionFilter = selectionFilterState.get;
 export const useSelectionFilter = () => useStore(selectionFilterState);
@@ -60,7 +90,6 @@ export const useSelectionFilter = () => useStore(selectionFilterState);
 // Filter Mode
 // ============================================================================
 
-const isFilterModeState = createState<boolean>(false);
 export const setIsFilterMode = isFilterModeState.set;
 export const getIsFilterMode = isFilterModeState.get;
 export const useIsFilterMode = () => useStore(isFilterModeState);
@@ -69,7 +98,6 @@ export const useIsFilterMode = () => useStore(isFilterModeState);
 // Multi-selection Page
 // ============================================================================
 
-const multiSelectionPageState = createState<number>(0);
 export const setMultiSelectionPage = multiSelectionPageState.set;
 export const getMultiSelectionPage = multiSelectionPageState.get;
 export const useMultiSelectionPage = () => useStore(multiSelectionPageState);
@@ -78,7 +106,6 @@ export const useMultiSelectionPage = () => useStore(multiSelectionPageState);
 // Multi-selection Answers
 // ============================================================================
 
-const multiSelectionAnswersState = createState<Record<string, string | string[]>>({});
 export const setMultiSelectionAnswers = multiSelectionAnswersState.set;
 export const getMultiSelectionAnswers = multiSelectionAnswersState.get;
 export const useMultiSelectionAnswers = () => useStore(multiSelectionAnswersState);
@@ -87,7 +114,6 @@ export const useMultiSelectionAnswers = () => useStore(multiSelectionAnswersStat
 // Multi-select Choices
 // ============================================================================
 
-const multiSelectChoicesState = createState<Set<string>>(new Set());
 export const setMultiSelectChoices = multiSelectChoicesState.set;
 export const getMultiSelectChoices = multiSelectChoicesState.get;
 export const useMultiSelectChoices = () => useStore(multiSelectChoicesState);
