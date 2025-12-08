@@ -18,6 +18,8 @@ import { useAIConfigActions } from "../../../hooks/client/useAIConfig.js";
 import { useLensClient, type ProjectFile } from "@sylphx/code-client";
 import { setCurrentSessionId } from "../../../session-state.js";
 import { clearUserInputHandler, setUserInputHandler, type FileInfo, type MessagePart, type FileAttachment, type TokenUsage } from "@sylphx/code-core";
+import { useEventStream } from "../../../hooks/client/useEventStream.js";
+import { setSessionStatus, clearSessionStatus } from "../../../ui-state.js";
 import { useCallback, useEffect, useMemo } from "react";
 import { commands } from "../../../commands/registry.js";
 import { useCommandAutocomplete } from "../autocomplete/commandAutocomplete.js";
@@ -207,6 +209,44 @@ export function useChatEffects(state: ChatState) {
 	//   - useStreamingState() for all streaming state from session
 	//
 	// No need for useEffect to sync streaming state - it's already reactive via useQuery!
+
+	// EVENT STREAM SUBSCRIPTION
+	// =========================
+	// Subscribe to session events for status indicator updates.
+	// The server sends session-updated events with status embedded.
+	useEventStream({
+		callbacks: {
+			onSessionUpdated: (_sessionId, session) => {
+				// Extract status from session-updated event
+				if (session?.status) {
+					setSessionStatus({
+						isActive: session.status.isActive ?? false,
+						text: session.status.text ?? "",
+						duration: session.status.duration ?? 0,
+						tokenUsage: session.status.tokenUsage ?? 0,
+					});
+				}
+			},
+			onSessionStatusUpdated: (_sessionId, status) => {
+				// Legacy event handler (deprecated but still supported)
+				if (status) {
+					setSessionStatus({
+						isActive: status.isActive ?? false,
+						text: status.text ?? "",
+						duration: status.duration ?? 0,
+						tokenUsage: status.tokenUsage ?? 0,
+					});
+				}
+			},
+		},
+	});
+
+	// Clear session status when session changes
+	useEffect(() => {
+		if (!state.currentSessionId) {
+			clearSessionStatus();
+		}
+	}, [state.currentSessionId]);
 
 	// Create handleSubmit function
 	const handleSubmit = useMemo(
