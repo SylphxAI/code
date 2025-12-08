@@ -79,7 +79,7 @@ export { ZaiProvider } from "./ai/providers/zai-provider.js";
 export { initializeDatabase } from "./database/auto-migrate.js";
 export { MessageRepository } from "./database/message-repository.js";
 export type { Event, NewEvent } from "./database/schema.js";
-export { events } from "./database/schema.js";
+export { events, messages, messageSteps, stepParts } from "./database/schema.js";
 // ============================================================================
 // Database & Repositories (Pure Functions)
 // ============================================================================

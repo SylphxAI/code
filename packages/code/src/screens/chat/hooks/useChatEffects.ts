@@ -16,7 +16,7 @@
 
 import { useAIConfigActions } from "../../../hooks/client/useAIConfig.js";
 import { useLensClient, type ProjectFile } from "@sylphx/code-client";
-import { setCurrentSessionId } from "../../../session-state.js";
+import { setCurrentSessionId, setSelectedAgentId, setEnabledRuleIds } from "../../../session-state.js";
 import { clearUserInputHandler, setUserInputHandler, type FileInfo, type MessagePart, type FileAttachment, type TokenUsage } from "@sylphx/code-core";
 import { useEventStream } from "../../../hooks/client/useEventStream.js";
 import { setSessionStatus, clearSessionStatus } from "../../../ui-state.js";
@@ -84,6 +84,24 @@ export function useChatEffects(state: ChatState) {
 			if (sessionId && sessionId !== params.sessionId) {
 				// New session was created, update UI
 				setCurrentSessionId(sessionId);
+
+				// Fetch the session data to sync agent and rules state
+				try {
+					const sessionResult = await client.getSession({ input: { id: sessionId } });
+					const session = (sessionResult as any)?.data || sessionResult;
+					if (session) {
+						// Sync agent ID (server sets default "coder")
+						if (session.agentId) {
+							setSelectedAgentId(session.agentId);
+						}
+						// Sync enabled rules
+						if (session.enabledRuleIds) {
+							setEnabledRuleIds(session.enabledRuleIds);
+						}
+					}
+				} catch (fetchErr) {
+					console.error("[addMessage] Failed to fetch session for state sync:", fetchErr);
+				}
 			}
 
 			console.log(`[addMessage] ${params.role}: ${contentStr.substring(0, 100)}`);

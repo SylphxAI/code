@@ -13,7 +13,7 @@
 
 import { createApp } from "@sylphx/lens-server";
 import { router } from "@sylphx/lens-core";
-import { getSessionMessages } from "@sylphx/code-core";
+import { getSessionMessages, messages, messageSteps, stepParts } from "@sylphx/code-core";
 import type { AppContext } from "../context.js";
 
 // Schema
@@ -141,7 +141,6 @@ function createDatabaseAdapter(appContext: AppContext): LensDB {
 					await messageRepo.addMessage(data);
 				} else {
 					// Direct insert for message container only
-					const { messages } = await import("@sylphx/code-core");
 					await db.insert(messages).values({
 						id: data.id,
 						sessionId: data.sessionId,
@@ -177,7 +176,6 @@ function createDatabaseAdapter(appContext: AppContext): LensDB {
 			},
 			create: async ({ data }) => {
 				// Insert step into database
-				const { messageSteps } = await import("@sylphx/code-core");
 				await db.insert(messageSteps).values({
 					id: data.id,
 					messageId: data.messageId,
@@ -208,7 +206,6 @@ function createDatabaseAdapter(appContext: AppContext): LensDB {
 			},
 			create: async ({ data }) => {
 				// Insert part into database
-				const { stepParts } = await import("@sylphx/code-core");
 				await db.insert(stepParts).values({
 					id: data.id,
 					stepId: data.stepId,
