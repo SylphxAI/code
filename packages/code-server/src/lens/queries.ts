@@ -415,6 +415,8 @@ export const listTodos = query()
  *
  * Uses async generator - yields on every update.
  * Client receives updates in real-time via WebSocket.
+ *
+ * Channel: session-stream:${sessionId} - consistent with other session queries
  */
 export const subscribeSession = query()
 	.input(z.object({ id: z.string() }))
@@ -426,12 +428,12 @@ export const subscribeSession = query()
 			yield session;
 		}
 
-		// Subscribe to updates
-		const channel = `session:${input.id}`;
+		// Subscribe to updates (use session-stream channel like other session queries)
+		const channel = `session-stream:${input.id}`;
 		for await (const event of ctx.eventStream.subscribe(channel)) {
-			// Event payload is the session entity
-			if (event.payload && event.payload.id) {
-				yield event.payload;
+			// Handle session-updated events
+			if (event.payload?.type === "session-updated" && event.payload.session) {
+				yield event.payload.session;
 			}
 		}
 	});

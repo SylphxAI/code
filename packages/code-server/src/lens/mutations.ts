@@ -854,6 +854,9 @@ export const uploadFile = mutation()
 
 /**
  * Answer an ask request (user confirmation)
+ *
+ * Optimistic: Client immediately sees ask resolved via .optimistic("merge")
+ * Live: Publishes ask-answered event for getAskRequest subscribers
  */
 export const answerAsk = mutation()
 	.input(z.object({
@@ -862,10 +865,22 @@ export const answerAsk = mutation()
 		answers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
 	}))
 	.returns(z.object({ success: z.boolean() }))
+	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { sessionId: string; questionId: string; answers: Record<string, string | string[]> }; ctx: LensContext }) => {
 		// Resolve the pending ask using the new ask manager
 		const { resolvePendingAsk } = await import("../services/ask-manager.service.js");
 		const resolved = await resolvePendingAsk(input.questionId, input.answers);
+
+		if (resolved) {
+			// Publish event for live query subscribers
+			await ctx.eventStream.publish(`session-stream:${input.sessionId}`, {
+				type: "ask-answered",
+				questionId: input.questionId,
+				askRequestId: input.questionId,
+				answers: input.answers,
+			});
+		}
+
 		return { success: resolved };
 	});
 
@@ -878,6 +893,9 @@ export const answerAsk = mutation()
  *
  * Used for error messages, system info, etc.
  * Creates message in DB and updates session.
+ *
+ * Optimistic: Client immediately sees new message via .optimistic("create")
+ * Live: Publishes message-created event for listMessages subscribers
  */
 export const addSystemMessage = mutation()
 	.input(
@@ -895,6 +913,7 @@ export const addSystemMessage = mutation()
 			messageId: z.string(),
 		}),
 	)
+	.optimistic("create")
 	.resolve(async ({ input, ctx }: {
 		input: {
 			sessionId?: string | null;
@@ -906,6 +925,7 @@ export const addSystemMessage = mutation()
 		ctx: LensContext;
 	}) => {
 		let sessionId = input.sessionId;
+		let isNewSession = false;
 
 		// Create session if needed
 		if (!sessionId) {
@@ -923,6 +943,13 @@ export const addSystemMessage = mutation()
 				},
 			});
 			sessionId = session.id;
+			isNewSession = true;
+
+			// Publish session created event
+			await ctx.eventStream.publish("session-events", {
+				type: "session-created",
+				session,
+			});
 		}
 
 		// Get message count for ordering
@@ -933,12 +960,13 @@ export const addSystemMessage = mutation()
 
 		// Create message
 		const messageId = crypto.randomUUID();
+		const timestamp = Date.now();
 		await ctx.db.message.create({
 			data: {
 				id: messageId,
 				sessionId,
 				role: input.role,
-				timestamp: Date.now(),
+				timestamp,
 				ordering: nextOrdering,
 				status: "completed",
 			},
@@ -970,6 +998,30 @@ export const addSystemMessage = mutation()
 		await ctx.db.session.update({
 			where: { id: sessionId },
 			data: { updated: Date.now() },
+		});
+
+		// Publish message-created event for live query subscribers
+		await ctx.eventStream.publish(`session-stream:${sessionId}`, {
+			type: "message-created",
+			message: {
+				id: messageId,
+				sessionId,
+				role: input.role,
+				timestamp,
+				ordering: nextOrdering,
+				status: "completed",
+				steps: [{
+					id: stepId,
+					messageId,
+					stepIndex: 0,
+					status: "completed",
+					parts: [{
+						type: "text",
+						content: input.content,
+						status: "completed",
+					}],
+				}],
+			},
 		});
 
 		return { sessionId, messageId };
