@@ -4,11 +4,12 @@
  * Defines all data entities for Sylphx Code using Lens 2.4.0+ unified API.
  * Entity names are derived from export keys (e.g., `export const Session` → "Session")
  *
- * Architecture (lens-core 2.4.0+):
- * - entity() with function-based definition: entity("Name", (t) => ({ ... }))
+ * Architecture (lens-core 2.5.0+):
+ * - entity() with builder pattern: entity<Context>("Name").define((t) => ({ ... }))
  * - Inline resolvers on fields: t.xxx().resolve() / t.xxx().subscribe()
  * - Lazy relations for circular refs: t.many(() => Entity)
  * - createResolverFromEntity() to get resolver at runtime
+ * - Type-safe context in resolvers: ctx is typed as Context
  *
  * Data Model:
  * - Session (1:N) → Message (1:N) → Step (1:N) → Part
@@ -74,7 +75,7 @@ function isStepEvent(payload: { type?: string }): boolean {
  * Messages are loaded via relations, not embedded.
  * Status field uses .subscribe() for live streaming updates.
  */
-export const Session = entity<LensContext>()("Session", (t) => ({
+export const Session = entity<LensContext>("Session").define((t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -140,7 +141,7 @@ export const Session = entity<LensContext>()("Session", (t) => ({
  * Container for conversation turns.
  * Steps field uses .subscribe() for live streaming updates.
  */
-export const Message = entity<LensContext>()("Message", (t) => ({
+export const Message = entity<LensContext>("Message").define((t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -189,7 +190,7 @@ export const Message = entity<LensContext>()("Message", (t) => ({
  * Assistant messages may have multiple steps (tool execution loops).
  * Parts field uses .subscribe() for live streaming updates.
  */
-export const Step = entity<LensContext>()("Step", (t) => ({
+export const Step = entity<LensContext>("Step").define((t) => ({
 	// Primary key
 	id: t.id(),
 
