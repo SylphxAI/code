@@ -1,12 +1,15 @@
 /**
  * Lens Entity Definitions with Inline Resolvers
  *
- * Defines all data entities for Sylphx Code using Lens 2.4.0+ unified API.
+ * Defines all data entities for Sylphx Code using Lens 2.6.0+ unified API.
  * Entity names are derived from export keys (e.g., `export const Session` → "Session")
  *
- * Architecture (lens-core 2.5.0+):
+ * Architecture (lens-core 2.6.0+):
  * - entity() with builder pattern: entity<Context>("Name").define((t) => ({ ... }))
- * - Inline resolvers on fields: t.xxx().resolve() / t.xxx().subscribe()
+ * - Two-Phase Field Resolution (ADR-002):
+ *   - .resolve() for initial value (batchable with DataLoader)
+ *   - .subscribe() returns publisher function for live updates
+ *   - .resolve().subscribe() combines both (recommended for live fields)
  * - Lazy relations for circular refs: t.many(() => Entity)
  * - createResolverFromEntity() to get resolver at runtime
  * - Type-safe context in resolvers: ctx is typed as Context
@@ -73,7 +76,7 @@ function isStepEvent(payload: { type?: string }): boolean {
  *
  * Contains configuration, metadata, and token tracking.
  * Messages are loaded via relations, not embedded.
- * Status field uses .subscribe() for live streaming updates.
+ * Status field uses Two-Phase Resolution for live streaming updates.
  */
 export const Session = entity<LensContext>("Session").define((t) => ({
 	// Primary key
@@ -102,22 +105,32 @@ export const Session = entity<LensContext>("Session").define((t) => ({
 	baseContextTokens: t.int().optional(),
 	totalTokens: t.int().optional(),
 
-	// Live streaming status - uses .subscribe() for real-time updates
-	// When client selects this field, Lens auto-routes to streaming transport
-	status: t.json<SessionStatus | null>().subscribe(async ({ parent, ctx }) => {
-		const session = parent as { id: string; status?: SessionStatus | null };
-		const channel = getSessionChannel(session.id);
+	// Live streaming status - uses Two-Phase Field Resolution (ADR-002)
+	// Phase 1: .resolve() returns initial value (null - status only exists during streaming)
+	// Phase 2: .subscribe() returns publisher for live updates
+	status: t
+		.json<SessionStatus | null>()
+		.resolve(() => null)
+		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
+			// Phase 2: Publisher pattern - set up live subscription
+			const session = parent as { id: string };
+			const channel = getSessionChannel(session.id);
+			let cancelled = false;
 
-		// Emit initial status from parent
-		ctx.emit(session.status || null);
+			// Subscribe to session-updated events
+			(async () => {
+				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+					if (cancelled) break;
+					if (payload?.type === "session-updated" && payload.session?.status) {
+						emit(payload.session.status as SessionStatus);
+					}
+				}
+			})();
 
-		// Subscribe to session-updated events
-		for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-			if (payload?.type === "session-updated" && payload.session?.status) {
-				ctx.emit(payload.session.status as SessionStatus);
-			}
-		}
-	}),
+			onCleanup(() => {
+				cancelled = true;
+			});
+		}),
 
 	// Message queue (for queuing during streaming)
 	messageQueue: t.json().optional(), // QueuedMessage[]
@@ -139,7 +152,7 @@ export const Session = entity<LensContext>("Session").define((t) => ({
  * Message - User or assistant message
  *
  * Container for conversation turns.
- * Steps field uses .subscribe() for live streaming updates.
+ * Steps field uses Two-Phase Resolution for live streaming updates.
  */
 export const Message = entity<LensContext>("Message").define((t) => ({
 	// Primary key
@@ -157,26 +170,38 @@ export const Message = entity<LensContext>("Message").define((t) => ({
 	finishReason: t.string().optional(), // 'stop' | 'tool-calls' | 'length' | 'error'
 	status: t.string(), // 'active' | 'completed' | 'error' | 'abort'
 
-	// Live steps - uses .subscribe() for streaming transport
-	steps: t.many(() => Step).subscribe(async ({ parent, ctx }) => {
-		const message = parent as { id: string; sessionId: string; steps?: any[] };
-		const channel = getSessionChannel(message.sessionId);
+	// Live steps - uses Two-Phase Field Resolution (ADR-002)
+	steps: t
+		.many(() => Step)
+		.resolve(({ parent }) => {
+			// Phase 1: Return initial steps from parent data
+			const message = parent as { steps?: any[] };
+			return message.steps || [];
+		})
+		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
+			// Phase 2: Publisher pattern - set up live subscription
+			const message = parent as { id: string; sessionId: string };
+			const channel = getSessionChannel(message.sessionId);
+			let cancelled = false;
 
-		// Emit initial steps from parent data
-		ctx.emit(message.steps || []);
+			(async () => {
+				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+					if (cancelled) break;
+					if (!isStepEvent(payload)) continue;
 
-		// Subscribe to session-stream events for live updates
-		for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-			if (!isStepEvent(payload)) continue;
+					// Refetch and emit updated steps
+					const messages = await ctx.db.message.findMany({
+						where: { sessionId: message.sessionId },
+					});
+					const updatedMessage = messages.find((m: any) => m.id === message.id);
+					emit(updatedMessage?.steps || []);
+				}
+			})();
 
-			// Refetch and emit updated steps
-			const messages = await ctx.db.message.findMany({
-				where: { sessionId: message.sessionId },
+			onCleanup(() => {
+				cancelled = true;
 			});
-			const updatedMessage = messages.find((m: any) => m.id === message.id);
-			ctx.emit(updatedMessage?.steps || []);
-		}
-	}),
+		}),
 }));
 
 // =============================================================================
@@ -188,7 +213,7 @@ export const Message = entity<LensContext>("Message").define((t) => ({
  *
  * Each step = one LLM call.
  * Assistant messages may have multiple steps (tool execution loops).
- * Parts field uses .subscribe() for live streaming updates.
+ * Parts are resolved from parent data (updates driven by Message.steps).
  */
 export const Step = entity<LensContext>("Step").define((t) => ({
 	// Primary key
@@ -214,14 +239,11 @@ export const Step = entity<LensContext>("Step").define((t) => ({
 	startTime: t.int().optional(),
 	endTime: t.int().optional(),
 
-	// Live parts - uses .subscribe() for streaming transport
-	parts: t.many(() => Part).subscribe(async ({ parent, ctx }) => {
+	// Parts - resolved from parent data
+	// Updates are driven by parent Message.steps subscription
+	parts: t.many(() => Part).resolve(({ parent }) => {
 		const step = parent as { parts?: any[] };
-
-		// Emit initial parts from parent data
-		ctx.emit(step.parts || []);
-
-		// Parts updates are driven by parent Message.steps subscription
+		return step.parts || [];
 	}),
 }));
 
