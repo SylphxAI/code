@@ -5,10 +5,10 @@
  * DEPRECATED: This hook is no longer the primary way to send messages.
  * Use createSubscriptionSendUserMessageToAI from subscriptionAdapter.ts instead.
  *
- * The new architecture uses:
+ * The new architecture uses Lens Live Query (v2.4.0+):
  * - triggerStream.fetch() to start streaming (mutation)
- * - useCurrentSession with polling for streaming state updates
- * - Server emits updates, client polls for changes
+ * - useCurrentSession with .subscribe() resolver for live status updates
+ * - Server emits updates via ctx.emit(), Lens auto-streams to client
  *
  * This hook is kept for backward compatibility but sendMessage is a no-op.
  */

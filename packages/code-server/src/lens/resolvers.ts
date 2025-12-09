@@ -14,7 +14,7 @@
 import { resolver } from "@sylphx/lens-core";
 import type { Resolvers } from "@sylphx/lens-core";
 import { Session, Message, Step, Part } from "./entities.js";
-import type { LensDB, LensContext, StoredEvent } from "./context.js";
+import type { LensDB, LensContext } from "./context.js";
 
 // =============================================================================
 // Types
@@ -82,9 +82,10 @@ function getSessionChannel(sessionId: string): string {
 }
 
 /**
- * Check if event is relevant for step updates
+ * Check if event payload is relevant for step updates
  */
-function isStepEvent(event: StoredEvent): boolean {
+function isStepEvent(payload: { type?: string }): boolean {
+	if (!payload?.type) return false;
 	return [
 		"step-start",
 		"step-complete",
@@ -95,13 +96,14 @@ function isStepEvent(event: StoredEvent): boolean {
 		"tool-call",
 		"tool-result",
 		"tool-error",
-	].includes(event.type);
+	].includes(payload.type);
 }
 
 /**
- * Check if event is relevant for part updates
+ * Check if event payload is relevant for part updates
  */
-function isPartEvent(event: StoredEvent): boolean {
+function isPartEvent(payload: { type?: string }): boolean {
+	if (!payload?.type) return false;
 	return [
 		"text-delta",
 		"text-end",
@@ -110,19 +112,34 @@ function isPartEvent(event: StoredEvent): boolean {
 		"tool-call",
 		"tool-result",
 		"tool-error",
-	].includes(event.type);
+	].includes(payload.type);
+}
+
+// =============================================================================
+// Session Types
+// =============================================================================
+
+/**
+ * SessionStatus - Live streaming status for session
+ * Matches the SessionStatus interface from code-client
+ */
+interface SessionStatus {
+	text: string;
+	duration: number;
+	tokenUsage: number;
+	isActive: boolean;
+}
+
+interface SessionParent {
+	id: string;
+	title?: string;
+	status?: SessionStatus | null;
+	// ... other fields from Session entity
 }
 
 // =============================================================================
 // Session Resolver
 // =============================================================================
-
-interface SessionParent {
-	id: string;
-	title?: string;
-	status?: unknown;
-	// ... other fields from Session entity
-}
 
 /**
  * Session resolver with live status field
@@ -156,7 +173,7 @@ const sessionResolver = resolver<LensContext>()(Session, (f) => ({
 
 	// Live subscription field: status
 	// Uses .subscribe() to enable streaming transport
-	status: f.json().subscribe(async ({ parent, ctx }) => {
+	status: f.json<SessionStatus | null>().subscribe(async ({ parent, ctx }) => {
 		const session = parent as SessionParent;
 		const channel = `session-stream:${session.id}`;
 
@@ -164,10 +181,10 @@ const sessionResolver = resolver<LensContext>()(Session, (f) => ({
 		ctx.emit(session.status || null);
 
 		// Subscribe to session-updated events
-		for await (const event of ctx.eventStream.subscribe(channel)) {
-			// Extract status from session-updated event
-			if (event.type === "session-updated" && event.session?.status) {
-				ctx.emit(event.session.status);
+		for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+			// Extract status from session-updated event payload
+			if (payload?.type === "session-updated" && payload.session?.status) {
+				ctx.emit(payload.session.status as SessionStatus);
 			}
 		}
 	}),
@@ -180,8 +197,14 @@ const sessionResolver = resolver<LensContext>()(Session, (f) => ({
 /**
  * Message resolver with live steps field
  *
- * Steps are loaded initially, then updated via emit when streaming events occur.
- * Uses emit.push() for new steps, emit.updateById() for step updates.
+ * Steps use .subscribe() to enable live streaming transport.
+ * When client queries messages with steps field selected,
+ * Lens automatically routes to streaming transport.
+ *
+ * Flow:
+ * 1. Emit initial steps from parent data
+ * 2. Subscribe to session-stream events
+ * 3. On step events, refetch and emit updated steps
  */
 const messageResolver = resolver<LensContext>()(Message, (f) => ({
 	// Expose scalar fields directly
@@ -193,49 +216,29 @@ const messageResolver = resolver<LensContext>()(Message, (f) => ({
 	status: f.expose("status"),
 	finishReason: f.expose("finishReason"),
 
-	// Resolved field: steps with live query support
-	steps: f.many(Step).resolve(async ({ parent, ctx }) => {
+	// Live subscription field: steps
+	// Uses .subscribe() to enable streaming transport for step updates
+	steps: f.many(Step).subscribe(async ({ parent, ctx }) => {
 		const message = parent as MessageParent;
+		const channel = getSessionChannel(message.sessionId);
 
-		// Use nested steps from parent if available (from getSessionMessages)
-		// Otherwise, would need to fetch from database
+		// Emit initial steps from parent data (from getSessionMessages)
 		const initialSteps = message.steps || [];
+		ctx.emit(initialSteps);
 
-		// Set up live subscription if emit available
-		if (ctx.emit && ctx.onCleanup) {
-			const channel = getSessionChannel(message.sessionId);
-			let cancelled = false;
+		// Subscribe to session-stream events for live updates
+		for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+			// Only process step-related events
+			if (!isStepEvent(payload)) continue;
 
-			// Helper to refetch steps
-			const refetchSteps = async () => {
-				// Re-fetch messages to get updated steps
-				const messages = await ctx.db.message.findMany({
-					where: { sessionId: message.sessionId },
-				});
-				const updatedMessage = messages.find((m: MessageParent) => m.id === message.id);
-				return (updatedMessage as MessageParent)?.steps || [];
-			};
-
-			// Subscribe to streaming events
-			const subscription = (async () => {
-				for await (const event of ctx.eventStream.subscribe(channel)) {
-					if (cancelled) break;
-
-					// Only process step-related events
-					if (!isStepEvent(event)) continue;
-
-					// Refetch and emit updated steps
-					const updatedSteps = await refetchSteps();
-					ctx.emit(updatedSteps);
-				}
-			})();
-
-			ctx.onCleanup(() => {
-				cancelled = true;
+			// Refetch and emit updated steps
+			const messages = await ctx.db.message.findMany({
+				where: { sessionId: message.sessionId },
 			});
+			const updatedMessage = messages.find((m: MessageParent) => m.id === message.id);
+			const updatedSteps = (updatedMessage as MessageParent)?.steps || [];
+			ctx.emit(updatedSteps);
 		}
-
-		return initialSteps;
 	}),
 }));
 
@@ -246,8 +249,12 @@ const messageResolver = resolver<LensContext>()(Message, (f) => ({
 /**
  * Step resolver with live parts field
  *
- * Parts are loaded initially, then updated via emit when streaming events occur.
- * Uses emit.push() for new parts, emit.updateById() for part updates.
+ * Parts use .subscribe() to enable live streaming transport.
+ * Parts are updated via the parent Message's step subscription.
+ *
+ * Note: Since parts are nested within steps, and steps already
+ * have a subscription, parts updates flow through the steps emit.
+ * This subscription provides direct part-level streaming if needed.
  */
 const stepResolver = resolver<LensContext>()(Step, (f) => ({
 	// Expose scalar fields
@@ -263,17 +270,19 @@ const stepResolver = resolver<LensContext>()(Step, (f) => ({
 	endTime: f.expose("endTime"),
 	systemMessages: f.expose("systemMessages"),
 
-	// Resolved field: parts with live query support
-	parts: f.many(Part).resolve(async ({ parent, ctx }) => {
+	// Live subscription field: parts
+	// Parts are nested within steps, so updates flow through step refetch
+	// Using .subscribe() to mark for streaming transport
+	parts: f.many(Part).subscribe(async ({ parent, ctx }) => {
 		const step = parent as StepParent;
 
-		// Use nested parts from parent if available (from getSessionMessages)
+		// Emit initial parts from parent data (from getSessionMessages)
 		const initialParts = step.parts || [];
+		ctx.emit(initialParts);
 
-		// Parts are updated when the parent step is refetched
-		// The message resolver handles the subscription and refetch
-
-		return initialParts;
+		// Parts updates are driven by the parent step's subscription
+		// When steps are refetched, parts are included in the response
+		// This subscription just provides the initial emit
 	}),
 }));
 

@@ -93,10 +93,9 @@ export const setIsStreaming = streamingState.set;
 export const getIsStreaming = streamingState.get;
 export const useIsStreaming = () => useStore(streamingState);
 
-const streamingExpectedState = createState(false);
-export const setStreamingExpected = streamingExpectedState.set;
-export const getStreamingExpected = streamingExpectedState.get;
-export const useStreamingExpected = () => useStore(streamingExpectedState);
+// Note: streamingExpected was previously used for polling fallback.
+// With Lens Live Query (v2.4.0+), polling is no longer needed.
+// Streaming state now comes from Session.status via .subscribe() resolver.
 
 // ============================================================================
 // Session Status (for StatusIndicator)

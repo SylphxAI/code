@@ -90,6 +90,9 @@ export const Message = entity("Message", {
 	// Aggregated status (derived from steps)
 	finishReason: t.string().optional(), // 'stop' | 'tool-calls' | 'length' | 'error'
 	status: t.string(), // 'active' | 'completed' | 'error' | 'abort'
+
+	// Note: Steps are loaded via resolver with .subscribe() for live updates
+	// No liveSteps entity field needed - streaming handled by resolver
 });
 
 // =============================================================================

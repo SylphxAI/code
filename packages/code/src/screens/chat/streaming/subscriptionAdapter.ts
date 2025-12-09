@@ -1,16 +1,17 @@
 /**
  * Streaming Trigger Adapter for Lens
  *
- * LIVE QUERY ARCHITECTURE:
+ * ARCHITECTURE: Lens Live Query (v2.4.0+)
+ * =======================================
  * - Client calls triggerStream mutation to start streaming
  * - Server uses emit API to push updates to session
- * - Client uses useQuery(getSession) to receive live updates
+ * - Resolver fields with .subscribe() auto-route to streaming transport
+ * - Client receives live updates through useQuery without polling
  *
- * inProcess Polling:
- * - For inProcess transport, emit doesn't work
- * - We set streamingExpected = true before mutation
- * - useCurrentSession polls while streamingExpected is true
- * - Polling stops when streamingStatus becomes "idle"
+ * Key resolvers with .subscribe():
+ * - Session.status → live streaming status (text, duration, tokens)
+ * - Message.steps → live step updates during streaming
+ * - Step.parts → live part updates during streaming
  *
  * ARCHITECTURE: lens-react v5 API
  * ===============================
@@ -20,7 +21,6 @@
 
 import { parseUserInput, type CodeClient } from "@sylphx/code-client";
 import { setCurrentSessionId } from "../../../session-state.js";
-import { setStreamingExpected } from "../../../ui-state.js";
 import type { AIConfig, FileAttachment, MessagePart, TokenUsage } from "@sylphx/code-core";
 import { createLogger } from "@sylphx/code-core";
 import type React from "react";
@@ -147,18 +147,14 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			const { parts: content } = parseUserInput(userMessage, attachments || []);
 			logSession("Parsed content:", content.length, "parts");
 
-			// Enable polling for inProcess transport
-			// useCurrentSession will poll while this is true
-			setStreamingExpected(true);
-
 			// Call triggerStream via vanilla client call
 			// Server will:
 			// 1. Create session if needed
 			// 2. Create user message
 			// 3. Create assistant message (placeholder)
 			// 4. Start AI streaming
-			// 5. Update in-memory state (polled by client)
-			// 6. useCurrentSession polls and React re-renders
+			// 5. Emit status updates via ctx.emit()
+			// 6. Lens auto-streams to client via .subscribe() resolver
 			const result = await client.triggerStream({
 				input: {
 					sessionId: currentSessionId,
@@ -189,8 +185,6 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 		} catch (error) {
 			logSession("Mutation error:", error);
 			addLog(`[subscriptionAdapter] Error: ${error instanceof Error ? error.message : String(error)}`);
-			// Clear streaming expected on error (stop polling)
-			setStreamingExpected(false);
 			throw error;
 		}
 	};

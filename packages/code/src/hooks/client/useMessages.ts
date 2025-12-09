@@ -3,17 +3,18 @@
  * Fetches messages for the current session using lens-react hooks
  * and converts them to SessionMessage format with steps and parts
  *
- * ARCHITECTURE: lens-react v5 API
- * - client.xxx.useQuery({ input }) → React hook { data, loading, error, refetch }
- *
- * POLLING: When streamingExpected is true, polls every 100ms
- * to get updated message content during streaming.
+ * ARCHITECTURE: Lens Live Query (v2.4.0+)
+ * ========================================
+ * - Message.steps uses .subscribe() in resolver
+ * - Step.parts uses .subscribe() in resolver
+ * - When client queries messages with steps/parts selected,
+ *   Lens auto-routes to streaming transport
+ * - No polling needed - live updates via ctx.emit()
  */
 
 import { useLensClient } from "@sylphx/code-client";
 import type { SessionMessage, MessageStep, MessagePart } from "@sylphx/code-core";
-import { useMemo, useEffect, useRef } from "react";
-import { useStreamingExpected } from "../../ui-state.js";
+import { useMemo } from "react";
 
 /**
  * Convert server Part to client MessagePart format
@@ -94,39 +95,13 @@ function convertPart(part: Record<string, unknown>): MessagePart {
 
 export function useMessages(sessionId: string | null | undefined) {
 	const client = useLensClient();
-	const streamingExpected = useStreamingExpected();
-	const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
 	// Use lens-react query hook
+	// Steps/parts fields use .subscribe() in resolver, so Lens auto-streams
 	const messagesQuery = client.listMessages.useQuery({
 		input: { sessionId: sessionId || "" },
 		skip: !sessionId,
 	});
-
-	// Poll while streaming is expected (for inProcess transport)
-	useEffect(() => {
-		if (streamingExpected && sessionId) {
-			// Start polling
-			pollingRef.current = setInterval(() => {
-				messagesQuery.refetch?.();
-			}, 100);
-		} else {
-			// Stop polling and do one final refetch
-			if (pollingRef.current) {
-				clearInterval(pollingRef.current);
-				pollingRef.current = null;
-				// Final refetch to get completed message
-				messagesQuery.refetch?.();
-			}
-		}
-
-		return () => {
-			if (pollingRef.current) {
-				clearInterval(pollingRef.current);
-				pollingRef.current = null;
-			}
-		};
-	}, [streamingExpected, sessionId, messagesQuery.refetch]);
 
 	// Convert raw messages to SessionMessage format
 	const messages = useMemo((): SessionMessage[] => {
