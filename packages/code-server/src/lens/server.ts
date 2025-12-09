@@ -43,7 +43,7 @@ export const appRouter = router({
 });
 
 // Entity Resolvers Factory (inline resolvers on entities, lens-core 2.4.0+)
-import { createResolvers } from "./entities.js";
+// Note: createResolvers is deprecated - entities with inline resolvers are automatically extracted
 
 // Context Types
 import type { LensDB, LensEventStream } from "./context.js";
@@ -836,14 +836,11 @@ export function createLensServer(appContext: AppContext) {
 	const db = createDatabaseAdapter(appContext);
 	const eventStream = createEventStreamAdapter(appContext);
 
-	// Create resolvers from entities (lens-core 2.4.0+ inline resolvers)
-	const resolvers = createResolvers();
-
+	// Entities have inline resolvers - automatically extracted by createApp
 	const app = createApp({
 		entities,
 		queries,
 		mutations,
-		resolvers,
 		plugins, // Optimistic updates, etc.
 		context: async () => {
 			// Context factory - called for each request

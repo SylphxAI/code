@@ -20,7 +20,7 @@
  * - StepUsage (1:1) → Step
  */
 
-import { entity, t } from "@sylphx/lens-core";
+import { entity } from "@sylphx/lens-core";
 import type { Resolvers } from "@sylphx/lens-core";
 import type { LensContext } from "./context.js";
 
@@ -406,7 +406,7 @@ export const Step = entity<LensContext>("Step").define((t) => ({
  * Types: text, reasoning, tool, error, file, file-ref, system-message
  * This entity matches the MessagePart discriminated union from code-core.
  */
-export const Part = entity("Part", {
+export const Part = entity("Part", (t) => ({
 	// Discriminator field (required for all parts)
 	type: t.string(), // 'text' | 'reasoning' | 'tool' | 'error' | 'file' | 'file-ref' | 'system-message'
 
@@ -436,7 +436,7 @@ export const Part = entity("Part", {
 	// System message fields (for type: 'system-message')
 	messageType: t.string().optional(),
 	timestamp: t.int().optional(),
-});
+}));
 
 // =============================================================================
 // StepUsage Entity
@@ -448,7 +448,7 @@ export const Part = entity("Part", {
  * 1:1 relationship with Step.
  * Only assistant steps have usage data.
  */
-export const StepUsage = entity("StepUsage", {
+export const StepUsage = entity("StepUsage", (t) => ({
 	// Primary key (same as step ID)
 	stepId: t.id(),
 
@@ -456,7 +456,7 @@ export const StepUsage = entity("StepUsage", {
 	promptTokens: t.int(),
 	completionTokens: t.int(),
 	totalTokens: t.int(),
-});
+}));
 
 // =============================================================================
 // Todo Entity
@@ -591,7 +591,7 @@ export const BashProcess = entity<LensContext>("BashProcess").define((t) => ({
  * Agents define different AI behaviors (coder, planner, etc.)
  * Can be builtin or user-defined.
  */
-export const Agent = entity("Agent", {
+export const Agent = entity("Agent", (t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'coder', 'planner', 'reviewer'
 
@@ -608,7 +608,7 @@ export const Agent = entity("Agent", {
 
 	// Associated rules
 	defaultRuleIds: t.json().optional(), // string[]
-});
+}));
 
 // =============================================================================
 // Rule Entity
@@ -620,7 +620,7 @@ export const Agent = entity("Agent", {
  * Rules add content to system prompts for all agents.
  * Can be enabled/disabled per session.
  */
-export const Rule = entity("Rule", {
+export const Rule = entity("Rule", (t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'coding/typescript', 'style/concise'
 
@@ -635,9 +635,12 @@ export const Rule = entity("Rule", {
 	isBuiltin: t.boolean(),
 	filePath: t.string().optional(),
 
-	// Default state
-	enabledByDefault: t.boolean(),
-});
+	// Glob patterns for auto-apply
+	globs: t.json().optional(), // string[]
+
+	// Auto-apply behavior
+	alwaysApply: t.boolean(),
+}));
 
 // =============================================================================
 // Provider Entity
@@ -917,7 +920,7 @@ export const Credential = entity<LensContext>("Credential").define((t) => ({
  *
  * Stores metadata for uploaded files (images, documents, etc.)
  */
-export const File = entity("File", {
+export const File = entity("File", (t) => ({
 	// Primary key
 	id: t.id(), // File content ID
 
@@ -931,7 +934,7 @@ export const File = entity("File", {
 
 	// Session association (optional)
 	sessionId: t.string().optional(),
-});
+}));
 
 // =============================================================================
 // AskRequest Entity
@@ -992,10 +995,10 @@ export const AskRequest = entity<LensContext>("AskRequest").define((t) => ({
 // =============================================================================
 
 /**
- * Create entity resolvers array for Lens server
+ * @deprecated Entities with inline resolvers are automatically extracted by createApp
  *
- * Entities with inline resolvers are registered directly.
- * Plain entities don't need explicit resolvers.
+ * This function is kept for backwards compatibility but is no longer needed.
+ * createApp({ entities }) automatically extracts inline resolvers.
  */
 export function createResolvers(): Resolvers {
 	return [
