@@ -1290,21 +1290,13 @@ export const listModels = query()
  * Events: tool-toggled → emit.patch()
  */
 export const listTools = query()
+	.input(z.object({ source: z.string().optional() }).optional())
 	.returns([Tool])
-	.resolve(async ({ ctx }: { ctx: LensContext }) => {
-		const { getAISDKTools } = await import("@sylphx/code-core");
-		const tools = await getAISDKTools();
-
-		// Get disabled tools from session/config if available
-		const disabledTools = new Set<string>();
-
-		return Object.entries(tools).map(([name, def]) => ({
-			id: name,
-			name,
-			description: (def as any).description || "",
-			isEnabled: !disabledTools.has(name),
-			source: "builtin" as const,
-		}));
+	.resolve(async ({ input, ctx }: { input?: { source?: string }; ctx: LensContext }) => {
+		// Use DB adapter to get tools
+		return ctx.db.tool.findMany({
+			where: input?.source ? { source: input.source } : undefined,
+		});
 	})
 	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
 		const channel = "tool-events";
@@ -1415,11 +1407,13 @@ export const listMcpServers = query()
  * Events: credential-created → emit.push(), credential-deleted → emit.pull()
  */
 export const listCredentials = query()
+	.input(z.object({ providerId: z.string().optional() }).optional())
 	.returns([Credential])
-	.resolve(async () => {
-		// Credentials are stored securely - only return metadata
-		// Implementation depends on credential storage backend
-		return [];
+	.resolve(async ({ input, ctx }: { input?: { providerId?: string }; ctx: LensContext }) => {
+		// Use DB adapter which masks API keys
+		return ctx.db.credential.findMany({
+			where: input?.providerId ? { providerId: input.providerId } : undefined,
+		});
 	})
 	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
 		const channel = "credential-events";
@@ -1459,9 +1453,12 @@ export const getAskRequest = query()
 	.input(z.object({ sessionId: z.string() }))
 	.returns(AskRequest.nullable())
 	.resolve(async ({ input, ctx }: { input: { sessionId: string }; ctx: LensContext }) => {
-		// Check for pending ask request in the session context
-		// This depends on how ask requests are stored
-		return null;
+		// Get pending ask requests for this session
+		const asks = await ctx.db.askRequest.findMany({
+			where: { sessionId: input.sessionId, status: "pending" },
+		});
+		// Return the most recent pending ask request
+		return asks.length > 0 ? asks[0] : null;
 	})
 	.subscribe(({ input, ctx }: { input: { sessionId: string }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
 		const channel = `session-stream:${input.sessionId}`;

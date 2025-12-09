@@ -243,6 +243,508 @@ function createDatabaseAdapter(appContext: AppContext): LensDB {
 				return where;
 			},
 		},
+
+		// ======================================================================
+		// StepUsage (DB-backed)
+		// ======================================================================
+
+		stepUsage: {
+			findUnique: async ({ where }) => {
+				// TODO: Implement when step_usage table exists
+				return null;
+			},
+			create: async ({ data }) => {
+				// TODO: Implement when step_usage table exists
+				return data;
+			},
+			update: async ({ where, data }) => {
+				// TODO: Implement when step_usage table exists
+				return { ...data, stepId: where.stepId };
+			},
+		},
+
+		// ======================================================================
+		// BashProcess (In-memory via BashManager)
+		// ======================================================================
+
+		bashProcess: {
+			findUnique: async ({ where }) => {
+				const proc = appContext.bashManagerV2.get(where.id);
+				if (!proc) return null;
+				return {
+					id: proc.id,
+					command: proc.command,
+					cwd: proc.cwd,
+					mode: proc.mode,
+					status: proc.status,
+					startTime: proc.startTime,
+					endTime: proc.endTime,
+					duration: proc.endTime ? proc.endTime - proc.startTime : undefined,
+					exitCode: proc.exitCode,
+					stdout: proc.stdout,
+					stderr: proc.stderr,
+				};
+			},
+			findMany: async () => {
+				return appContext.bashManagerV2.list().map((proc) => ({
+					id: proc.id,
+					command: proc.command,
+					cwd: proc.cwd,
+					mode: proc.mode,
+					status: proc.status,
+					startTime: proc.startTime,
+					endTime: proc.endTime,
+					duration: proc.endTime ? proc.endTime - proc.startTime : undefined,
+					exitCode: proc.exitCode,
+				}));
+			},
+		},
+
+		// ======================================================================
+		// Agent (File-based via loadAllAgents)
+		// ======================================================================
+
+		agent: {
+			findUnique: async ({ where, cwd }) => {
+				const { loadAllAgents } = await import("@sylphx/code-core");
+				const agents = await loadAllAgents(cwd || process.cwd());
+				const agent = agents.find((a: any) => a.id === where.id);
+				if (!agent) return null;
+				return {
+					id: agent.id,
+					name: agent.metadata?.name || agent.id,
+					description: agent.metadata?.description || "",
+					systemPrompt: agent.systemPrompt,
+					isBuiltin: agent.isBuiltin ?? false,
+					filePath: agent.filePath,
+					defaultRuleIds: agent.metadata?.defaultRuleIds,
+				};
+			},
+			findMany: async ({ cwd } = {}) => {
+				const { loadAllAgents } = await import("@sylphx/code-core");
+				const agents = await loadAllAgents(cwd || process.cwd());
+				return agents.map((a: any) => ({
+					id: a.id,
+					name: a.metadata?.name || a.id,
+					description: a.metadata?.description || "",
+					systemPrompt: a.systemPrompt,
+					isBuiltin: a.isBuiltin ?? false,
+					filePath: a.filePath,
+					defaultRuleIds: a.metadata?.defaultRuleIds,
+				}));
+			},
+		},
+
+		// ======================================================================
+		// Rule (File-based via loadAllRules)
+		// ======================================================================
+
+		rule: {
+			findUnique: async ({ where, cwd }) => {
+				const { loadAllRules } = await import("@sylphx/code-core");
+				const rules = await loadAllRules(cwd || process.cwd());
+				const rule = rules.find((r: any) => r.id === where.id);
+				if (!rule) return null;
+				return {
+					id: rule.id,
+					name: rule.metadata?.name || rule.id,
+					description: rule.metadata?.description || "",
+					content: rule.content,
+					isBuiltin: rule.isBuiltin ?? false,
+					filePath: rule.filePath,
+					globs: rule.metadata?.globs,
+					alwaysApply: rule.metadata?.alwaysApply ?? false,
+				};
+			},
+			findMany: async ({ cwd } = {}) => {
+				const { loadAllRules } = await import("@sylphx/code-core");
+				const rules = await loadAllRules(cwd || process.cwd());
+				return rules.map((r: any) => ({
+					id: r.id,
+					name: r.metadata?.name || r.id,
+					description: r.metadata?.description || "",
+					content: r.content,
+					isBuiltin: r.isBuiltin ?? false,
+					filePath: r.filePath,
+					globs: r.metadata?.globs,
+					alwaysApply: r.metadata?.alwaysApply ?? false,
+				}));
+			},
+		},
+
+		// ======================================================================
+		// Provider (Config-based via AI_PROVIDERS)
+		// ======================================================================
+
+		provider: {
+			findUnique: async ({ where, cwd }) => {
+				const { AI_PROVIDERS, getProvider, loadAIConfig } = await import("@sylphx/code-core");
+				const providerInfo = (AI_PROVIDERS as Record<string, any>)[where.id];
+				if (!providerInfo) return null;
+
+				const configResult = await loadAIConfig(cwd || process.cwd());
+				const config = configResult.success ? configResult.data : { providers: {} };
+				const provider = getProvider(where.id as any);
+				const providerConfig = config.providers?.[where.id] || {};
+
+				return {
+					id: where.id,
+					name: providerInfo.name,
+					description: providerInfo.description,
+					isConfigured: provider.isConfigured(providerConfig),
+					isEnabled: providerConfig.enabled !== false,
+					modelCount: 0,
+				};
+			},
+			findMany: async ({ cwd } = {}) => {
+				const { AI_PROVIDERS, getProvider, loadAIConfig } = await import("@sylphx/code-core");
+				const configResult = await loadAIConfig(cwd || process.cwd());
+				const config = configResult.success ? configResult.data : { providers: {} };
+
+				const providers = [];
+				for (const [id, providerInfo] of Object.entries(AI_PROVIDERS)) {
+					const provider = getProvider(id as any);
+					const providerConfig = config.providers?.[id] || {};
+					providers.push({
+						id,
+						name: (providerInfo as any).name,
+						description: (providerInfo as any).description,
+						isConfigured: provider.isConfigured(providerConfig),
+						isEnabled: providerConfig.enabled !== false,
+						modelCount: 0,
+					});
+				}
+				return providers;
+			},
+		},
+
+		// ======================================================================
+		// Model (Config-based via fetchModels)
+		// ======================================================================
+
+		model: {
+			findUnique: async ({ where, cwd }) => {
+				const { loadAIConfig, fetchModels: fetchModelsCore, getProvider } = await import("@sylphx/code-core");
+				try {
+					const aiConfigResult = await loadAIConfig(cwd || process.cwd());
+					if (!aiConfigResult.success) return null;
+
+					const providerConfig = aiConfigResult.data.providers?.[where.providerId];
+					if (!providerConfig) return null;
+
+					const provider = getProvider(where.providerId as any);
+					if (!provider.isConfigured(providerConfig)) return null;
+
+					const models = await fetchModelsCore(where.providerId as any, providerConfig);
+					const model = models.find((m: any) => m.id === where.id);
+					if (!model) return null;
+
+					return {
+						id: model.id,
+						name: model.name,
+						providerId: where.providerId,
+						contextLength: model.contextLength,
+						inputPrice: model.inputPrice,
+						outputPrice: model.outputPrice,
+						supportsTools: model.supportsTools ?? true,
+						supportsVision: model.supportsVision ?? false,
+						supportsStreaming: model.supportsStreaming ?? true,
+						isAvailable: true,
+					};
+				} catch {
+					return null;
+				}
+			},
+			findMany: async ({ where, cwd }) => {
+				const { loadAIConfig, fetchModels: fetchModelsCore, getProvider } = await import("@sylphx/code-core");
+				try {
+					const aiConfigResult = await loadAIConfig(cwd || process.cwd());
+					if (!aiConfigResult.success) return [];
+
+					const providerConfig = aiConfigResult.data.providers?.[where.providerId];
+					if (!providerConfig) return [];
+
+					const provider = getProvider(where.providerId as any);
+					if (!provider.isConfigured(providerConfig)) return [];
+
+					const models = await fetchModelsCore(where.providerId as any, providerConfig);
+					return models.map((m: any) => ({
+						id: m.id,
+						name: m.name,
+						providerId: where.providerId,
+						contextLength: m.contextLength,
+						inputPrice: m.inputPrice,
+						outputPrice: m.outputPrice,
+						supportsTools: m.supportsTools ?? true,
+						supportsVision: m.supportsVision ?? false,
+						supportsStreaming: m.supportsStreaming ?? true,
+						isAvailable: true,
+					}));
+				} catch {
+					return [];
+				}
+			},
+		},
+
+		// ======================================================================
+		// MCPServer (Config-based)
+		// ======================================================================
+
+		mcpServer: {
+			findUnique: async ({ where, cwd }) => {
+				const { loadAIConfig } = await import("@sylphx/code-core");
+				const configResult = await loadAIConfig(cwd || process.cwd());
+				if (!configResult.success || !configResult.data.mcpServers) return null;
+
+				const serverConfig = configResult.data.mcpServers[where.id];
+				if (!serverConfig) return null;
+
+				return {
+					id: where.id,
+					name: where.id,
+					description: (serverConfig as any).description,
+					transportType: (serverConfig as any).command ? "stdio" : "sse",
+					status: "disconnected",
+					toolCount: 0,
+					resourceCount: 0,
+					promptCount: 0,
+					enabled: (serverConfig as any).enabled !== false,
+				};
+			},
+			findMany: async ({ cwd } = {}) => {
+				const { loadAIConfig } = await import("@sylphx/code-core");
+				const configResult = await loadAIConfig(cwd || process.cwd());
+				if (!configResult.success || !configResult.data.mcpServers) return [];
+
+				const servers = [];
+				for (const [name, config] of Object.entries(configResult.data.mcpServers)) {
+					servers.push({
+						id: name,
+						name,
+						description: (config as any).description,
+						transportType: (config as any).command ? "stdio" : "sse",
+						status: "disconnected",
+						toolCount: 0,
+						resourceCount: 0,
+						promptCount: 0,
+						enabled: (config as any).enabled !== false,
+					});
+				}
+				return servers;
+			},
+		},
+
+		// ======================================================================
+		// Credential (via credential store)
+		// ======================================================================
+
+		credential: {
+			findUnique: async ({ where }) => {
+				const { getCredential } = await import("@sylphx/code-core");
+				try {
+					const cred = getCredential(where.id);
+					if (!cred) return null;
+					return {
+						id: cred.id,
+						providerId: cred.providerId,
+						label: cred.label,
+						maskedApiKey: cred.apiKey ? `${cred.apiKey.slice(0, 4)}...${cred.apiKey.slice(-4)}` : "",
+						scope: cred.scope,
+						status: "active",
+						isDefault: cred.isDefault,
+						createdAt: cred.createdAt || Date.now(),
+					};
+				} catch {
+					return null;
+				}
+			},
+			findMany: async ({ where } = {}) => {
+				const { listCredentials } = await import("@sylphx/code-core");
+				try {
+					const creds = listCredentials(where?.providerId);
+					return creds.map((cred: any) => ({
+						id: cred.id,
+						providerId: cred.providerId,
+						label: cred.label,
+						maskedApiKey: cred.apiKey ? `${cred.apiKey.slice(0, 4)}...${cred.apiKey.slice(-4)}` : "",
+						scope: cred.scope,
+						status: "active",
+						isDefault: cred.isDefault,
+						createdAt: cred.createdAt || Date.now(),
+					}));
+				} catch {
+					return [];
+				}
+			},
+			create: async ({ data }) => {
+				const { createCredential: createCred } = await import("@sylphx/code-core");
+				const cred = createCred(data);
+				return {
+					id: cred.id,
+					providerId: data.providerId,
+					label: data.label,
+					maskedApiKey: `${data.apiKey.slice(0, 4)}...${data.apiKey.slice(-4)}`,
+					scope: data.scope || "global",
+					status: "active",
+					isDefault: data.isDefault ?? true,
+					createdAt: Date.now(),
+				};
+			},
+			delete: async ({ where }) => {
+				const { deleteCredential: deleteCred } = await import("@sylphx/code-core");
+				deleteCred(where.id);
+				return { id: where.id };
+			},
+		},
+
+		// ======================================================================
+		// Tool (Runtime via getAISDKTools)
+		// ======================================================================
+
+		tool: {
+			findUnique: async ({ where }) => {
+				const { getAISDKTools } = await import("@sylphx/code-core");
+				const tools = await getAISDKTools();
+				const def = tools[where.id];
+				if (!def) return null;
+				return {
+					id: where.id,
+					name: where.id,
+					description: (def as any).description || "",
+					category: "builtin",
+					isAsync: false,
+					source: "builtin",
+					isEnabled: true,
+					enabledByDefault: true,
+				};
+			},
+			findMany: async ({ where } = {}) => {
+				const { getAISDKTools } = await import("@sylphx/code-core");
+				const tools = await getAISDKTools();
+				return Object.entries(tools)
+					.filter(([_, def]) => {
+						if (where?.source && where.source !== "builtin") return false;
+						return true;
+					})
+					.map(([name, def]) => ({
+						id: name,
+						name,
+						description: (def as any).description || "",
+						category: "builtin",
+						isAsync: false,
+						source: "builtin",
+						isEnabled: true,
+						enabledByDefault: true,
+					}));
+			},
+		},
+
+		// ======================================================================
+		// File (via FileStorage)
+		// ======================================================================
+
+		file: {
+			findUnique: async ({ where }) => {
+				// FileStorage uses content-addressable IDs
+				// TODO: Implement when file metadata tracking is added
+				return null;
+			},
+			findMany: async () => {
+				// TODO: Implement when file metadata tracking is added
+				return [];
+			},
+			create: async ({ data }) => {
+				const fileId = await appContext.fileStorage.upload({
+					relativePath: data.relativePath,
+					mediaType: data.mediaType,
+					size: data.size,
+					content: data.content,
+				});
+				return {
+					id: fileId,
+					relativePath: data.relativePath,
+					mediaType: data.mediaType,
+					size: data.size,
+					uploadedAt: Date.now(),
+					sessionId: data.sessionId,
+				};
+			},
+			delete: async ({ where }) => {
+				// TODO: Implement when file deletion is supported
+				return { id: where.id };
+			},
+		},
+
+		// ======================================================================
+		// AskRequest (via AskManager)
+		// ======================================================================
+
+		askRequest: {
+			findUnique: async ({ where }) => {
+				try {
+					const { getPendingAsk } = await import("../services/ask-manager.service.js");
+					const ask = getPendingAsk(where.id);
+					if (!ask) return null;
+					return {
+						id: ask.id,
+						sessionId: ask.sessionId,
+						type: ask.type || "question",
+						questions: ask.questions,
+						status: ask.status || "pending",
+						answers: ask.answers,
+						createdAt: ask.createdAt || Date.now(),
+						answeredAt: ask.answeredAt,
+					};
+				} catch {
+					return null;
+				}
+			},
+			findMany: async ({ where } = {}) => {
+				try {
+					const { getPendingAsks } = await import("../services/ask-manager.service.js");
+					const asks = getPendingAsks(where?.sessionId);
+					return asks
+						.filter((ask: any) => !where?.status || ask.status === where.status)
+						.map((ask: any) => ({
+							id: ask.id,
+							sessionId: ask.sessionId,
+							type: ask.type || "question",
+							questions: ask.questions,
+							status: ask.status || "pending",
+							answers: ask.answers,
+							createdAt: ask.createdAt || Date.now(),
+							answeredAt: ask.answeredAt,
+						}));
+				} catch {
+					return [];
+				}
+			},
+			create: async ({ data }) => {
+				try {
+					const { createAsk } = await import("../services/ask-manager.service.js");
+					const ask = await createAsk(data);
+					return {
+						id: ask.id,
+						sessionId: data.sessionId,
+						type: data.type || "question",
+						questions: data.questions,
+						status: "pending",
+						createdAt: Date.now(),
+					};
+				} catch {
+					return data;
+				}
+			},
+			update: async ({ where, data }) => {
+				try {
+					const { updateAsk } = await import("../services/ask-manager.service.js");
+					await updateAsk(where.id, data);
+					return { ...data, id: where.id };
+				} catch {
+					return { ...data, id: where.id };
+				}
+			},
+		},
 	};
 }
 

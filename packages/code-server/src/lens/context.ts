@@ -61,55 +61,49 @@ export interface LensContext {
 }
 
 /**
+ * Standard CRUD interface for entities
+ */
+interface EntityCRUD<TId = string> {
+	findUnique: (args: { where: { id: TId } }) => Promise<any>;
+	findMany: (args?: {
+		where?: any;
+		orderBy?: any;
+		take?: number;
+		skip?: number;
+	}) => Promise<any[]>;
+	create: (args: { data: any }) => Promise<any>;
+	update: (args: { where: { id: TId }; data: any }) => Promise<any>;
+	delete: (args: { where: { id: TId } }) => Promise<any>;
+}
+
+/**
  * Database interface (Prisma-like)
  *
  * Provides type-safe database access.
  * Actual implementation wraps existing repositories.
+ *
+ * Entity sources:
+ * - DB-backed: session, message, step, part, todo, stepUsage
+ * - In-memory: bashProcess (BashManager)
+ * - File-based: agent, rule (loaded from .ai/ directories)
+ * - Config-based: provider, model, mcpServer, credential
+ * - Runtime: tool (from getAISDKTools), file (FileStorage), askRequest (AskManager)
  */
 export interface LensDB {
-	session: {
-		findUnique: (args: { where: { id: string } }) => Promise<any>;
-		findMany: (args?: {
-			where?: any;
-			orderBy?: any;
-			take?: number;
-		}) => Promise<any[]>;
-		create: (args: { data: any }) => Promise<any>;
-		update: (args: { where: { id: string }; data: any }) => Promise<any>;
-		delete: (args: { where: { id: string } }) => Promise<any>;
+	// ==========================================================================
+	// DB-backed entities (SQLite/Drizzle)
+	// ==========================================================================
+
+	session: EntityCRUD & {
 		count: () => Promise<number>;
 	};
-	message: {
-		findUnique: (args: { where: { id: string } }) => Promise<any>;
-		findMany: (args?: {
-			where?: any;
-			orderBy?: any;
-			take?: number;
-		}) => Promise<any[]>;
-		create: (args: { data: any }) => Promise<any>;
-		update: (args: { where: { id: string }; data: any }) => Promise<any>;
-		delete: (args: { where: { id: string } }) => Promise<any>;
-	};
-	step: {
-		findUnique: (args: { where: { id: string } }) => Promise<any>;
-		findMany: (args?: {
-			where?: any;
-			orderBy?: any;
-			take?: number;
-		}) => Promise<any[]>;
-		create: (args: { data: any }) => Promise<any>;
-		update: (args: { where: { id: string }; data: any }) => Promise<any>;
-	};
-	part: {
-		findUnique: (args: { where: { id: string } }) => Promise<any>;
-		findMany: (args?: {
-			where?: any;
-			orderBy?: any;
-			take?: number;
-		}) => Promise<any[]>;
-		create: (args: { data: any }) => Promise<any>;
-		update: (args: { where: { id: string }; data: any }) => Promise<any>;
-	};
+
+	message: EntityCRUD;
+
+	step: EntityCRUD;
+
+	part: EntityCRUD;
+
 	todo: {
 		findMany: (args?: {
 			where?: any;
@@ -122,6 +116,87 @@ export interface LensDB {
 			data: any;
 		}) => Promise<any>;
 		delete: (args: { where: { sessionId: string; id: number } }) => Promise<any>;
+	};
+
+	stepUsage: {
+		findUnique: (args: { where: { stepId: string } }) => Promise<any>;
+		create: (args: { data: any }) => Promise<any>;
+		update: (args: { where: { stepId: string }; data: any }) => Promise<any>;
+	};
+
+	// ==========================================================================
+	// In-memory entities (BashManager)
+	// ==========================================================================
+
+	bashProcess: {
+		findUnique: (args: { where: { id: string } }) => Promise<any>;
+		findMany: (args?: { where?: any }) => Promise<any[]>;
+		// create/update/delete handled via BashManager methods
+	};
+
+	// ==========================================================================
+	// File-based entities (loaded from .ai/ directories)
+	// ==========================================================================
+
+	agent: {
+		findUnique: (args: { where: { id: string }; cwd?: string }) => Promise<any>;
+		findMany: (args?: { cwd?: string }) => Promise<any[]>;
+		// create/update/delete not supported - file-based
+	};
+
+	rule: {
+		findUnique: (args: { where: { id: string }; cwd?: string }) => Promise<any>;
+		findMany: (args?: { cwd?: string }) => Promise<any[]>;
+		// create/update/delete not supported - file-based
+	};
+
+	// ==========================================================================
+	// Config-based entities (from AI config)
+	// ==========================================================================
+
+	provider: {
+		findUnique: (args: { where: { id: string }; cwd?: string }) => Promise<any>;
+		findMany: (args?: { cwd?: string }) => Promise<any[]>;
+	};
+
+	model: {
+		findUnique: (args: { where: { id: string; providerId: string }; cwd?: string }) => Promise<any>;
+		findMany: (args: { where: { providerId: string }; cwd?: string }) => Promise<any[]>;
+	};
+
+	mcpServer: {
+		findUnique: (args: { where: { id: string }; cwd?: string }) => Promise<any>;
+		findMany: (args?: { cwd?: string }) => Promise<any[]>;
+	};
+
+	credential: {
+		findUnique: (args: { where: { id: string } }) => Promise<any>;
+		findMany: (args?: { where?: { providerId?: string } }) => Promise<any[]>;
+		create: (args: { data: any }) => Promise<any>;
+		delete: (args: { where: { id: string } }) => Promise<any>;
+	};
+
+	// ==========================================================================
+	// Runtime entities
+	// ==========================================================================
+
+	tool: {
+		findUnique: (args: { where: { id: string } }) => Promise<any>;
+		findMany: (args?: { where?: { source?: string; mcpServerId?: string } }) => Promise<any[]>;
+	};
+
+	file: {
+		findUnique: (args: { where: { id: string } }) => Promise<any>;
+		findMany: (args?: { where?: { sessionId?: string } }) => Promise<any[]>;
+		create: (args: { data: any }) => Promise<any>;
+		delete: (args: { where: { id: string } }) => Promise<any>;
+	};
+
+	askRequest: {
+		findUnique: (args: { where: { id: string } }) => Promise<any>;
+		findMany: (args?: { where?: { sessionId?: string; status?: string } }) => Promise<any[]>;
+		create: (args: { data: any }) => Promise<any>;
+		update: (args: { where: { id: string }; data: any }) => Promise<any>;
 	};
 }
 
