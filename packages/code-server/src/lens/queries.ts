@@ -9,7 +9,23 @@
 
 import { query } from "./builders.js";
 import { z } from "zod";
-import { Session, Message, Step, Part, Todo } from "./entities.js";
+import {
+	Session,
+	Message,
+	Step,
+	Part,
+	Todo,
+	BashProcess,
+	Agent,
+	Rule,
+	Provider,
+	Model,
+	Tool,
+	MCPServer,
+	Credential,
+	File,
+	AskRequest,
+} from "./entities.js";
 import type { LensContext } from "./context.js";
 
 // =============================================================================
@@ -1009,4 +1025,461 @@ export const getContextInfo = query()
 				toolCount: 0,
 			};
 		}
+	});
+
+// =============================================================================
+// Agent Queries
+// =============================================================================
+
+/**
+ * List all available agents
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns all agents (builtin + custom)
+ * - Phase 2: .subscribe() updates when agents change (file reload)
+ *
+ * Events: agents-reloaded → emit.replace()
+ */
+export const listAgents = query()
+	.input(z.object({ cwd: z.string().optional() }).optional())
+	.returns([Agent])
+	.resolve(async ({ input }: { input?: { cwd?: string } }) => {
+		const { loadAllAgents } = await import("@sylphx/code-core");
+		const cwd = input?.cwd || process.cwd();
+		const agents = await loadAllAgents(cwd);
+		return agents.map((a: any) => ({
+			id: a.id,
+			name: a.metadata?.name || a.id,
+			description: a.metadata?.description || "",
+			systemPrompt: a.systemPrompt,
+			isBuiltin: a.isBuiltin ?? false,
+			filePath: a.filePath,
+			defaultRuleIds: a.metadata?.defaultRuleIds,
+		}));
+	})
+	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		const channel = "config-events";
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				if (payload?.type === "agents-reloaded" && payload.agents) {
+					emit.replace(payload.agents);
+				}
+			}
+		})();
+
+		onCleanup(() => { cancelled = true; });
+	});
+
+/**
+ * Get agent by ID
+ */
+export const getAgent = query()
+	.input(z.object({ id: z.string(), cwd: z.string().optional() }))
+	.returns(Agent)
+	.resolve(async ({ input }: { input: { id: string; cwd?: string } }) => {
+		const { loadAllAgents } = await import("@sylphx/code-core");
+		const cwd = input.cwd || process.cwd();
+		const agents = await loadAllAgents(cwd);
+		const agent = agents.find((a: any) => a.id === input.id);
+		if (!agent) return null;
+		return {
+			id: agent.id,
+			name: agent.metadata?.name || agent.id,
+			description: agent.metadata?.description || "",
+			systemPrompt: agent.systemPrompt,
+			isBuiltin: agent.isBuiltin ?? false,
+			filePath: agent.filePath,
+			defaultRuleIds: agent.metadata?.defaultRuleIds,
+		};
+	});
+
+// =============================================================================
+// Rule Queries
+// =============================================================================
+
+/**
+ * List all available rules
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns all rules (builtin + custom)
+ * - Phase 2: .subscribe() updates when rules change (file reload)
+ *
+ * Events: rules-reloaded → emit.replace()
+ */
+export const listRules = query()
+	.input(z.object({ cwd: z.string().optional() }).optional())
+	.returns([Rule])
+	.resolve(async ({ input }: { input?: { cwd?: string } }) => {
+		const { loadAllRules } = await import("@sylphx/code-core");
+		const cwd = input?.cwd || process.cwd();
+		const rules = await loadAllRules(cwd);
+		return rules.map((r: any) => ({
+			id: r.id,
+			name: r.metadata?.name || r.id,
+			description: r.metadata?.description || "",
+			content: r.content,
+			isBuiltin: r.isBuiltin ?? false,
+			filePath: r.filePath,
+			globs: r.metadata?.globs,
+			alwaysApply: r.metadata?.alwaysApply ?? false,
+		}));
+	})
+	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		const channel = "config-events";
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				if (payload?.type === "rules-reloaded" && payload.rules) {
+					emit.replace(payload.rules);
+				}
+			}
+		})();
+
+		onCleanup(() => { cancelled = true; });
+	});
+
+/**
+ * Get rule by ID
+ */
+export const getRule = query()
+	.input(z.object({ id: z.string(), cwd: z.string().optional() }))
+	.returns(Rule)
+	.resolve(async ({ input }: { input: { id: string; cwd?: string } }) => {
+		const { loadAllRules } = await import("@sylphx/code-core");
+		const cwd = input.cwd || process.cwd();
+		const rules = await loadAllRules(cwd);
+		const rule = rules.find((r: any) => r.id === input.id);
+		if (!rule) return null;
+		return {
+			id: rule.id,
+			name: rule.metadata?.name || rule.id,
+			description: rule.metadata?.description || "",
+			content: rule.content,
+			isBuiltin: rule.isBuiltin ?? false,
+			filePath: rule.filePath,
+			globs: rule.metadata?.globs,
+			alwaysApply: rule.metadata?.alwaysApply ?? false,
+		};
+	});
+
+// =============================================================================
+// Provider/Model Queries (Enhanced)
+// =============================================================================
+
+/**
+ * List all providers with configuration status
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns all providers with status
+ * - Phase 2: .subscribe() updates when provider config changes
+ *
+ * Events: config-reloaded → emit.replace()
+ */
+export const listProviders = query()
+	.input(z.object({ cwd: z.string().optional() }).optional())
+	.returns([Provider])
+	.resolve(async ({ input }: { input?: { cwd?: string } }) => {
+		const { AI_PROVIDERS, getProvider, loadAIConfig } = await import("@sylphx/code-core");
+		const cwd = input?.cwd || process.cwd();
+		const configResult = await loadAIConfig(cwd);
+		const config = configResult.success ? configResult.data : { providers: {} };
+
+		const providers = [];
+		for (const [id, providerInfo] of Object.entries(AI_PROVIDERS)) {
+			const provider = getProvider(id as any);
+			const providerConfig = config.providers?.[id] || {};
+			providers.push({
+				id,
+				name: (providerInfo as any).name,
+				description: (providerInfo as any).description,
+				isConfigured: provider.isConfigured(providerConfig),
+				isEnabled: providerConfig.enabled !== false,
+				modelCount: 0, // Will be populated when models are fetched
+			});
+		}
+		return providers;
+	})
+	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		const channel = "config-events";
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				if (payload?.type === "config-reloaded" && payload.providers) {
+					emit.replace(payload.providers);
+				}
+			}
+		})();
+
+		onCleanup(() => { cancelled = true; });
+	});
+
+/**
+ * List models for a provider
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns models for provider
+ * - Phase 2: .subscribe() updates when models fetched/refreshed
+ */
+export const listModels = query()
+	.input(z.object({ providerId: z.string(), cwd: z.string().optional() }))
+	.returns([Model])
+	.resolve(async ({ input }: { input: { providerId: string; cwd?: string } }) => {
+		const { loadAIConfig, fetchModels: fetchModelsCore, getProvider } = await import("@sylphx/code-core");
+		const cwd = input.cwd || process.cwd();
+
+		try {
+			const aiConfigResult = await loadAIConfig(cwd);
+			if (!aiConfigResult.success) return [];
+
+			const providerConfig = aiConfigResult.data.providers?.[input.providerId];
+			if (!providerConfig) return [];
+
+			const provider = getProvider(input.providerId as any);
+			if (!provider.isConfigured(providerConfig)) return [];
+
+			const models = await fetchModelsCore(input.providerId as any, providerConfig);
+			return models.map((m: any) => ({
+				id: m.id,
+				name: m.name,
+				providerId: input.providerId,
+				contextLength: m.contextLength,
+				inputPrice: m.inputPrice,
+				outputPrice: m.outputPrice,
+				supportsTools: m.supportsTools ?? true,
+				supportsVision: m.supportsVision ?? false,
+				supportsStreaming: m.supportsStreaming ?? true,
+			}));
+		} catch {
+			return [];
+		}
+	})
+	.subscribe(({ input, ctx }: { input: { providerId: string; cwd?: string }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		const channel = `provider-models:${input.providerId}`;
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				if (payload?.type === "models-fetched" && payload.models) {
+					emit.replace(payload.models);
+				}
+			}
+		})();
+
+		onCleanup(() => { cancelled = true; });
+	});
+
+// =============================================================================
+// Tool Queries
+// =============================================================================
+
+/**
+ * List all available tools
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns all tools with enabled status
+ * - Phase 2: .subscribe() updates when tool enabled/disabled
+ *
+ * Events: tool-toggled → emit.patch()
+ */
+export const listTools = query()
+	.returns([Tool])
+	.resolve(async ({ ctx }: { ctx: LensContext }) => {
+		const { getAISDKTools } = await import("@sylphx/code-core");
+		const tools = await getAISDKTools();
+
+		// Get disabled tools from session/config if available
+		const disabledTools = new Set<string>();
+
+		return Object.entries(tools).map(([name, def]) => ({
+			id: name,
+			name,
+			description: (def as any).description || "",
+			isEnabled: !disabledTools.has(name),
+			source: "builtin" as const,
+		}));
+	})
+	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		const channel = "tool-events";
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				if (payload?.type === "tool-toggled" && payload.toolId !== undefined) {
+					// Find index and patch enabled status
+					emit.patch([
+						{ op: "replace", path: `/${payload.index}/isEnabled`, value: payload.isEnabled },
+					]);
+				}
+			}
+		})();
+
+		onCleanup(() => { cancelled = true; });
+	});
+
+// =============================================================================
+// MCP Server Queries
+// =============================================================================
+
+/**
+ * List all MCP servers
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns all MCP server configurations with status
+ * - Phase 2: .subscribe() updates on connect/disconnect/status change
+ *
+ * Events: mcp-server-connected → emit.patch(), mcp-server-disconnected → emit.patch()
+ */
+export const listMcpServers = query()
+	.input(z.object({ cwd: z.string().optional() }).optional())
+	.returns([MCPServer])
+	.resolve(async ({ input }: { input?: { cwd?: string } }) => {
+		const { loadAIConfig } = await import("@sylphx/code-core");
+		const cwd = input?.cwd || process.cwd();
+		const configResult = await loadAIConfig(cwd);
+
+		if (!configResult.success || !configResult.data.mcpServers) {
+			return [];
+		}
+
+		const servers = [];
+		for (const [name, config] of Object.entries(configResult.data.mcpServers)) {
+			const serverConfig = config as any;
+			servers.push({
+				id: name,
+				name,
+				description: serverConfig.description,
+				transportType: serverConfig.command ? "stdio" : "sse",
+				status: "disconnected" as const,
+				toolCount: 0,
+				resourceCount: 0,
+				promptCount: 0,
+				enabled: serverConfig.enabled !== false,
+			});
+		}
+		return servers;
+	})
+	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		const channel = "mcp-events";
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+
+				if (payload?.type === "mcp-server-connected" && payload.serverId) {
+					emit.patch([
+						{ op: "replace", path: `/${payload.index}/status`, value: "connected" },
+						{ op: "replace", path: `/${payload.index}/toolCount`, value: payload.toolCount ?? 0 },
+						{ op: "replace", path: `/${payload.index}/connectedAt`, value: Date.now() },
+					]);
+				}
+
+				if (payload?.type === "mcp-server-disconnected" && payload.serverId) {
+					emit.patch([
+						{ op: "replace", path: `/${payload.index}/status`, value: "disconnected" },
+					]);
+				}
+
+				if (payload?.type === "mcp-server-error" && payload.serverId) {
+					emit.patch([
+						{ op: "replace", path: `/${payload.index}/status`, value: "error" },
+						{ op: "replace", path: `/${payload.index}/error`, value: payload.error },
+					]);
+				}
+			}
+		})();
+
+		onCleanup(() => { cancelled = true; });
+	});
+
+// =============================================================================
+// Credential Queries
+// =============================================================================
+
+/**
+ * List all stored credentials (keys only, not values)
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns credential metadata
+ * - Phase 2: .subscribe() updates on create/delete
+ *
+ * Events: credential-created → emit.push(), credential-deleted → emit.pull()
+ */
+export const listCredentials = query()
+	.returns([Credential])
+	.resolve(async () => {
+		// Credentials are stored securely - only return metadata
+		// Implementation depends on credential storage backend
+		return [];
+	})
+	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		const channel = "credential-events";
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+
+				if (payload?.type === "credential-created" && payload.credential) {
+					emit.push(payload.credential);
+				}
+
+				if (payload?.type === "credential-deleted" && payload.credentialId) {
+					emit.pull({ id: payload.credentialId });
+				}
+			}
+		})();
+
+		onCleanup(() => { cancelled = true; });
+	});
+
+// =============================================================================
+// Ask Request Queries
+// =============================================================================
+
+/**
+ * Get pending ask request for a session
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns current pending ask request (if any)
+ * - Phase 2: .subscribe() updates when ask is created or answered
+ *
+ * Events: ask-created → emit.replace(), ask-answered → emit.replace(null)
+ */
+export const getAskRequest = query()
+	.input(z.object({ sessionId: z.string() }))
+	.returns(AskRequest.nullable())
+	.resolve(async ({ input, ctx }: { input: { sessionId: string }; ctx: LensContext }) => {
+		// Check for pending ask request in the session context
+		// This depends on how ask requests are stored
+		return null;
+	})
+	.subscribe(({ input, ctx }: { input: { sessionId: string }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		const channel = `session-stream:${input.sessionId}`;
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+
+				if (payload?.type === "ask-created" && payload.askRequest) {
+					emit.replace(payload.askRequest);
+				}
+
+				if (payload?.type === "ask-answered" && payload.askRequestId) {
+					emit.replace(null);
+				}
+			}
+		})();
+
+		onCleanup(() => { cancelled = true; });
 	});

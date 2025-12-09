@@ -361,6 +361,405 @@ export const Todo = entity("Todo", {
 });
 
 // =============================================================================
+// BashProcess Entity
+// =============================================================================
+
+/**
+ * BashProcess - Running or completed bash process
+ *
+ * Live fields for real-time output streaming.
+ * Uses Two-Phase Resolution for status and output updates.
+ */
+export const BashProcess = entity<LensContext>("BashProcess").define((t) => ({
+	// Primary key
+	id: t.id(),
+
+	// Command info
+	command: t.string(),
+	cwd: t.string().optional(),
+
+	// Mode and status
+	mode: t.string(), // 'active' | 'background'
+	status: t.string(), // 'running' | 'completed' | 'error' | 'killed'
+
+	// Timing
+	startTime: t.int(),
+	endTime: t.int().optional(),
+	duration: t.int().optional(),
+
+	// Result
+	exitCode: t.int().optional(),
+
+	// Live output - uses Two-Phase Field Resolution
+	stdout: t
+		.string()
+		.resolve(() => "")
+		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
+			const bash = parent as { id: string };
+			const channel = `bash:${bash.id}`;
+			let cancelled = false;
+
+			(async () => {
+				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+					if (cancelled) break;
+					if (payload?.type === "bash-output" && payload.stream === "stdout") {
+						emit.delta(payload.data);
+					}
+				}
+			})();
+
+			onCleanup(() => {
+				cancelled = true;
+			});
+		}),
+
+	stderr: t
+		.string()
+		.resolve(() => "")
+		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
+			const bash = parent as { id: string };
+			const channel = `bash:${bash.id}`;
+			let cancelled = false;
+
+			(async () => {
+				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+					if (cancelled) break;
+					if (payload?.type === "bash-output" && payload.stream === "stderr") {
+						emit.delta(payload.data);
+					}
+				}
+			})();
+
+			onCleanup(() => {
+				cancelled = true;
+			});
+		}),
+}));
+
+// =============================================================================
+// Agent Entity
+// =============================================================================
+
+/**
+ * Agent - AI agent with custom system prompt
+ *
+ * Agents define different AI behaviors (coder, planner, etc.)
+ * Can be builtin or user-defined.
+ */
+export const Agent = entity("Agent", {
+	// Primary key
+	id: t.id(), // e.g., 'coder', 'planner', 'reviewer'
+
+	// Metadata
+	name: t.string(),
+	description: t.string(),
+
+	// System prompt content
+	systemPrompt: t.string(),
+
+	// Source info
+	isBuiltin: t.boolean(),
+	filePath: t.string().optional(),
+
+	// Associated rules
+	defaultRuleIds: t.json().optional(), // string[]
+});
+
+// =============================================================================
+// Rule Entity
+// =============================================================================
+
+/**
+ * Rule - Shared system prompt rules
+ *
+ * Rules add content to system prompts for all agents.
+ * Can be enabled/disabled per session.
+ */
+export const Rule = entity("Rule", {
+	// Primary key
+	id: t.id(), // e.g., 'coding/typescript', 'style/concise'
+
+	// Metadata
+	name: t.string(),
+	description: t.string(),
+
+	// Content
+	content: t.string(),
+
+	// Source info
+	isBuiltin: t.boolean(),
+	filePath: t.string().optional(),
+
+	// Default state
+	enabledByDefault: t.boolean(),
+});
+
+// =============================================================================
+// Provider Entity
+// =============================================================================
+
+/**
+ * Provider - AI service provider
+ *
+ * Represents providers like Anthropic, OpenAI, etc.
+ * isConfigured indicates if API key is set.
+ */
+export const Provider = entity("Provider", {
+	// Primary key
+	id: t.id(), // e.g., 'anthropic', 'openai', 'google'
+
+	// Metadata
+	name: t.string(),
+	description: t.string(),
+
+	// Status
+	isConfigured: t.boolean(),
+
+	// Config schema fields (for UI)
+	configFields: t.json().optional(), // ConfigField[]
+});
+
+// =============================================================================
+// Model Entity
+// =============================================================================
+
+/**
+ * Model - AI model from a provider
+ *
+ * Models have capabilities, context limits, and pricing.
+ */
+export const Model = entity("Model", {
+	// Primary key
+	id: t.id(), // e.g., 'claude-sonnet-4-20250514'
+
+	// Provider
+	providerId: t.string(),
+
+	// Metadata
+	name: t.string(),
+	description: t.string().optional(),
+
+	// Capabilities
+	contextLength: t.int().optional(),
+	maxOutputTokens: t.int().optional(),
+	supportsVision: t.boolean().optional(),
+	supportsTools: t.boolean().optional(),
+	supportsStreaming: t.boolean().optional(),
+
+	// Pricing (per 1M tokens)
+	inputPrice: t.float().optional(),
+	outputPrice: t.float().optional(),
+
+	// Status
+	isAvailable: t.boolean(),
+	isDefault: t.boolean().optional(),
+});
+
+// =============================================================================
+// Tool Entity
+// =============================================================================
+
+/**
+ * Tool - Callable function for AI
+ *
+ * Tools can be builtin, from MCP servers, or plugins.
+ * Can be enabled/disabled per session.
+ */
+export const Tool = entity("Tool", {
+	// Primary key
+	id: t.id(), // e.g., 'Read', 'Write', 'Bash', 'mcp__server__tool'
+
+	// Metadata
+	name: t.string(),
+	description: t.string(),
+	category: t.string(), // 'filesystem' | 'shell' | 'search' | 'interaction' | 'todo' | 'mcp'
+
+	// Capabilities
+	isAsync: t.boolean(),
+	isDangerous: t.boolean().optional(),
+	requiresConfirmation: t.boolean().optional(),
+
+	// Source
+	source: t.string(), // 'builtin' | 'mcp' | 'plugin'
+	mcpServerId: t.string().optional(),
+
+	// Status
+	isEnabled: t.boolean(),
+	enabledByDefault: t.boolean(),
+});
+
+// =============================================================================
+// MCPServer Entity
+// =============================================================================
+
+/**
+ * MCPServer - Model Context Protocol server
+ *
+ * Live status field for connection state.
+ * Uses Two-Phase Resolution for real-time status updates.
+ */
+export const MCPServer = entity<LensContext>("MCPServer").define((t) => ({
+	// Primary key
+	id: t.id(), // Server identifier
+
+	// Config
+	name: t.string(),
+	description: t.string().optional(),
+	transportType: t.string(), // 'http' | 'sse' | 'stdio'
+
+	// Live status - uses Two-Phase Field Resolution
+	status: t
+		.string()
+		.resolve(() => "disconnected")
+		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
+			const server = parent as { id: string };
+			const channel = "mcp-events";
+			let cancelled = false;
+
+			(async () => {
+				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+					if (cancelled) break;
+					if (payload?.serverId === server.id && payload?.type === "mcp-status-changed") {
+						emit(payload.status);
+					}
+				}
+			})();
+
+			onCleanup(() => {
+				cancelled = true;
+			});
+		}),
+
+	// Stats
+	toolCount: t.int(),
+	resourceCount: t.int().optional(),
+	promptCount: t.int().optional(),
+
+	// Error info
+	error: t.string().optional(),
+
+	// Timestamps
+	connectedAt: t.int().optional(),
+	lastActivity: t.int().optional(),
+
+	// Enabled state
+	enabled: t.boolean(),
+}));
+
+// =============================================================================
+// Credential Entity
+// =============================================================================
+
+/**
+ * Credential - API key/secret for providers
+ *
+ * API keys are masked for display.
+ * Never expose full API key to client.
+ */
+export const Credential = entity("Credential", {
+	// Primary key
+	id: t.id(),
+
+	// Provider
+	providerId: t.string(),
+
+	// Display
+	label: t.string().optional(),
+	maskedApiKey: t.string(), // e.g., 'sk-...abc123'
+
+	// Scope
+	scope: t.string(), // 'global' | 'project'
+
+	// Status
+	status: t.string(), // 'active' | 'expired' | 'revoked' | 'invalid'
+	isDefault: t.boolean(),
+
+	// Timestamps
+	createdAt: t.int(),
+	lastUsedAt: t.int().optional(),
+	expiresAt: t.int().optional(),
+});
+
+// =============================================================================
+// File Entity
+// =============================================================================
+
+/**
+ * File - Uploaded file reference
+ *
+ * Stores metadata for uploaded files (images, documents, etc.)
+ */
+export const File = entity("File", {
+	// Primary key
+	id: t.id(), // File content ID
+
+	// Metadata
+	relativePath: t.string(),
+	mediaType: t.string(),
+	size: t.int(),
+
+	// Timestamps
+	uploadedAt: t.int(),
+
+	// Session association (optional)
+	sessionId: t.string().optional(),
+});
+
+// =============================================================================
+// AskRequest Entity
+// =============================================================================
+
+/**
+ * AskRequest - User confirmation request
+ *
+ * For tools that require user approval before execution.
+ * Live status field for pending/answered state.
+ */
+export const AskRequest = entity<LensContext>("AskRequest").define((t) => ({
+	// Primary key
+	id: t.id(), // Question ID
+
+	// Session
+	sessionId: t.string(),
+
+	// Request type
+	type: t.string(), // 'tool-approval' | 'question' | 'confirmation'
+
+	// Questions
+	questions: t.json(), // Question[]
+
+	// Live status - uses Two-Phase Field Resolution
+	status: t
+		.string()
+		.resolve(() => "pending")
+		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
+			const ask = parent as { id: string; sessionId: string };
+			const channel = getSessionChannel(ask.sessionId);
+			let cancelled = false;
+
+			(async () => {
+				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+					if (cancelled) break;
+					if (payload?.type === "ask-answered" && payload.questionId === ask.id) {
+						emit("answered");
+					}
+				}
+			})();
+
+			onCleanup(() => {
+				cancelled = true;
+			});
+		}),
+
+	// Answers (populated after user responds)
+	answers: t.json().optional(), // Record<string, string | string[]>
+
+	// Timestamps
+	createdAt: t.int(),
+	answeredAt: t.int().optional(),
+}));
+
+// =============================================================================
 // Create Resolvers from Entities
 // =============================================================================
 
@@ -368,13 +767,21 @@ export const Todo = entity("Todo", {
  * Create entity resolvers array for Lens server
  *
  * Uses createResolverFromEntity() for entities with inline resolvers.
- * Plain entities (Part, StepUsage, Todo) don't need explicit resolvers.
+ * Plain entities don't need explicit resolvers.
  */
 export function createResolvers(): Resolvers {
 	return [
+		// Core conversation entities (with live resolvers)
 		createResolverFromEntity(Session),
 		createResolverFromEntity(Message),
 		createResolverFromEntity(Step),
-		// Part, StepUsage, Todo don't have inline resolvers
+		// Bash with live output
+		createResolverFromEntity(BashProcess),
+		// MCP with live status
+		createResolverFromEntity(MCPServer),
+		// Ask with live status
+		createResolverFromEntity(AskRequest),
+		// Plain entities (Part, StepUsage, Todo, Agent, Rule, Provider, Model, Tool, Credential, File)
+		// don't have inline resolvers - they're static data
 	];
 }

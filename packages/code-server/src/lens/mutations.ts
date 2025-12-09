@@ -1046,3 +1046,290 @@ export const triggerStream = mutation()
 
 		return result;
 	});
+
+// =============================================================================
+// MCP Server Mutations
+// =============================================================================
+
+/**
+ * Connect to MCP server
+ *
+ * Optimistic: Client immediately sees status change via .optimistic("merge")
+ * Live: Publishes mcp-server-connected event for listMcpServers subscribers
+ */
+export const connectMcpServer = mutation()
+	.input(z.object({
+		serverId: z.string(),
+		cwd: z.string().optional(),
+	}))
+	.returns(z.object({
+		success: z.boolean(),
+		serverId: z.string(),
+		toolCount: z.number().optional(),
+		error: z.string().optional(),
+	}))
+	.optimistic("merge")
+	.resolve(async ({ input, ctx }: { input: { serverId: string; cwd?: string }; ctx: LensContext }) => {
+		try {
+			// TODO: Implement MCP server connection via mcpManager
+			// const mcpManager = ctx.appContext.mcpManager;
+			// await mcpManager.connect(input.serverId);
+			// const tools = mcpManager.getServerTools(input.serverId);
+
+			// Publish event for live query subscribers
+			await ctx.eventStream.publish("mcp-events", {
+				type: "mcp-server-connected",
+				serverId: input.serverId,
+				toolCount: 0,
+			});
+
+			return {
+				success: true,
+				serverId: input.serverId,
+				toolCount: 0,
+			};
+		} catch (error) {
+			await ctx.eventStream.publish("mcp-events", {
+				type: "mcp-server-error",
+				serverId: input.serverId,
+				error: error instanceof Error ? error.message : "Connection failed",
+			});
+
+			return {
+				success: false,
+				serverId: input.serverId,
+				error: error instanceof Error ? error.message : "Connection failed",
+			};
+		}
+	});
+
+/**
+ * Disconnect from MCP server
+ *
+ * Optimistic: Client immediately sees status change via .optimistic("merge")
+ * Live: Publishes mcp-server-disconnected event for listMcpServers subscribers
+ */
+export const disconnectMcpServer = mutation()
+	.input(z.object({
+		serverId: z.string(),
+	}))
+	.returns(z.object({
+		success: z.boolean(),
+		serverId: z.string(),
+	}))
+	.optimistic("merge")
+	.resolve(async ({ input, ctx }: { input: { serverId: string }; ctx: LensContext }) => {
+		// TODO: Implement MCP server disconnection via mcpManager
+		// const mcpManager = ctx.appContext.mcpManager;
+		// await mcpManager.disconnect(input.serverId);
+
+		// Publish event for live query subscribers
+		await ctx.eventStream.publish("mcp-events", {
+			type: "mcp-server-disconnected",
+			serverId: input.serverId,
+		});
+
+		return {
+			success: true,
+			serverId: input.serverId,
+		};
+	});
+
+// =============================================================================
+// Credential Mutations
+// =============================================================================
+
+/**
+ * Create credential
+ *
+ * Optimistic: Client immediately sees new credential via .optimistic("create")
+ * Live: Publishes credential-created event for listCredentials subscribers
+ */
+export const createCredential = mutation()
+	.input(z.object({
+		providerId: z.string(),
+		label: z.string(),
+		apiKey: z.string(),
+		scope: z.enum(["global", "project"]).optional(),
+		isDefault: z.boolean().optional(),
+	}))
+	.returns(z.object({
+		success: z.boolean(),
+		credentialId: z.string().optional(),
+		error: z.string().optional(),
+	}))
+	.optimistic("create")
+	.resolve(async ({ input, ctx }: { input: { providerId: string; label: string; apiKey: string; scope?: "global" | "project"; isDefault?: boolean }; ctx: LensContext }) => {
+		try {
+			const { createCredential: createCred } = await import("@sylphx/code-core");
+
+			const credential = createCred({
+				providerId: input.providerId,
+				label: input.label,
+				apiKey: input.apiKey,
+				scope: input.scope || "global",
+				isDefault: input.isDefault ?? true,
+			});
+
+			// Publish event for live query subscribers
+			await ctx.eventStream.publish("credential-events", {
+				type: "credential-created",
+				credential: {
+					id: credential.id,
+					providerId: input.providerId,
+					label: input.label,
+					scope: input.scope || "global",
+					isDefault: input.isDefault ?? true,
+					createdAt: Date.now(),
+				},
+			});
+
+			return {
+				success: true,
+				credentialId: credential.id,
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : "Failed to create credential",
+			};
+		}
+	});
+
+/**
+ * Delete credential
+ *
+ * Optimistic: Client immediately removes credential via .optimistic("delete")
+ * Live: Publishes credential-deleted event for listCredentials subscribers
+ */
+export const deleteCredential = mutation()
+	.input(z.object({
+		credentialId: z.string(),
+	}))
+	.returns(z.object({
+		success: z.boolean(),
+		error: z.string().optional(),
+	}))
+	.optimistic("delete")
+	.resolve(async ({ input, ctx }: { input: { credentialId: string }; ctx: LensContext }) => {
+		try {
+			const { deleteCredential: deleteCred } = await import("@sylphx/code-core");
+
+			deleteCred(input.credentialId);
+
+			// Publish event for live query subscribers
+			await ctx.eventStream.publish("credential-events", {
+				type: "credential-deleted",
+				credentialId: input.credentialId,
+			});
+
+			return { success: true };
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : "Failed to delete credential",
+			};
+		}
+	});
+
+// =============================================================================
+// Tool Mutations
+// =============================================================================
+
+/**
+ * Toggle tool enabled/disabled
+ *
+ * Optimistic: Client immediately sees toggle via .optimistic("merge")
+ * Live: Publishes tool-toggled event for listTools subscribers
+ */
+export const toggleTool = mutation()
+	.input(z.object({
+		toolId: z.string(),
+		enabled: z.boolean(),
+		sessionId: z.string().optional(), // Scope to session if provided
+	}))
+	.returns(z.object({
+		success: z.boolean(),
+		toolId: z.string(),
+		enabled: z.boolean(),
+	}))
+	.optimistic("merge")
+	.resolve(async ({ input, ctx }: { input: { toolId: string; enabled: boolean; sessionId?: string }; ctx: LensContext }) => {
+		// TODO: Implement tool toggle in session config or global config
+		// If sessionId provided, toggle per-session
+		// Otherwise, toggle globally
+
+		// Publish event for live query subscribers
+		await ctx.eventStream.publish("tool-events", {
+			type: "tool-toggled",
+			toolId: input.toolId,
+			isEnabled: input.enabled,
+		});
+
+		return {
+			success: true,
+			toolId: input.toolId,
+			enabled: input.enabled,
+		};
+	});
+
+// =============================================================================
+// Rule Mutations
+// =============================================================================
+
+/**
+ * Toggle rule enabled/disabled for session
+ *
+ * Optimistic: Client immediately sees toggle via .optimistic("merge")
+ * Live: Updates session's enabledRuleIds and publishes event
+ */
+export const toggleRule = mutation()
+	.input(z.object({
+		sessionId: z.string(),
+		ruleId: z.string(),
+		enabled: z.boolean(),
+	}))
+	.returns(z.object({
+		success: z.boolean(),
+		ruleId: z.string(),
+		enabled: z.boolean(),
+		enabledRuleIds: z.array(z.string()),
+	}))
+	.optimistic("merge")
+	.resolve(async ({ input, ctx }: { input: { sessionId: string; ruleId: string; enabled: boolean }; ctx: LensContext }) => {
+		// Get current session
+		const session = await ctx.db.session.findUnique({
+			where: { id: input.sessionId },
+		});
+
+		if (!session) {
+			throw new Error(`Session not found: ${input.sessionId}`);
+		}
+
+		// Update enabledRuleIds
+		let enabledRuleIds = session.enabledRuleIds || [];
+		if (input.enabled && !enabledRuleIds.includes(input.ruleId)) {
+			enabledRuleIds = [...enabledRuleIds, input.ruleId];
+		} else if (!input.enabled) {
+			enabledRuleIds = enabledRuleIds.filter((id: string) => id !== input.ruleId);
+		}
+
+		// Update session
+		await ctx.db.session.update({
+			where: { id: input.sessionId },
+			data: { enabledRuleIds },
+		});
+
+		// Publish session update event
+		await ctx.eventStream.publish("session-events", {
+			type: "session-updated",
+			session: { ...session, enabledRuleIds },
+		});
+
+		return {
+			success: true,
+			ruleId: input.ruleId,
+			enabled: input.enabled,
+			enabledRuleIds,
+		};
+	});
