@@ -1,16 +1,67 @@
 /**
- * Lens Entity Definitions
+ * Lens Entity Definitions with Inline Resolvers
  *
- * Defines all data entities for Sylphx Code using new Lens API.
+ * Defines all data entities for Sylphx Code using Lens 2.4.0+ unified API.
  * Entity names are derived from export keys (e.g., `export const Session` → "Session")
  *
- * Architecture:
+ * Architecture (lens-core 2.4.0+):
+ * - entity() with function-based definition: entity("Name", (t) => ({ ... }))
+ * - Inline resolvers on fields: t.xxx().resolve() / t.xxx().subscribe()
+ * - Lazy relations for circular refs: t.many(() => Entity)
+ * - createResolverFromEntity() to get resolver at runtime
+ *
+ * Data Model:
  * - Session (1:N) → Message (1:N) → Step (1:N) → Part
  * - Todo (N:1) → Session
  * - StepUsage (1:1) → Step
  */
 
-import { entity, t } from "@sylphx/lens-core";
+import { entity, t, createResolverFromEntity } from "@sylphx/lens-core";
+import type { Resolvers } from "@sylphx/lens-core";
+import type { LensContext } from "./context.js";
+
+// =============================================================================
+// Types
+// =============================================================================
+
+/**
+ * SessionStatus - Live streaming status for session
+ */
+interface SessionStatus {
+	text: string;
+	duration: number;
+	tokenUsage: number;
+	isActive: boolean;
+}
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Get session stream channel for events
+ */
+function getSessionChannel(sessionId: string): string {
+	return `session-stream:${sessionId}`;
+}
+
+/**
+ * Check if event payload is relevant for step updates
+ */
+function isStepEvent(payload: { type?: string }): boolean {
+	if (!payload?.type) return false;
+	return [
+		"step-start",
+		"step-complete",
+		"text-delta",
+		"text-end",
+		"reasoning-delta",
+		"reasoning-end",
+		"tool-call",
+		"tool-result",
+		"tool-error",
+	].includes(payload.type);
+}
 
 // =============================================================================
 // Session Entity
@@ -21,8 +72,9 @@ import { entity, t } from "@sylphx/lens-core";
  *
  * Contains configuration, metadata, and token tracking.
  * Messages are loaded via relations, not embedded.
+ * Status field uses .subscribe() for live streaming updates.
  */
-export const Session = entity("Session", {
+export const Session = entity<LensContext>()("Session", (t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -49,9 +101,22 @@ export const Session = entity("Session", {
 	baseContextTokens: t.int().optional(),
 	totalTokens: t.int().optional(),
 
-	// Streaming status (in-memory only, not persisted to DB)
-	// { text: string, duration: number, tokenUsage: number, isActive: boolean }
-	status: t.json().optional(),
+	// Live streaming status - uses .subscribe() for real-time updates
+	// When client selects this field, Lens auto-routes to streaming transport
+	status: t.json<SessionStatus | null>().subscribe(async ({ parent, ctx }) => {
+		const session = parent as { id: string; status?: SessionStatus | null };
+		const channel = getSessionChannel(session.id);
+
+		// Emit initial status from parent
+		ctx.emit(session.status || null);
+
+		// Subscribe to session-updated events
+		for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+			if (payload?.type === "session-updated" && payload.session?.status) {
+				ctx.emit(payload.session.status as SessionStatus);
+			}
+		}
+	}),
 
 	// Message queue (for queuing during streaming)
 	messageQueue: t.json().optional(), // QueuedMessage[]
@@ -63,7 +128,7 @@ export const Session = entity("Session", {
 	created: t.int(),
 	updated: t.int(),
 	lastAccessedAt: t.int().optional(),
-});
+}));
 
 // =============================================================================
 // Message Entity
@@ -73,9 +138,9 @@ export const Session = entity("Session", {
  * Message - User or assistant message
  *
  * Container for conversation turns.
- * Steps contain the actual content (text, tool calls, etc.)
+ * Steps field uses .subscribe() for live streaming updates.
  */
-export const Message = entity("Message", {
+export const Message = entity<LensContext>()("Message", (t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -91,9 +156,27 @@ export const Message = entity("Message", {
 	finishReason: t.string().optional(), // 'stop' | 'tool-calls' | 'length' | 'error'
 	status: t.string(), // 'active' | 'completed' | 'error' | 'abort'
 
-	// Note: Steps are loaded via resolver with .subscribe() for live updates
-	// No liveSteps entity field needed - streaming handled by resolver
-});
+	// Live steps - uses .subscribe() for streaming transport
+	steps: t.many(() => Step).subscribe(async ({ parent, ctx }) => {
+		const message = parent as { id: string; sessionId: string; steps?: any[] };
+		const channel = getSessionChannel(message.sessionId);
+
+		// Emit initial steps from parent data
+		ctx.emit(message.steps || []);
+
+		// Subscribe to session-stream events for live updates
+		for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+			if (!isStepEvent(payload)) continue;
+
+			// Refetch and emit updated steps
+			const messages = await ctx.db.message.findMany({
+				where: { sessionId: message.sessionId },
+			});
+			const updatedMessage = messages.find((m: any) => m.id === message.id);
+			ctx.emit(updatedMessage?.steps || []);
+		}
+	}),
+}));
 
 // =============================================================================
 // Step Entity
@@ -104,8 +187,9 @@ export const Message = entity("Message", {
  *
  * Each step = one LLM call.
  * Assistant messages may have multiple steps (tool execution loops).
+ * Parts field uses .subscribe() for live streaming updates.
  */
-export const Step = entity("Step", {
+export const Step = entity<LensContext>()("Step", (t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -128,7 +212,17 @@ export const Step = entity("Step", {
 	// Timestamps
 	startTime: t.int().optional(),
 	endTime: t.int().optional(),
-});
+
+	// Live parts - uses .subscribe() for streaming transport
+	parts: t.many(() => Part).subscribe(async ({ parent, ctx }) => {
+		const step = parent as { parts?: any[] };
+
+		// Emit initial parts from parent data
+		ctx.emit(step.parts || []);
+
+		// Parts updates are driven by parent Message.steps subscription
+	}),
+}));
 
 // =============================================================================
 // Part Entity
@@ -139,7 +233,6 @@ export const Step = entity("Step", {
  *
  * Types: text, reasoning, tool, error, file, file-ref, system-message
  * This entity matches the MessagePart discriminated union from code-core.
- * Fields vary by type - only common fields are defined here.
  */
 export const Part = entity("Part", {
 	// Discriminator field (required for all parts)
@@ -226,3 +319,22 @@ export const Todo = entity("Todo", {
 	createdAt: t.int().optional(),
 	completedAt: t.int().optional(),
 });
+
+// =============================================================================
+// Create Resolvers from Entities
+// =============================================================================
+
+/**
+ * Create entity resolvers array for Lens server
+ *
+ * Uses createResolverFromEntity() for entities with inline resolvers.
+ * Plain entities (Part, StepUsage, Todo) don't need explicit resolvers.
+ */
+export function createResolvers(): Resolvers {
+	return [
+		createResolverFromEntity(Session),
+		createResolverFromEntity(Message),
+		createResolverFromEntity(Step),
+		// Part, StepUsage, Todo don't have inline resolvers
+	];
+}

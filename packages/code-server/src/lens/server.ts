@@ -39,8 +39,8 @@ export const appRouter = router({
 	...mutations,
 });
 
-// Entity Resolvers Factory
-import { createResolvers } from "./resolvers.js";
+// Entity Resolvers Factory (inline resolvers on entities, lens-core 2.4.0+)
+import { createResolvers } from "./entities.js";
 
 // Context Types
 import type { LensDB, LensEventStream } from "./context.js";
@@ -331,8 +331,8 @@ export function createLensServer(appContext: AppContext) {
 	const db = createDatabaseAdapter(appContext);
 	const eventStream = createEventStreamAdapter(appContext);
 
-	// Create resolvers with db closure
-	const resolvers = createResolvers(db);
+	// Create resolvers from entities (lens-core 2.4.0+ inline resolvers)
+	const resolvers = createResolvers();
 
 	const app = createApp({
 		entities,

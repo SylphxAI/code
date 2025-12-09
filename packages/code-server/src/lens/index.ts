@@ -57,8 +57,8 @@ export {
 export * as queries from "./queries.js";
 export * as mutations from "./mutations.js";
 
-// Entity resolvers factory (creates resolvers with db closure)
-export { createResolvers } from "./resolvers.js";
+// Entity resolvers factory (lens-core 2.4.0+ inline resolvers)
+export { createResolvers } from "./entities.js";
 
 // Backward compatibility layer for tRPC routers
 // @deprecated Use createLensServer directly for new code
