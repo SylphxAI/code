@@ -142,6 +142,110 @@ export const Session = entity<LensContext>("Session").define((t) => ({
 	created: t.int(),
 	updated: t.int(),
 	lastAccessedAt: t.int().optional(),
+
+	// ==========================================================================
+	// Relations (GraphQL-style nested selection)
+	// ==========================================================================
+
+	// Session → Message (1:N)
+	// Enables: session { messages { steps { parts } } }
+	messages: t
+		.many(() => Message)
+		.resolve(async ({ parent, ctx }) => {
+			const session = parent as { id: string };
+			return ctx.db.message.findMany({
+				where: { sessionId: session.id },
+			});
+		})
+		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
+			const session = parent as { id: string };
+			const channel = getSessionChannel(session.id);
+			let cancelled = false;
+
+			(async () => {
+				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+					if (cancelled) break;
+					if (payload?.type === "message-created" && payload.message) {
+						emit.push(payload.message);
+					}
+					if (payload?.type === "message-status-updated" && payload.messageId) {
+						emit.patch([
+							{ op: "replace", path: `/${payload.index}/status`, value: payload.status },
+						]);
+					}
+				}
+			})();
+
+			onCleanup(() => { cancelled = true; });
+		}),
+
+	// Session → Todo (1:N)
+	// Enables: session { todos { content, status } }
+	todos: t
+		.many(() => Todo)
+		.resolve(async ({ parent, ctx }) => {
+			const session = parent as { id: string };
+			return ctx.db.todo.findMany({
+				where: { sessionId: session.id },
+			});
+		})
+		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
+			const session = parent as { id: string };
+			const channel = getSessionChannel(session.id);
+			let cancelled = false;
+
+			(async () => {
+				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+					if (cancelled) break;
+					if (payload?.type === "todo-created" && payload.todo) {
+						emit.push(payload.todo);
+					}
+					if (payload?.type === "todo-updated" && payload.todo) {
+						emit.patch([
+							{ op: "replace", path: `/${payload.index}`, value: payload.todo },
+						]);
+					}
+					if (payload?.type === "todo-deleted" && payload.todoId) {
+						emit.pull({ id: payload.todoId });
+					}
+					if (payload?.type === "todos-synced" && payload.todos) {
+						emit.replace(payload.todos);
+					}
+				}
+			})();
+
+			onCleanup(() => { cancelled = true; });
+		}),
+
+	// Session → AskRequest (1:N)
+	// Enables: session { askRequests { questions, status } }
+	askRequests: t
+		.many(() => AskRequest)
+		.resolve(async ({ parent, ctx }) => {
+			const session = parent as { id: string };
+			return ctx.db.askRequest.findMany({
+				where: { sessionId: session.id },
+			});
+		})
+		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
+			const session = parent as { id: string };
+			const channel = getSessionChannel(session.id);
+			let cancelled = false;
+
+			(async () => {
+				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+					if (cancelled) break;
+					if (payload?.type === "ask-created" && payload.askRequest) {
+						emit.push(payload.askRequest);
+					}
+					if (payload?.type === "ask-answered" && payload.askRequestId) {
+						emit.pull({ id: payload.askRequestId });
+					}
+				}
+			})();
+
+			onCleanup(() => { cancelled = true; });
+		}),
 }));
 
 // =============================================================================
@@ -504,7 +608,7 @@ export const Rule = entity("Rule", {
  * Represents providers like Anthropic, OpenAI, etc.
  * isConfigured indicates if API key is set.
  */
-export const Provider = entity("Provider", {
+export const Provider = entity<LensContext>("Provider").define((t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'anthropic', 'openai', 'google'
 
@@ -514,10 +618,37 @@ export const Provider = entity("Provider", {
 
 	// Status
 	isConfigured: t.boolean(),
+	isEnabled: t.boolean(),
 
 	// Config schema fields (for UI)
 	configFields: t.json().optional(), // ConfigField[]
-});
+
+	// ==========================================================================
+	// Relations
+	// ==========================================================================
+
+	// Provider → Model (1:N)
+	// Enables: provider { models { name, contextLength } }
+	models: t
+		.many(() => Model)
+		.resolve(async ({ parent, ctx }) => {
+			const provider = parent as { id: string };
+			return ctx.db.model.findMany({
+				where: { providerId: provider.id },
+			});
+		}),
+
+	// Provider → Credential (1:N)
+	// Enables: provider { credentials { label, maskedApiKey } }
+	credentials: t
+		.many(() => Credential)
+		.resolve(async ({ parent, ctx }) => {
+			const provider = parent as { id: string };
+			return ctx.db.credential.findMany({
+				where: { providerId: provider.id },
+			});
+		}),
+}));
 
 // =============================================================================
 // Model Entity
@@ -644,6 +775,21 @@ export const MCPServer = entity<LensContext>("MCPServer").define((t) => ({
 
 	// Enabled state
 	enabled: t.boolean(),
+
+	// ==========================================================================
+	// Relations
+	// ==========================================================================
+
+	// MCPServer → Tool (1:N)
+	// Enables: mcpServer { tools { name, description } }
+	tools: t
+		.many(() => Tool)
+		.resolve(async ({ parent, ctx }) => {
+			const server = parent as { id: string };
+			return ctx.db.tool.findMany({
+				where: { mcpServerId: server.id },
+			});
+		}),
 }));
 
 // =============================================================================
@@ -771,17 +917,18 @@ export const AskRequest = entity<LensContext>("AskRequest").define((t) => ({
  */
 export function createResolvers(): Resolvers {
 	return [
-		// Core conversation entities (with live resolvers)
-		createResolverFromEntity(Session),
-		createResolverFromEntity(Message),
-		createResolverFromEntity(Step),
+		// Core conversation entities (with live resolvers + relations)
+		createResolverFromEntity(Session), // messages, todos, askRequests relations
+		createResolverFromEntity(Message), // steps relation
+		createResolverFromEntity(Step), // parts relation
 		// Bash with live output
 		createResolverFromEntity(BashProcess),
-		// MCP with live status
-		createResolverFromEntity(MCPServer),
+		// Config entities with relations
+		createResolverFromEntity(Provider), // models, credentials relations
+		createResolverFromEntity(MCPServer), // tools relation, live status
 		// Ask with live status
 		createResolverFromEntity(AskRequest),
-		// Plain entities (Part, StepUsage, Todo, Agent, Rule, Provider, Model, Tool, Credential, File)
+		// Plain entities (Part, StepUsage, Todo, Agent, Rule, Model, Tool, Credential, File)
 		// don't have inline resolvers - they're static data
 	];
 }
