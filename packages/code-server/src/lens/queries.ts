@@ -7,7 +7,7 @@
  * Streaming queries use async generators - each yield pushes to client.
  */
 
-import { query } from "@sylphx/lens-core";
+import { query } from "./builders.js";
 import { z } from "zod";
 import { Session, Message, Step, Part, Todo } from "./entities.js";
 import type { LensContext } from "./context.js";
@@ -39,6 +39,12 @@ export const getSession = query()
 
 /**
  * List all sessions (ordered by updatedAt desc)
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns initial session list
+ * - Phase 2: .subscribe() uses delta emit for live updates
+ *
+ * Events: session-created → emit.push(), session-deleted → emit.pull()
  */
 export const listSessions = query()
 	.input(
@@ -58,6 +64,38 @@ export const listSessions = query()
 			where: cursor ? { updatedAt: { lt: cursor } } : undefined,
 			orderBy: { updatedAt: "desc" },
 			take: limit,
+		});
+	})
+	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		// Phase 2: Publisher pattern with delta emit (Lens 2.7.0+)
+		const channel = "session-events";
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+
+				// Handle session-created: push new session to list (at index 0 for desc order)
+				if (payload?.type === "session-created" && payload.session) {
+					emit.push(payload.session, 0);
+				}
+
+				// Handle session-updated: patch existing session in list
+				if (payload?.type === "session-updated" && payload.session) {
+					emit.patch([
+						{ op: "replace", path: `/${payload.index}`, value: payload.session },
+					]);
+				}
+
+				// Handle session-deleted: pull session from list
+				if (payload?.type === "session-deleted" && payload.sessionId) {
+					emit.pull({ id: payload.sessionId });
+				}
+			}
+		})();
+
+		onCleanup(() => {
+			cancelled = true;
 		});
 	});
 
@@ -97,11 +135,42 @@ export const searchSessions = query()
 
 /**
  * Get session count
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns initial count
+ * - Phase 2: .subscribe() updates on session create/delete
+ *
+ * Events: session-created → emit.delta(+1), session-deleted → emit.delta(-1)
  */
 export const getSessionCount = query()
 	.returns(z.number())
 	.resolve(async ({ ctx }: { ctx: LensContext }) => {
 		return ctx.db.session.count();
+	})
+	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		// Phase 2: Publisher pattern for live count
+		const channel = "session-events";
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+
+				// Increment on create
+				if (payload?.type === "session-created") {
+					emit.delta(1);
+				}
+
+				// Decrement on delete
+				if (payload?.type === "session-deleted") {
+					emit.delta(-1);
+				}
+			}
+		})();
+
+		onCleanup(() => {
+			cancelled = true;
+		});
 	});
 
 // =============================================================================
@@ -121,13 +190,16 @@ export const getMessage = query()
 /**
  * List messages for a session
  *
- * LIVE QUERY: Uses emit pattern to push updates when streaming events occur.
- * Returns [Message] - nested steps/parts are resolved via entity resolvers.
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns initial message list with eager-loaded steps/parts
+ * - Phase 2: .subscribe() uses delta emit for message-level updates
  *
- * Architecture:
- * - listMessages → returns [Message], handles list-level ops (push/remove)
- * - Message resolver → steps field with emit for step updates
- * - Step resolver → parts field with emit for part updates
+ * Architecture (separation of concerns):
+ * - listMessages → message list level (push new messages)
+ * - Message.steps entity resolver → step-level updates (step-added, step-updated)
+ * - Part content updates → part-content-delta via Message.steps
+ *
+ * Events: message-created → emit.push()
  */
 export const listMessages = query()
 	.input(
@@ -137,50 +209,40 @@ export const listMessages = query()
 		}),
 	)
 	.returns([Message])
-	.resolve(async ({ input, ctx }: { input: { sessionId: string; limit?: number }; ctx: any }) => {
-		// Fetch messages (nested steps/parts included from getSessionMessages)
-		const fetchMessages = async () => {
-			const messages = await ctx.db.message.findMany({
-				where: { sessionId: input.sessionId },
-			});
-			const limited = input.limit ? messages.slice(0, input.limit) : messages;
-			return limited;
-		};
+	.resolve(async ({ input, ctx }: { input: { sessionId: string; limit?: number }; ctx: LensContext }) => {
+		// Phase 1: Initial fetch with eager-loaded steps/parts
+		const messages = await ctx.db.message.findMany({
+			where: { sessionId: input.sessionId },
+		});
+		return input.limit ? messages.slice(0, input.limit) : messages;
+	})
+	.subscribe(({ input, ctx }: { input: { sessionId: string; limit?: number }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		// Phase 2: Publisher pattern with delta emit (Lens 2.7.0+)
+		// Only handles message-level events; step/part updates handled by entity resolvers
+		const channel = `session-stream:${input.sessionId}`;
+		let cancelled = false;
 
-		// Set up live query subscription if emit is available
-		if (ctx.emit && ctx.onCleanup) {
-			const channel = `session-stream:${input.sessionId}`;
-			let cancelled = false;
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
 
-			// Subscribe to streaming events
-			const subscription = (async () => {
-				for await (const event of ctx.eventStream.subscribe(channel)) {
-					if (cancelled) break;
-					// Re-fetch and emit on relevant events
-					const relevantEvents = [
-						"message-created",
-						"text-end",
-						"reasoning-end",
-						"tool-result",
-						"tool-error",
-						"complete",
-						"step-complete",
-					];
-					if (relevantEvents.includes(event.type)) {
-						const updated = await fetchMessages();
-						ctx.emit(updated);
-					}
+				// Handle message-created: push new message to list
+				if (payload?.type === "message-created" && payload.message) {
+					emit.push(payload.message);
 				}
-			})();
 
-			// Register cleanup
-			ctx.onCleanup(() => {
-				cancelled = true;
-			});
-		}
+				// Handle message-status-updated: patch message status
+				if (payload?.type === "message-status-updated" && payload.messageId) {
+					emit.patch([
+						{ op: "replace", path: `/${payload.index}/status`, value: payload.status },
+					]);
+				}
+			}
+		})();
 
-		// Return initial messages
-		return fetchMessages();
+		onCleanup(() => {
+			cancelled = true;
+		});
 	});
 
 /**
@@ -274,6 +336,12 @@ export const listParts = query()
 
 /**
  * List todos for a session
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns initial todo list
+ * - Phase 2: .subscribe() uses delta emit for live updates
+ *
+ * Events: todo-created → emit.push(), todo-updated → emit.patch(), todo-deleted → emit.pull()
  */
 export const listTodos = query()
 	.input(z.object({ sessionId: z.string() }))
@@ -282,6 +350,43 @@ export const listTodos = query()
 		return ctx.db.todo.findMany({
 			where: { sessionId: input.sessionId },
 			orderBy: { ordering: "asc" },
+		});
+	})
+	.subscribe(({ input, ctx }: { input: { sessionId: string }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		// Phase 2: Publisher pattern with delta emit (Lens 2.7.0+)
+		const channel = `session-stream:${input.sessionId}`;
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+
+				// Handle todo-created: push new todo to list
+				if (payload?.type === "todo-created" && payload.todo) {
+					emit.push(payload.todo);
+				}
+
+				// Handle todo-updated: patch existing todo
+				if (payload?.type === "todo-updated" && payload.todo) {
+					emit.patch([
+						{ op: "replace", path: `/${payload.index}`, value: payload.todo },
+					]);
+				}
+
+				// Handle todo-deleted: pull todo from list
+				if (payload?.type === "todo-deleted" && payload.todoId) {
+					emit.pull({ id: payload.todoId });
+				}
+
+				// Handle todos-synced: replace entire list
+				if (payload?.type === "todos-synced" && payload.todos) {
+					emit.replace(payload.todos);
+				}
+			}
+		})();
+
+		onCleanup(() => {
+			cancelled = true;
 		});
 	});
 
@@ -545,15 +650,63 @@ export const countFileTokens = query()
 
 /**
  * List all bash processes
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns initial bash process list
+ * - Phase 2: .subscribe() uses delta emit for live updates
+ *
+ * Events: bash-created → emit.push(), bash-updated → emit.patch(), bash-completed → emit.patch()
  */
 export const listBash = query()
 	.returns(z.array(z.any()))
 	.resolve(async ({ ctx }: { ctx: LensContext }) => {
 		return ctx.appContext.bashManagerV2.list();
+	})
+	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		// Phase 2: Publisher pattern with delta emit (Lens 2.7.0+)
+		const channel = "bash-events";
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+
+				// Handle bash-created: push new process to list
+				if (payload?.type === "bash-created" && payload.bash) {
+					emit.push(payload.bash);
+				}
+
+				// Handle bash-updated: patch process in list
+				if (payload?.type === "bash-updated" && payload.bash) {
+					emit.patch([
+						{ op: "replace", path: `/${payload.index}`, value: payload.bash },
+					]);
+				}
+
+				// Handle bash-completed: patch process status
+				if (payload?.type === "bash-completed" && payload.bashId) {
+					emit.patch([
+						{ op: "replace", path: `/${payload.index}/status`, value: "completed" },
+						{ op: "replace", path: `/${payload.index}/exitCode`, value: payload.exitCode },
+						{ op: "replace", path: `/${payload.index}/endTime`, value: payload.endTime },
+					]);
+				}
+			}
+		})();
+
+		onCleanup(() => {
+			cancelled = true;
+		});
 	});
 
 /**
  * Get bash process info
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns initial bash state
+ * - Phase 2: .subscribe() streams live output and status updates
+ *
+ * Events: bash-output → emit.patch() for stdout/stderr, bash-completed → emit.patch()
  */
 export const getBash = query()
 	.input(z.object({ bashId: z.string() }))
@@ -577,10 +730,50 @@ export const getBash = query()
 			stdout: proc.stdout,
 			stderr: proc.stderr,
 		};
+	})
+	.subscribe(({ input, ctx }: { input: { bashId: string }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		// Phase 2: Publisher pattern for live bash output and status
+		const channel = `bash:${input.bashId}`;
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+
+				// Handle bash-output: append to stdout/stderr
+				if (payload?.type === "bash-output") {
+					if (payload.stream === "stdout" && payload.data) {
+						emit.delta({ stdout: payload.data });
+					}
+					if (payload.stream === "stderr" && payload.data) {
+						emit.delta({ stderr: payload.data });
+					}
+				}
+
+				// Handle bash-completed: update status and exit info
+				if (payload?.type === "bash-completed") {
+					emit.patch([
+						{ op: "replace", path: "/status", value: "completed" },
+						{ op: "replace", path: "/exitCode", value: payload.exitCode },
+						{ op: "replace", path: "/endTime", value: payload.endTime },
+					]);
+				}
+			}
+		})();
+
+		onCleanup(() => {
+			cancelled = true;
+		});
 	});
 
 /**
  * Get active bash
+ *
+ * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * - Phase 1: .resolve() returns current active bash (or null)
+ * - Phase 2: .subscribe() updates when active bash changes
+ *
+ * Events: bash-activated → emit.replace(), bash-deactivated → emit.replace(null)
  */
 export const getActiveBash = query()
 	.returns(z.any().nullable())
@@ -598,6 +791,31 @@ export const getActiveBash = query()
 			cwd: proc.cwd,
 			duration: (proc.endTime || Date.now()) - proc.startTime,
 		};
+	})
+	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		// Phase 2: Publisher pattern for active bash changes
+		const channel = "bash-events";
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+
+				// Handle active bash change
+				if (payload?.type === "bash-activated" && payload.bash) {
+					emit.replace(payload.bash);
+				}
+
+				// Handle deactivation
+				if (payload?.type === "bash-deactivated") {
+					emit.replace(null);
+				}
+			}
+		})();
+
+		onCleanup(() => {
+			cancelled = true;
+		});
 	});
 
 // =============================================================================

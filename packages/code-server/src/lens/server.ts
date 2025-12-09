@@ -24,6 +24,9 @@ import * as entities from "./entities.js";
 import * as queries from "./queries.js";
 import * as mutations from "./mutations.js";
 
+// Plugins (optimistic updates, etc.)
+import { plugins } from "./builders.js";
+
 // =============================================================================
 // Router Definition (TypeScript-first)
 // =============================================================================
@@ -339,6 +342,7 @@ export function createLensServer(appContext: AppContext) {
 		queries,
 		mutations,
 		resolvers,
+		plugins, // Optimistic updates, etc.
 		context: async () => {
 			// Context factory - called for each request
 			return {

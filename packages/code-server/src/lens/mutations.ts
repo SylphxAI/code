@@ -13,7 +13,7 @@
  * 4. Handles tool calls, errors, abort
  */
 
-import { mutation, tempId } from "@sylphx/lens-core";
+import { mutation } from "./builders.js";
 import { z } from "zod";
 import { Session, Message, Step, Part, Todo } from "./entities.js";
 import type { LensContext } from "./context.js";
@@ -43,8 +43,8 @@ const ContentPartSchema = z.discriminatedUnion("type", [
 /**
  * Create a new session
  *
- * Auto-optimistic: "createSession" → 'create' strategy
- * Client immediately sees new session, server confirms.
+ * Optimistic: Client immediately sees new session via .optimistic("create")
+ * Live: Publishes session-created event for listSessions subscribers
  */
 export const createSession = mutation()
 	.input(
@@ -58,12 +58,14 @@ export const createSession = mutation()
 		}),
 	)
 	.returns(Session)
+	.optimistic("create")
 	.resolve(async ({ input, ctx }: { input: { title?: string; agentId?: string; modelId?: string; provider?: string; model?: string; enabledRuleIds?: string[] }; ctx: LensContext }) => {
 		const now = Date.now();
+		const sessionId = crypto.randomUUID();
 
 		const session = await ctx.db.session.create({
 			data: {
-				id: crypto.randomUUID(),
+				id: sessionId,
 				title: input.title || "New Chat",
 				agentId: input.agentId || "coder",
 				modelId: input.modelId,
@@ -76,14 +78,20 @@ export const createSession = mutation()
 			},
 		});
 
+		// Publish event for live query subscribers
+		await ctx.eventStream.publish("session-events", {
+			type: "session-created",
+			session,
+		});
+
 		return session;
 	});
 
 /**
  * Update session
  *
- * Auto-optimistic: "updateSession" → 'merge' strategy
- * Client immediately sees changes, server confirms.
+ * Optimistic: Client immediately sees changes via .optimistic("merge")
+ * Live: Publishes session-updated event for listSessions subscribers
  */
 export const updateSession = mutation()
 	.input(
@@ -98,29 +106,47 @@ export const updateSession = mutation()
 		}),
 	)
 	.returns(Session)
+	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { id: string; title?: string; agentId?: string; modelId?: string; provider?: string; model?: string; enabledRuleIds?: string[] }; ctx: LensContext }) => {
 		const { id, ...data } = input;
 
-		return ctx.db.session.update({
+		const session = await ctx.db.session.update({
 			where: { id },
 			data: {
 				...data,
 				updated: Date.now(),
 			},
 		});
+
+		// Publish event for live query subscribers
+		await ctx.eventStream.publish("session-events", {
+			type: "session-updated",
+			session,
+		});
+
+		return session;
 	});
 
 /**
  * Delete session
  *
- * Auto-optimistic: "deleteSession" → 'delete' strategy
- * Client immediately removes session, server confirms.
+ * Optimistic: Client immediately removes session via .optimistic("delete")
+ * Live: Publishes session-deleted event for listSessions subscribers
  */
 export const deleteSession = mutation()
 	.input(z.object({ id: z.string() }))
 	.returns(Session)
+	.optimistic("delete")
 	.resolve(async ({ input, ctx }: { input: { id: string }; ctx: LensContext }) => {
-		return ctx.db.session.delete({ where: { id: input.id } });
+		const session = await ctx.db.session.delete({ where: { id: input.id } });
+
+		// Publish event for live query subscribers
+		await ctx.eventStream.publish("session-events", {
+			type: "session-deleted",
+			sessionId: input.id,
+		});
+
+		return session;
 	});
 
 // =============================================================================
@@ -324,6 +350,9 @@ export const abortStream = mutation()
 
 /**
  * Create todo
+ *
+ * Optimistic: Client immediately sees new todo via .optimistic("create")
+ * Live: Publishes todo-created event for listTodos subscribers
  */
 export const createTodo = mutation()
 	.input(
@@ -335,6 +364,7 @@ export const createTodo = mutation()
 		}),
 	)
 	.returns(Todo)
+	.optimistic("create")
 	.resolve(async ({ input, ctx }: { input: { sessionId: string; content: string; activeForm: string; status?: "pending" | "in_progress" | "completed" }; ctx: LensContext }) => {
 		// Get next todo ID
 		const session = await ctx.db.session.findUnique({
@@ -361,11 +391,20 @@ export const createTodo = mutation()
 			data: { nextTodoId: todoId + 1 },
 		});
 
+		// Publish event for live query subscribers
+		await ctx.eventStream.publish(`session-stream:${input.sessionId}`, {
+			type: "todo-created",
+			todo,
+		});
+
 		return todo;
 	});
 
 /**
  * Update todo
+ *
+ * Optimistic: Client immediately sees changes via .optimistic("merge")
+ * Live: Publishes todo-updated event for listTodos subscribers
  */
 export const updateTodo = mutation()
 	.input(
@@ -378,6 +417,7 @@ export const updateTodo = mutation()
 		}),
 	)
 	.returns(Todo)
+	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { sessionId: string; id: number; content?: string; activeForm?: string; status?: "pending" | "in_progress" | "completed" }; ctx: LensContext }) => {
 		const { sessionId, id, ...data } = input;
 
@@ -386,14 +426,25 @@ export const updateTodo = mutation()
 			updateData.completedAt = Date.now();
 		}
 
-		return ctx.db.todo.update({
+		const todo = await ctx.db.todo.update({
 			where: { sessionId, id },
 			data: updateData,
 		});
+
+		// Publish event for live query subscribers
+		await ctx.eventStream.publish(`session-stream:${sessionId}`, {
+			type: "todo-updated",
+			todo,
+		});
+
+		return todo;
 	});
 
 /**
  * Delete todo
+ *
+ * Optimistic: Client immediately removes todo via .optimistic("delete")
+ * Live: Publishes todo-deleted event for listTodos subscribers
  */
 export const deleteTodo = mutation()
 	.input(
@@ -403,15 +454,30 @@ export const deleteTodo = mutation()
 		}),
 	)
 	.returns(z.object({ success: z.boolean() }))
+	.optimistic("delete")
 	.resolve(async ({ input, ctx }: { input: { sessionId: string; id: number }; ctx: LensContext }) => {
 		await ctx.db.todo.delete({
 			where: { sessionId: input.sessionId, id: input.id },
 		});
+
+		// Publish event for live query subscribers
+		await ctx.eventStream.publish(`session-stream:${input.sessionId}`, {
+			type: "todo-deleted",
+			todoId: input.id,
+		});
+
 		return { success: true };
 	});
 
 /**
  * Batch update todos (for todo list sync)
+ *
+ * Optimistic: Uses "merge" strategy - client applies input changes immediately
+ * Live: Publishes todos-synced event for listTodos subscribers (full replacement)
+ *
+ * Note: For complex batch operations, Reify DSL would provide finer control,
+ * but the simple "merge" sugar works well for todo sync where client
+ * already has the complete new state in input.
  */
 export const syncTodos = mutation()
 	.input(
@@ -428,6 +494,8 @@ export const syncTodos = mutation()
 		}),
 	)
 	.returns([Todo])
+	// Use merge strategy - client optimistically applies the todo list update
+	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { sessionId: string; todos: { id?: number; content: string; activeForm: string; status: "pending" | "in_progress" | "completed" }[] }; ctx: LensContext }) => {
 		const results: any[] = [];
 
@@ -475,6 +543,12 @@ export const syncTodos = mutation()
 		await ctx.db.session.update({
 			where: { id: input.sessionId },
 			data: { nextTodoId: nextId },
+		});
+
+		// Publish event for live query subscribers (full list replacement)
+		await ctx.eventStream.publish(`session-stream:${input.sessionId}`, {
+			type: "todos-synced",
+			todos: results,
 		});
 
 		return results;
@@ -591,6 +665,9 @@ export const setProviderSecret = mutation()
 
 /**
  * Execute bash command
+ *
+ * Optimistic: Client immediately sees new process via .optimistic("create")
+ * Live: Publishes bash-created event for listBash subscribers
  */
 export const executeBash = mutation()
 	.input(z.object({
@@ -604,58 +681,142 @@ export const executeBash = mutation()
 		command: z.string(),
 		mode: z.string(),
 	}))
+	.optimistic("create")
 	.resolve(async ({ input, ctx }: { input: { command: string; mode?: "active" | "background"; cwd?: string; timeout?: number }; ctx: LensContext }) => {
 		const bashId = await ctx.appContext.bashManagerV2.execute(input.command, {
 			mode: input.mode || "active",
 			cwd: input.cwd,
 			timeout: input.timeout,
 		});
-		return {
+
+		const bash = {
 			bashId,
 			command: input.command,
 			mode: input.mode || "active",
 		};
+
+		// Publish event for live query subscribers
+		await ctx.eventStream.publish("bash-events", {
+			type: "bash-created",
+			bash: {
+				id: bashId,
+				command: input.command,
+				mode: input.mode || "active",
+				status: "running",
+				startTime: Date.now(),
+				cwd: input.cwd || process.cwd(),
+			},
+		});
+
+		// If active, also publish activation event
+		if (input.mode !== "background") {
+			await ctx.eventStream.publish("bash-events", {
+				type: "bash-activated",
+				bash: {
+					id: bashId,
+					command: input.command,
+					mode: "active",
+					status: "running",
+					startTime: Date.now(),
+					cwd: input.cwd || process.cwd(),
+				},
+			});
+		}
+
+		return bash;
 	});
 
 /**
  * Kill bash process
+ *
+ * Optimistic: Client immediately updates process status via .optimistic("merge")
+ * Live: Publishes bash-completed event for listBash/getBash subscribers
  */
 export const killBash = mutation()
 	.input(z.object({ bashId: z.string() }))
 	.returns(z.object({ success: z.boolean(), bashId: z.string() }))
+	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { bashId: string }; ctx: LensContext }) => {
 		const success = ctx.appContext.bashManagerV2.kill(input.bashId);
 		if (!success) {
 			throw new Error(`Failed to kill bash process: ${input.bashId}`);
 		}
+
+		// Publish event for live query subscribers
+		await ctx.eventStream.publish("bash-events", {
+			type: "bash-completed",
+			bashId: input.bashId,
+			exitCode: -1, // Killed
+			endTime: Date.now(),
+		});
+
+		await ctx.eventStream.publish(`bash:${input.bashId}`, {
+			type: "bash-completed",
+			bashId: input.bashId,
+			exitCode: -1,
+			endTime: Date.now(),
+		});
+
 		return { success: true, bashId: input.bashId };
 	});
 
 /**
  * Demote active bash to background
+ *
+ * Optimistic: Client immediately updates mode via .optimistic("merge")
+ * Live: Publishes bash-deactivated event for getActiveBash subscribers
  */
 export const demoteBash = mutation()
 	.input(z.object({ bashId: z.string() }))
 	.returns(z.object({ success: z.boolean(), bashId: z.string(), mode: z.string() }))
+	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { bashId: string }; ctx: LensContext }) => {
 		const success = ctx.appContext.bashManagerV2.demote(input.bashId);
 		if (!success) {
 			throw new Error(`Failed to demote bash: ${input.bashId}`);
 		}
+
+		// Publish event for live query subscribers
+		await ctx.eventStream.publish("bash-events", {
+			type: "bash-deactivated",
+			bashId: input.bashId,
+		});
+
 		return { success: true, bashId: input.bashId, mode: "background" };
 	});
 
 /**
  * Promote background bash to active
+ *
+ * Optimistic: Client immediately updates mode via .optimistic("merge")
+ * Live: Publishes bash-activated event for getActiveBash subscribers
  */
 export const promoteBash = mutation()
 	.input(z.object({ bashId: z.string() }))
 	.returns(z.object({ success: z.boolean(), bashId: z.string(), mode: z.string() }))
+	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { bashId: string }; ctx: LensContext }) => {
 		const success = await ctx.appContext.bashManagerV2.promote(input.bashId);
 		if (!success) {
 			throw new Error(`Failed to promote bash: ${input.bashId}`);
 		}
+
+		// Get bash details for event
+		const proc = ctx.appContext.bashManagerV2.get(input.bashId);
+
+		// Publish event for live query subscribers
+		await ctx.eventStream.publish("bash-events", {
+			type: "bash-activated",
+			bash: proc ? {
+				id: proc.id,
+				command: proc.command,
+				mode: "active",
+				status: proc.status,
+				startTime: proc.startTime,
+				cwd: proc.cwd,
+			} : { id: input.bashId, mode: "active" },
+		});
+
 		return { success: true, bashId: input.bashId, mode: "active" };
 	});
 
@@ -665,6 +826,8 @@ export const promoteBash = mutation()
 
 /**
  * Upload file
+ *
+ * Optimistic: Client immediately sees file info via .optimistic("create")
  */
 export const uploadFile = mutation()
 	.input(z.object({
@@ -674,6 +837,7 @@ export const uploadFile = mutation()
 		content: z.string(), // base64
 	}))
 	.returns(z.object({ fileId: z.string() }))
+	.optimistic("create")
 	.resolve(async ({ input, ctx }: { input: { relativePath: string; mediaType: string; size: number; content: string }; ctx: LensContext }) => {
 		const fileId = await ctx.appContext.fileStorage.upload({
 			relativePath: input.relativePath,
