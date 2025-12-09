@@ -52,32 +52,8 @@ export function useCurrentSession() {
 
 	// Use lens-react query hook for session data
 	// The status field uses .subscribe() in the resolver, so Lens auto-streams
-	// IMPORTANT: Must use $select to include status field for subscription to work
 	const { data: session, loading, error, refetch } = client.getSession.useQuery({
-		input: {
-			id: currentSessionId || "",
-			$select: {
-				id: true,
-				title: true,
-				flags: true,
-				modelId: true,
-				provider: true,
-				model: true,
-				agentId: true,
-				enabledRuleIds: true,
-				enabledToolIds: true,
-				enabledMcpServerIds: true,
-				baseContextTokens: true,
-				totalTokens: true,
-				messageQueue: true,
-				nextTodoId: true,
-				created: true,
-				updated: true,
-				lastAccessedAt: true,
-				// This field has .subscribe() resolver - triggers streaming transport
-				status: true,
-			},
-		},
+		input: { id: currentSessionId || "" },
 		skip,
 	}) as {
 		data: SessionWithStatus | null;
