@@ -13,7 +13,7 @@
 
 import { resolver } from "@sylphx/lens-core";
 import type { Resolvers } from "@sylphx/lens-core";
-import { Message, Step, Part } from "./entities.js";
+import { Session, Message, Step, Part } from "./entities.js";
 import type { LensDB, LensContext, StoredEvent } from "./context.js";
 
 // =============================================================================
@@ -112,6 +112,66 @@ function isPartEvent(event: StoredEvent): boolean {
 		"tool-error",
 	].includes(event.type);
 }
+
+// =============================================================================
+// Session Resolver
+// =============================================================================
+
+interface SessionParent {
+	id: string;
+	title?: string;
+	status?: unknown;
+	// ... other fields from Session entity
+}
+
+/**
+ * Session resolver with live status field
+ *
+ * The status field uses .subscribe() to enable live updates.
+ * When client queries getSession with status field selected,
+ * Lens automatically routes to streaming transport.
+ *
+ * Server publishes updates to session-stream:${id} channel.
+ * This resolver subscribes and emits status updates.
+ */
+const sessionResolver = resolver<LensContext>()(Session, (f) => ({
+	// Expose scalar fields directly
+	id: f.expose("id"),
+	title: f.expose("title"),
+	flags: f.expose("flags"),
+	modelId: f.expose("modelId"),
+	provider: f.expose("provider"),
+	model: f.expose("model"),
+	agentId: f.expose("agentId"),
+	enabledRuleIds: f.expose("enabledRuleIds"),
+	enabledToolIds: f.expose("enabledToolIds"),
+	enabledMcpServerIds: f.expose("enabledMcpServerIds"),
+	baseContextTokens: f.expose("baseContextTokens"),
+	totalTokens: f.expose("totalTokens"),
+	messageQueue: f.expose("messageQueue"),
+	nextTodoId: f.expose("nextTodoId"),
+	created: f.expose("created"),
+	updated: f.expose("updated"),
+	lastAccessedAt: f.expose("lastAccessedAt"),
+
+	// Live subscription field: status
+	// Uses .subscribe() to enable streaming transport
+	status: f.json().subscribe(async ({ parent, ctx }) => {
+		const session = parent as SessionParent;
+		const channel = `session-stream:${session.id}`;
+
+		// Initial status from parent (may be null)
+		ctx.emit(session.status || null);
+
+		// Subscribe to session-updated events
+		for await (const event of ctx.eventStream.subscribe(channel)) {
+			// Extract status from session-updated event
+			if (event.type === "session-updated" && event.session?.status) {
+				ctx.emit(event.session.status);
+			}
+		}
+	}),
+}));
 
 // =============================================================================
 // Message Resolver
@@ -270,5 +330,5 @@ const partResolver = resolver<LensContext>()(Part, (f) => ({
  * @returns Array of resolver definitions
  */
 export function createResolvers(_db: LensDB): Resolvers {
-	return [messageResolver, stepResolver, partResolver];
+	return [sessionResolver, messageResolver, stepResolver, partResolver];
 }

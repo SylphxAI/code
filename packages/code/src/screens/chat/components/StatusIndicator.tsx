@@ -2,10 +2,12 @@
  * StatusIndicator Component
  * Displays streaming and compacting status with spinner and contextual text
  *
- * Architecture: Event Stream + Session State
+ * Architecture: Lens Live Query (v2.4.0+)
  * - Uses currentSession.status from useCurrentSession()
- * - Status is updated via subscribeToSession event stream (session-updated events)
- * - Event stream -> useChatEffects -> setSessionStatus -> merged in useCurrentSession
+ * - Status field uses .subscribe() resolver on server
+ * - Lens auto-routes to streaming transport when status is selected
+ * - Server emits status updates via ctx.emit()
+ * - Client receives live updates through the query
  * - Duration is tracked locally for smooth 100ms updates between server updates
  */
 

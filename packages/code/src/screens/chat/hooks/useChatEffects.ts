@@ -16,9 +16,8 @@
 
 import { useAIConfigActions } from "../../../hooks/client/useAIConfig.js";
 import { useLensClient, type ProjectFile } from "@sylphx/code-client";
-import { setCurrentSessionId, setSelectedAgentId, setEnabledRuleIds, setSessionStatus } from "../../../session-state.js";
+import { setCurrentSessionId, setSelectedAgentId, setEnabledRuleIds } from "../../../session-state.js";
 import { clearUserInputHandler, setUserInputHandler, type FileInfo, type MessagePart, type FileAttachment, type TokenUsage } from "@sylphx/code-core";
-import { useEventStream } from "../../../hooks/client/useEventStream.js";
 import { useCallback, useEffect, useMemo } from "react";
 import { commands } from "../../../commands/registry.js";
 import { useCommandAutocomplete } from "../autocomplete/commandAutocomplete.js";
@@ -213,31 +212,13 @@ export function useChatEffects(state: ChatState) {
 		commands,
 	);
 
-	// SESSION STATUS ARCHITECTURE
-	// ===========================
-	// Session data comes from lens-react query (client.getSession.useQuery)
-	// Session status (streaming state) comes from event stream:
-	//   - Server publishes session-updated events with status
-	//   - Client receives via subscribeToSession (below)
-	//   - Status is stored in session-state via setSessionStatus
-	//   - useCurrentSession merges status into session object
-
-	// EVENT STREAM SUBSCRIPTION
-	// =========================
-	// Subscribe to session events for streaming (text, tools, etc.)
-	// Session status is updated here and stored in session-state
-	useEventStream({
-		replayLast: 10,
-		callbacks: {
-			// Handle session-updated events to get live status
-			onSessionUpdated: (_sessionId, session) => {
-				// Update session status from event stream
-				if (session?.status) {
-					setSessionStatus(session.status);
-				}
-			},
-		},
-	});
+	// SESSION STATUS ARCHITECTURE (Lens Live Query v2.4.0+)
+	// =====================================================
+	// Session status uses .subscribe() resolver field on server.
+	// When client queries getSession, Lens auto-routes to streaming
+	// transport because status field has mode "subscribe".
+	// No manual event stream subscription needed - it's all handled
+	// by the Lens query in useCurrentSession.
 
 	// Create handleSubmit function
 	const handleSubmit = useMemo(
