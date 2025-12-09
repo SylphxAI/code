@@ -20,7 +20,7 @@
  * - StepUsage (1:1) → Step
  */
 
-import { entity, t, createResolverFromEntity } from "@sylphx/lens-core";
+import { entity, t } from "@sylphx/lens-core";
 import type { Resolvers } from "@sylphx/lens-core";
 import type { LensContext } from "./context.js";
 
@@ -274,6 +274,19 @@ export const Message = entity<LensContext>("Message").define((t) => ({
 	finishReason: t.string().optional(), // 'stop' | 'tool-calls' | 'length' | 'error'
 	status: t.string(), // 'active' | 'completed' | 'error' | 'abort'
 
+	// ==========================================================================
+	// Relations
+	// ==========================================================================
+
+	// Message → Session (N:1) - parent relation
+	// Enables: message { session { title, agentId } }
+	session: t
+		.one(() => Session)
+		.resolve(async ({ parent, ctx }) => {
+			const message = parent as { sessionId: string };
+			return ctx.db.session.findUnique({ where: { id: message.sessionId } });
+		}),
+
 	// Live steps - uses Two-Phase Field Resolution (ADR-002)
 	// Architecture: Event-Carried State - no DB refetch, use event data directly
 	steps: t
@@ -360,6 +373,21 @@ export const Step = entity<LensContext>("Step").define((t) => ({
 	startTime: t.int().optional(),
 	endTime: t.int().optional(),
 
+	// ==========================================================================
+	// Relations
+	// ==========================================================================
+
+	// Step → Message (N:1) - parent relation
+	// Enables: step { message { role, status } }
+	// Note: Uses messageId from parent data, no DB fetch for embedded steps
+	message: t
+		.one(() => Message)
+		.resolve(({ parent }) => {
+			// Steps are embedded in messages, return parent reference
+			const step = parent as { messageId: string; _message?: any };
+			return step._message || { id: step.messageId };
+		}),
+
 	// Parts - resolved from parent data
 	// Updates are driven by parent Message.steps subscription
 	parts: t.many(() => Part).resolve(({ parent }) => {
@@ -440,7 +468,7 @@ export const StepUsage = entity("StepUsage", {
  * Note: id is per-session, not globally unique.
  * Combined primary key: (sessionId, id)
  */
-export const Todo = entity("Todo", {
+export const Todo = entity<LensContext>("Todo").define((t) => ({
 	// Per-session ID
 	id: t.int(),
 
@@ -462,7 +490,20 @@ export const Todo = entity("Todo", {
 	// Timestamps
 	createdAt: t.int().optional(),
 	completedAt: t.int().optional(),
-});
+
+	// ==========================================================================
+	// Relations
+	// ==========================================================================
+
+	// Todo → Session (N:1) - parent relation
+	// Enables: todo { session { title } }
+	session: t
+		.one(() => Session)
+		.resolve(async ({ parent, ctx }) => {
+			const todo = parent as { sessionId: string };
+			return ctx.db.session.findUnique({ where: { id: todo.sessionId } });
+		}),
+}));
 
 // =============================================================================
 // BashProcess Entity
@@ -659,7 +700,7 @@ export const Provider = entity<LensContext>("Provider").define((t) => ({
  *
  * Models have capabilities, context limits, and pricing.
  */
-export const Model = entity("Model", {
+export const Model = entity<LensContext>("Model").define((t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'claude-sonnet-4-20250514'
 
@@ -684,7 +725,20 @@ export const Model = entity("Model", {
 	// Status
 	isAvailable: t.boolean(),
 	isDefault: t.boolean().optional(),
-});
+
+	// ==========================================================================
+	// Relations
+	// ==========================================================================
+
+	// Model → Provider (N:1) - parent relation
+	// Enables: model { provider { name, isConfigured } }
+	provider: t
+		.one(() => Provider)
+		.resolve(async ({ parent, ctx }) => {
+			const model = parent as { providerId: string };
+			return ctx.db.provider.findUnique({ where: { id: model.providerId } });
+		}),
+}));
 
 // =============================================================================
 // Tool Entity
@@ -696,7 +750,7 @@ export const Model = entity("Model", {
  * Tools can be builtin, from MCP servers, or plugins.
  * Can be enabled/disabled per session.
  */
-export const Tool = entity("Tool", {
+export const Tool = entity<LensContext>("Tool").define((t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'Read', 'Write', 'Bash', 'mcp__server__tool'
 
@@ -717,7 +771,22 @@ export const Tool = entity("Tool", {
 	// Status
 	isEnabled: t.boolean(),
 	enabledByDefault: t.boolean(),
-});
+
+	// ==========================================================================
+	// Relations
+	// ==========================================================================
+
+	// Tool → MCPServer (N:1) - parent relation (optional, only for MCP tools)
+	// Enables: tool { mcpServer { name, status } }
+	mcpServer: t
+		.one(() => MCPServer)
+		.optional()
+		.resolve(async ({ parent, ctx }) => {
+			const tool = parent as { mcpServerId?: string };
+			if (!tool.mcpServerId) return null;
+			return ctx.db.mcpServer.findUnique({ where: { id: tool.mcpServerId } });
+		}),
+}));
 
 // =============================================================================
 // MCPServer Entity
@@ -802,7 +871,7 @@ export const MCPServer = entity<LensContext>("MCPServer").define((t) => ({
  * API keys are masked for display.
  * Never expose full API key to client.
  */
-export const Credential = entity("Credential", {
+export const Credential = entity<LensContext>("Credential").define((t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -824,7 +893,20 @@ export const Credential = entity("Credential", {
 	createdAt: t.int(),
 	lastUsedAt: t.int().optional(),
 	expiresAt: t.int().optional(),
-});
+
+	// ==========================================================================
+	// Relations
+	// ==========================================================================
+
+	// Credential → Provider (N:1) - parent relation
+	// Enables: credential { provider { name } }
+	provider: t
+		.one(() => Provider)
+		.resolve(async ({ parent, ctx }) => {
+			const cred = parent as { providerId: string };
+			return ctx.db.provider.findUnique({ where: { id: cred.providerId } });
+		}),
+}));
 
 // =============================================================================
 // File Entity
@@ -912,23 +994,27 @@ export const AskRequest = entity<LensContext>("AskRequest").define((t) => ({
 /**
  * Create entity resolvers array for Lens server
  *
- * Uses createResolverFromEntity() for entities with inline resolvers.
+ * Entities with inline resolvers are registered directly.
  * Plain entities don't need explicit resolvers.
  */
 export function createResolvers(): Resolvers {
 	return [
 		// Core conversation entities (with live resolvers + relations)
-		createResolverFromEntity(Session), // messages, todos, askRequests relations
-		createResolverFromEntity(Message), // steps relation
-		createResolverFromEntity(Step), // parts relation
+		Session, // messages, todos, askRequests relations
+		Message, // steps, session relations
+		Step, // parts, message relations
+		Todo, // session relation
 		// Bash with live output
-		createResolverFromEntity(BashProcess),
+		BashProcess,
 		// Config entities with relations
-		createResolverFromEntity(Provider), // models, credentials relations
-		createResolverFromEntity(MCPServer), // tools relation, live status
+		Provider, // models, credentials relations
+		Model, // provider relation
+		MCPServer, // tools relation, live status
+		Tool, // mcpServer relation
+		Credential, // provider relation
 		// Ask with live status
-		createResolverFromEntity(AskRequest),
-		// Plain entities (Part, StepUsage, Todo, Agent, Rule, Model, Tool, Credential, File)
+		AskRequest,
+		// Plain entities (Part, StepUsage, Agent, Rule, File)
 		// don't have inline resolvers - they're static data
 	];
 }
