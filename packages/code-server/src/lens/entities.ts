@@ -171,15 +171,17 @@ export const Message = entity<LensContext>("Message").define((t) => ({
 	status: t.string(), // 'active' | 'completed' | 'error' | 'abort'
 
 	// Live steps - uses Two-Phase Field Resolution (ADR-002)
+	// Architecture: Event-Carried State - no DB refetch, use event data directly
 	steps: t
 		.many(() => Step)
 		.resolve(({ parent }) => {
-			// Phase 1: Return initial steps from parent data
+			// Phase 1: Return initial steps from parent data (eager loaded)
 			const message = parent as { steps?: any[] };
 			return message.steps || [];
 		})
 		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
-			// Phase 2: Publisher pattern - set up live subscription
+			// Phase 2: Publisher pattern with delta emit (Lens 2.7.0+)
+			// Uses event-carried state - no DB refetch needed
 			const message = parent as { id: string; sessionId: string };
 			const channel = getSessionChannel(message.sessionId);
 			let cancelled = false;
@@ -187,14 +189,29 @@ export const Message = entity<LensContext>("Message").define((t) => ({
 			(async () => {
 				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
 					if (cancelled) break;
-					if (!isStepEvent(payload)) continue;
 
-					// Refetch and emit updated steps
-					const messages = await ctx.db.message.findMany({
-						where: { sessionId: message.sessionId },
-					});
-					const updatedMessage = messages.find((m: any) => m.id === message.id);
-					emit(updatedMessage?.steps || []);
+					// Handle step-added: push new step to array
+					if (payload?.type === "step-added" && payload.messageId === message.id) {
+						emit.push(payload.step);
+					}
+
+					// Handle step-updated: patch existing step in array
+					if (payload?.type === "step-updated" && payload.messageId === message.id) {
+						emit.patch([
+							{ op: "replace", path: `/${payload.stepIndex}`, value: payload.step },
+						]);
+					}
+
+					// Handle part-content-delta: patch specific part content during streaming
+					if (payload?.type === "part-content-delta" && payload.messageId === message.id) {
+						emit.patch([
+							{
+								op: "replace",
+								path: `/${payload.stepIndex}/parts/${payload.partIndex}/content`,
+								value: payload.content,
+							},
+						]);
+					}
 				}
 			})();
 

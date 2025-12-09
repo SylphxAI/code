@@ -195,4 +195,69 @@ export type StreamEvent =
 	  }
 
 	// Error events
-	| { type: "error"; error: string };
+	| { type: "error"; error: string }
+
+	// Lens entity events (event-carried state for live queries)
+	| {
+			type: "step-added";
+			messageId: string;
+			stepIndex: number;
+			step: {
+				id: string;
+				messageId: string;
+				stepIndex: number;
+				status: string;
+				provider?: string;
+				model?: string;
+				systemMessages?: StreamSystemMessage[];
+				parts: Array<{
+					type: string;
+					status: string;
+					content?: string;
+					toolId?: string;
+					name?: string;
+					input?: unknown;
+					result?: unknown;
+					error?: string;
+					duration?: number;
+					startTime?: number;
+				}>;
+				startTime?: number;
+			};
+	  }
+	| {
+			type: "step-updated";
+			messageId: string;
+			stepIndex: number;
+			step: {
+				id: string;
+				messageId: string;
+				stepIndex: number;
+				status: string;
+				finishReason?: string;
+				duration?: number;
+				provider?: string;
+				model?: string;
+				parts: Array<{
+					type: string;
+					status: string;
+					content?: string;
+					toolId?: string;
+					name?: string;
+					input?: unknown;
+					result?: unknown;
+					error?: string;
+					duration?: number;
+					startTime?: number;
+				}>;
+				startTime?: number;
+				endTime?: number;
+			};
+	  }
+	| {
+			type: "part-content-delta";
+			messageId: string;
+			stepIndex: number;
+			partIndex: number;
+			content: string;
+	  };

@@ -389,6 +389,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 							providerConfig,
 							observer,
 							stepIdMap, // Pass map to track generated stepId
+							opts.appContext, // For publishing Lens entity events
 						);
 					},
 				});

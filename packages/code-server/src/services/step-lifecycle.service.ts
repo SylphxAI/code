@@ -48,6 +48,7 @@ export async function prepareStep(
 		next: (event: StreamEvent) => void;
 	},
 	stepIdMap: Map<number, string>, // Track generated step IDs
+	appContext: AppContext, // For publishing Lens entity events
 ): Promise<{ messages?: any[] } | {}> {
 	try {
 		// 1. Reload session to get latest state
@@ -131,7 +132,7 @@ export async function prepareStep(
 			throw stepError; // CRITICAL: Must propagate - can't continue without step record
 		}
 
-		// 6. Emit step-start event for UI
+		// 6. Emit step-start event for UI (legacy tRPC)
 		observer.next({
 			type: "step-start",
 			stepId,
@@ -140,6 +141,25 @@ export async function prepareStep(
 			systemMessages: systemMessages.length > 0 ? systemMessages : undefined,
 			provider: currentSession.provider,
 			model: currentSession.model,
+		});
+
+		// 7. Publish step-added event for Lens live queries (event-carried state)
+		// This allows entity resolvers to use emit.push() without refetching DB
+		await appContext.eventStream.publish(`session-stream:${sessionId}`, {
+			type: "step-added" as const,
+			messageId: assistantMessageId,
+			stepIndex: stepNumber,
+			step: {
+				id: stepId,
+				messageId: assistantMessageId,
+				stepIndex: stepNumber,
+				status: "active",
+				provider: currentSession.provider,
+				model: currentSession.model,
+				systemMessages: systemMessages.length > 0 ? systemMessages : undefined,
+				parts: [], // Empty initially, parts added during streaming
+				startTime: Date.now(),
+			},
 		});
 
 		// 7. Inject system messages and/or queued messages
@@ -268,7 +288,7 @@ export async function completeStep(
 			console.error(`[StepLifecycle] Failed to complete step ${stepNumber}:`, dbError);
 		}
 
-		// Emit step-complete event
+		// Emit step-complete event (legacy tRPC)
 		const duration = Date.now() - stepStartTime;
 		observer.next({
 			type: "step-complete",
@@ -280,6 +300,38 @@ export async function completeStep(
 			},
 			duration,
 			finishReason: stepResult.finishReason || "unknown",
+		});
+
+		// Publish step-updated event for Lens live queries (event-carried state)
+		// This allows entity resolvers to use emit.patch() without refetching DB
+		await appContext.eventStream.publish(`session-stream:${sessionId}`, {
+			type: "step-updated" as const,
+			messageId: assistantMessageId,
+			stepIndex: stepNumber,
+			step: {
+				id: stepId,
+				messageId: assistantMessageId,
+				stepIndex: stepNumber,
+				status: "completed",
+				finishReason: stepResult.finishReason,
+				duration,
+				provider: session.provider,
+				model: session.model,
+				parts: currentStepParts.map((part) => ({
+					type: part.type,
+					status: part.status,
+					content: part.type === "text" || part.type === "reasoning" ? part.content : undefined,
+					toolId: part.type === "tool" ? part.toolId : undefined,
+					name: part.type === "tool" ? part.name : undefined,
+					input: part.type === "tool" ? part.input : undefined,
+					result: part.type === "tool" ? part.result : undefined,
+					error: part.type === "tool" || part.type === "error" ? part.error : undefined,
+					duration: part.type === "tool" ? part.duration : undefined,
+					startTime: part.type === "tool" ? part.startTime : undefined,
+				})),
+				startTime: undefined, // Could track this if needed
+				endTime: Date.now(),
+			},
 		});
 
 		// Token checkpoint recalculation (Dynamic Recalculation)
