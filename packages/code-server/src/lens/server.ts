@@ -231,16 +231,16 @@ function createDatabaseAdapter(appContext: AppContext): LensDB {
 				return [];
 			},
 			create: async ({ data }) => {
-				await todoRepo.createTodo(data.sessionId, data);
-				return data;
+				const todo = await todoRepo.createTodo(data.sessionId, data);
+				return { ...todo, sessionId: data.sessionId };
 			},
 			update: async ({ where, data }) => {
-				await todoRepo.updateTodo(where.sessionId, where.id, data);
-				return { ...data, ...where };
+				const todo = await todoRepo.updateTodo(where.sessionId, where.id, data);
+				return todo ? { ...todo, sessionId: where.sessionId } : { ...data, ...where };
 			},
 			delete: async ({ where }) => {
 				await todoRepo.deleteTodo(where.sessionId, where.id);
-				return where;
+				return { id: where.id, sessionId: where.sessionId };
 			},
 		},
 
