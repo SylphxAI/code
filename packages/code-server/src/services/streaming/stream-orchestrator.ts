@@ -166,6 +166,19 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					);
 					_userMessageId = result.messageId;
 					userMessageText = result.messageText;
+
+					// LENS: Publish user-message-created to session stream for live queries
+					await opts.appContext.eventStream.publish(`session-stream:${sessionId}`, {
+						type: "user-message-created",
+						message: {
+							id: _userMessageId,
+							sessionId,
+							role: "user",
+							timestamp: Date.now(),
+							status: "completed",
+							steps: [], // User messages typically have no steps initially
+						},
+					});
 				}
 
 				// 6. Reload session to get updated messages
@@ -240,6 +253,19 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					messageRepository,
 					observer,
 				);
+
+				// LENS: Publish assistant-message-created to session stream for live queries
+				await opts.appContext.eventStream.publish(`session-stream:${sessionId}`, {
+					type: "assistant-message-created",
+					message: {
+						id: assistantMessageId,
+						sessionId,
+						role: "assistant",
+						timestamp: Date.now(),
+						status: "active",
+						steps: [], // Steps added during streaming via step-added events
+					},
+				});
 
 				// 14. Initialize stream processing state
 				state = createStreamState();
@@ -514,7 +540,18 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 								observer,
 							);
 
-							// console.log(`[StreamOrchestrator] Created queued user message: ${result.messageId}`);
+							// LENS: Publish user-message-created to session stream for live queries
+							await opts.appContext.eventStream.publish(`session-stream:${sessionId}`, {
+								type: "user-message-created",
+								message: {
+									id: result.messageId,
+									sessionId,
+									role: "user",
+									timestamp: Date.now(),
+									status: "completed",
+									steps: [],
+								},
+							});
 
 							// Complete the CURRENT assistant message before starting new one
 							// This ensures the first message's streaming state is properly cleared
@@ -536,7 +573,18 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 								observer,
 							);
 
-							// console.log(`[StreamOrchestrator] Created new assistant message: ${assistantMessageId}`);
+							// LENS: Publish assistant-message-created to session stream for live queries
+							await opts.appContext.eventStream.publish(`session-stream:${sessionId}`, {
+								type: "assistant-message-created",
+								message: {
+									id: assistantMessageId,
+									sessionId,
+									role: "assistant",
+									timestamp: Date.now(),
+									status: "active",
+									steps: [],
+								},
+							});
 
 							// Reset step counter for new assistant message
 							lastCompletedStepNumber = -1;

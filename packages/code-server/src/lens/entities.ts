@@ -164,7 +164,13 @@ export const Session = model<LensContext>("Session").define((t) => ({
 			(async () => {
 				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
 					if (cancelled) break;
-					if (payload?.type === "message-created" && payload.message) {
+					// Handle message-created events (all variants): push new message to list
+					// Streaming service emits: user-message-created, assistant-message-created
+					// Mutations emit: message-created
+					const isMessageCreated = payload?.type === "message-created" ||
+						payload?.type === "user-message-created" ||
+						payload?.type === "assistant-message-created";
+					if (isMessageCreated && payload.message) {
 						emit.push(payload.message);
 					}
 					if (payload?.type === "message-status-updated" && payload.messageId) {
