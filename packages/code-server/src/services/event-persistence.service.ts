@@ -6,7 +6,7 @@
 
 import { events } from "@sylphx/code-core";
 import { and, asc, desc, eq, gt, lt, or } from "drizzle-orm";
-import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import type { LibSQLDatabase } from "drizzle-orm/libsql";
 
 /**
  * Event cursor for position-based reading
@@ -91,7 +91,7 @@ async function retryOnBusy<T>(operation: () => Promise<T>, maxRetries = 5): Prom
  * Database-agnostic (works with SQLite and PostgreSQL)
  */
 export class EventPersistence {
-	constructor(private db: BetterSQLite3Database) {}
+	constructor(private db: LibSQLDatabase) {}
 
 	/**
 	 * Save event to database (XADD equivalent)
