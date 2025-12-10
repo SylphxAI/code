@@ -52,10 +52,19 @@ export const getSession = query()
 	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
 		// Track current session state for merging partial updates
 		let currentSession: typeof Session.infer | null = null;
+		let pendingUpdates: any[] = [];
 
-		// Initialize from DB then listen for updates
+		// Initialize from DB then apply any pending updates
 		ctx.db.session.findUnique({ where: { id: input.id } }).then((session) => {
 			currentSession = session;
+			// Apply any updates that arrived before DB loaded
+			if (currentSession && pendingUpdates.length > 0) {
+				for (const update of pendingUpdates) {
+					currentSession = { ...currentSession, ...update };
+				}
+				emit.replace({ ...currentSession });
+			}
+			pendingUpdates = [];
 		});
 
 		const cleanup = subscribeToSessionStream(ctx, input.id, (payload) => {
@@ -64,6 +73,9 @@ export const getSession = query()
 				if (currentSession) {
 					currentSession = { ...currentSession, ...payload.session };
 					emit.replace({ ...currentSession });
+				} else {
+					// Queue update for when DB loads
+					pendingUpdates.push(payload.session);
 				}
 			}
 
@@ -72,6 +84,9 @@ export const getSession = query()
 				if (currentSession) {
 					currentSession = { ...currentSession, status: payload.status };
 					emit.replace({ ...currentSession });
+				} else {
+					// Queue update for when DB loads
+					pendingUpdates.push({ status: payload.status });
 				}
 			}
 		});

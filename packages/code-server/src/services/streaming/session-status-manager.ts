@@ -38,9 +38,18 @@ export interface SessionStatusManager {
 
 /**
  * Determine status text based on current activity
- * Priority: in_progress todo > tool name > default "Thinking..."
+ * Priority: completed > in_progress todo > tool name > default "Thinking..."
  */
-function determineStatusText(todos: Todo[] | undefined, currentToolName?: string): string {
+function determineStatusText(
+	todos: Todo[] | undefined,
+	currentToolName: string | undefined,
+	isActive: boolean,
+): string {
+	// 0. If stream has completed, show "Complete"
+	if (!isActive) {
+		return "Complete";
+	}
+
 	// 1. Check for in_progress todo
 	if (todos) {
 		const inProgressTodo = todos.find((t) => t.status === "in_progress");
@@ -107,7 +116,7 @@ export function createSessionStatusManager(
 	 * Publishes to both tRPC observable and EventStream
 	 */
 	function emitStatus() {
-		const statusText = determineStatusText(todos, currentTool ?? undefined);
+		const statusText = determineStatusText(todos, currentTool ?? undefined, isActive);
 		const duration = Date.now() - startTime;
 
 		const status: SessionStatus = {
