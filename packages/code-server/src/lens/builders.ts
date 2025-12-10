@@ -10,9 +10,30 @@
  * - Live subscriptions via .subscribe() method
  */
 
-import { lens } from "@sylphx/lens-core";
-import { optimisticPlugin } from "@sylphx/lens-server";
+import { lens, isLiveQueryDef } from "@sylphx/lens-core";
+import { optimisticPlugin, type ServerPlugin } from "@sylphx/lens-server";
 import type { LensContext } from "./context.js";
+
+/**
+ * LiveQuery Metadata Plugin
+ *
+ * Marks LiveQueryDef operations (queries with .subscribe()) as subscriptions
+ * in the handshake metadata, so clients know to maintain persistent connections.
+ *
+ * This is necessary because lens-server's default metadata building only
+ * detects generator functions as subscriptions, not LiveQueryDef operations.
+ */
+function liveQueryMetadataPlugin(): ServerPlugin {
+	return {
+		enhanceOperationMeta: (ctx) => {
+			// Check if this is a LiveQueryDef (query with _mode: "live")
+			if (ctx.type === "query" && isLiveQueryDef(ctx.definition)) {
+				// Mark as subscription so client maintains persistent connection
+				ctx.meta.type = "subscription";
+			}
+		},
+	};
+}
 
 /**
  * Create Lens builders with plugins
@@ -34,6 +55,9 @@ import type { LensContext } from "./context.js";
  *   .resolve(...)
  * ```
  */
-const builders = lens<LensContext>().withPlugins([optimisticPlugin()]);
+const builders = lens<LensContext>().withPlugins([
+	optimisticPlugin(),
+	liveQueryMetadataPlugin(),
+]);
 
 export const { query, mutation, plugins } = builders;
