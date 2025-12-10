@@ -27,7 +27,8 @@ import {
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import { type AppEventStream, initializeEventStream } from "./services/app-event-stream.service.js";
 import { initializeBashEventBridge } from "./services/bash-event.service.js";
-import { EventPersistence } from "./services/event-persistence.service.js";
+// EventPersistence is available but disabled - causes SQLITE_BUSY contention
+// import { EventPersistence } from "./services/event-persistence.service.js";
 
 // ============================================================================
 // Types
@@ -275,10 +276,11 @@ export async function initializeAppContext(ctx: AppContext): Promise<void> {
 	// 1. Initialize database first
 	await (ctx.database as any).initialize();
 
-	// 2. Initialize event stream with database persistence
-	const db = ctx.database.getDB();
-	const persistence = new EventPersistence(db);
-	(ctx as any).eventStream = initializeEventStream(persistence);
+	// 2. Initialize event stream (in-memory only)
+	// Event persistence is disabled - causes SQLITE_BUSY contention with minimal benefit
+	// ReplaySubject buffer (100 events, 5 min) is sufficient for real-time updates
+	// Historical data is already persisted via entities (sessions, messages, etc.)
+	(ctx as any).eventStream = initializeEventStream(undefined);
 
 	// 3. Initialize bash event bridge (connects bashManagerV2 → eventStream)
 	initializeBashEventBridge(ctx);
