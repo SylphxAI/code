@@ -122,8 +122,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				statusManager = createSessionStatusManager(observer, sessionId, session, opts.appContext);
 
 				// Subscribe to token updates from app event stream
+				// Token updates are published to session-stream:${sessionId} channel
 				tokenSubscription = opts.appContext.eventStream
-					.subscribe(`session:${sessionId}`)
+					.subscribe(`session-stream:${sessionId}`)
 					.subscribe((event) => {
 						if (event.type === "session-tokens-updated" && statusManager) {
 							const payload = event.payload as any;

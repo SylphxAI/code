@@ -76,8 +76,9 @@ export function StatusIndicator() {
 		);
 	}
 
-	// Check if session has active status
-	if (!sessionStatus) {
+	// Only show status indicator when actively streaming
+	// When complete (isActive: false), hide the indicator entirely
+	if (!sessionStatus || !sessionStatus.isActive) {
 		return (
 			<Box paddingY={1}>
 				<Text> </Text>
@@ -85,24 +86,19 @@ export function StatusIndicator() {
 		);
 	}
 
-	// Determine if status is active or completed (for dimming)
-	const isActive = sessionStatus.isActive;
-	const spinnerColor = isActive ? colors.primary : colors.textDim;
-	const textColor = isActive ? colors.primary : colors.textDim;
-
 	// Use local duration if backend duration is 0 (optimistic update)
 	// Otherwise use backend duration (more accurate, includes network latency)
 	const displayDuration = sessionStatus.duration > 0 ? sessionStatus.duration : localDuration;
 
 	return (
 		<Box paddingY={1}>
-			<Spinner color={spinnerColor} />
-			<Text color={textColor}> {sessionStatus.text}</Text>
+			<Spinner color={colors.primary} />
+			<Text color={colors.primary}> {sessionStatus.text}</Text>
 			<Text color={colors.textDim}> · {formatDuration(displayDuration)}</Text>
 			{sessionStatus.tokenUsage > 0 && (
 				<Text color={colors.textDim}> · {formatTokens(sessionStatus.tokenUsage)} tokens</Text>
 			)}
-			{isActive && <Text color={colors.textDim}>  (ESC to cancel)</Text>}
+			<Text color={colors.textDim}>  (ESC to cancel)</Text>
 		</Box>
 	);
 }
