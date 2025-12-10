@@ -27,7 +27,7 @@ import {
 	File,
 	AskRequest,
 } from "./entities.js";
-import type { LensContext } from "./context.js";
+import { subscribeToSessionStream, subscribeToChannel } from "./subscription-utils.js";
 
 // =============================================================================
 // Session Queries
@@ -36,95 +36,67 @@ import type { LensContext } from "./context.js";
 /**
  * Get session by ID
  *
- * Returns session data from DB.
- *
- * NOTE: Live status updates come through subscribeToSession event stream,
- * not through this query. Client merges status from event stream into session.
+ * LIVE QUERY: Uses Two-Phase Field Resolution
+ * - Phase 1: .resolve() returns initial session from DB
+ * - Phase 2: .subscribe() listens for session-updated events
  *
  * Client usage:
  *   const { data: session } = client.getSession.useQuery({ input: { id } });
- *   // session.status is merged from event stream in useCurrentSession()
  */
 export const getSession = query()
 	.input(z.object({ id: z.string() }))
 	.returns(Session)
-	.resolve(async ({ input, ctx }: { input: { id: string }; ctx: LensContext }) => {
-		// Fetch session from DB
-		const dbSession = await ctx.db.session.findUnique({ where: { id: input.id } });
-		return dbSession;
+	.resolve(async ({ input, ctx }) => {
+		return ctx.db.session.findUnique({ where: { id: input.id } });
 	})
-	.subscribe(({ input, ctx }: { input: { id: string }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		// Phase 2: Publisher pattern for session updates
-		// Subscribes to session-stream:${id} for status changes
-		const channel = `session-stream:${input.id}`;
-		let cancelled = false;
-
+	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
 		// Track current session state for merging partial updates
-		let currentSession: any = null;
+		let currentSession: typeof Session.infer | null = null;
 
-		// IMPORTANT: Track subscription start time to ignore replayed events
-		// ReplaySubject buffers last 50 events - we only want NEW events
-		const subscriptionStartTime = Date.now();
+		// Initialize from DB then listen for updates
+		ctx.db.session.findUnique({ where: { id: input.id } }).then((session) => {
+			currentSession = session;
+		});
 
-		(async () => {
-			// Fetch initial session for merging
-			currentSession = await ctx.db.session.findUnique({ where: { id: input.id } });
-
-			for await (const { payload, timestamp } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-
-				// Skip replayed events (events from before subscription started)
-				// This prevents rapid re-renders from buffered events
-				if (timestamp && timestamp < subscriptionStartTime) {
-					continue;
-				}
-
-				// Handle session-updated: merge partial update into full session
-				// The payload.session from session-status-manager is a PARTIAL update
-				// We need to merge it into the full session, not replace entirely
-				if (payload?.type === "session-updated" && payload.session) {
-					// Merge partial update into current session
-					if (currentSession) {
-						currentSession = { ...currentSession, ...payload.session };
-						emit.replace({ ...currentSession });
-					}
-				}
-
-				// Handle session-status-updated: update just the status field
-				if (payload?.type === "session-status-updated" && payload.status) {
-					if (currentSession) {
-						currentSession = { ...currentSession, status: payload.status };
-						emit.replace({ ...currentSession });
-					}
+		const cleanup = subscribeToSessionStream(ctx, input.id, (payload) => {
+			// Handle session-updated: merge partial update into full session
+			if (payload?.type === "session-updated" && payload.session) {
+				if (currentSession) {
+					currentSession = { ...currentSession, ...payload.session };
+					emit.replace({ ...currentSession });
 				}
 			}
-		})();
 
-		onCleanup(() => {
-			cancelled = true;
+			// Handle session-status-updated: update just the status field
+			if (payload?.type === "session-status-updated" && payload.status) {
+				if (currentSession) {
+					currentSession = { ...currentSession, status: payload.status };
+					emit.replace({ ...currentSession });
+				}
+			}
 		});
+
+		onCleanup(cleanup);
 	});
 
 /**
  * List all sessions (ordered by updatedAt desc)
  *
- * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * LIVE QUERY: Uses Two-Phase Field Resolution
  * - Phase 1: .resolve() returns initial session list
  * - Phase 2: .subscribe() uses delta emit for live updates
- *
- * Events: session-created → emit.push(), session-deleted → emit.pull()
  */
 export const listSessions = query()
 	.input(
 		z
 			.object({
 				limit: z.number().optional(),
-				cursor: z.number().optional(), // Unix timestamp for pagination
+				cursor: z.number().optional(),
 			})
 			.optional(),
 	)
 	.returns([Session])
-	.resolve(async ({ input, ctx }: { input?: { limit?: number; cursor?: number }; ctx: LensContext }) => {
+	.resolve(async ({ input, ctx }) => {
 		const limit = input?.limit ?? 50;
 		const cursor = input?.cursor;
 
@@ -134,37 +106,19 @@ export const listSessions = query()
 			take: limit,
 		});
 	})
-	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		// Phase 2: Publisher pattern with delta emit (Lens 2.7.0+)
-		const channel = "session-events";
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-
-				// Handle session-created: push new session to list (at index 0 for desc order)
-				if (payload?.type === "session-created" && payload.session) {
-					emit.push(payload.session, 0);
-				}
-
-				// Handle session-updated: patch existing session in list
-				if (payload?.type === "session-updated" && payload.session) {
-					emit.patch([
-						{ op: "replace", path: `/${payload.index}`, value: payload.session },
-					]);
-				}
-
-				// Handle session-deleted: pull session from list
-				if (payload?.type === "session-deleted" && payload.sessionId) {
-					emit.pull({ id: payload.sessionId });
-				}
+	.subscribe(({ ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, "session-events", (payload) => {
+			if (payload?.type === "session-created" && payload.session) {
+				emit.push(payload.session, 0);
 			}
-		})();
-
-		onCleanup(() => {
-			cancelled = true;
+			if (payload?.type === "session-updated" && payload.session) {
+				emit.patch([{ op: "replace", path: `/${payload.index}`, value: payload.session }]);
+			}
+			if (payload?.type === "session-deleted" && payload.sessionId) {
+				emit.pull({ id: payload.sessionId });
+			}
 		});
+		onCleanup(cleanup);
 	});
 
 /**
@@ -172,7 +126,7 @@ export const listSessions = query()
  */
 export const getLastSession = query()
 	.returns(nullable(Session))
-	.resolve(async ({ ctx }: { ctx: LensContext }) => {
+	.resolve(async ({ ctx }) => {
 		const sessions = await ctx.db.session.findMany({
 			orderBy: { updatedAt: "desc" },
 			take: 1,
@@ -184,18 +138,11 @@ export const getLastSession = query()
  * Search sessions by title
  */
 export const searchSessions = query()
-	.input(
-		z.object({
-			query: z.string(),
-			limit: z.number().optional(),
-		}),
-	)
+	.input(z.object({ query: z.string(), limit: z.number().optional() }))
 	.returns([Session])
-	.resolve(async ({ input, ctx }: { input: { query: string; limit?: number }; ctx: LensContext }) => {
+	.resolve(async ({ input, ctx }) => {
 		return ctx.db.session.findMany({
-			where: {
-				title: { contains: input.query },
-			},
+			where: { title: { contains: input.query } },
 			orderBy: { updatedAt: "desc" },
 			take: input.limit ?? 20,
 		});
@@ -204,41 +151,19 @@ export const searchSessions = query()
 /**
  * Get session count
  *
- * LIVE QUERY: Uses Two-Phase Field Resolution (ADR-002)
+ * LIVE QUERY: Uses Two-Phase Field Resolution
  * - Phase 1: .resolve() returns initial count
  * - Phase 2: .subscribe() updates on session create/delete
- *
- * Events: session-created → emit.delta(+1), session-deleted → emit.delta(-1)
  */
 export const getSessionCount = query()
 	.returns(z.number())
-	.resolve(async ({ ctx }: { ctx: LensContext }) => {
-		return ctx.db.session.count();
-	})
-	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		// Phase 2: Publisher pattern for live count
-		const channel = "session-events";
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-
-				// Increment on create
-				if (payload?.type === "session-created") {
-					emit.delta(1);
-				}
-
-				// Decrement on delete
-				if (payload?.type === "session-deleted") {
-					emit.delta(-1);
-				}
-			}
-		})();
-
-		onCleanup(() => {
-			cancelled = true;
+	.resolve(async ({ ctx }) => ctx.db.session.count())
+	.subscribe(({ ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, "session-events", (payload) => {
+			if (payload?.type === "session-created") emit.delta(1);
+			if (payload?.type === "session-deleted") emit.delta(-1);
 		});
+		onCleanup(cleanup);
 	});
 
 // =============================================================================
@@ -251,9 +176,7 @@ export const getSessionCount = query()
 export const getMessage = query()
 	.input(z.object({ id: z.string() }))
 	.returns(nullable(Message))
-	.resolve(async ({ input, ctx }: { input: { id: string }; ctx: LensContext }) => {
-		return ctx.db.message.findUnique({ where: { id: input.id } });
-	});
+	.resolve(async ({ input, ctx }) => ctx.db.message.findUnique({ where: { id: input.id } }));
 
 /**
  * List messages for a session
@@ -277,14 +200,14 @@ export const listMessages = query()
 		}),
 	)
 	.returns([Message])
-	.resolve(async ({ input, ctx }: { input: { sessionId: string; limit?: number }; ctx: LensContext }) => {
+	.resolve(async ({ input, ctx }) => {
 		// Phase 1: Initial fetch with eager-loaded steps/parts
 		const messages = await ctx.db.message.findMany({
 			where: { sessionId: input.sessionId },
 		});
 		return input.limit ? messages.slice(0, input.limit) : messages;
 	})
-	.subscribe(({ input, ctx }: { input: { sessionId: string; limit?: number }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
 		// Phase 2: Publisher pattern with delta emit (Lens 2.7.0+)
 		// Handles all message events: creation, step-added, part-updated
 		// Uses emit.push() for new messages and emit.replace() for updates
@@ -406,7 +329,7 @@ export const getRecentUserMessages = query()
 			size: z.number(),
 		})),
 	})))
-	.resolve(async ({ input, ctx }: { input?: { limit?: number }; ctx: LensContext }) => {
+	.resolve(async ({ input, ctx }) => {
 		const messageRepo = ctx.appContext.database.getMessageRepository();
 
 		// Get recent user messages from the message repository
@@ -428,9 +351,7 @@ export const getRecentUserMessages = query()
 export const getStep = query()
 	.input(z.object({ id: z.string() }))
 	.returns(nullable(Step))
-	.resolve(async ({ input, ctx }: { input: { id: string }; ctx: LensContext }) => {
-		return ctx.db.step.findUnique({ where: { id: input.id } });
-	});
+	.resolve(async ({ input, ctx }) => ctx.db.step.findUnique({ where: { id: input.id } }));
 
 /**
  * List steps for a message
@@ -438,7 +359,7 @@ export const getStep = query()
 export const listSteps = query()
 	.input(z.object({ messageId: z.string() }))
 	.returns([Step])
-	.resolve(async ({ input, ctx }: { input: { messageId: string }; ctx: LensContext }) => {
+	.resolve(async ({ input, ctx }) => {
 		return ctx.db.step.findMany({
 			where: { messageId: input.messageId },
 			orderBy: { stepIndex: "asc" },
@@ -455,9 +376,7 @@ export const listSteps = query()
 export const getPart = query()
 	.input(z.object({ id: z.string() }))
 	.returns(nullable(Part))
-	.resolve(async ({ input, ctx }: { input: { id: string }; ctx: LensContext }) => {
-		return ctx.db.part.findUnique({ where: { id: input.id } });
-	});
+	.resolve(async ({ input, ctx }) => ctx.db.part.findUnique({ where: { id: input.id } }));
 
 /**
  * List parts for a step
@@ -465,7 +384,7 @@ export const getPart = query()
 export const listParts = query()
 	.input(z.object({ stepId: z.string() }))
 	.returns([Part])
-	.resolve(async ({ input, ctx }: { input: { stepId: string }; ctx: LensContext }) => {
+	.resolve(async ({ input, ctx }) => {
 		return ctx.db.part.findMany({
 			where: { stepId: input.stepId },
 			orderBy: { ordering: "asc" },
@@ -488,58 +407,37 @@ export const listParts = query()
 export const listTodos = query()
 	.input(z.object({ sessionId: z.string() }))
 	.returns([Todo])
-	.resolve(async ({ input, ctx }: { input: { sessionId: string }; ctx: LensContext }) => {
+	.resolve(async ({ input, ctx }) => {
 		return ctx.db.todo.findMany({
 			where: { sessionId: input.sessionId },
 			orderBy: { ordering: "asc" },
 		});
 	})
-	.subscribe(({ input, ctx }: { input: { sessionId: string }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		// Phase 2: Publisher pattern with delta emit (Lens 2.7.0+)
-		const channel = `session-stream:${input.sessionId}`;
-		let cancelled = false;
-
-		// IMPORTANT: Track subscription start time to ignore replayed events
-		// ReplaySubject buffers last 50 events - we only want NEW events
-		const subscriptionStartTime = Date.now();
-
-		(async () => {
-			for await (const { payload, timestamp } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-
-				// Skip replayed events (events from before subscription started)
-				// This prevents rapid re-renders from buffered events
-				if (timestamp && timestamp < subscriptionStartTime) {
-					continue;
-				}
-
-				// Handle todo-created: push new todo to list
-				if (payload?.type === "todo-created" && payload.todo) {
-					emit.push(payload.todo);
-				}
-
-				// Handle todo-updated: patch existing todo
-				if (payload?.type === "todo-updated" && payload.todo) {
-					emit.patch([
-						{ op: "replace", path: `/${payload.index}`, value: payload.todo },
-					]);
-				}
-
-				// Handle todo-deleted: pull todo from list
-				if (payload?.type === "todo-deleted" && payload.todoId) {
-					emit.pull({ id: payload.todoId });
-				}
-
-				// Handle todos-synced: replace entire list
-				if (payload?.type === "todos-synced" && payload.todos) {
-					emit.replace(payload.todos);
-				}
+	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToSessionStream(ctx, input.sessionId, (payload) => {
+			// Handle todo-created: push new todo to list
+			if (payload?.type === "todo-created" && payload.todo) {
+				emit.push(payload.todo);
 			}
-		})();
 
-		onCleanup(() => {
-			cancelled = true;
+			// Handle todo-updated: patch existing todo
+			if (payload?.type === "todo-updated" && payload.todo) {
+				emit.patch([
+					{ op: "replace", path: `/${payload.index}`, value: payload.todo },
+				]);
+			}
+
+			// Handle todo-deleted: pull todo from list
+			if (payload?.type === "todo-deleted" && payload.todoId) {
+				emit.pull({ id: payload.todoId });
+			}
+
+			// Handle todos-synced: replace entire list
+			if (payload?.type === "todos-synced" && payload.todos) {
+				emit.replace(payload.todos);
+			}
 		});
+		onCleanup(cleanup);
 	});
 
 // =============================================================================
@@ -557,7 +455,7 @@ export const listTodos = query()
 export const subscribeSession = query()
 	.input(z.object({ id: z.string() }))
 	.returns(Session)
-	.resolve(async function* ({ input, ctx }: { input: { id: string }; ctx: LensContext }) {
+	.resolve(async function* ({ input, ctx }) {
 		// Yield initial data
 		const session = await ctx.db.session.findUnique({ where: { id: input.id } });
 		if (session) {
@@ -581,7 +479,7 @@ export const subscribeSession = query()
  */
 export const subscribeSessionList = query()
 	.returns([Session])
-	.resolve(async function* ({ ctx }: { ctx: LensContext }) {
+	.resolve(async function* ({ ctx }) {
 		// Yield initial list
 		yield await ctx.db.session.findMany({
 			orderBy: { updatedAt: "desc" },
@@ -627,7 +525,7 @@ export const subscribeToSession = query()
 		replayLast: z.number().min(0).max(100).default(0),
 	}))
 	.returns(StoredEventSchema)
-	.resolve(async function* ({ input, ctx }: { input: { sessionId: string; replayLast: number }; ctx: LensContext }) {
+	.resolve(async function* ({ input, ctx }) {
 		// Streaming events use session-stream:${id} channel
 		const channel = `session-stream:${input.sessionId}`;
 
@@ -651,7 +549,7 @@ export const loadConfig = query()
 		config: z.any().optional(),
 		error: z.string().optional(),
 	}))
-	.resolve(async ({ input }: { input?: { cwd?: string } }) => {
+	.resolve(async ({ input }) => {
 		const { loadAIConfig, DEFAULT_AGENT_ID } = await import("@sylphx/code-core");
 		const cwd = input?.cwd || process.cwd();
 		const result = await loadAIConfig(cwd);
@@ -692,7 +590,7 @@ export const getProviders = query()
 		description: z.string(),
 		isConfigured: z.boolean(),
 	})))
-	.resolve(async ({ input }: { input?: { cwd?: string } }) => {
+	.resolve(async ({ input }) => {
 		const { AI_PROVIDERS, getProvider, loadAIConfig } = await import("@sylphx/code-core");
 		const cwd = input?.cwd || process.cwd();
 		const configResult = await loadAIConfig(cwd);
@@ -723,7 +621,7 @@ export const getProviderSchema = query()
 		schema: z.array(z.any()).optional(),
 		error: z.string().optional(),
 	}))
-	.resolve(async ({ input }: { input: { providerId: string } }) => {
+	.resolve(async ({ input }) => {
 		try {
 			const { getProvider } = await import("@sylphx/code-core");
 			const provider = getProvider(input.providerId as any);
@@ -744,7 +642,7 @@ export const fetchModels = query()
 		models: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
 		error: z.string().optional(),
 	}))
-	.resolve(async ({ input }: { input: { providerId: string; cwd?: string } }) => {
+	.resolve(async ({ input }) => {
 		try {
 			const { loadAIConfig, fetchModels: fetchModelsCore } = await import("@sylphx/code-core");
 			const cwd = input.cwd || process.cwd();
@@ -769,7 +667,7 @@ export const fetchModels = query()
 export const scanProjectFiles = query()
 	.input(z.object({ cwd: z.string().optional(), query: z.string().optional() }).optional())
 	.returns(z.object({ files: z.array(z.any()) }))
-	.resolve(async ({ input }: { input?: { cwd?: string; query?: string } }) => {
+	.resolve(async ({ input }) => {
 		const { scanProjectFiles: scanFiles } = await import("@sylphx/code-core");
 		const cwd = input?.cwd || process.cwd();
 		const files = await scanFiles(cwd, input?.query);
@@ -786,7 +684,7 @@ export const countFileTokens = query()
 		count: z.number().optional(),
 		error: z.string().optional(),
 	}))
-	.resolve(async ({ input }: { input: { filePath: string; model?: string } }) => {
+	.resolve(async ({ input }) => {
 		const { readFile } = await import("node:fs/promises");
 		const { countTokens } = await import("@sylphx/code-core");
 		try {
@@ -813,44 +711,31 @@ export const countFileTokens = query()
  */
 export const listBash = query()
 	.returns([BashProcess])
-	.resolve(async ({ ctx }: { ctx: LensContext }) => {
-		return ctx.appContext.bashManagerV2.list();
-	})
-	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		// Phase 2: Publisher pattern with delta emit (Lens 2.7.0+)
-		const channel = "bash-events";
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-
-				// Handle bash-created: push new process to list
-				if (payload?.type === "bash-created" && payload.bash) {
-					emit.push(payload.bash);
-				}
-
-				// Handle bash-updated: patch process in list
-				if (payload?.type === "bash-updated" && payload.bash) {
-					emit.patch([
-						{ op: "replace", path: `/${payload.index}`, value: payload.bash },
-					]);
-				}
-
-				// Handle bash-completed: patch process status
-				if (payload?.type === "bash-completed" && payload.bashId) {
-					emit.patch([
-						{ op: "replace", path: `/${payload.index}/status`, value: "completed" },
-						{ op: "replace", path: `/${payload.index}/exitCode`, value: payload.exitCode },
-						{ op: "replace", path: `/${payload.index}/endTime`, value: payload.endTime },
-					]);
-				}
+	.resolve(async ({ ctx }) => ctx.appContext.bashManagerV2.list())
+	.subscribe(({ ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, "bash-events", (payload) => {
+			// Handle bash-created: push new process to list
+			if (payload?.type === "bash-created" && payload.bash) {
+				emit.push(payload.bash);
 			}
-		})();
 
-		onCleanup(() => {
-			cancelled = true;
+			// Handle bash-updated: patch process in list
+			if (payload?.type === "bash-updated" && payload.bash) {
+				emit.patch([
+					{ op: "replace", path: `/${payload.index}`, value: payload.bash },
+				]);
+			}
+
+			// Handle bash-completed: patch process status
+			if (payload?.type === "bash-completed" && payload.bashId) {
+				emit.patch([
+					{ op: "replace", path: `/${payload.index}/status`, value: "completed" },
+					{ op: "replace", path: `/${payload.index}/exitCode`, value: payload.exitCode },
+					{ op: "replace", path: `/${payload.index}/endTime`, value: payload.endTime },
+				]);
+			}
 		});
+		onCleanup(cleanup);
 	});
 
 /**
@@ -865,7 +750,7 @@ export const listBash = query()
 export const getBash = query()
 	.input(z.object({ bashId: z.string() }))
 	.returns(BashProcess)
-	.resolve(async ({ input, ctx }: { input: { bashId: string }; ctx: LensContext }) => {
+	.resolve(async ({ input, ctx }) => {
 		const proc = ctx.appContext.bashManagerV2.get(input.bashId);
 		if (!proc) {
 			throw new Error(`Bash process not found: ${input.bashId}`);
@@ -885,39 +770,28 @@ export const getBash = query()
 			stderr: proc.stderr,
 		};
 	})
-	.subscribe(({ input, ctx }: { input: { bashId: string }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		// Phase 2: Publisher pattern for live bash output and status
-		const channel = `bash:${input.bashId}`;
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-
-				// Handle bash-output: append to stdout/stderr
-				if (payload?.type === "bash-output") {
-					if (payload.stream === "stdout" && payload.data) {
-						emit.delta({ stdout: payload.data });
-					}
-					if (payload.stream === "stderr" && payload.data) {
-						emit.delta({ stderr: payload.data });
-					}
+	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, `bash:${input.bashId}`, (payload) => {
+			// Handle bash-output: append to stdout/stderr
+			if (payload?.type === "bash-output") {
+				if (payload.stream === "stdout" && payload.data) {
+					emit.delta({ stdout: payload.data });
 				}
-
-				// Handle bash-completed: update status and exit info
-				if (payload?.type === "bash-completed") {
-					emit.patch([
-						{ op: "replace", path: "/status", value: "completed" },
-						{ op: "replace", path: "/exitCode", value: payload.exitCode },
-						{ op: "replace", path: "/endTime", value: payload.endTime },
-					]);
+				if (payload.stream === "stderr" && payload.data) {
+					emit.delta({ stderr: payload.data });
 				}
 			}
-		})();
 
-		onCleanup(() => {
-			cancelled = true;
+			// Handle bash-completed: update status and exit info
+			if (payload?.type === "bash-completed") {
+				emit.patch([
+					{ op: "replace", path: "/status", value: "completed" },
+					{ op: "replace", path: "/exitCode", value: payload.exitCode },
+					{ op: "replace", path: "/endTime", value: payload.endTime },
+				]);
+			}
 		});
+		onCleanup(cleanup);
 	});
 
 /**
@@ -931,7 +805,7 @@ export const getBash = query()
  */
 export const getActiveBash = query()
 	.returns(nullable(BashProcess))
-	.resolve(async ({ ctx }: { ctx: LensContext }) => {
+	.resolve(async ({ ctx }) => {
 		const activeBashId = ctx.appContext.bashManagerV2.getActiveBashId();
 		if (!activeBashId) return null;
 		const proc = ctx.appContext.bashManagerV2.get(activeBashId);
@@ -946,30 +820,19 @@ export const getActiveBash = query()
 			duration: (proc.endTime || Date.now()) - proc.startTime,
 		};
 	})
-	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		// Phase 2: Publisher pattern for active bash changes
-		const channel = "bash-events";
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-
-				// Handle active bash change
-				if (payload?.type === "bash-activated" && payload.bash) {
-					emit.replace(payload.bash);
-				}
-
-				// Handle deactivation
-				if (payload?.type === "bash-deactivated") {
-					emit.replace(null);
-				}
+	.subscribe(({ ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, "bash-events", (payload) => {
+			// Handle active bash change
+			if (payload?.type === "bash-activated" && payload.bash) {
+				emit.replace(payload.bash);
 			}
-		})();
 
-		onCleanup(() => {
-			cancelled = true;
+			// Handle deactivation
+			if (payload?.type === "bash-deactivated") {
+				emit.replace(null);
+			}
 		});
+		onCleanup(cleanup);
 	});
 
 // =============================================================================
@@ -987,7 +850,7 @@ export const getTokenizerInfo = query()
 		modelId: z.string(),
 		source: z.string(),
 	}))
-	.resolve(async ({ input }: { input: { model: string } }) => {
+	.resolve(async ({ input }) => {
 		const { getTokenizerInfo: getInfo } = await import("@sylphx/code-core");
 		return getInfo(input.model);
 	});
@@ -1006,7 +869,7 @@ export const getModelDetails = query()
 		details: z.any().optional(),
 		error: z.string().optional(),
 	}))
-	.resolve(async ({ input }: { input: { providerId: string; modelId: string; cwd?: string } }) => {
+	.resolve(async ({ input }) => {
 		try {
 			const { getProvider, loadAIConfig, getProviderConfigWithApiKey, enrichModelDetails, enrichCapabilities } = await import("@sylphx/code-core");
 			const provider = getProvider(input.providerId as any);
@@ -1083,7 +946,7 @@ export const getContextInfo = query()
 		messagesTokens: z.number(),
 		toolCount: z.number(),
 	}))
-	.resolve(async ({ input, ctx }: { input: { sessionId: string | null; model: string; agentId: string; enabledRuleIds: string[] }; ctx: LensContext }) => {
+	.resolve(async ({ input, ctx }) => {
 		try {
 			const { countTokens, loadAllAgents, loadAllRules, getAISDKTools, buildSystemPrompt, TokenCalculator, DEFAULT_AGENT_ID } = await import("@sylphx/code-core");
 			const cwd = process.cwd();
@@ -1181,7 +1044,7 @@ export const getContextInfo = query()
 export const listAgents = query()
 	.input(z.object({ cwd: z.string().optional() }).optional())
 	.returns([Agent])
-	.resolve(async ({ input }: { input?: { cwd?: string } }) => {
+	.resolve(async ({ input }) => {
 		const { loadAllAgents } = await import("@sylphx/code-core");
 		const cwd = input?.cwd || process.cwd();
 		const agents = await loadAllAgents(cwd);
@@ -1195,20 +1058,13 @@ export const listAgents = query()
 			defaultRuleIds: a.metadata?.defaultRuleIds,
 		}));
 	})
-	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		const channel = "config-events";
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-				if (payload?.type === "agents-reloaded" && payload.agents) {
-					emit.replace(payload.agents);
-				}
+	.subscribe(({ ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, "config-events", (payload) => {
+			if (payload?.type === "agents-reloaded" && payload.agents) {
+				emit.replace(payload.agents);
 			}
-		})();
-
-		onCleanup(() => { cancelled = true; });
+		});
+		onCleanup(cleanup);
 	});
 
 /**
@@ -1217,7 +1073,7 @@ export const listAgents = query()
 export const getAgent = query()
 	.input(z.object({ id: z.string(), cwd: z.string().optional() }))
 	.returns(nullable(Agent))
-	.resolve(async ({ input }: { input: { id: string; cwd?: string } }) => {
+	.resolve(async ({ input }) => {
 		const { loadAllAgents } = await import("@sylphx/code-core");
 		const cwd = input.cwd || process.cwd();
 		const agents = await loadAllAgents(cwd);
@@ -1250,7 +1106,7 @@ export const getAgent = query()
 export const listRules = query()
 	.input(z.object({ cwd: z.string().optional() }).optional())
 	.returns([Rule])
-	.resolve(async ({ input }: { input?: { cwd?: string } }) => {
+	.resolve(async ({ input }) => {
 		const { loadAllRules } = await import("@sylphx/code-core");
 		const cwd = input?.cwd || process.cwd();
 		const rules = await loadAllRules(cwd);
@@ -1265,20 +1121,13 @@ export const listRules = query()
 			alwaysApply: r.metadata?.alwaysApply ?? false,
 		}));
 	})
-	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		const channel = "config-events";
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-				if (payload?.type === "rules-reloaded" && payload.rules) {
-					emit.replace(payload.rules);
-				}
+	.subscribe(({ ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, "config-events", (payload) => {
+			if (payload?.type === "rules-reloaded" && payload.rules) {
+				emit.replace(payload.rules);
 			}
-		})();
-
-		onCleanup(() => { cancelled = true; });
+		});
+		onCleanup(cleanup);
 	});
 
 /**
@@ -1287,7 +1136,7 @@ export const listRules = query()
 export const getRule = query()
 	.input(z.object({ id: z.string(), cwd: z.string().optional() }))
 	.returns(nullable(Rule))
-	.resolve(async ({ input }: { input: { id: string; cwd?: string } }) => {
+	.resolve(async ({ input }) => {
 		const { loadAllRules } = await import("@sylphx/code-core");
 		const cwd = input.cwd || process.cwd();
 		const rules = await loadAllRules(cwd);
@@ -1321,7 +1170,7 @@ export const getRule = query()
 export const listProviders = query()
 	.input(z.object({ cwd: z.string().optional() }).optional())
 	.returns([Provider])
-	.resolve(async ({ input }: { input?: { cwd?: string } }) => {
+	.resolve(async ({ input }) => {
 		const { AI_PROVIDERS, getProvider, loadAIConfig } = await import("@sylphx/code-core");
 		const cwd = input?.cwd || process.cwd();
 		const configResult = await loadAIConfig(cwd);
@@ -1342,20 +1191,13 @@ export const listProviders = query()
 		}
 		return providers;
 	})
-	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		const channel = "config-events";
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-				if (payload?.type === "config-reloaded" && payload.providers) {
-					emit.replace(payload.providers);
-				}
+	.subscribe(({ ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, "config-events", (payload) => {
+			if (payload?.type === "config-reloaded" && payload.providers) {
+				emit.replace(payload.providers);
 			}
-		})();
-
-		onCleanup(() => { cancelled = true; });
+		});
+		onCleanup(cleanup);
 	});
 
 /**
@@ -1368,7 +1210,7 @@ export const listProviders = query()
 export const listModels = query()
 	.input(z.object({ providerId: z.string(), cwd: z.string().optional() }))
 	.returns([Model])
-	.resolve(async ({ input }: { input: { providerId: string; cwd?: string } }) => {
+	.resolve(async ({ input }) => {
 		const { loadAIConfig, fetchModels: fetchModelsCore, getProvider } = await import("@sylphx/code-core");
 		const cwd = input.cwd || process.cwd();
 
@@ -1398,20 +1240,13 @@ export const listModels = query()
 			return [];
 		}
 	})
-	.subscribe(({ input, ctx }: { input: { providerId: string; cwd?: string }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		const channel = `provider-models:${input.providerId}`;
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-				if (payload?.type === "models-fetched" && payload.models) {
-					emit.replace(payload.models);
-				}
+	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, `provider-models:${input.providerId}`, (payload) => {
+			if (payload?.type === "models-fetched" && payload.models) {
+				emit.replace(payload.models);
 			}
-		})();
-
-		onCleanup(() => { cancelled = true; });
+		});
+		onCleanup(cleanup);
 	});
 
 // =============================================================================
@@ -1430,29 +1265,22 @@ export const listModels = query()
 export const listTools = query()
 	.input(z.object({ source: z.string().optional() }).optional())
 	.returns([Tool])
-	.resolve(async ({ input, ctx }: { input?: { source?: string }; ctx: LensContext }) => {
+	.resolve(async ({ input, ctx }) => {
 		// Use DB adapter to get tools
 		return ctx.db.tool.findMany({
 			where: input?.source ? { source: input.source } : undefined,
 		});
 	})
-	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		const channel = "tool-events";
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-				if (payload?.type === "tool-toggled" && payload.toolId !== undefined) {
-					// Find index and patch enabled status
-					emit.patch([
-						{ op: "replace", path: `/${payload.index}/isEnabled`, value: payload.isEnabled },
-					]);
-				}
+	.subscribe(({ ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, "tool-events", (payload) => {
+			if (payload?.type === "tool-toggled" && payload.toolId !== undefined) {
+				// Find index and patch enabled status
+				emit.patch([
+					{ op: "replace", path: `/${payload.index}/isEnabled`, value: payload.isEnabled },
+				]);
 			}
-		})();
-
-		onCleanup(() => { cancelled = true; });
+		});
+		onCleanup(cleanup);
 	});
 
 // =============================================================================
@@ -1471,7 +1299,7 @@ export const listTools = query()
 export const listMcpServers = query()
 	.input(z.object({ cwd: z.string().optional() }).optional())
 	.returns([MCPServer])
-	.resolve(async ({ input }: { input?: { cwd?: string } }) => {
+	.resolve(async ({ input }) => {
 		const { loadAIConfig } = await import("@sylphx/code-core");
 		const cwd = input?.cwd || process.cwd();
 		const configResult = await loadAIConfig(cwd);
@@ -1497,38 +1325,30 @@ export const listMcpServers = query()
 		}
 		return servers;
 	})
-	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		const channel = "mcp-events";
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-
-				if (payload?.type === "mcp-server-connected" && payload.serverId) {
-					emit.patch([
-						{ op: "replace", path: `/${payload.index}/status`, value: "connected" },
-						{ op: "replace", path: `/${payload.index}/toolCount`, value: payload.toolCount ?? 0 },
-						{ op: "replace", path: `/${payload.index}/connectedAt`, value: Date.now() },
-					]);
-				}
-
-				if (payload?.type === "mcp-server-disconnected" && payload.serverId) {
-					emit.patch([
-						{ op: "replace", path: `/${payload.index}/status`, value: "disconnected" },
-					]);
-				}
-
-				if (payload?.type === "mcp-server-error" && payload.serverId) {
-					emit.patch([
-						{ op: "replace", path: `/${payload.index}/status`, value: "error" },
-						{ op: "replace", path: `/${payload.index}/error`, value: payload.error },
-					]);
-				}
+	.subscribe(({ ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, "mcp-events", (payload) => {
+			if (payload?.type === "mcp-server-connected" && payload.serverId) {
+				emit.patch([
+					{ op: "replace", path: `/${payload.index}/status`, value: "connected" },
+					{ op: "replace", path: `/${payload.index}/toolCount`, value: payload.toolCount ?? 0 },
+					{ op: "replace", path: `/${payload.index}/connectedAt`, value: Date.now() },
+				]);
 			}
-		})();
 
-		onCleanup(() => { cancelled = true; });
+			if (payload?.type === "mcp-server-disconnected" && payload.serverId) {
+				emit.patch([
+					{ op: "replace", path: `/${payload.index}/status`, value: "disconnected" },
+				]);
+			}
+
+			if (payload?.type === "mcp-server-error" && payload.serverId) {
+				emit.patch([
+					{ op: "replace", path: `/${payload.index}/status`, value: "error" },
+					{ op: "replace", path: `/${payload.index}/error`, value: payload.error },
+				]);
+			}
+		});
+		onCleanup(cleanup);
 	});
 
 // =============================================================================
@@ -1547,31 +1367,23 @@ export const listMcpServers = query()
 export const listCredentials = query()
 	.input(z.object({ providerId: z.string().optional() }).optional())
 	.returns([Credential])
-	.resolve(async ({ input, ctx }: { input?: { providerId?: string }; ctx: LensContext }) => {
+	.resolve(async ({ input, ctx }) => {
 		// Use DB adapter which masks API keys
 		return ctx.db.credential.findMany({
 			where: input?.providerId ? { providerId: input.providerId } : undefined,
 		});
 	})
-	.subscribe(({ ctx }: { ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		const channel = "credential-events";
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-
-				if (payload?.type === "credential-created" && payload.credential) {
-					emit.push(payload.credential);
-				}
-
-				if (payload?.type === "credential-deleted" && payload.credentialId) {
-					emit.pull({ id: payload.credentialId });
-				}
+	.subscribe(({ ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, "credential-events", (payload) => {
+			if (payload?.type === "credential-created" && payload.credential) {
+				emit.push(payload.credential);
 			}
-		})();
 
-		onCleanup(() => { cancelled = true; });
+			if (payload?.type === "credential-deleted" && payload.credentialId) {
+				emit.pull({ id: payload.credentialId });
+			}
+		});
+		onCleanup(cleanup);
 	});
 
 // =============================================================================
@@ -1590,7 +1402,7 @@ export const listCredentials = query()
 export const getAskRequest = query()
 	.input(z.object({ sessionId: z.string() }))
 	.returns(nullable(AskRequest))
-	.resolve(async ({ input, ctx }: { input: { sessionId: string }; ctx: LensContext }) => {
+	.resolve(async ({ input, ctx }) => {
 		// Get pending ask requests for this session
 		const asks = await ctx.db.askRequest.findMany({
 			where: { sessionId: input.sessionId, status: "pending" },
@@ -1598,31 +1410,15 @@ export const getAskRequest = query()
 		// Return the most recent pending ask request
 		return asks.length > 0 ? asks[0] : null;
 	})
-	.subscribe(({ input, ctx }: { input: { sessionId: string }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
-		const channel = `session-stream:${input.sessionId}`;
-		let cancelled = false;
-
-		// IMPORTANT: Track subscription start time to ignore replayed events
-		const subscriptionStartTime = Date.now();
-
-		(async () => {
-			for await (const { payload, timestamp } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-
-				// Skip replayed events
-				if (timestamp && timestamp < subscriptionStartTime) {
-					continue;
-				}
-
-				if (payload?.type === "ask-created" && payload.askRequest) {
-					emit.replace(payload.askRequest);
-				}
-
-				if (payload?.type === "ask-answered" && payload.askRequestId) {
-					emit.replace(null);
-				}
+	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToSessionStream(ctx, input.sessionId, (payload) => {
+			if (payload?.type === "ask-created" && payload.askRequest) {
+				emit.replace(payload.askRequest);
 			}
-		})();
 
-		onCleanup(() => { cancelled = true; });
+			if (payload?.type === "ask-answered" && payload.askRequestId) {
+				emit.replace(null);
+			}
+		});
+		onCleanup(cleanup);
 	});
