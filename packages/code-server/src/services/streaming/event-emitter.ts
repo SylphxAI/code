@@ -203,6 +203,70 @@ export function emitReasoningEnd(observer: Observer<StreamEvent, unknown>, durat
 	observer.next({ type: "reasoning-end", duration });
 }
 
+// ============================================================================
+// Inline Action Events (streaming XML tags)
+// ============================================================================
+
+/**
+ * Emit title-start event
+ */
+export function emitTitleStart(observer: Observer<StreamEvent, unknown>): void {
+	observer.next({ type: "title-start" });
+}
+
+/**
+ * Emit title-delta event
+ */
+export function emitTitleDelta(observer: Observer<StreamEvent, unknown>, text: string): void {
+	observer.next({ type: "title-delta", text });
+}
+
+/**
+ * Emit title-end event
+ */
+export function emitTitleEnd(observer: Observer<StreamEvent, unknown>): void {
+	observer.next({ type: "title-end" });
+}
+
+/**
+ * Emit suggestions-start event
+ */
+export function emitSuggestionsStart(observer: Observer<StreamEvent, unknown>): void {
+	observer.next({ type: "suggestions-start" });
+}
+
+/**
+ * Emit suggestion-start event
+ */
+export function emitSuggestionStart(observer: Observer<StreamEvent, unknown>, index: number): void {
+	observer.next({ type: "suggestion-start", index });
+}
+
+/**
+ * Emit suggestion-delta event
+ */
+export function emitSuggestionDelta(
+	observer: Observer<StreamEvent, unknown>,
+	index: number,
+	text: string,
+): void {
+	observer.next({ type: "suggestion-delta", index, text });
+}
+
+/**
+ * Emit suggestion-end event
+ */
+export function emitSuggestionEnd(observer: Observer<StreamEvent, unknown>, index: number): void {
+	observer.next({ type: "suggestion-end", index });
+}
+
+/**
+ * Emit suggestions-end event
+ */
+export function emitSuggestionsEnd(observer: Observer<StreamEvent, unknown>): void {
+	observer.next({ type: "suggestions-end" });
+}
+
 /**
  * Emit tool-call event
  */

@@ -125,6 +125,16 @@ export type StreamEvent =
 	| { type: "reasoning-start" }
 	| { type: "reasoning-delta"; text: string }
 	| { type: "reasoning-end"; duration: number }
+
+	// Inline action events (streaming XML tags)
+	| { type: "title-start" }
+	| { type: "title-delta"; text: string }
+	| { type: "title-end" }
+	| { type: "suggestions-start" }
+	| { type: "suggestion-start"; index: number }
+	| { type: "suggestion-delta"; index: number; text: string }
+	| { type: "suggestion-end"; index: number }
+	| { type: "suggestions-end" }
 	| { type: "tool-call"; toolCallId: string; toolName: string; input: ToolInput; startTime: number }
 	| { type: "tool-input-start"; toolCallId: string; startTime: number }
 	| { type: "tool-input-delta"; toolCallId: string; inputTextDelta: string }

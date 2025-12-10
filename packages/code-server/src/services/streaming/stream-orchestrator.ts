@@ -46,13 +46,16 @@ import {
 	emitReasoningStart,
 	emitSessionCreated,
 	emitSystemMessageCreated,
-	emitTextDelta,
 	emitTextEnd,
 	emitTextStart,
 	emitToolCall,
 	emitToolError,
 	emitToolResult,
 } from "./event-emitter.js";
+import {
+	createInlineActionDispatcher,
+	type InlineActionDispatcher,
+} from "./inline-action-dispatcher.js";
 import {
 	createSessionStatusManager,
 	type SessionStatusManager,
@@ -470,13 +473,26 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					appContext: opts.appContext,
 				};
 
-				// 16. Create callbacks for stream processing
+				// 16. Create inline action dispatcher for parsing streaming XML tags
+				const inlineActionDispatcher: InlineActionDispatcher = createInlineActionDispatcher({
+					observer,
+					sessionId,
+					sessionRepository,
+					appContext: opts.appContext,
+				});
+
+				// 17. Create callbacks for stream processing
 				const callbacks: StreamCallbacks = {
 					onTextStart: () => emitTextStart(observer),
 					onTextDelta: (text) => {
-						emitTextDelta(observer, text);
+						// Route through inline action dispatcher for XML tag parsing
+						inlineActionDispatcher.processChunk(text);
 					},
-					onTextEnd: () => emitTextEnd(observer),
+					onTextEnd: () => {
+						// Flush any remaining content in the parser
+						inlineActionDispatcher.flush();
+						emitTextEnd(observer);
+					},
 					onReasoningStart: () => emitReasoningStart(observer),
 					onReasoningDelta: (text) => {
 						emitReasoningDelta(observer, text);
