@@ -21,7 +21,6 @@
  */
 
 import { model } from "@sylphx/lens-core";
-import type { Resolvers } from "@sylphx/lens-core";
 import type { LensContext } from "./context.js";
 
 // =============================================================================
@@ -78,7 +77,7 @@ function isStepEvent(payload: { type?: string }): boolean {
  * Messages are loaded via relations, not embedded.
  * Status field uses Two-Phase Resolution for live streaming updates.
  */
-export const Session = entity<LensContext>("Session").define((t) => ({
+export const Session = model<LensContext>("Session").define((t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -258,7 +257,7 @@ export const Session = entity<LensContext>("Session").define((t) => ({
  * Container for conversation turns.
  * Steps field uses Two-Phase Resolution for live streaming updates.
  */
-export const Message = entity<LensContext>("Message").define((t) => ({
+export const Message = model<LensContext>("Message").define((t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -349,7 +348,7 @@ export const Message = entity<LensContext>("Message").define((t) => ({
  * Assistant messages may have multiple steps (tool execution loops).
  * Parts are resolved from parent data (updates driven by Message.steps).
  */
-export const Step = entity<LensContext>("Step").define((t) => ({
+export const Step = model<LensContext>("Step").define((t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -468,7 +467,7 @@ export const StepUsage = model("StepUsage", (t) => ({
  * Note: id is per-session, not globally unique.
  * Combined primary key: (sessionId, id)
  */
-export const Todo = entity<LensContext>("Todo").define((t) => ({
+export const Todo = model<LensContext>("Todo").define((t) => ({
 	// Per-session ID
 	id: t.int(),
 
@@ -515,7 +514,7 @@ export const Todo = entity<LensContext>("Todo").define((t) => ({
  * Live fields for real-time output streaming.
  * Uses Two-Phase Resolution for status and output updates.
  */
-export const BashProcess = entity<LensContext>("BashProcess").define((t) => ({
+export const BashProcess = model<LensContext>("BashProcess").define((t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -652,7 +651,7 @@ export const Rule = model("Rule", (t) => ({
  * Represents providers like Anthropic, OpenAI, etc.
  * isConfigured indicates if API key is set.
  */
-export const Provider = entity<LensContext>("Provider").define((t) => ({
+export const Provider = model<LensContext>("Provider").define((t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'anthropic', 'openai', 'google'
 
@@ -703,7 +702,7 @@ export const Provider = entity<LensContext>("Provider").define((t) => ({
  *
  * Models have capabilities, context limits, and pricing.
  */
-export const Model = entity<LensContext>("Model").define((t) => ({
+export const Model = model<LensContext>("Model").define((t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'claude-sonnet-4-20250514'
 
@@ -753,7 +752,7 @@ export const Model = entity<LensContext>("Model").define((t) => ({
  * Tools can be builtin, from MCP servers, or plugins.
  * Can be enabled/disabled per session.
  */
-export const Tool = entity<LensContext>("Tool").define((t) => ({
+export const Tool = model<LensContext>("Tool").define((t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'Read', 'Write', 'Bash', 'mcp__server__tool'
 
@@ -801,7 +800,7 @@ export const Tool = entity<LensContext>("Tool").define((t) => ({
  * Live status field for connection state.
  * Uses Two-Phase Resolution for real-time status updates.
  */
-export const MCPServer = entity<LensContext>("MCPServer").define((t) => ({
+export const MCPServer = model<LensContext>("MCPServer").define((t) => ({
 	// Primary key
 	id: t.id(), // Server identifier
 
@@ -874,7 +873,7 @@ export const MCPServer = entity<LensContext>("MCPServer").define((t) => ({
  * API keys are masked for display.
  * Never expose full API key to client.
  */
-export const Credential = entity<LensContext>("Credential").define((t) => ({
+export const Credential = model<LensContext>("Credential").define((t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -946,7 +945,7 @@ export const File = model("File", (t) => ({
  * For tools that require user approval before execution.
  * Live status field for pending/answered state.
  */
-export const AskRequest = entity<LensContext>("AskRequest").define((t) => ({
+export const AskRequest = model<LensContext>("AskRequest").define((t) => ({
 	// Primary key
 	id: t.id(), // Question ID
 
@@ -990,34 +989,3 @@ export const AskRequest = entity<LensContext>("AskRequest").define((t) => ({
 	answeredAt: t.int().optional(),
 }));
 
-// =============================================================================
-// Create Resolvers from Entities
-// =============================================================================
-
-/**
- * @deprecated Entities with inline resolvers are automatically extracted by createApp
- *
- * This function is kept for backwards compatibility but is no longer needed.
- * createApp({ entities }) automatically extracts inline resolvers.
- */
-export function createResolvers(): Resolvers {
-	return [
-		// Core conversation entities (with live resolvers + relations)
-		Session, // messages, todos, askRequests relations
-		Message, // steps, session relations
-		Step, // parts, message relations
-		Todo, // session relation
-		// Bash with live output
-		BashProcess,
-		// Config entities with relations
-		Provider, // models, credentials relations
-		Model, // provider relation
-		MCPServer, // tools relation, live status
-		Tool, // mcpServer relation
-		Credential, // provider relation
-		// Ask with live status
-		AskRequest,
-		// Plain entities (Part, StepUsage, Agent, Rule, File)
-		// don't have inline resolvers - they're static data
-	];
-}

@@ -453,9 +453,18 @@ export const deleteTodo = mutation()
 			id: z.number(),
 		}),
 	)
-	.returns(z.object({ success: z.boolean() }))
+	.returns(Todo)
 	.optimistic("delete")
 	.resolve(async ({ input, ctx }: { input: { sessionId: string; id: number }; ctx: LensContext }) => {
+		// Get todo before deletion for return value
+		const todo = await ctx.db.todo.findUnique({
+			where: { sessionId: input.sessionId, id: input.id },
+		});
+
+		if (!todo) {
+			throw new Error(`Todo not found: ${input.sessionId}/${input.id}`);
+		}
+
 		await ctx.db.todo.delete({
 			where: { sessionId: input.sessionId, id: input.id },
 		});
@@ -466,7 +475,7 @@ export const deleteTodo = mutation()
 			todoId: input.id,
 		});
 
-		return { success: true };
+		return todo;
 	});
 
 /**
@@ -560,6 +569,8 @@ export const syncTodos = mutation()
 
 /**
  * Save AI config
+ *
+ * Live: Publishes config-saved event for config subscribers
  */
 export const saveConfig = mutation()
 	.input(z.object({
@@ -567,7 +578,7 @@ export const saveConfig = mutation()
 		cwd: z.string().optional(),
 	}))
 	.returns(z.object({ success: z.boolean(), error: z.string().optional() }))
-	.resolve(async ({ input }: { input: { config: any; cwd?: string } }) => {
+	.resolve(async ({ input, ctx }: { input: { config: any; cwd?: string }; ctx: LensContext }) => {
 		const { loadAIConfig, saveAIConfig } = await import("@sylphx/code-core");
 		const { mergeConfigWithSecrets } = await import("./config-utils.js");
 		const cwd = input.cwd || process.cwd();
@@ -581,6 +592,11 @@ export const saveConfig = mutation()
 
 		const result = await saveAIConfig(mergedConfig, cwd);
 		if (result.success) {
+			// Publish event for live query subscribers
+			await ctx.eventStream.publish("config-events", {
+				type: "config-saved",
+				config: mergedConfig,
+			});
 			return { success: true };
 		}
 		return { success: false, error: result.error.message };
@@ -588,6 +604,8 @@ export const saveConfig = mutation()
 
 /**
  * Set provider secret (API key)
+ *
+ * Live: Publishes credential-updated event for credential subscribers
  */
 export const setProviderSecret = mutation()
 	.input(z.object({
@@ -597,7 +615,7 @@ export const setProviderSecret = mutation()
 		cwd: z.string().optional(),
 	}))
 	.returns(z.object({ success: z.boolean(), error: z.string().optional() }))
-	.resolve(async ({ input }: { input: { providerId: string; fieldName: string; value: string; cwd?: string } }) => {
+	.resolve(async ({ input, ctx }: { input: { providerId: string; fieldName: string; value: string; cwd?: string }; ctx: LensContext }) => {
 		const { loadAIConfig, saveAIConfig, getProvider, createCredential, getDefaultCredential, updateCredential } = await import("@sylphx/code-core");
 		const cwd = input.cwd || process.cwd();
 
@@ -654,6 +672,12 @@ export const setProviderSecret = mutation()
 
 		const saveResult = await saveAIConfig(updated, cwd);
 		if (saveResult.success) {
+			// Publish event for live query subscribers
+			await ctx.eventStream.publish("credential-events", {
+				type: "credential-updated",
+				providerId: input.providerId,
+				credentialId: credential.id,
+			});
 			return { success: true };
 		}
 		return { success: false, error: saveResult.error.message };

@@ -36,4 +36,4 @@ import type { LensContext } from "./context.js";
  */
 const builders = lens<LensContext>().withPlugins([optimisticPlugin()]);
 
-export const { query, mutation, resolver, plugins } = builders;
+export const { query, mutation, plugins } = builders;

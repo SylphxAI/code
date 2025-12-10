@@ -677,7 +677,7 @@ export const countFileTokens = query()
  * Events: bash-created → emit.push(), bash-updated → emit.patch(), bash-completed → emit.patch()
  */
 export const listBash = query()
-	.returns(z.array(z.any()))
+	.returns([BashProcess])
 	.resolve(async ({ ctx }: { ctx: LensContext }) => {
 		return ctx.appContext.bashManagerV2.list();
 	})
@@ -729,7 +729,7 @@ export const listBash = query()
  */
 export const getBash = query()
 	.input(z.object({ bashId: z.string() }))
-	.returns(z.any())
+	.returns(BashProcess)
 	.resolve(async ({ input, ctx }: { input: { bashId: string }; ctx: LensContext }) => {
 		const proc = ctx.appContext.bashManagerV2.get(input.bashId);
 		if (!proc) {
@@ -795,7 +795,7 @@ export const getBash = query()
  * Events: bash-activated → emit.replace(), bash-deactivated → emit.replace(null)
  */
 export const getActiveBash = query()
-	.returns(z.any().nullable())
+	.returns(nullable(BashProcess))
 	.resolve(async ({ ctx }: { ctx: LensContext }) => {
 		const activeBashId = ctx.appContext.bashManagerV2.getActiveBashId();
 		if (!activeBashId) return null;
