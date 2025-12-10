@@ -21,6 +21,18 @@ import { useLensClient } from "@sylphx/code-client";
 import { useCurrentSessionId } from "../../session-state.js";
 import type { SessionStatus } from "../../session-state.js";
 
+/**
+ * SessionSuggestions - Live AI suggestions from inline actions
+ */
+interface SessionSuggestions {
+	suggestions: Array<{
+		index: number;
+		text: string;
+		isStreaming: boolean;
+	}>;
+	isStreaming: boolean;
+}
+
 interface SessionWithStatus {
 	id: string;
 	title?: string;
@@ -41,6 +53,8 @@ interface SessionWithStatus {
 	lastAccessedAt?: number;
 	// Live status from .subscribe() resolver
 	status?: SessionStatus;
+	// Live suggestions from .subscribe() resolver
+	suggestions?: SessionSuggestions;
 }
 
 export function useCurrentSession() {
@@ -66,10 +80,14 @@ export function useCurrentSession() {
 	// Status comes directly from the query (live via Lens subscription)
 	const isStreaming = session?.status?.isActive ?? false;
 
+	// Extract suggestions from session (live via Lens subscription)
+	const suggestions = session?.suggestions?.suggestions ?? [];
+
 	return {
 		currentSession: session,
 		currentSessionId,
 		isStreaming,
+		suggestions,
 		isLoading: loading,
 		error,
 		refetch,
