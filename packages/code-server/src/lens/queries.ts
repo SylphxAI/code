@@ -62,12 +62,22 @@ export const getSession = query()
 		// Track current session state for merging partial updates
 		let currentSession: any = null;
 
+		// IMPORTANT: Track subscription start time to ignore replayed events
+		// ReplaySubject buffers last 50 events - we only want NEW events
+		const subscriptionStartTime = Date.now();
+
 		(async () => {
 			// Fetch initial session for merging
 			currentSession = await ctx.db.session.findUnique({ where: { id: input.id } });
 
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+			for await (const { payload, timestamp } of ctx.eventStream.subscribe(channel)) {
 				if (cancelled) break;
+
+				// Skip replayed events (events from before subscription started)
+				// This prevents rapid re-renders from buffered events
+				if (timestamp && timestamp < subscriptionStartTime) {
+					continue;
+				}
 
 				// Handle session-updated: merge partial update into full session
 				// The payload.session from session-status-manager is a PARTIAL update
@@ -286,6 +296,10 @@ export const listMessages = query()
 		const messages: any[] = [];
 		const messageMap = new Map<string, number>(); // messageId → array index
 
+		// IMPORTANT: Track subscription start time to ignore replayed events
+		// ReplaySubject buffers last 50 events - we only want NEW events
+		const subscriptionStartTime = Date.now();
+
 		(async () => {
 			// Initialize from DB to match .resolve() data
 			// This ensures we don't push duplicate messages
@@ -298,8 +312,14 @@ export const listMessages = query()
 				messageMap.set(msg.id, index);
 			}
 
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+			for await (const { payload, timestamp } of ctx.eventStream.subscribe(channel)) {
 				if (cancelled) break;
+
+				// Skip replayed events (events from before subscription started)
+				// This prevents rapid re-renders from buffered events
+				if (timestamp && timestamp < subscriptionStartTime) {
+					continue;
+				}
 
 				// Handle message-created events (all variants): push new message to list
 				// Streaming service emits: user-message-created, assistant-message-created
@@ -479,9 +499,19 @@ export const listTodos = query()
 		const channel = `session-stream:${input.sessionId}`;
 		let cancelled = false;
 
+		// IMPORTANT: Track subscription start time to ignore replayed events
+		// ReplaySubject buffers last 50 events - we only want NEW events
+		const subscriptionStartTime = Date.now();
+
 		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+			for await (const { payload, timestamp } of ctx.eventStream.subscribe(channel)) {
 				if (cancelled) break;
+
+				// Skip replayed events (events from before subscription started)
+				// This prevents rapid re-renders from buffered events
+				if (timestamp && timestamp < subscriptionStartTime) {
+					continue;
+				}
 
 				// Handle todo-created: push new todo to list
 				if (payload?.type === "todo-created" && payload.todo) {
