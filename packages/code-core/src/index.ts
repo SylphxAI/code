@@ -425,6 +425,31 @@ export {
 } from "./utils/retry.js";
 
 // ============================================================================
+// Streaming (Inline Actions)
+// ============================================================================
+export {
+	createInlineActionParser,
+	InlineActionParser,
+} from "./streaming/inline-action-parser.js";
+export type {
+	InlineAction,
+	InlineTagName,
+	MessageDeltaAction,
+	MessageStartAction,
+	MessageEndAction,
+	TitleDeltaAction,
+	TitleStartAction,
+	TitleEndAction,
+	SuggestionDeltaAction,
+	SuggestionStartAction,
+	SuggestionEndAction,
+	SuggestionsStartAction,
+	SuggestionsEndAction,
+	TextDeltaAction,
+} from "./streaming/inline-action-types.js";
+export { INLINE_TAGS } from "./streaming/inline-action-types.js";
+
+// ============================================================================
 // Version
 // ============================================================================
 export const version = "0.1.0";
