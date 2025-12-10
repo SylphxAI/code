@@ -52,6 +52,47 @@ export const getSession = query()
 		// Fetch session from DB
 		const dbSession = await ctx.db.session.findUnique({ where: { id: input.id } });
 		return dbSession;
+	})
+	.subscribe(({ input, ctx }: { input: { id: string }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
+		// Phase 2: Publisher pattern for session updates
+		// Subscribes to session-stream:${id} for status changes
+		const channel = `session-stream:${input.id}`;
+		let cancelled = false;
+
+		// Track current session state for merging partial updates
+		let currentSession: any = null;
+
+		(async () => {
+			// Fetch initial session for merging
+			currentSession = await ctx.db.session.findUnique({ where: { id: input.id } });
+
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+
+				// Handle session-updated: merge partial update into full session
+				// The payload.session from session-status-manager is a PARTIAL update
+				// We need to merge it into the full session, not replace entirely
+				if (payload?.type === "session-updated" && payload.session) {
+					// Merge partial update into current session
+					if (currentSession) {
+						currentSession = { ...currentSession, ...payload.session };
+						emit.replace({ ...currentSession });
+					}
+				}
+
+				// Handle session-status-updated: update just the status field
+				if (payload?.type === "session-status-updated" && payload.status) {
+					if (currentSession) {
+						currentSession = { ...currentSession, status: payload.status };
+						emit.replace({ ...currentSession });
+					}
+				}
+			}
+		})();
+
+		onCleanup(() => {
+			cancelled = true;
+		});
 	});
 
 /**
@@ -235,9 +276,15 @@ export const listMessages = query()
 	})
 	.subscribe(({ input, ctx }: { input: { sessionId: string; limit?: number }; ctx: LensContext }) => ({ emit, onCleanup }: { emit: any; onCleanup: (fn: () => void) => void }) => {
 		// Phase 2: Publisher pattern with delta emit (Lens 2.7.0+)
-		// Only handles message-level events; step/part updates handled by entity resolvers
+		// Handles all message events: creation, step-added, part-updated
+		// Uses emit.push() for new messages and emit.replace() for updates
 		const channel = `session-stream:${input.sessionId}`;
 		let cancelled = false;
+
+		// Track all messages for efficient updates
+		// We maintain a full copy of messages so we can use emit.replace() for updates
+		const messages: any[] = [];
+		const messageMap = new Map<string, number>(); // messageId → array index
 
 		(async () => {
 			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
@@ -250,14 +297,52 @@ export const listMessages = query()
 					payload?.type === "user-message-created" ||
 					payload?.type === "assistant-message-created";
 				if (isMessageCreated && payload.message) {
-					emit.push(payload.message);
+					// Track the message for future updates
+					const index = messages.length;
+					const messageData = { ...payload.message, steps: payload.message.steps || [] };
+					messages.push(messageData);
+					messageMap.set(payload.message.id, index);
+					emit.push(messageData);
 				}
 
-				// Handle message-status-updated: patch message status
+				// Handle step-added: add step to message's steps array
+				if (payload?.type === "step-added" && payload.messageId && payload.step) {
+					const index = messageMap.get(payload.messageId);
+					if (index !== undefined) {
+						// Update local state
+						if (!messages[index].steps) messages[index].steps = [];
+						messages[index].steps.push({ ...payload.step, parts: payload.step.parts || [] });
+						// Emit replace with updated messages array
+						emit.replace([...messages]);
+					}
+				}
+
+				// Handle part-updated: update part within step
+				if (payload?.type === "part-updated" && payload.messageId && payload.stepId) {
+					const index = messageMap.get(payload.messageId);
+					if (index !== undefined) {
+						// Find the step by ID
+						const stepIndex = messages[index].steps?.findIndex((s: any) => s.id === payload.stepId);
+						if (stepIndex !== undefined && stepIndex >= 0) {
+							// Ensure parts array exists
+							if (!messages[index].steps[stepIndex].parts) {
+								messages[index].steps[stepIndex].parts = [];
+							}
+							// Update the part at the specified index
+							messages[index].steps[stepIndex].parts[payload.partIndex] = payload.part;
+							// Emit replace with updated messages array
+							emit.replace([...messages]);
+						}
+					}
+				}
+
+				// Handle message-status-updated: update message status
 				if (payload?.type === "message-status-updated" && payload.messageId) {
-					emit.patch([
-						{ op: "replace", path: `/${payload.index}/status`, value: payload.status },
-					]);
+					const index = messageMap.get(payload.messageId);
+					if (index !== undefined) {
+						messages[index].status = payload.status;
+						emit.replace([...messages]);
+					}
 				}
 			}
 		})();

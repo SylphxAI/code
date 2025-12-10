@@ -235,20 +235,11 @@ export interface TriggerStreamResult {
 export async function triggerStreamMutation(
 	params: TriggerStreamParams,
 ): Promise<TriggerStreamResult> {
-	console.log("[triggerStreamMutation] ===== MUTATION CALLED =====");
-	console.log("[triggerStreamMutation] Input:", {
-		sessionId: params.input.sessionId,
-		provider: params.input.provider,
-		model: params.input.model,
-		contentLength: params.input.content.length,
-	});
-
 	const { appContext, sessionRepository, messageRepository, aiConfig, input } = params;
 	const { streamAIResponse } = await import("./streaming.service.js");
 
 	// Get or create sessionId for event channel
 	let eventSessionId = input.sessionId || null;
-	console.log("[triggerStreamMutation] Event session ID:", eventSessionId);
 
 	// QUEUE LOGIC: Check if session is currently streaming
 	// If streaming, enqueue message instead of starting new stream
@@ -308,7 +299,6 @@ export async function triggerStreamMutation(
 	const abortController = new AbortController();
 	let abortControllerId: string | null = null;
 
-	console.log("[triggerStreamMutation] Starting streaming...");
 	// Start streaming
 	const streamObservable = streamAIResponse({
 		appContext,
@@ -326,22 +316,18 @@ export async function triggerStreamMutation(
 	/**
 	 * ARCHITECTURE: Subscribe to stream and wait for session-created (lazy sessions only)
 	 */
-	console.log("[triggerStreamMutation] Creating sessionIdPromise, eventSessionId:", eventSessionId);
 	const sessionIdPromise = new Promise<string>((resolve, reject) => {
 		let hasResolved = false;
 
 		// If session already exists, resolve immediately (but continue subscription for streaming)
 		if (eventSessionId) {
-			console.log("[triggerStreamMutation] Session exists, resolving immediately:", eventSessionId);
 			resolve(eventSessionId);
 			hasResolved = true;
 		}
 
-		console.log("[triggerStreamMutation] Subscribing to streamObservable...");
 		// Subscribe to stream to capture session-created event (lazy sessions)
 		const subscription = streamObservable.subscribe({
 			next: (event) => {
-				console.log("[triggerStreamMutation] Stream event received:", event.type);
 
 				// Handle error events from the stream (streaming.service emits these as events)
 				if (event.type === "error") {
@@ -424,7 +410,6 @@ export async function triggerStreamMutation(
 				}
 			},
 			complete: () => {
-				console.log("[triggerStreamMutation] Stream completed");
 				// Publish complete to streaming channel AND persist final state
 				if (eventSessionId) {
 					appContext.eventStream
@@ -461,7 +446,6 @@ export async function triggerStreamMutation(
 	// Wait for sessionId (either immediate or from session-created event)
 	const finalSessionId = await sessionIdPromise;
 
-	console.log("[triggerStreamMutation] Returning success with sessionId:", finalSessionId);
 	// Return sessionId so client can subscribe
 	return {
 		success: true,

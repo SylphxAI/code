@@ -447,17 +447,28 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 
 				// LENS: Publish fine-grained part-updated event after upsert
 				// Debounced: only publishes every PUBLISH_INTERVAL deltas or when forced
+				// Publishes to BOTH channels:
+				// - message:${messageId} for entity-level subscriptions
+				// - session-stream:${sessionId} for listMessages Live Query
 				publishPartUpdate: async (stepId: string, partIndex: number, part: MessagePart, forcePublish = false) => {
 					deltasSinceLastPublish++;
 
 					if (forcePublish || deltasSinceLastPublish >= PUBLISH_INTERVAL) {
-						await opts.appContext.eventStream.publish(`message:${assistantMessageId}`, {
+						const partUpdateEvent = {
 							type: 'part-updated',
 							messageId: assistantMessageId,
 							stepId,
 							partIndex,
 							part
-						});
+						};
+
+						// Publish to both channels in parallel
+						await Promise.all([
+							// Entity-level channel for direct message subscriptions
+							opts.appContext.eventStream.publish(`message:${assistantMessageId}`, partUpdateEvent),
+							// Session-stream channel for listMessages Live Query
+							opts.appContext.eventStream.publish(`session-stream:${sessionId}`, partUpdateEvent),
+						]);
 						deltasSinceLastPublish = 0;
 					}
 				}

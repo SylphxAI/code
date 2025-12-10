@@ -103,26 +103,24 @@ function HeadlessApp({ prompt, options }: HeadlessProps) {
 	useEffect(() => {
 		if (!session) return;
 
-		// Track if we've started streaming
-		if ((session as any).status === "streaming") {
+		// SessionStatus is an object with isActive boolean
+		// { text: string, duration: number, tokenUsage: number, isActive: boolean }
+		const sessionStatus = (session as any).status;
+
+		// Track if we've started streaming (isActive = true)
+		if (sessionStatus?.isActive === true) {
 			wasStreamingRef.current = true;
 		}
 
-		// Handle error
-		if ((session as any).status === "error") {
-			console.error(chalk.red(`\n✗ Error: Session error`));
-			process.exit(1);
-		}
-
-		// Stream completed (was streaming, now completed/idle)
-		const isCompleted = (session as any).status === "completed" || (session as any).status === "idle";
+		// Stream completed (was streaming, now isActive = false)
+		const isCompleted = sessionStatus?.isActive === false;
 		if (isCompleted && wasStreamingRef.current) {
 			if (options.verbose) {
 				console.error(chalk.dim(`\n\n[Complete]`));
 			}
 			process.exit(0);
 		}
-	}, [(session as any)?.status, options.verbose]);
+	}, [(session as any)?.status?.isActive, options.verbose]);
 
 	// Effect: Trigger streaming on mount
 	useEffect(() => {
