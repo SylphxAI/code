@@ -178,6 +178,7 @@
         "@sylphx/code-core": "workspace:*",
         "@sylphx/lens-core": "2.4.0",
         "@sylphx/lens-server": "^2.3.0",
+        "@sylphx/reify": "^0.1.3",
         "@trpc/server": "^11.7.1",
         "express": "^5.1.0",
         "mime-types": "^2.1.35",
@@ -1958,8 +1959,6 @@
 
     "@sylphx/code-server/@sylphx/lens-core": ["@sylphx/lens-core@2.4.0", "", { "dependencies": { "@sylphx/reify": "^0.1.2", "@sylphx/standard-entity": "^0.1.0" } }, "sha512-FPLDAVOEqhr83/4Y6sJR8Letmg6HiRyAde0h/BwGVOePl78Lew1AfHu4xtJTY0FekNfWM21kt38k0UWc5Kyn+g=="],
 
-    "@sylphx/code-server/@sylphx/lens-server": ["@sylphx/lens-server@2.7.1", "", { "dependencies": { "@sylphx/lens-core": "^2.5.0" } }, "sha512-cuAy4luFrs7eJLT/W2G6seEJHciQJBKc6B0Lgww1rOh0zYmWTgUKLxweShol7tvXTUZVr76EeALncgu3ZsJp+g=="],
-
     "@sylphx/code-server/mime-types": ["mime-types@2.1.35", "", { "dependencies": { "mime-db": "1.52.0" } }, "sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw=="],
 
     "@sylphx/code-web/@sylphx/lens-client": ["@sylphx/lens-client@2.4.3", "", { "dependencies": { "@msgpack/msgpack": "^3.1.2", "@sylphx/lens-core": "^2.5.0", "@sylphx/reify": "^0.1.2" } }, "sha512-wZ+PytFyC9dFbBCV8WWhbavRySpdst+ohy8/KuW/4XY1kDDIqKqj8Zc7FFTmI+MDEmS40rOGAsAiQ/doIjfcoQ=="],
@@ -2131,8 +2130,6 @@
     "@sylphx/code-client/@sylphx/lens-react/@sylphx/lens-client": ["@sylphx/lens-client@2.3.1", "", { "dependencies": { "@msgpack/msgpack": "^3.1.2", "@sylphx/lens-core": "^2.2.0", "@sylphx/reify": "^0.1.2" } }, "sha512-GS/eAkODmaOpPyYhaVaZG9DNVAto/qMjZP/n2AHWfqK3AdYP//kXbCZDtjsatWqpvkSVSsZurGlZf0xIhN3OsA=="],
 
     "@sylphx/code-client/@sylphx/lens-react/@sylphx/lens-core": ["@sylphx/lens-core@2.2.0", "", { "dependencies": { "@sylphx/reify": "^0.1.2", "@sylphx/standard-entity": "^0.1.0" } }, "sha512-Zdtnj3ew2AmLgTIV6/b0qM3lFw5IvERcEA4Y3NSMi5Al8kXsaMemvnmMZbvFitq08jNKLXdfFep+x8TJrI2S6A=="],
-
-    "@sylphx/code-server/@sylphx/lens-server/@sylphx/lens-core": ["@sylphx/lens-core@2.5.0", "", { "dependencies": { "@sylphx/reify": "^0.1.2", "@sylphx/standard-entity": "^0.1.0" } }, "sha512-4V1q3meqCJO3ouOCfJtWwpbJDbPJJxCFnTtE2T6OSkmVdTBGYaIj7JVCreB/L5Qqxw8PgtmlodDwH4BCVUdoIw=="],
 
     "@sylphx/code-server/mime-types/mime-db": ["mime-db@1.52.0", "", {}, "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg=="],
 
