@@ -37,6 +37,18 @@ interface SessionStatus {
 	isActive: boolean;
 }
 
+/**
+ * SessionSuggestions - AI-generated action suggestions
+ */
+interface SessionSuggestions {
+	suggestions: Array<{
+		index: number;
+		text: string;
+		isStreaming: boolean;
+	}>;
+	isStreaming: boolean;
+}
+
 // =============================================================================
 // Helper Functions
 // =============================================================================
@@ -122,6 +134,82 @@ export const Session = model<LensContext>("Session").define((t) => ({
 					if (cancelled) break;
 					if (payload?.type === "session-updated" && payload.session?.status) {
 						emit(payload.session.status as SessionStatus);
+					}
+				}
+			})();
+
+			onCleanup(() => {
+				cancelled = true;
+			});
+		}),
+
+	// Live AI suggestions - uses Two-Phase Field Resolution (ADR-002)
+	// Suggestions are transient (not persisted), only exist during/after streaming
+	suggestions: t
+		.json<SessionSuggestions | null>()
+		.resolve(() => null)
+		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
+			const session = parent as { id: string };
+			const channel = getSessionChannel(session.id);
+			let cancelled = false;
+			let currentState: SessionSuggestions = { suggestions: [], isStreaming: false };
+
+			(async () => {
+				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+					if (cancelled) break;
+
+					switch (payload?.type) {
+						case "suggestions-start":
+							currentState = { suggestions: [], isStreaming: true };
+							emit(currentState);
+							break;
+
+						case "suggestion-start":
+							currentState = {
+								...currentState,
+								suggestions: [
+									...currentState.suggestions,
+									{ index: payload.index, text: "", isStreaming: true },
+								],
+							};
+							emit(currentState);
+							break;
+
+						case "suggestion-delta":
+							currentState = {
+								...currentState,
+								suggestions: currentState.suggestions.map((s) =>
+									s.index === payload.index
+										? { ...s, text: s.text + payload.text }
+										: s
+								),
+							};
+							emit(currentState);
+							break;
+
+						case "suggestion-end":
+							currentState = {
+								...currentState,
+								suggestions: currentState.suggestions.map((s) =>
+									s.index === payload.index
+										? { ...s, isStreaming: false }
+										: s
+								),
+							};
+							emit(currentState);
+							break;
+
+						case "suggestions-end":
+							currentState = {
+								...currentState,
+								isStreaming: false,
+								suggestions: currentState.suggestions.map((s) => ({
+									...s,
+									isStreaming: false,
+								})),
+							};
+							emit(currentState);
+							break;
 					}
 				}
 			})();

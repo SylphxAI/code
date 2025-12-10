@@ -161,3 +161,76 @@ const hideMessageUsageState = createState(false);
 export const setHideMessageUsage = hideMessageUsageState.set;
 export const getHideMessageUsage = hideMessageUsageState.get;
 export const useHideMessageUsage = () => useStore(hideMessageUsageState);
+
+// ============================================================================
+// AI Suggestions (from inline actions)
+// ============================================================================
+
+export interface Suggestion {
+	index: number;
+	text: string;
+	isStreaming: boolean;
+}
+
+export interface SuggestionsState {
+	suggestions: Suggestion[];
+	isStreaming: boolean;
+}
+
+const suggestionsState = createState<SuggestionsState>({
+	suggestions: [],
+	isStreaming: false,
+});
+
+export const setSuggestions = suggestionsState.set;
+export const getSuggestions = suggestionsState.get;
+export const useSuggestions = () => useStore(suggestionsState);
+
+// Helpers for streaming updates
+export const startSuggestionsStreaming = () => {
+	suggestionsState.set({ suggestions: [], isStreaming: true });
+};
+
+export const addSuggestion = (index: number) => {
+	const current = suggestionsState.get();
+	const existing = current.suggestions.find((s) => s.index === index);
+	if (!existing) {
+		suggestionsState.set({
+			...current,
+			suggestions: [...current.suggestions, { index, text: "", isStreaming: true }],
+		});
+	}
+};
+
+export const updateSuggestionText = (index: number, delta: string) => {
+	const current = suggestionsState.get();
+	suggestionsState.set({
+		...current,
+		suggestions: current.suggestions.map((s) =>
+			s.index === index ? { ...s, text: s.text + delta } : s
+		),
+	});
+};
+
+export const endSuggestion = (index: number) => {
+	const current = suggestionsState.get();
+	suggestionsState.set({
+		...current,
+		suggestions: current.suggestions.map((s) =>
+			s.index === index ? { ...s, isStreaming: false } : s
+		),
+	});
+};
+
+export const endSuggestionsStreaming = () => {
+	const current = suggestionsState.get();
+	suggestionsState.set({
+		...current,
+		isStreaming: false,
+		suggestions: current.suggestions.map((s) => ({ ...s, isStreaming: false })),
+	});
+};
+
+export const clearSuggestions = () => {
+	suggestionsState.set({ suggestions: [], isStreaming: false });
+};

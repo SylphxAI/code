@@ -90,24 +90,33 @@ export function createInlineActionDispatcher(
 			case "suggestions-start":
 				accumulatedSuggestions.clear();
 				emitSuggestionsStart(opts.observer);
+				// Publish to event stream for Lens Live Query
+				publishSuggestionEvent(opts, { type: "suggestions-start" });
 				break;
 			case "suggestion-start":
 				accumulatedSuggestions.set(action.index, "");
 				emitSuggestionStart(opts.observer, action.index);
+				publishSuggestionEvent(opts, { type: "suggestion-start", index: action.index });
 				break;
 			case "suggestion-delta":
 				{
 					const current = accumulatedSuggestions.get(action.index) ?? "";
 					accumulatedSuggestions.set(action.index, current + action.content);
 					emitSuggestionDelta(opts.observer, action.index, action.content);
+					publishSuggestionEvent(opts, {
+						type: "suggestion-delta",
+						index: action.index,
+						text: action.content,
+					});
 				}
 				break;
 			case "suggestion-end":
 				emitSuggestionEnd(opts.observer, action.index);
+				publishSuggestionEvent(opts, { type: "suggestion-end", index: action.index });
 				break;
 			case "suggestions-end":
 				emitSuggestionsEnd(opts.observer);
-				// Could persist suggestions here if needed
+				publishSuggestionEvent(opts, { type: "suggestions-end" });
 				break;
 
 			// Plain text outside tags - treat as message content
@@ -173,4 +182,20 @@ async function persistTitle(
 	} catch (error) {
 		console.error("[InlineActionDispatcher] Failed to persist title:", error);
 	}
+}
+
+/**
+ * Publish suggestion event to event stream (async, fire-and-forget)
+ * This enables Lens Live Query to receive suggestion updates
+ */
+function publishSuggestionEvent(
+	opts: InlineActionDispatcherOptions,
+	event: { type: string; index?: number; text?: string },
+): void {
+	// Fire and forget - don't await
+	opts.appContext.eventStream
+		.publish(`session-stream:${opts.sessionId}`, event)
+		.catch((error) => {
+			console.error("[InlineActionDispatcher] Failed to publish suggestion event:", error);
+		});
 }
