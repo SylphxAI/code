@@ -342,6 +342,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 							id: _userMessageId,
 							sessionId,
 							role: "user",
+							content: userMessageText, // Include content for synthetic step creation
 							timestamp: Date.now(),
 							status: "completed",
 							steps: [], // User messages typically have no steps initially
