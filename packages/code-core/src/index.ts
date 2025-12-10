@@ -413,6 +413,18 @@ export { scanProjectFiles } from "./utils/file-scanner.js";
 export { sendNotification } from "./utils/notifications.js";
 
 // ============================================================================
+// Retry Utilities
+// ============================================================================
+export {
+	retry,
+	retryDatabase,
+	retryNetwork,
+	isSQLiteBusyError,
+	isNetworkError,
+	type RetryOptions,
+} from "./utils/retry.js";
+
+// ============================================================================
 // Version
 // ============================================================================
 export const version = "0.1.0";

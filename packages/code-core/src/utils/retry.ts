@@ -95,33 +95,53 @@ export async function retry<T>(
 
 /**
  * Predicate: Check if error is SQLITE_BUSY
- * Checks error message, code, and nested cause for SQLITE_BUSY errors
+ * Checks error message, code, rawCode, and nested cause for SQLITE_BUSY errors
+ * Handles all SQLITE_BUSY variants: SQLITE_BUSY, SQLITE_BUSY_SNAPSHOT, SQLITE_BUSY_RECOVERY, etc.
  */
 export function isSQLiteBusyError(error: unknown): boolean {
 	if (!error || typeof error !== "object") {
 		return false;
 	}
 
-	// Check error message
-	if ("message" in error) {
-		const message = String(error.message);
+	const err = error as Record<string, unknown>;
+
+	// Check error message for SQLITE_BUSY substring
+	if ("message" in err) {
+		const message = String(err.message);
 		if (message.includes("SQLITE_BUSY") || message.includes("database is locked")) {
 			return true;
 		}
 	}
 
-	// Check error code
-	if ("code" in error && error.code === "SQLITE_BUSY") {
+	// Check error code for SQLITE_BUSY prefix (covers SQLITE_BUSY, SQLITE_BUSY_SNAPSHOT, etc.)
+	if ("code" in err && typeof err.code === "string" && err.code.startsWith("SQLITE_BUSY")) {
 		return true;
 	}
 
-	// Check nested cause (DrizzleQueryError -> LibsqlError)
-	if ("cause" in error && error.cause && typeof error.cause === "object") {
-		if ("code" in error.cause && error.cause.code === "SQLITE_BUSY") {
+	// Check rawCode (5 = SQLITE_BUSY, 517 = SQLITE_BUSY_SNAPSHOT)
+	if ("rawCode" in err) {
+		const rawCode = err.rawCode;
+		if (rawCode === 5 || rawCode === 517) {
 			return true;
 		}
+	}
+
+	// Check nested cause (DrizzleQueryError -> LibsqlError)
+	if ("cause" in err && err.cause && typeof err.cause === "object") {
+		const cause = err.cause as Record<string, unknown>;
+
+		// Check cause code with prefix matching
+		if ("code" in cause && typeof cause.code === "string" && cause.code.startsWith("SQLITE_BUSY")) {
+			return true;
+		}
+
+		// Check cause rawCode
+		if ("rawCode" in cause && (cause.rawCode === 5 || cause.rawCode === 517)) {
+			return true;
+		}
+
 		// Recursively check nested causes
-		if (isSQLiteBusyError(error.cause)) {
+		if (isSQLiteBusyError(err.cause)) {
 			return true;
 		}
 	}
