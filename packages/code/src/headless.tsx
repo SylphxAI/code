@@ -45,18 +45,18 @@ function HeadlessApp({ prompt, options }: HeadlessProps) {
 	// Use lens client hook
 	const client = useLensClient();
 
-	// Query hooks
-	const sessionQuery = client.getSession({
+	// Query hooks - use .useQuery() for React hook pattern
+	const sessionQuery = client.getSession.useQuery({
 		input: { id: sessionId || "" },
 		skip: !sessionId,
 	});
 
-	const lastSessionQuery = client.getLastSession({
+	const lastSessionQuery = client.getLastSession.useQuery({
 		skip: !options.continue,
 	});
 
-	// Mutation hooks
-	const { mutate: triggerStreamMutate } = client.triggerStream({});
+	// Mutation hooks - use .useMutation() for React hook pattern
+	const { mutate: triggerStreamMutate } = client.triggerStream.useMutation();
 
 	// Extract session from query
 	const session = sessionQuery.data;
