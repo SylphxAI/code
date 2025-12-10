@@ -287,6 +287,17 @@ export const listMessages = query()
 		const messageMap = new Map<string, number>(); // messageId → array index
 
 		(async () => {
+			// Initialize from DB to match .resolve() data
+			// This ensures we don't push duplicate messages
+			const initialMessages = await ctx.db.message.findMany({
+				where: { sessionId: input.sessionId },
+			});
+			for (const msg of initialMessages) {
+				const index = messages.length;
+				messages.push({ ...msg, steps: (msg as any).steps || [] });
+				messageMap.set(msg.id, index);
+			}
+
 			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
 				if (cancelled) break;
 
@@ -297,6 +308,10 @@ export const listMessages = query()
 					payload?.type === "user-message-created" ||
 					payload?.type === "assistant-message-created";
 				if (isMessageCreated && payload.message) {
+					// Check if message already exists (avoid duplicates)
+					if (messageMap.has(payload.message.id)) {
+						continue; // Skip duplicate
+					}
 					// Track the message for future updates
 					const index = messages.length;
 					const messageData = { ...payload.message, steps: payload.message.steps || [] };
