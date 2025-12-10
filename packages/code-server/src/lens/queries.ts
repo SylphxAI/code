@@ -1602,9 +1602,17 @@ export const getAskRequest = query()
 		const channel = `session-stream:${input.sessionId}`;
 		let cancelled = false;
 
+		// IMPORTANT: Track subscription start time to ignore replayed events
+		const subscriptionStartTime = Date.now();
+
 		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+			for await (const { payload, timestamp } of ctx.eventStream.subscribe(channel)) {
 				if (cancelled) break;
+
+				// Skip replayed events
+				if (timestamp && timestamp < subscriptionStartTime) {
+					continue;
+				}
 
 				if (payload?.type === "ask-created" && payload.askRequest) {
 					emit.replace(payload.askRequest);
