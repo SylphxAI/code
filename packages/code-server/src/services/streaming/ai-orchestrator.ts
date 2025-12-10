@@ -69,6 +69,19 @@ export interface OrchestrateStreamOptions {
 export interface PersistenceContext {
 	messageRepository: import("@sylphx/code-core").MessageRepository;
 	getStepId: () => string | null; // Get current step ID
+	/** Publish part update to event stream */
+	publishPartUpdate: (stepId: string, partIndex: number, part: import("@sylphx/code-core").MessagePart, force?: boolean) => Promise<void>;
+}
+
+/**
+ * Options for handling parsed text (text content with XML tags stripped)
+ * Used to persist clean content instead of raw AI output
+ */
+export interface ParsedTextHandler {
+	/** Called when parsed text content is available (XML tags stripped) */
+	onParsedText: (text: string) => void;
+	/** Get current accumulated parsed content for persistence */
+	getAccumulatedContent: () => string;
 }
 
 /**
@@ -88,6 +101,7 @@ export async function processAIStream(
 	tokenContext: TokenTrackingContext | null,
 	callbacks: StreamCallbacks,
 	persistence?: PersistenceContext, // NEW: Optional persistence during migration
+	parsedTextHandler?: ParsedTextHandler, // NEW: Handler for parsed text (XML tags stripped)
 ): Promise<{ finalUsage: any; finalFinishReason: string | undefined; hasError: boolean }> {
 	let finalUsage: any;
 	let finalFinishReason: string | undefined;
@@ -114,7 +128,17 @@ export async function processAIStream(
 					if (state.currentTextPartIndex !== null) {
 						const part = state.currentStepParts[state.currentTextPartIndex];
 						if (part && part.type === "text") {
-							part.content += chunk.text;
+							// NOTE: Call callback first - this triggers inline action parsing
+							// which accumulates PARSED text (without XML tags)
+							callbacks.onTextDelta?.(chunk.text);
+
+							// Use parsed content if available, otherwise fall back to raw
+							// parsedTextHandler is set when inline action parsing is enabled
+							if (parsedTextHandler) {
+								part.content = parsedTextHandler.getAccumulatedContent();
+							} else {
+								part.content += chunk.text;
+							}
 
 							// LENS: Write to database immediately (incremental streaming)
 							if (persistence) {
@@ -130,8 +154,6 @@ export async function processAIStream(
 							}
 						}
 						state.hasEmittedAnyEvent = true;
-						// NOTE: Only use callback - emitTextDelta() is called in callback
-						callbacks.onTextDelta?.(chunk.text);
 
 						// Update tokens in real-time (incremental)
 						if (tokenContext) {

@@ -31,6 +31,8 @@ export interface InlineActionDispatcherOptions {
 	sessionId: string;
 	sessionRepository: SessionRepository;
 	appContext: AppContext;
+	/** Callback when parsed text content is ready (for persistence) */
+	onParsedText?: (text: string) => void;
 }
 
 export interface InlineActionDispatcher {
@@ -65,6 +67,8 @@ export function createInlineActionDispatcher(
 				break;
 			case "message-delta":
 				emitTextDelta(opts.observer, action.content);
+				// Callback for persistence (text without XML tags)
+				opts.onParsedText?.(action.content);
 				break;
 			case "message-end":
 				// No-op: text-end already emitted by stream handler
@@ -122,6 +126,8 @@ export function createInlineActionDispatcher(
 			// Plain text outside tags - treat as message content
 			case "text-delta":
 				emitTextDelta(opts.observer, action.content);
+				// Callback for persistence (text outside tags)
+				opts.onParsedText?.(action.content);
 				break;
 		}
 	};

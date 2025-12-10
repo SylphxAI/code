@@ -34,6 +34,7 @@ import { calculateFinalTokens, initializeTokenTracking } from "../token-tracking
 import {
 	createStreamState,
 	orchestrateAIStream,
+	type ParsedTextHandler,
 	type PersistenceContext,
 	processAIStream,
 	type TokenTrackingContext,
@@ -475,12 +476,22 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					appContext: opts.appContext,
 				};
 
-				// 16. Create inline action dispatcher for parsing streaming XML tags
+				// 16. Create parsed text handler for accumulating text without XML tags
+				let accumulatedParsedText = "";
+				const parsedTextHandler: ParsedTextHandler = {
+					onParsedText: (text: string) => {
+						accumulatedParsedText += text;
+					},
+					getAccumulatedContent: () => accumulatedParsedText,
+				};
+
+				// 17. Create inline action dispatcher for parsing streaming XML tags
 				const inlineActionDispatcher: InlineActionDispatcher = createInlineActionDispatcher({
 					observer,
 					sessionId,
 					sessionRepository,
 					appContext: opts.appContext,
+					onParsedText: parsedTextHandler.onParsedText,
 				});
 
 				// 17. Create callbacks for stream processing
@@ -661,6 +672,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				}
 			};
 
+				// Reset accumulated parsed text for each step
+				accumulatedParsedText = "";
+
 				const stepResult = await processAIStream(
 					fullStream,
 					observer,
@@ -668,6 +682,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 					tokenContext,
 					callbacks,
 					persistence, // LENS: Pass persistence for incremental writes
+					parsedTextHandler, // Pass parsed text handler for XML tag stripping
 				);
 
 				// Update final results from this step
