@@ -3,22 +3,18 @@
  * Fetches messages for the current session using lens-react hooks
  * and converts them to SessionMessage format with steps and parts
  *
- * ARCHITECTURE: Event-Driven Refetch
- * ==================================
- * - Initial data fetched via listMessages.useQuery()
- * - Live updates via useEventStream -> refetch on message events
- * - Single Lens system: server emits events, client refetches
- *
- * Why refetch instead of pure live query:
- * - direct transport (in-process) doesn't support streaming subscriptions
- * - HTTP transport (web) requires WebSocket for true live queries
- * - Refetch is simple, reliable, and works with all transports
+ * ARCHITECTURE: Lens Live Query (v2.4.0+)
+ * ========================================
+ * - Message.steps uses .subscribe() in resolver
+ * - Step.parts uses .subscribe() in resolver
+ * - When client queries messages with steps/parts selected,
+ *   Lens auto-routes to streaming transport
+ * - No polling needed - live updates via ctx.emit()
  */
 
 import { useLensClient } from "@sylphx/code-client";
 import type { SessionMessage, MessageStep, MessagePart } from "@sylphx/code-core";
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useEventStream } from "./useEventStream.js";
+import { useMemo } from "react";
 
 /**
  * Convert server Part to client MessagePart format
@@ -100,41 +96,11 @@ function convertPart(part: Record<string, unknown>): MessagePart {
 export function useMessages(sessionId: string | null | undefined) {
 	const client = useLensClient();
 
-	// Ref to store refetch function (avoid stale closures in event callbacks)
-	const refetchRef = useRef<(() => void) | null>(null);
-
-	// Use lens-react query hook for initial data
+	// Use lens-react query hook
+	// Steps/parts fields use .subscribe() in resolver, so Lens auto-streams
 	const messagesQuery = client.listMessages.useQuery({
 		input: { sessionId: sessionId || "" },
 		skip: !sessionId,
-	});
-
-	// Store refetch in ref for event callbacks
-	useEffect(() => {
-		refetchRef.current = messagesQuery.refetch;
-	}, [messagesQuery.refetch]);
-
-	// Stable refetch callback for event handlers
-	const triggerRefetch = useCallback(() => {
-		if (refetchRef.current) {
-			refetchRef.current();
-		}
-	}, []);
-
-	// Subscribe to session events for live updates
-	// When message events occur, refetch to get latest data
-	useEventStream({
-		replayLast: 0, // Only new events, no replay needed
-		callbacks: {
-			// Refetch when new messages are created
-			onUserMessageCreated: triggerRefetch,
-			onAssistantMessageCreated: triggerRefetch,
-			onSystemMessageCreated: triggerRefetch,
-			// Refetch when message status changes (streaming complete)
-			onMessageStatusUpdated: triggerRefetch,
-			// Refetch when steps complete (content updated)
-			onStepComplete: triggerRefetch,
-		},
 	});
 
 	// Convert raw messages to SessionMessage format
