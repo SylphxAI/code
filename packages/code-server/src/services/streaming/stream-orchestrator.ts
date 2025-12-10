@@ -383,7 +383,9 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				const agents = opts.appContext.agentManager.getAll();
 				const enabledRuleIds = session.enabledRuleIds || [];
 				const enabledRules = opts.appContext.ruleManager.getEnabled(enabledRuleIds);
-				const systemPrompt = buildSystemPrompt(agentId, agents, enabledRules);
+				const systemPrompt = buildSystemPrompt(agentId, agents, enabledRules, {
+					enableInlineActions: true,
+				});
 
 				// 10. Create AI model (lazy-loaded SDK)
 				const model = await providerInstance.createClient(providerConfig, modelName);
