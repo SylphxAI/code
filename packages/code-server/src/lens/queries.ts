@@ -120,7 +120,7 @@ export const listSessions = query()
  * Get last session (for headless mode)
  */
 export const getLastSession = query()
-	.returns(Session)
+	.returns(nullable(Session))
 	.resolve(async ({ ctx }: { ctx: LensContext }) => {
 		const sessions = await ctx.db.session.findMany({
 			orderBy: { updatedAt: "desc" },
@@ -199,7 +199,7 @@ export const getSessionCount = query()
  */
 export const getMessage = query()
 	.input(z.object({ id: z.string() }))
-	.returns(Message)
+	.returns(nullable(Message))
 	.resolve(async ({ input, ctx }: { input: { id: string }; ctx: LensContext }) => {
 		return ctx.db.message.findUnique({ where: { id: input.id } });
 	});
@@ -302,7 +302,7 @@ export const getRecentUserMessages = query()
  */
 export const getStep = query()
 	.input(z.object({ id: z.string() }))
-	.returns(Step)
+	.returns(nullable(Step))
 	.resolve(async ({ input, ctx }: { input: { id: string }; ctx: LensContext }) => {
 		return ctx.db.step.findUnique({ where: { id: input.id } });
 	});
@@ -329,7 +329,7 @@ export const listSteps = query()
  */
 export const getPart = query()
 	.input(z.object({ id: z.string() }))
-	.returns(Part)
+	.returns(nullable(Part))
 	.resolve(async ({ input, ctx }: { input: { id: string }; ctx: LensContext }) => {
 		return ctx.db.part.findUnique({ where: { id: input.id } });
 	});
@@ -1081,7 +1081,7 @@ export const listAgents = query()
  */
 export const getAgent = query()
 	.input(z.object({ id: z.string(), cwd: z.string().optional() }))
-	.returns(Agent)
+	.returns(nullable(Agent))
 	.resolve(async ({ input }: { input: { id: string; cwd?: string } }) => {
 		const { loadAllAgents } = await import("@sylphx/code-core");
 		const cwd = input.cwd || process.cwd();
@@ -1151,7 +1151,7 @@ export const listRules = query()
  */
 export const getRule = query()
 	.input(z.object({ id: z.string(), cwd: z.string().optional() }))
-	.returns(Rule)
+	.returns(nullable(Rule))
 	.resolve(async ({ input }: { input: { id: string; cwd?: string } }) => {
 		const { loadAllRules } = await import("@sylphx/code-core");
 		const cwd = input.cwd || process.cwd();

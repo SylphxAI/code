@@ -120,7 +120,13 @@ export const updateSession = mutation()
 		});
 
 		// Publish event for live query subscribers
+		// Global channel for listSessions
 		await ctx.eventStream.publish("session-events", {
+			type: "session-updated",
+			session,
+		});
+		// Per-session channel for Session.status and subscribeSession
+		await ctx.eventStream.publish(`session-stream:${id}`, {
 			type: "session-updated",
 			session,
 		});
@@ -358,16 +364,27 @@ export const sendMessage = mutation()
 
 /**
  * Abort current stream
+ *
+ * Live: Publishes stream-aborted event for session subscribers
  */
 export const abortStream = mutation()
 	.input(z.object({ sessionId: z.string() }))
 	.returns(z.object({ success: z.boolean() }))
-	.resolve(async ({ input }: { input: { sessionId: string } }) => {
+	.resolve(async ({ input, ctx }: { input: { sessionId: string }; ctx: LensContext }) => {
 		const { abortStreamMutation } = await import(
 			"../services/streaming-mutations.service.js"
 		);
 
 		const success = abortStreamMutation(input.sessionId);
+
+		if (success) {
+			// Publish event for live query subscribers
+			await ctx.eventStream.publish(`session-stream:${input.sessionId}`, {
+				type: "stream-aborted",
+				sessionId: input.sessionId,
+			});
+		}
+
 		return { success };
 	});
 
@@ -717,7 +734,6 @@ export const setProviderSecret = mutation()
 /**
  * Execute bash command
  *
- * Optimistic: Client immediately sees new process via .optimistic("create")
  * Live: Publishes bash-created event for listBash subscribers
  */
 export const executeBash = mutation()
@@ -732,7 +748,6 @@ export const executeBash = mutation()
 		command: z.string(),
 		mode: z.string(),
 	}))
-	.optimistic("create")
 	.resolve(async ({ input, ctx }: { input: { command: string; mode?: "active" | "background"; cwd?: string; timeout?: number }; ctx: LensContext }) => {
 		const bashId = await ctx.appContext.bashManagerV2.execute(input.command, {
 			mode: input.mode || "active",
@@ -780,13 +795,11 @@ export const executeBash = mutation()
 /**
  * Kill bash process
  *
- * Optimistic: Client immediately updates process status via .optimistic("merge")
  * Live: Publishes bash-completed event for listBash/getBash subscribers
  */
 export const killBash = mutation()
 	.input(z.object({ bashId: z.string() }))
 	.returns(z.object({ success: z.boolean(), bashId: z.string() }))
-	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { bashId: string }; ctx: LensContext }) => {
 		const success = ctx.appContext.bashManagerV2.kill(input.bashId);
 		if (!success) {
@@ -814,13 +827,11 @@ export const killBash = mutation()
 /**
  * Demote active bash to background
  *
- * Optimistic: Client immediately updates mode via .optimistic("merge")
  * Live: Publishes bash-deactivated event for getActiveBash subscribers
  */
 export const demoteBash = mutation()
 	.input(z.object({ bashId: z.string() }))
 	.returns(z.object({ success: z.boolean(), bashId: z.string(), mode: z.string() }))
-	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { bashId: string }; ctx: LensContext }) => {
 		const success = ctx.appContext.bashManagerV2.demote(input.bashId);
 		if (!success) {
@@ -839,13 +850,11 @@ export const demoteBash = mutation()
 /**
  * Promote background bash to active
  *
- * Optimistic: Client immediately updates mode via .optimistic("merge")
  * Live: Publishes bash-activated event for getActiveBash subscribers
  */
 export const promoteBash = mutation()
 	.input(z.object({ bashId: z.string() }))
 	.returns(z.object({ success: z.boolean(), bashId: z.string(), mode: z.string() }))
-	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { bashId: string }; ctx: LensContext }) => {
 		const success = await ctx.appContext.bashManagerV2.promote(input.bashId);
 		if (!success) {
@@ -877,8 +886,6 @@ export const promoteBash = mutation()
 
 /**
  * Upload file
- *
- * Optimistic: Client immediately sees file info via .optimistic("create")
  */
 export const uploadFile = mutation()
 	.input(z.object({
@@ -888,7 +895,6 @@ export const uploadFile = mutation()
 		content: z.string(), // base64
 	}))
 	.returns(z.object({ fileId: z.string() }))
-	.optimistic("create")
 	.resolve(async ({ input, ctx }: { input: { relativePath: string; mediaType: string; size: number; content: string }; ctx: LensContext }) => {
 		const fileId = await ctx.appContext.fileStorage.upload({
 			relativePath: input.relativePath,
@@ -906,7 +912,6 @@ export const uploadFile = mutation()
 /**
  * Answer an ask request (user confirmation)
  *
- * Optimistic: Client immediately sees ask resolved via .optimistic("merge")
  * Live: Publishes ask-answered event for getAskRequest subscribers
  */
 export const answerAsk = mutation()
@@ -916,7 +921,6 @@ export const answerAsk = mutation()
 		answers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
 	}))
 	.returns(z.object({ success: z.boolean() }))
-	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { sessionId: string; questionId: string; answers: Record<string, string | string[]> }; ctx: LensContext }) => {
 		// Resolve the pending ask using the new ask manager
 		const { resolvePendingAsk } = await import("../services/ask-manager.service.js");
@@ -945,7 +949,6 @@ export const answerAsk = mutation()
  * Used for error messages, system info, etc.
  * Creates message in DB and updates session.
  *
- * Optimistic: Client immediately sees new message via .optimistic("create")
  * Live: Publishes message-created event for listMessages subscribers
  */
 export const addSystemMessage = mutation()
@@ -964,7 +967,6 @@ export const addSystemMessage = mutation()
 			messageId: z.string(),
 		}),
 	)
-	.optimistic("create")
 	.resolve(async ({ input, ctx }: {
 		input: {
 			sessionId?: string | null;
@@ -1157,7 +1159,6 @@ export const triggerStream = mutation()
 /**
  * Connect to MCP server
  *
- * Optimistic: Client immediately sees status change via .optimistic("merge")
  * Live: Publishes mcp-server-connected event for listMcpServers subscribers
  */
 export const connectMcpServer = mutation()
@@ -1171,7 +1172,6 @@ export const connectMcpServer = mutation()
 		toolCount: z.number().optional(),
 		error: z.string().optional(),
 	}))
-	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { serverId: string; cwd?: string }; ctx: LensContext }) => {
 		try {
 			// TODO: Implement MCP server connection via mcpManager
@@ -1209,7 +1209,6 @@ export const connectMcpServer = mutation()
 /**
  * Disconnect from MCP server
  *
- * Optimistic: Client immediately sees status change via .optimistic("merge")
  * Live: Publishes mcp-server-disconnected event for listMcpServers subscribers
  */
 export const disconnectMcpServer = mutation()
@@ -1220,7 +1219,6 @@ export const disconnectMcpServer = mutation()
 		success: z.boolean(),
 		serverId: z.string(),
 	}))
-	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { serverId: string }; ctx: LensContext }) => {
 		// TODO: Implement MCP server disconnection via mcpManager
 		// const mcpManager = ctx.appContext.mcpManager;
@@ -1245,7 +1243,6 @@ export const disconnectMcpServer = mutation()
 /**
  * Create credential
  *
- * Optimistic: Client immediately sees new credential via .optimistic("create")
  * Live: Publishes credential-created event for listCredentials subscribers
  */
 export const createCredential = mutation()
@@ -1261,7 +1258,6 @@ export const createCredential = mutation()
 		credentialId: z.string().optional(),
 		error: z.string().optional(),
 	}))
-	.optimistic("create")
 	.resolve(async ({ input, ctx }: { input: { providerId: string; label: string; apiKey: string; scope?: "global" | "project"; isDefault?: boolean }; ctx: LensContext }) => {
 		try {
 			const { createCredential: createCred } = await import("@sylphx/code-core");
@@ -1302,7 +1298,6 @@ export const createCredential = mutation()
 /**
  * Delete credential
  *
- * Optimistic: Client immediately removes credential via .optimistic("delete")
  * Live: Publishes credential-deleted event for listCredentials subscribers
  */
 export const deleteCredential = mutation()
@@ -1313,7 +1308,6 @@ export const deleteCredential = mutation()
 		success: z.boolean(),
 		error: z.string().optional(),
 	}))
-	.optimistic("delete")
 	.resolve(async ({ input, ctx }: { input: { credentialId: string }; ctx: LensContext }) => {
 		try {
 			const { deleteCredential: deleteCred } = await import("@sylphx/code-core");
@@ -1342,7 +1336,6 @@ export const deleteCredential = mutation()
 /**
  * Toggle tool enabled/disabled
  *
- * Optimistic: Client immediately sees toggle via .optimistic("merge")
  * Live: Publishes tool-toggled event for listTools subscribers
  */
 export const toggleTool = mutation()
@@ -1356,7 +1349,6 @@ export const toggleTool = mutation()
 		toolId: z.string(),
 		enabled: z.boolean(),
 	}))
-	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { toolId: string; enabled: boolean; sessionId?: string }; ctx: LensContext }) => {
 		// TODO: Implement tool toggle in session config or global config
 		// If sessionId provided, toggle per-session
@@ -1383,7 +1375,6 @@ export const toggleTool = mutation()
 /**
  * Toggle rule enabled/disabled for session
  *
- * Optimistic: Client immediately sees toggle via .optimistic("merge")
  * Live: Updates session's enabledRuleIds and publishes event
  */
 export const toggleRule = mutation()
@@ -1398,7 +1389,6 @@ export const toggleRule = mutation()
 		enabled: z.boolean(),
 		enabledRuleIds: z.array(z.string()),
 	}))
-	.optimistic("merge")
 	.resolve(async ({ input, ctx }: { input: { sessionId: string; ruleId: string; enabled: boolean }; ctx: LensContext }) => {
 		// Get current session
 		const session = await ctx.db.session.findUnique({

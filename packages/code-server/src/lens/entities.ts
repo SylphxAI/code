@@ -405,7 +405,7 @@ export const Step = model<LensContext>("Step").define((t) => ({
  * Types: text, reasoning, tool, error, file, file-ref, system-message
  * This entity matches the MessagePart discriminated union from code-core.
  */
-export const Part = model("Part", (t) => ({
+export const Part = model<LensContext>("Part").define((t) => ({
 	// Discriminator field (required for all parts)
 	type: t.string(), // 'text' | 'reasoning' | 'tool' | 'error' | 'file' | 'file-ref' | 'system-message'
 
@@ -447,7 +447,7 @@ export const Part = model("Part", (t) => ({
  * 1:1 relationship with Step.
  * Only assistant steps have usage data.
  */
-export const StepUsage = model("StepUsage", (t) => ({
+export const StepUsage = model<LensContext>("StepUsage").define((t) => ({
 	// Primary key (same as step ID)
 	stepId: t.id(),
 
@@ -590,7 +590,7 @@ export const BashProcess = model<LensContext>("BashProcess").define((t) => ({
  * Agents define different AI behaviors (coder, planner, etc.)
  * Can be builtin or user-defined.
  */
-export const Agent = model("Agent", (t) => ({
+export const Agent = model<LensContext>("Agent").define((t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'coder', 'planner', 'reviewer'
 
@@ -619,7 +619,7 @@ export const Agent = model("Agent", (t) => ({
  * Rules add content to system prompts for all agents.
  * Can be enabled/disabled per session.
  */
-export const Rule = model("Rule", (t) => ({
+export const Rule = model<LensContext>("Rule").define((t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'coding/typescript', 'style/concise'
 
@@ -919,7 +919,7 @@ export const Credential = model<LensContext>("Credential").define((t) => ({
  *
  * Stores metadata for uploaded files (images, documents, etc.)
  */
-export const File = model("File", (t) => ({
+export const File = model<LensContext>("File").define((t) => ({
 	// Primary key
 	id: t.id(), // File content ID
 
