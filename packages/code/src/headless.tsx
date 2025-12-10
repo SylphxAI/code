@@ -1,26 +1,27 @@
 /**
  * Headless Mode - Execute prompt and stream response
  *
- * ARCHITECTURE: lens-react hooks pattern
- * - Queries: client.queryName({ input, skip }) → { data, loading, error, refetch }
- * - Mutations: const { mutate } = client.mutationName({}) then call mutate({ input })
+ * ARCHITECTURE: Lens Live Query pattern
+ * - Uses listMessages.useQuery() which is a Live Query with .subscribe()
+ * - Server streams updates via emit.push() for new messages
+ * - Client receives live updates as messages are created/updated
  *
  * Data Flow:
  * 1. Load AI config and validate provider
- * 2. Create or get session
- * 3. client.getSession({ id }) subscribes to session data (hook)
- * 4. Call triggerStream mutation → Server starts streaming
- * 5. Server uses emit API → session.textContent updates automatically
- * 6. Print textContent delta to stdout
- * 7. Wait for session.streamingStatus === "idle"
- * 8. Exit process
+ * 2. Trigger streaming via mutation
+ * 3. Subscribe to listMessages Live Query
+ * 4. Server emits message-created events → client receives updates
+ * 5. Extract text content from messages and print to stdout
+ * 6. Wait for completion (session status === "idle")
+ * 7. Exit process
  */
 
 import { useLensClient } from "@sylphx/code-client";
 import { loadAIConfig } from "@sylphx/code-core";
 import chalk from "chalk";
 import { Box, Text, render } from "ink";
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
+import { useMessages } from "./hooks/client/useMessages.js";
 
 interface HeadlessOptions {
 	continue?: boolean;
@@ -34,7 +35,7 @@ interface HeadlessProps {
 
 /**
  * HeadlessApp - React component for headless mode
- * Uses lens-react hooks pattern
+ * Uses Lens Live Query pattern with listMessages
  */
 function HeadlessApp({ prompt, options }: HeadlessProps) {
 	const [error, setError] = useState<string | null>(null);
@@ -55,51 +56,73 @@ function HeadlessApp({ prompt, options }: HeadlessProps) {
 		skip: !options.continue,
 	});
 
+	// Use Live Query for messages - this is where streaming happens
+	const { messages } = useMessages(sessionId);
+
 	// Mutation hooks - use .useMutation() for React hook pattern
 	const { mutate: triggerStreamMutate } = client.triggerStream.useMutation();
 
 	// Extract session from query
 	const session = sessionQuery.data;
 
+	// Compute text content from messages
+	const textContent = useMemo(() => {
+		if (!messages || messages.length === 0) return "";
+
+		// Find the last assistant message
+		const assistantMessages = messages.filter(m => m.role === "assistant");
+		if (assistantMessages.length === 0) return "";
+
+		const lastMessage = assistantMessages[assistantMessages.length - 1];
+
+		// Extract text from all steps and parts
+		let text = "";
+		for (const step of lastMessage.steps || []) {
+			for (const part of step.parts || []) {
+				if (part.type === "text") {
+					text += part.content || "";
+				}
+			}
+		}
+		return text;
+	}, [messages]);
+
 	// Effect: Print new text content as it streams
 	useEffect(() => {
-		if (!session?.textContent) return;
+		if (!textContent) return;
 
-		const fullText = session.textContent;
-		const newText = fullText.slice(lastPrintedLengthRef.current);
+		const newText = textContent.slice(lastPrintedLengthRef.current);
 
 		if (newText) {
 			process.stdout.write(newText);
-			lastPrintedLengthRef.current = fullText.length;
+			lastPrintedLengthRef.current = textContent.length;
 		}
-	}, [session?.textContent]);
+	}, [textContent]);
 
 	// Effect: Handle completion and errors
 	useEffect(() => {
 		if (!session) return;
 
 		// Track if we've started streaming
-		if (session.streamingStatus === "streaming") {
+		if ((session as any).status === "streaming") {
 			wasStreamingRef.current = true;
 		}
 
 		// Handle error
-		if (session.streamingStatus === "error" && session.streamingError) {
-			console.error(chalk.red(`\n✗ Error: ${session.streamingError}`));
+		if ((session as any).status === "error") {
+			console.error(chalk.red(`\n✗ Error: Session error`));
 			process.exit(1);
 		}
 
-		// Stream completed (was streaming, now idle)
-		if (session.streamingStatus === "idle" && wasStreamingRef.current) {
+		// Stream completed (was streaming, now completed/idle)
+		const isCompleted = (session as any).status === "completed" || (session as any).status === "idle";
+		if (isCompleted && wasStreamingRef.current) {
 			if (options.verbose) {
 				console.error(chalk.dim(`\n\n[Complete]`));
-				if (session.totalTokens) {
-					console.error(chalk.dim(`Tokens: ${session.totalTokens}`));
-				}
 			}
 			process.exit(0);
 		}
-	}, [session?.streamingStatus, session?.streamingError, options.verbose]);
+	}, [(session as any)?.status, options.verbose]);
 
 	// Effect: Trigger streaming on mount
 	useEffect(() => {
