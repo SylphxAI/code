@@ -4,8 +4,24 @@
  */
 
 import { randomUUID } from "node:crypto";
-import type { SessionStatus, StreamCallbacks, Todo } from "@sylphx/code-core";
-import { buildSystemPrompt, getAISDKTools, getProvider } from "@sylphx/code-core";
+import type {
+	AIConfig,
+	MessagePart,
+	MessageRepository,
+	ProviderId,
+	Session,
+	SessionRepository as SessionRepositoryType,
+	SessionStatus,
+	StreamCallbacks,
+	Todo,
+} from "@sylphx/code-core";
+import {
+	buildModelMessages,
+	buildSystemPrompt,
+	DEFAULT_AGENT_ID,
+	getAISDKTools,
+	getProvider,
+} from "@sylphx/code-core";
 import { type Observable, observable } from "@trpc/server/observable";
 import {
 	createAbortNotificationMessage,
@@ -37,16 +53,167 @@ import {
 	emitToolError,
 	emitToolResult,
 } from "./event-emitter.js";
-import { buildFrozenContent } from "./file-handler.js";
-import { buildModelMessages } from "./message-builder.js";
-import { validateProvider } from "./provider-validator.js";
-import { ensureSession } from "./session-manager.js";
 import {
 	createSessionStatusManager,
 	type SessionStatusManager,
 } from "./session-status-manager.js";
 import { generateSessionTitle, needsTitleGeneration } from "./title-generator.js";
-import type { StreamAIResponseOptions, StreamEvent } from "./types.js";
+import type { ParsedContentPart, StreamAIResponseOptions, StreamEvent } from "./types.js";
+
+// ============================================================================
+// Provider Validator (inlined from provider-validator.ts)
+// ============================================================================
+
+interface ProviderValidationError {
+	type: "not-configured" | "invalid-credentials";
+	message: string;
+}
+
+/**
+ * Validate provider configuration for a session
+ * Returns error if provider is not configured or credentials are invalid
+ */
+function validateProvider(aiConfig: AIConfig, session: Session): ProviderValidationError | null {
+	const provider = session.provider;
+	const providerConfig = aiConfig?.providers?.[provider];
+
+	if (!providerConfig) {
+		return {
+			type: "not-configured",
+			message:
+				"[ERROR] Provider not configured\n\nPlease configure your provider using the /provider command.",
+		};
+	}
+
+	const providerInstance = getProvider(provider);
+	const isConfigured = providerInstance.isConfigured(providerConfig);
+
+	if (!isConfigured) {
+		return {
+			type: "invalid-credentials",
+			message: `[ERROR] ${providerInstance.name} is not properly configured\n\nPlease check your settings with the /provider command.`,
+		};
+	}
+
+	return null;
+}
+
+// ============================================================================
+// Session Manager (inlined from session-manager.ts)
+// ============================================================================
+
+/**
+ * Session result as discriminated union
+ * Prevents illegal states where sessionId exists but isNewSession=true
+ */
+type SessionResult =
+	| { type: "existing"; sessionId: string }
+	| { type: "new"; sessionId: string; provider: ProviderId; model: string };
+
+/**
+ * Create new session if sessionId is null, otherwise return existing sessionId
+ */
+async function ensureSession(
+	sessionRepository: SessionRepositoryType,
+	aiConfig: AIConfig,
+	sessionId: string | null,
+	provider?: ProviderId,
+	model?: string,
+	agentId?: string,
+): Promise<SessionResult> {
+	// Return existing session
+	if (sessionId) {
+		return { type: "existing", sessionId };
+	}
+
+	// Create new session
+	if (!provider || !model) {
+		throw new Error("Provider and model required when creating new session");
+	}
+
+	const providerConfig = aiConfig?.providers?.[provider];
+
+	if (!providerConfig) {
+		throw new Error("Provider not configured. Please configure your provider using settings.");
+	}
+
+	// Create session in database
+	const effectiveAgentId = agentId || DEFAULT_AGENT_ID;
+	const newSession = await sessionRepository.createSession(provider, model, effectiveAgentId);
+
+	return {
+		type: "new",
+		sessionId: newSession.id,
+		provider,
+		model,
+	};
+}
+
+// ============================================================================
+// File Handler (inlined from file-handler.ts)
+// ============================================================================
+
+/**
+ * Fetch file content from storage (ChatGPT-style architecture)
+ * Files uploaded immediately on paste/select, only fileId reference sent
+ */
+async function buildFrozenContent(
+	userMessageContent: ParsedContentPart[] | null | undefined,
+	messageRepository: MessageRepository,
+): Promise<MessagePart[]> {
+	const frozenContent: MessagePart[] = [];
+
+	if (!userMessageContent) {
+		return frozenContent;
+	}
+
+	for (const part of userMessageContent) {
+		if (part.type === "text") {
+			frozenContent.push({
+				type: "text",
+				content: part.content,
+				status: "completed",
+			});
+		} else if (part.type === "file") {
+			try {
+				// Fetch file content from object storage using fileId
+				const fileRepo = messageRepository.getFileRepository();
+				const fileRecord = await fileRepo.getFileContent(part.fileId);
+
+				if (!fileRecord) {
+					throw new Error(`File not found in storage: ${part.fileId}`);
+				}
+
+				// Convert Buffer to base64 for MessagePart
+				const base64Data = fileRecord.content.toString("base64");
+
+				// Create file part (will be migrated to file-ref by addMessage)
+				frozenContent.push({
+					type: "file",
+					relativePath: part.relativePath,
+					size: part.size,
+					mediaType: part.mimeType,
+					base64: base64Data, // Temporary - will be moved to file_contents
+					status: "completed",
+				});
+			} catch (error) {
+				// File fetch failed - save error
+				console.error("[FileHandler] File fetch failed:", error);
+				frozenContent.push({
+					type: "error",
+					error: `Failed to fetch file: ${part.relativePath}`,
+					status: "completed",
+				});
+			}
+		}
+	}
+
+	return frozenContent;
+}
+
+// ============================================================================
+// Stream Orchestrator
+// ============================================================================
 
 const STREAM_TIMEOUT_MS = 45000; // 45 seconds
 
