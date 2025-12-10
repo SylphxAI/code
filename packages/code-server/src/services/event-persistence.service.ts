@@ -30,6 +30,35 @@ export interface StoredEvent<T = any> {
 }
 
 /**
+ * Check if error is a SQLite busy error (includes SQLITE_BUSY, SQLITE_BUSY_SNAPSHOT, etc.)
+ */
+function isSqliteBusyError(error: any): boolean {
+	// Check error code (string form like "SQLITE_BUSY_SNAPSHOT")
+	const code = error?.code || "";
+	const causeCode = error?.cause?.code || "";
+
+	// Check for SQLITE_BUSY prefix in code (covers SQLITE_BUSY, SQLITE_BUSY_SNAPSHOT, SQLITE_BUSY_RECOVERY, etc.)
+	if (code.startsWith?.("SQLITE_BUSY") || causeCode.startsWith?.("SQLITE_BUSY")) {
+		return true;
+	}
+
+	// Check raw SQLite error codes: 5 = SQLITE_BUSY, 517 = SQLITE_BUSY_SNAPSHOT (5 | 512)
+	const rawCode = error?.rawCode || error?.cause?.rawCode;
+	if (rawCode === 5 || rawCode === 517) {
+		return true;
+	}
+
+	// Check message for SQLITE_BUSY substring
+	const message = error?.message || "";
+	const causeMessage = error?.cause?.message || "";
+	if (message.includes("SQLITE_BUSY") || causeMessage.includes("SQLITE_BUSY")) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
  * Retry helper for handling SQLITE_BUSY errors
  * Exponential backoff: 50ms, 100ms, 200ms, 400ms, 800ms
  */
@@ -42,14 +71,7 @@ async function retryOnBusy<T>(operation: () => Promise<T>, maxRetries = 5): Prom
 		} catch (error: any) {
 			lastError = error;
 
-			// Check for SQLITE_BUSY in error or nested cause
-			const isBusy =
-				error.message?.includes("SQLITE_BUSY") ||
-				error.code === "SQLITE_BUSY" ||
-				error.cause?.code === "SQLITE_BUSY" ||
-				error.cause?.message?.includes("SQLITE_BUSY");
-
-			if (isBusy) {
+			if (isSqliteBusyError(error)) {
 				const delay = 50 * 2 ** attempt;
 				await new Promise((resolve) => setTimeout(resolve, delay));
 				continue;
