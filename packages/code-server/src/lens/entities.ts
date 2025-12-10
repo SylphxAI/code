@@ -5,7 +5,7 @@
  * Entity names are derived from export keys (e.g., `export const Session` → "Session")
  *
  * Architecture (lens-core 2.6.0+):
- * - entity() with builder pattern: entity<Context>("Name").define((t) => ({ ... }))
+ * - model() with builder pattern: entity<Context>("Name").define((t) => ({ ... }))
  * - Two-Phase Field Resolution (ADR-002):
  *   - .resolve() for initial value (batchable with DataLoader)
  *   - .subscribe() returns publisher function for live updates
@@ -20,7 +20,7 @@
  * - StepUsage (1:1) → Step
  */
 
-import { entity } from "@sylphx/lens-core";
+import { model } from "@sylphx/lens-core";
 import type { Resolvers } from "@sylphx/lens-core";
 import type { LensContext } from "./context.js";
 
@@ -406,7 +406,7 @@ export const Step = entity<LensContext>("Step").define((t) => ({
  * Types: text, reasoning, tool, error, file, file-ref, system-message
  * This entity matches the MessagePart discriminated union from code-core.
  */
-export const Part = entity("Part", (t) => ({
+export const Part = model("Part", (t) => ({
 	// Discriminator field (required for all parts)
 	type: t.string(), // 'text' | 'reasoning' | 'tool' | 'error' | 'file' | 'file-ref' | 'system-message'
 
@@ -448,7 +448,7 @@ export const Part = entity("Part", (t) => ({
  * 1:1 relationship with Step.
  * Only assistant steps have usage data.
  */
-export const StepUsage = entity("StepUsage", (t) => ({
+export const StepUsage = model("StepUsage", (t) => ({
 	// Primary key (same as step ID)
 	stepId: t.id(),
 
@@ -591,7 +591,7 @@ export const BashProcess = entity<LensContext>("BashProcess").define((t) => ({
  * Agents define different AI behaviors (coder, planner, etc.)
  * Can be builtin or user-defined.
  */
-export const Agent = entity("Agent", (t) => ({
+export const Agent = model("Agent", (t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'coder', 'planner', 'reviewer'
 
@@ -620,7 +620,7 @@ export const Agent = entity("Agent", (t) => ({
  * Rules add content to system prompts for all agents.
  * Can be enabled/disabled per session.
  */
-export const Rule = entity("Rule", (t) => ({
+export const Rule = model("Rule", (t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'coding/typescript', 'style/concise'
 
@@ -920,7 +920,7 @@ export const Credential = entity<LensContext>("Credential").define((t) => ({
  *
  * Stores metadata for uploaded files (images, documents, etc.)
  */
-export const File = entity("File", (t) => ({
+export const File = model("File", (t) => ({
 	// Primary key
 	id: t.id(), // File content ID
 

@@ -8,6 +8,7 @@
  */
 
 import { query } from "./builders.js";
+import { nullable } from "@sylphx/lens-core";
 import { z } from "zod";
 import {
 	Session,
@@ -1453,7 +1454,7 @@ export const listCredentials = query()
  */
 export const getAskRequest = query()
 	.input(z.object({ sessionId: z.string() }))
-	.returns(AskRequest.nullable())
+	.returns(nullable(AskRequest))
 	.resolve(async ({ input, ctx }: { input: { sessionId: string }; ctx: LensContext }) => {
 		// Get pending ask requests for this session
 		const asks = await ctx.db.askRequest.findMany({

@@ -836,11 +836,9 @@ export function createLensServer(appContext: AppContext) {
 	const db = createDatabaseAdapter(appContext);
 	const eventStream = createEventStreamAdapter(appContext);
 
-	// Entities have inline resolvers - automatically extracted by createApp
+	// Auto-tracking: models auto-collected from router (lens-server 2.10.0+)
 	const app = createApp({
-		entities,
-		queries,
-		mutations,
+		router: appRouter,
 		plugins, // Optimistic updates, etc.
 		context: async () => {
 			// Context factory - called for each request
