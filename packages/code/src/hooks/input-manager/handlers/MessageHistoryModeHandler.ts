@@ -115,29 +115,12 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 
 				if (historyIndex === -1) {
 					// First time going up - save current input and attachments
-					console.log("[MessageHistory] First up - saving current:", {
-						input: input.substring(0, 50),
-						attachments: pendingAttachments.length,
-					});
 					setTempInput(input);
 					setTempAttachments(pendingAttachments);
 					const newIndex = messageHistory.length - 1;
 					const entry = messageHistory[newIndex];
-					if (!entry) return;
-					console.log("[MessageHistory] Loading entry:", {
-						index: newIndex,
-						text: entry.input.substring(0, 50),
-						attachments: entry.attachments?.length ?? 0,
-					});
-					if (entry.attachments && entry.attachments.length > 0) {
-						const firstAttachment = entry.attachments[0];
-						if (firstAttachment) {
-							console.log("[MessageHistory] First attachment:", {
-								relativePath: firstAttachment.relativePath,
-								type: firstAttachment.type,
-							});
-						}
-					}
+					// Defensive check: entry must exist and have valid input
+					if (!entry || typeof entry.input !== "string") return;
 					setHistoryIndex(newIndex);
 					setInput(entry.input);
 					setPendingAttachments(entry.attachments ?? []);
@@ -146,12 +129,8 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 					// Navigate up in history
 					const newIndex = historyIndex - 1;
 					const entry = messageHistory[newIndex];
-					if (!entry) return;
-					console.log("[MessageHistory] Navigate up:", {
-						newIndex,
-						text: entry.input.substring(0, 50),
-						attachments: entry.attachments?.length ?? 0,
-					});
+					// Defensive check: entry must exist and have valid input
+					if (!entry || typeof entry.input !== "string") return;
 					setHistoryIndex(newIndex);
 					setInput(entry.input);
 					setPendingAttachments(entry.attachments ?? []);
@@ -177,7 +156,8 @@ export class MessageHistoryModeHandler extends BaseInputHandler {
 					// Navigate down in history
 					const newIndex = historyIndex + 1;
 					const entry = messageHistory[newIndex];
-					if (!entry) return;
+					// Defensive check: entry must exist and have valid input
+					if (!entry || typeof entry.input !== "string") return;
 					setHistoryIndex(newIndex);
 					setInput(entry.input);
 					setPendingAttachments(entry.attachments ?? []);

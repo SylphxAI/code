@@ -69,26 +69,29 @@ export function useInputState(): InputState {
 		}>;
 
 		// Convert DB messages to MessageHistoryEntry format (ChatGPT-style fileId architecture)
-		const entries: MessageHistoryEntry[] = messages.map(
-			(msg: {
-				text: string;
-				files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }>;
-			}) => {
-				// Convert DB files to attachment format (with fileId, no content)
-				const attachments = msg.files.map((file) => ({
-					fileId: file.fileId, // Reference to uploaded file in object storage
-					relativePath: file.relativePath,
-					size: file.size,
-					mimeType: file.mediaType,
-					type: (file.mediaType.startsWith("image/") ? "image" : "file") as "file" | "image",
-				}));
+		// Filter out malformed entries (text must be a valid string)
+		const entries: MessageHistoryEntry[] = messages
+			.filter((msg: any) => msg && typeof msg.text === "string")
+			.map(
+				(msg: {
+					text: string;
+					files: Array<{ fileId: string; relativePath: string; mediaType: string; size: number }>;
+				}) => {
+					// Convert DB files to attachment format (with fileId, no content)
+					const attachments = (msg.files || []).map((file) => ({
+						fileId: file.fileId, // Reference to uploaded file in object storage
+						relativePath: file.relativePath,
+						size: file.size,
+						mimeType: file.mediaType,
+						type: (file.mediaType?.startsWith("image/") ? "image" : "file") as "file" | "image",
+					}));
 
-				return {
-					input: msg.text,
-					attachments,
-				};
-			},
-		);
+					return {
+						input: msg.text,
+						attachments,
+					};
+				},
+			);
 
 		// Reverse to get oldest-first order (for bash-like navigation)
 		setMessageHistorySignal(entries.reverse());
