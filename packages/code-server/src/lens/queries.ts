@@ -309,11 +309,30 @@ export const listMessages = query()
 					}
 				}
 
-				// Handle message-status-updated: update message status
+				// Handle message-status-updated: update message status (legacy)
 				if (payload?.type === "message-status-updated" && payload.messageId) {
 					const index = messageMap.get(payload.messageId);
 					if (index !== undefined) {
 						messages[index].status = payload.status;
+						emit.replace([...messages]);
+					}
+				}
+
+				// Handle message-updated: update message fields (status, usage, finishReason)
+				// Emitted by updateMessageStatus() in message-persistence.service.ts
+				if (payload?.type === "message-updated" && payload.messageId && payload.message) {
+					const index = messageMap.get(payload.messageId);
+					if (index !== undefined) {
+						// Merge updated fields into existing message
+						if (payload.message.status !== undefined) {
+							messages[index].status = payload.message.status;
+						}
+						if (payload.message.usage !== undefined) {
+							messages[index].usage = payload.message.usage;
+						}
+						if (payload.message.finishReason !== undefined) {
+							messages[index].finishReason = payload.message.finishReason;
+						}
 						emit.replace([...messages]);
 					}
 				}

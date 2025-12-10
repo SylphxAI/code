@@ -577,6 +577,18 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 								observer,
 							);
 
+							// Publish message-updated event to EventStream for Live Query subscribers
+							await opts.appContext.eventStream.publish(`session-stream:${sessionId}`, {
+								type: "message-updated",
+								messageId: assistantMessageId,
+								message: {
+									id: assistantMessageId,
+									status: previousStatus,
+									usage: finalUsage,
+									finishReason: finalFinishReason,
+								},
+							});
+
 							// Create NEW assistant message for the new response
 							// This is a separate conversation turn after queue injection
 							assistantMessageId = await createAssistantMessage(
@@ -678,6 +690,19 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				observer,
 			);
 
+			// 22b. Publish message-updated event to EventStream for Live Query subscribers
+			// This enables listMessages Live Query to update msg.status and stop the AnimatedIndicator
+			await opts.appContext.eventStream.publish(`session-stream:${sessionId}`, {
+				type: "message-updated",
+				messageId: assistantMessageId,
+				message: {
+					id: assistantMessageId,
+					status: finalStatus,
+					usage: finalUsage,
+					finishReason: finalFinishReason,
+				},
+			});
+
 			// 23. Create abort notification message if needed
 			if (finalStatus === "abort") {
 				await createAbortNotificationMessage(sessionId, aiConfig, messageRepository, observer);
@@ -733,7 +758,7 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 				if (isAbortError) {
 					// For abort errors: update message status to trigger cleanup, but don't emit error event
 					// Only if assistantMessageId was created (error occurred after message creation)
-					if (assistantMessageId) {
+					if (assistantMessageId && sessionId) {
 						await updateMessageStatus(
 							assistantMessageId,
 							"abort",
@@ -742,6 +767,16 @@ export function streamAIResponse(opts: StreamAIResponseOptions): Observable<Stre
 							opts.messageRepository,
 							observer,
 						);
+
+						// Publish message-updated event to EventStream for Live Query subscribers
+						await opts.appContext.eventStream.publish(`session-stream:${sessionId}`, {
+							type: "message-updated",
+							messageId: assistantMessageId,
+							message: {
+								id: assistantMessageId,
+								status: "abort",
+							},
+						});
 					}
 					// If message not created yet, just complete silently
 				} else {
