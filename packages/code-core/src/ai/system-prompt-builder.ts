@@ -21,26 +21,27 @@ Structure your response using these tags:
 Your response content here. Use markdown formatting as normal.
 </message>
 
-### Session Title (Optional)
+### Session Title
 <title>Short, descriptive title</title>
+- ALWAYS include on your first response to set the session title
 - Update when conversation topic shifts significantly
 - Keep titles concise (3-7 words)
-- Only include when title should change
+- Examples: "React Auth Setup", "Debug API Error", "Python Script Help"
 
-### Suggestions (Optional)
+### Suggestions
 <suggestions>
 <s>Suggested action 1</s>
 <s>Suggested action 2</s>
 </suggestions>
-- Provide 2-4 actionable next steps
-- Keep each suggestion brief
-- Only include when there are clear next actions
+- Provide 2-4 actionable next steps the user might want to take
+- Keep each suggestion brief (under 8 words)
+- Include on most responses to guide the conversation
 
 ### Rules
-- <message> is required for every response
-- Other tags are optional
+- <message> is REQUIRED for every response
+- <title> is REQUIRED on your first response, optional after
+- <suggestions> should be included when there are clear next actions
 - Tags can appear in any order
-- Plain text without tags also works (treated as message content)
 `;
 
 /**

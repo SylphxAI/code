@@ -89,7 +89,7 @@ function isStepEvent(payload: { type?: string }): boolean {
  * Messages are loaded via relations, not embedded.
  * Status field uses Two-Phase Resolution for live streaming updates.
  */
-export const Session = model<LensContext>("Session").define((t) => ({
+export const Session = model<LensContext>("Session", (t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -116,108 +116,11 @@ export const Session = model<LensContext>("Session").define((t) => ({
 	baseContextTokens: t.int().optional(),
 	totalTokens: t.int().optional(),
 
-	// Live streaming status - uses Two-Phase Field Resolution (ADR-002)
-	// Phase 1: .resolve() returns initial value (null - status only exists during streaming)
-	// Phase 2: .subscribe() returns publisher for live updates
-	status: t
-		.json<SessionStatus | null>()
-		.resolve(() => null)
-		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
-			// Phase 2: Publisher pattern - set up live subscription
-			const session = parent as { id: string };
-			const channel = getSessionChannel(session.id);
-			let cancelled = false;
+	// Live streaming status - transient, not in DB
+	status: t.json<SessionStatus | null>(),
 
-			// Subscribe to session-updated events
-			(async () => {
-				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-					if (cancelled) break;
-					if (payload?.type === "session-updated" && payload.session?.status) {
-						emit(payload.session.status as SessionStatus);
-					}
-				}
-			})();
-
-			onCleanup(() => {
-				cancelled = true;
-			});
-		}),
-
-	// Live AI suggestions - uses Two-Phase Field Resolution (ADR-002)
-	// Suggestions are transient (not persisted), only exist during/after streaming
-	suggestions: t
-		.json<SessionSuggestions | null>()
-		.resolve(() => null)
-		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
-			const session = parent as { id: string };
-			const channel = getSessionChannel(session.id);
-			let cancelled = false;
-			let currentState: SessionSuggestions = { suggestions: [], isStreaming: false };
-
-			(async () => {
-				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-					if (cancelled) break;
-
-					switch (payload?.type) {
-						case "suggestions-start":
-							currentState = { suggestions: [], isStreaming: true };
-							emit(currentState);
-							break;
-
-						case "suggestion-start":
-							currentState = {
-								...currentState,
-								suggestions: [
-									...currentState.suggestions,
-									{ index: payload.index, text: "", isStreaming: true },
-								],
-							};
-							emit(currentState);
-							break;
-
-						case "suggestion-delta":
-							currentState = {
-								...currentState,
-								suggestions: currentState.suggestions.map((s) =>
-									s.index === payload.index
-										? { ...s, text: s.text + payload.text }
-										: s
-								),
-							};
-							emit(currentState);
-							break;
-
-						case "suggestion-end":
-							currentState = {
-								...currentState,
-								suggestions: currentState.suggestions.map((s) =>
-									s.index === payload.index
-										? { ...s, isStreaming: false }
-										: s
-								),
-							};
-							emit(currentState);
-							break;
-
-						case "suggestions-end":
-							currentState = {
-								...currentState,
-								isStreaming: false,
-								suggestions: currentState.suggestions.map((s) => ({
-									...s,
-									isStreaming: false,
-								})),
-							};
-							emit(currentState);
-							break;
-					}
-				}
-			})();
-
-			onCleanup(() => {
-				cancelled = true;
-			});
-		}),
+	// Live AI suggestions - transient, not in DB
+	suggestions: t.json<SessionSuggestions | null>(),
 
 	// Message queue (for queuing during streaming)
 	messageQueue: t.json().optional(), // QueuedMessage[]
@@ -230,116 +133,224 @@ export const Session = model<LensContext>("Session").define((t) => ({
 	updated: t.int(),
 	lastAccessedAt: t.int().optional(),
 
-	// ==========================================================================
-	// Relations (GraphQL-style nested selection)
-	// ==========================================================================
+	// Relations
+	messages: t.many(() => Message),
+	todos: t.many(() => Todo),
+	askRequests: t.many(() => AskRequest),
+}))
+.resolve({
+	// Title: resolve from source (DB row)
+	title: ({ source }) => (source as { title?: string }).title,
 
-	// Session → Message (1:N)
-	// Enables: session { messages { steps { parts } } }
-	messages: t
-		.many(() => Message)
-		.resolve(async ({ parent, ctx }) => {
-			const session = parent as { id: string };
-			return ctx.db.message.findMany({
-				where: { sessionId: session.id },
-			});
-		})
-		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
-			const session = parent as { id: string };
-			const channel = getSessionChannel(session.id);
-			let cancelled = false;
+	// Status: transient, starts null
+	status: () => null,
 
-			(async () => {
-				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-					if (cancelled) break;
-					// Handle message-created events (all variants): push new message to list
-					// Streaming service emits: user-message-created, assistant-message-created
-					// Mutations emit: message-created
-					const isMessageCreated = payload?.type === "message-created" ||
-						payload?.type === "user-message-created" ||
-						payload?.type === "assistant-message-created";
-					if (isMessageCreated && payload.message) {
-						emit.push(payload.message);
-					}
-					if (payload?.type === "message-status-updated" && payload.messageId) {
-						emit.patch([
-							{ op: "replace", path: `/${payload.index}/status`, value: payload.status },
-						]);
-					}
+	// Suggestions: transient, starts null
+	suggestions: () => null,
+
+	// Messages: load from DB
+	messages: async ({ source, ctx }) => {
+		const session = source as { id: string };
+		return ctx.db.message.findMany({
+			where: { sessionId: session.id },
+		});
+	},
+
+	// Todos: load from DB
+	todos: async ({ source, ctx }) => {
+		const session = source as { id: string };
+		return ctx.db.todo.findMany({
+			where: { sessionId: session.id },
+		});
+	},
+
+	// AskRequests: load from DB
+	askRequests: async ({ source, ctx }) => {
+		const session = source as { id: string };
+		return ctx.db.askRequest.findMany({
+			where: { sessionId: session.id },
+		});
+	},
+})
+.subscribe({
+	// Title: live updates
+	title: ({ source, ctx }) => ({ emit, onCleanup }) => {
+		const session = source as { id: string };
+		const channel = getSessionChannel(session.id);
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				if (payload?.type === "session-title-updated" && payload.title) {
+					emit(payload.title as string);
 				}
-			})();
+			}
+		})();
 
-			onCleanup(() => { cancelled = true; });
-		}),
+		onCleanup(() => { cancelled = true; });
+	},
 
-	// Session → Todo (1:N)
-	// Enables: session { todos { content, status } }
-	todos: t
-		.many(() => Todo)
-		.resolve(async ({ parent, ctx }) => {
-			const session = parent as { id: string };
-			return ctx.db.todo.findMany({
-				where: { sessionId: session.id },
-			});
-		})
-		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
-			const session = parent as { id: string };
-			const channel = getSessionChannel(session.id);
-			let cancelled = false;
+	// Status: live updates
+	status: ({ source, ctx }) => ({ emit, onCleanup }) => {
+		const session = source as { id: string };
+		const channel = getSessionChannel(session.id);
+		let cancelled = false;
 
-			(async () => {
-				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-					if (cancelled) break;
-					if (payload?.type === "todo-created" && payload.todo) {
-						emit.push(payload.todo);
-					}
-					if (payload?.type === "todo-updated" && payload.todo) {
-						emit.patch([
-							{ op: "replace", path: `/${payload.index}`, value: payload.todo },
-						]);
-					}
-					if (payload?.type === "todo-deleted" && payload.todoId) {
-						emit.pull({ id: payload.todoId });
-					}
-					if (payload?.type === "todos-synced" && payload.todos) {
-						emit.replace(payload.todos);
-					}
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				if (payload?.type === "session-updated" && payload.session?.status) {
+					emit(payload.session.status as SessionStatus);
 				}
-			})();
+			}
+		})();
 
-			onCleanup(() => { cancelled = true; });
-		}),
+		onCleanup(() => { cancelled = true; });
+	},
 
-	// Session → AskRequest (1:N)
-	// Enables: session { askRequests { questions, status } }
-	askRequests: t
-		.many(() => AskRequest)
-		.resolve(async ({ parent, ctx }) => {
-			const session = parent as { id: string };
-			return ctx.db.askRequest.findMany({
-				where: { sessionId: session.id },
-			});
-		})
-		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
-			const session = parent as { id: string };
-			const channel = getSessionChannel(session.id);
-			let cancelled = false;
+	// Suggestions: live updates with stateful accumulation
+	suggestions: ({ source, ctx }) => ({ emit, onCleanup }) => {
+		const session = source as { id: string };
+		const channel = getSessionChannel(session.id);
+		let cancelled = false;
+		let currentState: SessionSuggestions = { suggestions: [], isStreaming: false };
 
-			(async () => {
-				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-					if (cancelled) break;
-					if (payload?.type === "ask-created" && payload.askRequest) {
-						emit.push(payload.askRequest);
-					}
-					if (payload?.type === "ask-answered" && payload.askRequestId) {
-						emit.pull({ id: payload.askRequestId });
-					}
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+
+				switch (payload?.type) {
+					case "suggestions-start":
+						currentState = { suggestions: [], isStreaming: true };
+						emit(currentState);
+						break;
+					case "suggestion-start":
+						currentState = {
+							...currentState,
+							suggestions: [
+								...currentState.suggestions,
+								{ index: payload.index, text: "", isStreaming: true },
+							],
+						};
+						emit(currentState);
+						break;
+					case "suggestion-delta":
+						currentState = {
+							...currentState,
+							suggestions: currentState.suggestions.map((s) =>
+								s.index === payload.index
+									? { ...s, text: s.text + payload.text }
+									: s
+							),
+						};
+						emit(currentState);
+						break;
+					case "suggestion-end":
+						currentState = {
+							...currentState,
+							suggestions: currentState.suggestions.map((s) =>
+								s.index === payload.index
+									? { ...s, isStreaming: false }
+									: s
+							),
+						};
+						emit(currentState);
+						break;
+					case "suggestions-end":
+						currentState = {
+							...currentState,
+							isStreaming: false,
+							suggestions: currentState.suggestions.map((s) => ({
+								...s,
+								isStreaming: false,
+							})),
+						};
+						emit(currentState);
+						break;
 				}
-			})();
+			}
+		})();
 
-			onCleanup(() => { cancelled = true; });
-		}),
-}));
+		onCleanup(() => { cancelled = true; });
+	},
+
+	// Messages: live updates
+	messages: ({ source, ctx }) => ({ emit, onCleanup }) => {
+		const session = source as { id: string };
+		const channel = getSessionChannel(session.id);
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				const isMessageCreated = payload?.type === "message-created" ||
+					payload?.type === "user-message-created" ||
+					payload?.type === "assistant-message-created";
+				if (isMessageCreated && payload.message) {
+					emit.push(payload.message);
+				}
+				if (payload?.type === "message-status-updated" && payload.messageId) {
+					emit.patch([
+						{ op: "replace", path: `/${payload.index}/status`, value: payload.status },
+					]);
+				}
+			}
+		})();
+
+		onCleanup(() => { cancelled = true; });
+	},
+
+	// Todos: live updates
+	todos: ({ source, ctx }) => ({ emit, onCleanup }) => {
+		const session = source as { id: string };
+		const channel = getSessionChannel(session.id);
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				if (payload?.type === "todo-created" && payload.todo) {
+					emit.push(payload.todo);
+				}
+				if (payload?.type === "todo-updated" && payload.todo) {
+					emit.patch([
+						{ op: "replace", path: `/${payload.index}`, value: payload.todo },
+					]);
+				}
+				if (payload?.type === "todo-deleted" && payload.todoId) {
+					emit.pull({ id: payload.todoId });
+				}
+				if (payload?.type === "todos-synced" && payload.todos) {
+					emit.replace(payload.todos);
+				}
+			}
+		})();
+
+		onCleanup(() => { cancelled = true; });
+	},
+
+	// AskRequests: live updates
+	askRequests: ({ source, ctx }) => ({ emit, onCleanup }) => {
+		const session = source as { id: string };
+		const channel = getSessionChannel(session.id);
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				if (payload?.type === "ask-created" && payload.askRequest) {
+					emit.push(payload.askRequest);
+				}
+				if (payload?.type === "ask-answered" && payload.askRequestId) {
+					emit.pull({ id: payload.askRequestId });
+				}
+			}
+		})();
+
+		onCleanup(() => { cancelled = true; });
+	},
+});
 
 // =============================================================================
 // Message Entity
@@ -351,7 +362,7 @@ export const Session = model<LensContext>("Session").define((t) => ({
  * Container for conversation turns.
  * Steps field uses Two-Phase Resolution for live streaming updates.
  */
-export const Message = model<LensContext>("Message").define((t) => ({
+export const Message = model<LensContext>("Message", (t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -367,69 +378,53 @@ export const Message = model<LensContext>("Message").define((t) => ({
 	finishReason: t.string().optional(), // 'stop' | 'tool-calls' | 'length' | 'error'
 	status: t.string(), // 'active' | 'completed' | 'error' | 'abort'
 
-	// ==========================================================================
 	// Relations
-	// ==========================================================================
+	session: t.one(() => Session),
+	steps: t.many(() => Step),
+}))
+.resolve({
+	session: async ({ source, ctx }) => {
+		const message = source as { sessionId: string };
+		return ctx.db.session.findUnique({ where: { id: message.sessionId } });
+	},
+	steps: ({ source }) => {
+		const message = source as { steps?: any[] };
+		return message.steps || [];
+	},
+})
+.subscribe({
+	steps: ({ source, ctx }) => ({ emit, onCleanup }) => {
+		const message = source as { id: string; sessionId: string };
+		const channel = getSessionChannel(message.sessionId);
+		let cancelled = false;
 
-	// Message → Session (N:1) - parent relation
-	// Enables: message { session { title, agentId } }
-	session: t
-		.one(() => Session)
-		.resolve(async ({ parent, ctx }) => {
-			const message = parent as { sessionId: string };
-			return ctx.db.session.findUnique({ where: { id: message.sessionId } });
-		}),
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
 
-	// Live steps - uses Two-Phase Field Resolution (ADR-002)
-	// Architecture: Event-Carried State - no DB refetch, use event data directly
-	steps: t
-		.many(() => Step)
-		.resolve(({ parent }) => {
-			// Phase 1: Return initial steps from parent data (eager loaded)
-			const message = parent as { steps?: any[] };
-			return message.steps || [];
-		})
-		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
-			// Phase 2: Publisher pattern with delta emit (Lens 2.7.0+)
-			// Uses event-carried state - no DB refetch needed
-			const message = parent as { id: string; sessionId: string };
-			const channel = getSessionChannel(message.sessionId);
-			let cancelled = false;
-
-			(async () => {
-				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-					if (cancelled) break;
-
-					// Handle step-added: push new step to array
-					if (payload?.type === "step-added" && payload.messageId === message.id) {
-						emit.push(payload.step);
-					}
-
-					// Handle step-updated: patch existing step in array
-					if (payload?.type === "step-updated" && payload.messageId === message.id) {
-						emit.patch([
-							{ op: "replace", path: `/${payload.stepIndex}`, value: payload.step },
-						]);
-					}
-
-					// Handle part-content-delta: patch specific part content during streaming
-					if (payload?.type === "part-content-delta" && payload.messageId === message.id) {
-						emit.patch([
-							{
-								op: "replace",
-								path: `/${payload.stepIndex}/parts/${payload.partIndex}/content`,
-								value: payload.content,
-							},
-						]);
-					}
+				if (payload?.type === "step-added" && payload.messageId === message.id) {
+					emit.push(payload.step);
 				}
-			})();
+				if (payload?.type === "step-updated" && payload.messageId === message.id) {
+					emit.patch([
+						{ op: "replace", path: `/${payload.stepIndex}`, value: payload.step },
+					]);
+				}
+				if (payload?.type === "part-content-delta" && payload.messageId === message.id) {
+					emit.patch([
+						{
+							op: "replace",
+							path: `/${payload.stepIndex}/parts/${payload.partIndex}/content`,
+							value: payload.content,
+						},
+					]);
+				}
+			}
+		})();
 
-			onCleanup(() => {
-				cancelled = true;
-			});
-		}),
-}));
+		onCleanup(() => { cancelled = true; });
+	},
+});
 
 // =============================================================================
 // Step Entity
@@ -442,7 +437,7 @@ export const Message = model<LensContext>("Message").define((t) => ({
  * Assistant messages may have multiple steps (tool execution loops).
  * Parts are resolved from parent data (updates driven by Message.steps).
  */
-export const Step = model<LensContext>("Step").define((t) => ({
+export const Step = model<LensContext>("Step", (t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -466,28 +461,20 @@ export const Step = model<LensContext>("Step").define((t) => ({
 	startTime: t.int().optional(),
 	endTime: t.int().optional(),
 
-	// ==========================================================================
 	// Relations
-	// ==========================================================================
-
-	// Step → Message (N:1) - parent relation
-	// Enables: step { message { role, status } }
-	// Note: Uses messageId from parent data, no DB fetch for embedded steps
-	message: t
-		.one(() => Message)
-		.resolve(({ parent }) => {
-			// Steps are embedded in messages, return parent reference
-			const step = parent as { messageId: string; _message?: any };
-			return step._message || { id: step.messageId };
-		}),
-
-	// Parts - resolved from parent data
-	// Updates are driven by parent Message.steps subscription
-	parts: t.many(() => Part).resolve(({ parent }) => {
-		const step = parent as { parts?: any[] };
+	message: t.one(() => Message),
+	parts: t.many(() => Part),
+}))
+.resolve({
+	message: ({ source }) => {
+		const step = source as { messageId: string; _message?: any };
+		return step._message || { id: step.messageId };
+	},
+	parts: ({ source }) => {
+		const step = source as { parts?: any[] };
 		return step.parts || [];
-	}),
-}));
+	},
+});
 
 // =============================================================================
 // Part Entity
@@ -499,7 +486,7 @@ export const Step = model<LensContext>("Step").define((t) => ({
  * Types: text, reasoning, tool, error, file, file-ref, system-message
  * This entity matches the MessagePart discriminated union from code-core.
  */
-export const Part = model<LensContext>("Part").define((t) => ({
+export const Part = model<LensContext>("Part", (t) => ({
 	// Discriminator field (required for all parts)
 	type: t.string(), // 'text' | 'reasoning' | 'tool' | 'error' | 'file' | 'file-ref' | 'system-message'
 
@@ -541,7 +528,7 @@ export const Part = model<LensContext>("Part").define((t) => ({
  * 1:1 relationship with Step.
  * Only assistant steps have usage data.
  */
-export const StepUsage = model<LensContext>("StepUsage").define((t) => ({
+export const StepUsage = model<LensContext>("StepUsage", (t) => ({
 	// Primary key (same as step ID)
 	stepId: t.id(),
 
@@ -561,7 +548,7 @@ export const StepUsage = model<LensContext>("StepUsage").define((t) => ({
  * Note: id is per-session, not globally unique.
  * Combined primary key: (sessionId, id)
  */
-export const Todo = model<LensContext>("Todo").define((t) => ({
+export const Todo = model<LensContext>("Todo", (t) => ({
 	// Per-session ID
 	id: t.int(),
 
@@ -584,19 +571,15 @@ export const Todo = model<LensContext>("Todo").define((t) => ({
 	createdAt: t.int().optional(),
 	completedAt: t.int().optional(),
 
-	// ==========================================================================
 	// Relations
-	// ==========================================================================
-
-	// Todo → Session (N:1) - parent relation
-	// Enables: todo { session { title } }
-	session: t
-		.one(() => Session)
-		.resolve(async ({ parent, ctx }) => {
-			const todo = parent as { sessionId: string };
-			return ctx.db.session.findUnique({ where: { id: todo.sessionId } });
-		}),
-}));
+	session: t.one(() => Session),
+}))
+.resolve({
+	session: async ({ source, ctx }) => {
+		const todo = source as { sessionId: string };
+		return ctx.db.session.findUnique({ where: { id: todo.sessionId } });
+	},
+});
 
 // =============================================================================
 // BashProcess Entity
@@ -608,7 +591,7 @@ export const Todo = model<LensContext>("Todo").define((t) => ({
  * Live fields for real-time output streaming.
  * Uses Two-Phase Resolution for status and output updates.
  */
-export const BashProcess = model<LensContext>("BashProcess").define((t) => ({
+export const BashProcess = model<LensContext>("BashProcess", (t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -628,51 +611,48 @@ export const BashProcess = model<LensContext>("BashProcess").define((t) => ({
 	// Result
 	exitCode: t.int().optional(),
 
-	// Live output - uses Two-Phase Field Resolution
-	stdout: t
-		.string()
-		.resolve(() => "")
-		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
-			const bash = parent as { id: string };
-			const channel = `bash:${bash.id}`;
-			let cancelled = false;
+	// Live output
+	stdout: t.string(),
+	stderr: t.string(),
+}))
+.resolve({
+	stdout: () => "",
+	stderr: () => "",
+})
+.subscribe({
+	stdout: ({ source, ctx }) => ({ emit, onCleanup }) => {
+		const bash = source as { id: string };
+		const channel = `bash:${bash.id}`;
+		let cancelled = false;
 
-			(async () => {
-				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-					if (cancelled) break;
-					if (payload?.type === "bash-output" && payload.stream === "stdout") {
-						emit.delta(payload.data);
-					}
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				if (payload?.type === "bash-output" && payload.stream === "stdout") {
+					emit.delta(payload.data);
 				}
-			})();
+			}
+		})();
 
-			onCleanup(() => {
-				cancelled = true;
-			});
-		}),
+		onCleanup(() => { cancelled = true; });
+	},
+	stderr: ({ source, ctx }) => ({ emit, onCleanup }) => {
+		const bash = source as { id: string };
+		const channel = `bash:${bash.id}`;
+		let cancelled = false;
 
-	stderr: t
-		.string()
-		.resolve(() => "")
-		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
-			const bash = parent as { id: string };
-			const channel = `bash:${bash.id}`;
-			let cancelled = false;
-
-			(async () => {
-				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-					if (cancelled) break;
-					if (payload?.type === "bash-output" && payload.stream === "stderr") {
-						emit.delta(payload.data);
-					}
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				if (payload?.type === "bash-output" && payload.stream === "stderr") {
+					emit.delta(payload.data);
 				}
-			})();
+			}
+		})();
 
-			onCleanup(() => {
-				cancelled = true;
-			});
-		}),
-}));
+		onCleanup(() => { cancelled = true; });
+	},
+});
 
 // =============================================================================
 // Agent Entity
@@ -684,7 +664,7 @@ export const BashProcess = model<LensContext>("BashProcess").define((t) => ({
  * Agents define different AI behaviors (coder, planner, etc.)
  * Can be builtin or user-defined.
  */
-export const Agent = model<LensContext>("Agent").define((t) => ({
+export const Agent = model<LensContext>("Agent", (t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'coder', 'planner', 'reviewer'
 
@@ -713,7 +693,7 @@ export const Agent = model<LensContext>("Agent").define((t) => ({
  * Rules add content to system prompts for all agents.
  * Can be enabled/disabled per session.
  */
-export const Rule = model<LensContext>("Rule").define((t) => ({
+export const Rule = model<LensContext>("Rule", (t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'coding/typescript', 'style/concise'
 
@@ -745,7 +725,7 @@ export const Rule = model<LensContext>("Rule").define((t) => ({
  * Represents providers like Anthropic, OpenAI, etc.
  * isConfigured indicates if API key is set.
  */
-export const Provider = model<LensContext>("Provider").define((t) => ({
+export const Provider = model<LensContext>("Provider", (t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'anthropic', 'openai', 'google'
 
@@ -760,32 +740,24 @@ export const Provider = model<LensContext>("Provider").define((t) => ({
 	// Config schema fields (for UI)
 	configFields: t.json().optional(), // ConfigField[]
 
-	// ==========================================================================
 	// Relations
-	// ==========================================================================
-
-	// Provider → Model (1:N)
-	// Enables: provider { models { name, contextLength } }
-	models: t
-		.many(() => Model)
-		.resolve(async ({ parent, ctx }) => {
-			const provider = parent as { id: string };
-			return ctx.db.model.findMany({
-				where: { providerId: provider.id },
-			});
-		}),
-
-	// Provider → Credential (1:N)
-	// Enables: provider { credentials { label, maskedApiKey } }
-	credentials: t
-		.many(() => Credential)
-		.resolve(async ({ parent, ctx }) => {
-			const provider = parent as { id: string };
-			return ctx.db.credential.findMany({
-				where: { providerId: provider.id },
-			});
-		}),
-}));
+	models: t.many(() => Model),
+	credentials: t.many(() => Credential),
+}))
+.resolve({
+	models: async ({ source, ctx }) => {
+		const provider = source as { id: string };
+		return ctx.db.model.findMany({
+			where: { providerId: provider.id },
+		});
+	},
+	credentials: async ({ source, ctx }) => {
+		const provider = source as { id: string };
+		return ctx.db.credential.findMany({
+			where: { providerId: provider.id },
+		});
+	},
+});
 
 // =============================================================================
 // Model Entity
@@ -796,7 +768,7 @@ export const Provider = model<LensContext>("Provider").define((t) => ({
  *
  * Models have capabilities, context limits, and pricing.
  */
-export const Model = model<LensContext>("Model").define((t) => ({
+export const Model = model<LensContext>("Model", (t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'claude-sonnet-4-20250514'
 
@@ -822,19 +794,15 @@ export const Model = model<LensContext>("Model").define((t) => ({
 	isAvailable: t.boolean(),
 	isDefault: t.boolean().optional(),
 
-	// ==========================================================================
 	// Relations
-	// ==========================================================================
-
-	// Model → Provider (N:1) - parent relation
-	// Enables: model { provider { name, isConfigured } }
-	provider: t
-		.one(() => Provider)
-		.resolve(async ({ parent, ctx }) => {
-			const model = parent as { providerId: string };
-			return ctx.db.provider.findUnique({ where: { id: model.providerId } });
-		}),
-}));
+	provider: t.one(() => Provider),
+}))
+.resolve({
+	provider: async ({ source, ctx }) => {
+		const m = source as { providerId: string };
+		return ctx.db.provider.findUnique({ where: { id: m.providerId } });
+	},
+});
 
 // =============================================================================
 // Tool Entity
@@ -846,7 +814,7 @@ export const Model = model<LensContext>("Model").define((t) => ({
  * Tools can be builtin, from MCP servers, or plugins.
  * Can be enabled/disabled per session.
  */
-export const Tool = model<LensContext>("Tool").define((t) => ({
+export const Tool = model<LensContext>("Tool", (t) => ({
 	// Primary key
 	id: t.id(), // e.g., 'Read', 'Write', 'Bash', 'mcp__server__tool'
 
@@ -868,21 +836,16 @@ export const Tool = model<LensContext>("Tool").define((t) => ({
 	isEnabled: t.boolean(),
 	enabledByDefault: t.boolean(),
 
-	// ==========================================================================
 	// Relations
-	// ==========================================================================
-
-	// Tool → MCPServer (N:1) - parent relation (optional, only for MCP tools)
-	// Enables: tool { mcpServer { name, status } }
-	mcpServer: t
-		.one(() => MCPServer)
-		.optional()
-		.resolve(async ({ parent, ctx }) => {
-			const tool = parent as { mcpServerId?: string };
-			if (!tool.mcpServerId) return null;
-			return ctx.db.mcpServer.findUnique({ where: { id: tool.mcpServerId } });
-		}),
-}));
+	mcpServer: t.one(() => MCPServer).optional(),
+}))
+.resolve({
+	mcpServer: async ({ source, ctx }) => {
+		const tool = source as { mcpServerId?: string };
+		if (!tool.mcpServerId) return null;
+		return ctx.db.mcpServer.findUnique({ where: { id: tool.mcpServerId } });
+	},
+});
 
 // =============================================================================
 // MCPServer Entity
@@ -894,7 +857,7 @@ export const Tool = model<LensContext>("Tool").define((t) => ({
  * Live status field for connection state.
  * Uses Two-Phase Resolution for real-time status updates.
  */
-export const MCPServer = model<LensContext>("MCPServer").define((t) => ({
+export const MCPServer = model<LensContext>("MCPServer", (t) => ({
 	// Primary key
 	id: t.id(), // Server identifier
 
@@ -903,28 +866,8 @@ export const MCPServer = model<LensContext>("MCPServer").define((t) => ({
 	description: t.string().optional(),
 	transportType: t.string(), // 'http' | 'sse' | 'stdio'
 
-	// Live status - uses Two-Phase Field Resolution
-	status: t
-		.string()
-		.resolve(() => "disconnected")
-		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
-			const server = parent as { id: string };
-			const channel = "mcp-events";
-			let cancelled = false;
-
-			(async () => {
-				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-					if (cancelled) break;
-					if (payload?.serverId === server.id && payload?.type === "mcp-status-changed") {
-						emit(payload.status);
-					}
-				}
-			})();
-
-			onCleanup(() => {
-				cancelled = true;
-			});
-		}),
+	// Live status
+	status: t.string(),
 
 	// Stats
 	toolCount: t.int(),
@@ -941,21 +884,36 @@ export const MCPServer = model<LensContext>("MCPServer").define((t) => ({
 	// Enabled state
 	enabled: t.boolean(),
 
-	// ==========================================================================
 	// Relations
-	// ==========================================================================
+	tools: t.many(() => Tool),
+}))
+.resolve({
+	status: () => "disconnected",
+	tools: async ({ source, ctx }) => {
+		const server = source as { id: string };
+		return ctx.db.tool.findMany({
+			where: { mcpServerId: server.id },
+		});
+	},
+})
+.subscribe({
+	status: ({ source, ctx }) => ({ emit, onCleanup }) => {
+		const server = source as { id: string };
+		const channel = "mcp-events";
+		let cancelled = false;
 
-	// MCPServer → Tool (1:N)
-	// Enables: mcpServer { tools { name, description } }
-	tools: t
-		.many(() => Tool)
-		.resolve(async ({ parent, ctx }) => {
-			const server = parent as { id: string };
-			return ctx.db.tool.findMany({
-				where: { mcpServerId: server.id },
-			});
-		}),
-}));
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				if (payload?.serverId === server.id && payload?.type === "mcp-status-changed") {
+					emit(payload.status);
+				}
+			}
+		})();
+
+		onCleanup(() => { cancelled = true; });
+	},
+});
 
 // =============================================================================
 // Credential Entity
@@ -967,7 +925,7 @@ export const MCPServer = model<LensContext>("MCPServer").define((t) => ({
  * API keys are masked for display.
  * Never expose full API key to client.
  */
-export const Credential = model<LensContext>("Credential").define((t) => ({
+export const Credential = model<LensContext>("Credential", (t) => ({
 	// Primary key
 	id: t.id(),
 
@@ -990,19 +948,15 @@ export const Credential = model<LensContext>("Credential").define((t) => ({
 	lastUsedAt: t.int().optional(),
 	expiresAt: t.int().optional(),
 
-	// ==========================================================================
 	// Relations
-	// ==========================================================================
-
-	// Credential → Provider (N:1) - parent relation
-	// Enables: credential { provider { name } }
-	provider: t
-		.one(() => Provider)
-		.resolve(async ({ parent, ctx }) => {
-			const cred = parent as { providerId: string };
-			return ctx.db.provider.findUnique({ where: { id: cred.providerId } });
-		}),
-}));
+	provider: t.one(() => Provider),
+}))
+.resolve({
+	provider: async ({ source, ctx }) => {
+		const cred = source as { providerId: string };
+		return ctx.db.provider.findUnique({ where: { id: cred.providerId } });
+	},
+});
 
 // =============================================================================
 // File Entity
@@ -1013,7 +967,7 @@ export const Credential = model<LensContext>("Credential").define((t) => ({
  *
  * Stores metadata for uploaded files (images, documents, etc.)
  */
-export const File = model<LensContext>("File").define((t) => ({
+export const File = model<LensContext>("File", (t) => ({
 	// Primary key
 	id: t.id(), // File content ID
 
@@ -1039,7 +993,7 @@ export const File = model<LensContext>("File").define((t) => ({
  * For tools that require user approval before execution.
  * Live status field for pending/answered state.
  */
-export const AskRequest = model<LensContext>("AskRequest").define((t) => ({
+export const AskRequest = model<LensContext>("AskRequest", (t) => ({
 	// Primary key
 	id: t.id(), // Question ID
 
@@ -1052,28 +1006,8 @@ export const AskRequest = model<LensContext>("AskRequest").define((t) => ({
 	// Questions
 	questions: t.json(), // Question[]
 
-	// Live status - uses Two-Phase Field Resolution
-	status: t
-		.string()
-		.resolve(() => "pending")
-		.subscribe(({ parent, ctx }) => ({ emit, onCleanup }) => {
-			const ask = parent as { id: string; sessionId: string };
-			const channel = getSessionChannel(ask.sessionId);
-			let cancelled = false;
-
-			(async () => {
-				for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-					if (cancelled) break;
-					if (payload?.type === "ask-answered" && payload.questionId === ask.id) {
-						emit("answered");
-					}
-				}
-			})();
-
-			onCleanup(() => {
-				cancelled = true;
-			});
-		}),
+	// Live status
+	status: t.string(),
 
 	// Answers (populated after user responds)
 	answers: t.json().optional(), // Record<string, string | string[]>
@@ -1081,5 +1015,26 @@ export const AskRequest = model<LensContext>("AskRequest").define((t) => ({
 	// Timestamps
 	createdAt: t.int(),
 	answeredAt: t.int().optional(),
-}));
+}))
+.resolve({
+	status: () => "pending",
+})
+.subscribe({
+	status: ({ source, ctx }) => ({ emit, onCleanup }) => {
+		const ask = source as { id: string; sessionId: string };
+		const channel = getSessionChannel(ask.sessionId);
+		let cancelled = false;
+
+		(async () => {
+			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
+				if (cancelled) break;
+				if (payload?.type === "ask-answered" && payload.questionId === ask.id) {
+					emit("answered");
+				}
+			}
+		})();
+
+		onCleanup(() => { cancelled = true; });
+	},
+});
 

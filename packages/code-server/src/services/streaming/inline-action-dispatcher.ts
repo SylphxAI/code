@@ -134,6 +134,10 @@ export function createInlineActionDispatcher(
 
 	const processChunk = (text: string): void => {
 		const actions = parser.feed(text);
+		// DEBUG: Log raw chunks and parsed actions
+		if (process.env.DEBUG_INLINE_ACTIONS) {
+			console.log(`[InlineAction] Chunk: ${JSON.stringify(text)} -> Actions: ${JSON.stringify(actions)}`);
+		}
 		for (const action of actions) {
 			dispatchAction(action);
 		}
