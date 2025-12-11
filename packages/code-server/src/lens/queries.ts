@@ -89,6 +89,17 @@ export const getSession = query()
 					pendingUpdates.push({ status: payload.status });
 				}
 			}
+
+			// Handle session-title-updated: update title from inline action
+			if (payload?.type === "session-title-updated" && payload.title) {
+				if (currentSession) {
+					currentSession = { ...currentSession, title: payload.title };
+					emit.replace({ ...currentSession });
+				} else {
+					// Queue update for when DB loads
+					pendingUpdates.push({ title: payload.title });
+				}
+			}
 		});
 
 		onCleanup(cleanup);
