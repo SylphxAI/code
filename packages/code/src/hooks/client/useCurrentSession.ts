@@ -33,6 +33,14 @@ interface SessionSuggestions {
 	isStreaming: boolean;
 }
 
+interface Todo {
+	id: number;
+	status: string;
+	content: string;
+	activeForm?: string;
+	ordering: number;
+}
+
 interface SessionWithStatus {
 	id: string;
 	title?: string;
@@ -55,6 +63,8 @@ interface SessionWithStatus {
 	status?: SessionStatus;
 	// Live suggestions from .subscribe() resolver
 	suggestions?: SessionSuggestions;
+	// Todos relation
+	todos?: Todo[];
 }
 
 export function useCurrentSession() {
@@ -64,11 +74,22 @@ export function useCurrentSession() {
 	// Skip query when no valid session ID
 	const skip = !currentSessionId || currentSessionId === "temp-session";
 
+	// Debug flag for tracing title updates
+	const DEBUG = process.env.DEBUG_LENS_TITLE === "true";
+
 	// Use lens-react query hook for session data
 	// The status field uses .subscribe() in the resolver, so Lens auto-streams
 	const { data: session, loading, error, refetch } = client.getSession.useQuery({
 		input: { id: currentSessionId || "" },
 		skip,
+		debug: DEBUG ? {
+			onData: (data: SessionWithStatus | null) => {
+				console.log(`[useCurrentSession] Received data update, title: "${data?.title}"`);
+			},
+			onSubscribe: () => {
+				console.log(`[useCurrentSession] Subscribed to session: ${currentSessionId}`);
+			},
+		} : undefined,
 	}) as {
 		data: SessionWithStatus | null;
 		loading: boolean;

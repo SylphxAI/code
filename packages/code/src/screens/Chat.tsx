@@ -11,6 +11,7 @@
 
 import { useQueuedMessages } from "../hooks/client/useQueuedMessages.js";
 import { Box } from "ink";
+import { useEffect } from "react";
 import StatusBar from "../components/StatusBar.js";
 import TodoList from "../components/TodoList.js";
 import { ChatHeader } from "./chat/components/ChatHeader.js";
@@ -29,6 +30,14 @@ import type { Command as LocalCommand } from "../commands/types.js";
 export default function Chat(props: ChatProps) {
 	// Consolidated state management
 	const state = useChatState(props);
+
+	// Debug: Log title changes
+	const DEBUG_TITLE = process.env.DEBUG_LENS_TITLE === "true";
+	useEffect(() => {
+		if (DEBUG_TITLE) {
+			console.log(`[Chat] Title changed: "${state.currentSession?.title}"`);
+		}
+	}, [state.currentSession?.title, DEBUG_TITLE]);
 
 	// Consolidated effects and handlers
 	const effects = useChatEffects(state);
@@ -81,12 +90,12 @@ export default function Chat(props: ChatProps) {
 
 				{/* Status Indicator */}
 				<Box flexShrink={0} marginTop={1}>
-					<StatusIndicator />
+					<StatusIndicator sessionStatus={state.currentSession?.status} />
 				</Box>
 
 				{/* Todo List */}
 				<Box flexShrink={0}>
-					<TodoList />
+					<TodoList todos={state.currentSession?.todos} />
 				</Box>
 
 			{/* Queued Messages */}

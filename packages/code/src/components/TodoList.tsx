@@ -3,9 +3,9 @@
  * Displays LLM task progress above the input area
  *
  * PERFORMANCE: Memoized to prevent re-renders when parent updates
+ * Receives todos from parent via props (single subscription in parent)
  */
 
-import { useCurrentSession } from "../hooks/client/useCurrentSession.js";
 import { getTodoColor, getTodoDisplayText, getTodoIcon, isTodoBold, isTodoDimmed, isTodoStrikethrough } from "@sylphx/code-client";
 import { Box, Text } from "ink";
 import React, { useMemo } from "react";
@@ -13,11 +13,21 @@ import { useThemeColors } from "../theme.js";
 
 const MAX_VISIBLE_LINES = 5;
 
-function TodoListInternal() {
-	// Get current session's todos (tRPC: cached in store)
-	const { currentSession } = useCurrentSession();
+interface Todo {
+	id: number;
+	status: string;
+	content: string;
+	activeForm?: string;
+	ordering: number;
+}
+
+interface TodoListProps {
+	/** Todos from parent */
+	todos?: Todo[];
+}
+
+function TodoListInternal({ todos = [] }: TodoListProps) {
 	const colors = useThemeColors();
-	const todos = currentSession?.todos || [];
 
 	// Calculate progress
 	const completedCount = todos.filter((t) => t.status === "completed").length;
@@ -108,3 +118,4 @@ function TodoListInternal() {
 const TodoList = React.memo(TodoListInternal);
 
 export default TodoList;
+export type { TodoListProps };

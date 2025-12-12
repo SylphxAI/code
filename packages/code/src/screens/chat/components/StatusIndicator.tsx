@@ -3,7 +3,7 @@
  * Displays streaming and compacting status with spinner and contextual text
  *
  * Architecture: Lens Live Query (v2.4.0+)
- * - Uses currentSession.status from useCurrentSession()
+ * - Receives sessionStatus from parent via props (single subscription in parent)
  * - Status field uses .subscribe() resolver on server
  * - Lens auto-routes to streaming transport when status is selected
  * - Server emits status updates via ctx.emit()
@@ -12,16 +12,19 @@
  */
 
 import { useIsCompacting } from "../../../ui-state.js";
-import { useCurrentSession } from "../../../hooks/client/useCurrentSession.js";
 import { Box, Text } from "ink";
 import { useEffect, useState } from "react";
 import Spinner from "../../../components/Spinner.js";
 import { useThemeColors } from "../../../theme.js";
+import type { SessionStatus } from "../../../session-state.js";
 
-export function StatusIndicator() {
+interface StatusIndicatorProps {
+	/** Session status from parent */
+	sessionStatus?: SessionStatus;
+}
+
+export function StatusIndicator({ sessionStatus }: StatusIndicatorProps) {
 	const isCompacting = useIsCompacting();
-	const { currentSession } = useCurrentSession();
-	const sessionStatus = currentSession?.status;
 	const colors = useThemeColors();
 
 	// Debug logging (only log when there's status to reduce spam)
