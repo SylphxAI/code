@@ -50,13 +50,11 @@ export const getSession = query()
 		return ctx.db.session.findUnique({ where: { id: input.id } });
 	})
 	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
-		// Use Lens emit API - Lens tracks state from .resolve() automatically
+		// Lens 2.14.0+ stateless wire protocol:
+		// - emit.delta() sends ops command to client
+		// - Client applies delta via applyOps()
 		const DEBUG = process.env.DEBUG_LENS_TITLE === "true";
 		if (DEBUG) console.log(`[getSession.subscribe] Starting subscription for session: ${input.id}`);
-
-		// WORKAROUND: lens-server bug ignores emit.delta() strategy,
-		// so we accumulate title and use emit.set() instead
-		let accumulatedTitle = "";
 
 		const cleanup = subscribeToSessionStream(ctx, input.id, (payload) => {
 			if (DEBUG) console.log(`[getSession.subscribe] Received event: ${payload?.type}`);
@@ -80,22 +78,18 @@ export const getSession = query()
 			}
 
 			// Title streaming events (for real-time title updates)
-			// WORKAROUND: Using accumulated string + emit.set() because
-			// emit.delta() is broken in lens-server (ignores strategy)
+			// Lens 2.14.0+: emit.delta() sends ops command, client applies
 			if (payload?.type === "title-start") {
-				accumulatedTitle = "";
 				emit.set("title", "");
 			}
 			if (payload?.type === "title-delta" && payload.text) {
-				accumulatedTitle += payload.text;
-				if (DEBUG) console.log(`[getSession.subscribe] Emitting title: "${accumulatedTitle}"`);
-				emit.set("title", accumulatedTitle);
+				if (DEBUG) console.log(`[getSession.subscribe] Emitting title delta: "${payload.text}"`);
+				emit.delta("title", [{ position: Infinity, insert: payload.text }]);
 			}
 			// title-end: no action needed
 
 			// session-title-updated: set complete title (fallback/final)
 			if (payload?.type === "session-title-updated" && payload.title) {
-				accumulatedTitle = payload.title;
 				emit.set("title", payload.title);
 			}
 		});
