@@ -50,55 +50,53 @@ export const getSession = query()
 		return ctx.db.session.findUnique({ where: { id: input.id } });
 	})
 	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
-		// Track current session state for merging partial updates
-		let currentSession: typeof Session.infer | null = null;
-		let pendingUpdates: any[] = [];
+		// Use Lens emit API - Lens tracks state from .resolve() automatically
+		const DEBUG = process.env.DEBUG_LENS_TITLE === "true";
+		if (DEBUG) console.log(`[getSession.subscribe] Starting subscription for session: ${input.id}`);
 
-		// Initialize from DB then apply any pending updates
-		ctx.db.session.findUnique({ where: { id: input.id } }).then((session) => {
-			currentSession = session;
-			// Apply any updates that arrived before DB loaded
-			if (currentSession && pendingUpdates.length > 0) {
-				for (const update of pendingUpdates) {
-					currentSession = { ...currentSession, ...update };
-				}
-				emit.replace({ ...currentSession });
-			}
-			pendingUpdates = [];
-		});
+		// WORKAROUND: lens-server bug ignores emit.delta() strategy,
+		// so we accumulate title and use emit.set() instead
+		let accumulatedTitle = "";
 
 		const cleanup = subscribeToSessionStream(ctx, input.id, (payload) => {
-			// Handle session-updated: merge partial update into full session
+			if (DEBUG) console.log(`[getSession.subscribe] Received event: ${payload?.type}`);
+
+			// session-updated: merge partial update (filter undefined values)
 			if (payload?.type === "session-updated" && payload.session) {
-				if (currentSession) {
-					currentSession = { ...currentSession, ...payload.session };
-					emit.replace({ ...currentSession });
-				} else {
-					// Queue update for when DB loads
-					pendingUpdates.push(payload.session);
+				const definedUpdates: Record<string, unknown> = {};
+				for (const [key, value] of Object.entries(payload.session)) {
+					if (value !== undefined) {
+						definedUpdates[key] = value;
+					}
+				}
+				if (Object.keys(definedUpdates).length > 0) {
+					emit.merge(definedUpdates);
 				}
 			}
 
-			// Handle session-status-updated: update just the status field
+			// session-status-updated: set status field
 			if (payload?.type === "session-status-updated" && payload.status) {
-				if (currentSession) {
-					currentSession = { ...currentSession, status: payload.status };
-					emit.replace({ ...currentSession });
-				} else {
-					// Queue update for when DB loads
-					pendingUpdates.push({ status: payload.status });
-				}
+				emit.set("status", payload.status);
 			}
 
-			// Handle session-title-updated: update title from inline action
+			// Title streaming events (for real-time title updates)
+			// WORKAROUND: Using accumulated string + emit.set() because
+			// emit.delta() is broken in lens-server (ignores strategy)
+			if (payload?.type === "title-start") {
+				accumulatedTitle = "";
+				emit.set("title", "");
+			}
+			if (payload?.type === "title-delta" && payload.text) {
+				accumulatedTitle += payload.text;
+				if (DEBUG) console.log(`[getSession.subscribe] Emitting title: "${accumulatedTitle}"`);
+				emit.set("title", accumulatedTitle);
+			}
+			// title-end: no action needed
+
+			// session-title-updated: set complete title (fallback/final)
 			if (payload?.type === "session-title-updated" && payload.title) {
-				if (currentSession) {
-					currentSession = { ...currentSession, title: payload.title };
-					emit.replace({ ...currentSession });
-				} else {
-					// Queue update for when DB loads
-					pendingUpdates.push({ title: payload.title });
-				}
+				accumulatedTitle = payload.title;
+				emit.set("title", payload.title);
 			}
 		});
 
