@@ -10,8 +10,9 @@ import type { EventStream } from "./event-stream.service.js";
  * Emits session-updated with partial session containing title
  * Frontend subscriptions will merge this with existing session state
  *
- * Publishes to both channels:
- * - session:${sessionId} - for clients viewing that specific session
+ * Publishes to three channels:
+ * - session-stream:${sessionId} - for Lens Live Query (getSession.subscribe)
+ * - session:${sessionId} - for clients viewing that specific session (legacy)
  * - session-events - for global sidebar sync across all clients
  */
 export async function publishTitleUpdate(
@@ -26,7 +27,14 @@ export async function publishTitleUpdate(
 	};
 
 	await Promise.all([
-		// Session-specific channel - Lens format (entity directly)
+		// Session stream channel - for Lens Live Query
+		// This triggers emit.set("title", ...) in getSession.subscribe()
+		eventStream.publish(`session-stream:${sessionId}`, {
+			type: "session-title-updated" as const,
+			sessionId,
+			title,
+		}),
+		// Session-specific channel - Lens format (entity directly) - legacy
 		eventStream.publish(`session:${sessionId}`, sessionUpdate),
 		// Global channel (sidebar sync for all clients)
 		eventStream.publish("session-events", {

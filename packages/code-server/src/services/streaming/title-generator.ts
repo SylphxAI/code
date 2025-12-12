@@ -77,19 +77,18 @@ Output only the title, nothing else.`,
 
 		let fullTitle = "";
 
-		// Emit start event - session entity with empty title
+		// Use session-stream channel for Lens Live Query subscription
+		// This matches what getSession.subscribe() listens to
+		const streamChannel = `session-stream:${session.id}`;
+
+		// Emit start event
 		if (callbacks) {
 			callbacks.onStart();
 		} else {
-			// Publish session entity directly (Lens format)
-			const sessionUpdate = {
-				id: session.id,
-				title: "", // Empty title indicates title generation started
-				updatedAt: Date.now(),
-			};
-			// Fire-and-forget publish (non-blocking, same as message streaming)
-			appContext.eventStream.publish(`session:${session.id}`, sessionUpdate).catch((err) => {
-				console.error("[TitleGen] Failed to publish START event:", err);
+			// Publish title-start event to session-stream channel
+			// This triggers emit.set("title", "") in getSession.subscribe()
+			appContext.eventStream.publish(streamChannel, { type: "title-start" }).catch((err) => {
+				console.error("[TitleGen] Failed to publish title-start event:", err);
 			});
 		}
 
@@ -99,19 +98,17 @@ Output only the title, nothing else.`,
 				if (chunk.type === "text-delta" && chunk.text) {
 					fullTitle += chunk.text;
 
-					// Emit delta - session entity with incrementally updated title
+					// Emit delta
 					if (callbacks) {
 						callbacks.onDelta(chunk.text);
 					} else {
-						// Publish session entity directly (Lens format)
-						const sessionUpdate = {
-							id: session.id,
-							title: fullTitle, // Send full accumulated title so far
-							updatedAt: Date.now(),
-						};
-						// Fire-and-forget publish (non-blocking, same as message streaming)
-						appContext.eventStream.publish(`session:${session.id}`, sessionUpdate).catch((err) => {
-							console.error("[TitleGen] Failed to publish DELTA event:", err);
+						// Publish title-delta event to session-stream channel
+						// This triggers emit.delta("title", ...) in getSession.subscribe()
+						appContext.eventStream.publish(streamChannel, {
+							type: "title-delta",
+							text: chunk.text,
+						}).catch((err) => {
+							console.error("[TitleGen] Failed to publish title-delta event:", err);
 						});
 					}
 				}
@@ -119,6 +116,13 @@ Output only the title, nothing else.`,
 		} catch (streamError) {
 			// Catch NoOutputGeneratedError and other stream errors
 			console.error("[Title Generation] Stream error:", streamError);
+		}
+
+		// Emit title-end event
+		if (!callbacks) {
+			appContext.eventStream.publish(streamChannel, { type: "title-end" }).catch((err) => {
+				console.error("[TitleGen] Failed to publish title-end event:", err);
+			});
 		}
 
 		// Clean up and update database (only if we got some title)
