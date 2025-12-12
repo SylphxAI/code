@@ -79,14 +79,20 @@ export function createInlineActionDispatcher(
 				titleStarted = true;
 				accumulatedTitle = "";
 				emitTitleStart(opts.observer);
+				// Publish to event stream for Lens Live Query
+				publishTitleEvent(opts, { type: "title-start" });
 				break;
 			case "title-delta":
 				accumulatedTitle += action.content;
 				emitTitleDelta(opts.observer, action.content);
+				// Publish to event stream for Lens Live Query (streaming)
+				publishTitleEvent(opts, { type: "title-delta", text: action.content });
 				break;
 			case "title-end":
 				emitTitleEnd(opts.observer);
-				// Persist title to session
+				// Publish to event stream for Lens Live Query
+				publishTitleEvent(opts, { type: "title-end" });
+				// Persist title to session (fire-and-forget)
 				persistTitle(opts, accumulatedTitle);
 				break;
 
@@ -207,5 +213,27 @@ function publishSuggestionEvent(
 		.publish(`session-stream:${opts.sessionId}`, event)
 		.catch((error) => {
 			console.error("[InlineActionDispatcher] Failed to publish suggestion event:", error);
+		});
+}
+
+/**
+ * Publish title event to event stream (async, fire-and-forget)
+ * This enables Lens Live Query to receive title streaming updates
+ */
+function publishTitleEvent(
+	opts: InlineActionDispatcherOptions,
+	event: { type: string; text?: string },
+): void {
+	const DEBUG = process.env.DEBUG_LENS_TITLE === "true";
+	if (DEBUG) {
+		console.log(`[publishTitleEvent] Publishing ${event.type} to session-stream:${opts.sessionId}, timestamp: ${Date.now()}`);
+		if (event.text) console.log(`[publishTitleEvent] Text: "${event.text}"`);
+	}
+
+	// Fire and forget - don't await
+	opts.appContext.eventStream
+		.publish(`session-stream:${opts.sessionId}`, event)
+		.catch((error) => {
+			console.error("[InlineActionDispatcher] Failed to publish title event:", error);
 		});
 }
