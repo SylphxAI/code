@@ -111,9 +111,15 @@ export function createSessionStatusManager(
 	let updateInterval: NodeJS.Timeout;
 	let sessionTitle = session.title;
 
+	// Debounce token updates (emit at most every 500ms)
+	let lastTokenEmitTime = 0;
+	let pendingTokenEmit: NodeJS.Timeout | null = null;
+	const TOKEN_DEBOUNCE_MS = 500;
+
 	/**
-	 * Emit session-updated event (model-level)
-	 * Publishes to both tRPC observable and EventStream
+	 * Emit session-status-updated event (field-level, not entity-level)
+	 * Only updates the status field, not the whole session
+	 * This is more efficient for Lens Live Query
 	 */
 	function emitStatus() {
 		const statusText = determineStatusText(todos, currentTool ?? undefined, isActive);
@@ -126,6 +132,7 @@ export function createSessionStatusManager(
 			isActive,
 		};
 
+		// For tRPC observable (legacy), still emit full session update
 		const sessionUpdate = {
 			id: sessionId,
 			title: sessionTitle,
@@ -134,17 +141,15 @@ export function createSessionStatusManager(
 			baseContextTokens,
 			updatedAt: Date.now(),
 		};
-
-		// Emit to tRPC observable (mutation subscribers)
 		emitSessionUpdated(observer, sessionId, sessionUpdate);
 
-		// Publish to session-stream:${id} channel for subscribeToSession
-		// EventStream wraps this in StoredEvent { payload: event }
-		// Client accesses storedEvent.payload to get this event
+		// For Lens Live Query: emit field-level event (session-status-updated)
+		// This only updates the status field, not the whole session
+		// getSession.subscribe() handles this via emit.set("status", ...)
 		appContext.eventStream.publish(`session-stream:${sessionId}`, {
-			type: "session-updated",
+			type: "session-status-updated",
 			sessionId,
-			session: sessionUpdate,
+			status,
 		});
 	}
 
@@ -169,7 +174,19 @@ export function createSessionStatusManager(
 
 		onTokenUpdate: (tokens: number) => {
 			currentTokens = tokens;
-			emitStatus();
+			// Debounce token updates - too frequent otherwise
+			const now = Date.now();
+			if (now - lastTokenEmitTime >= TOKEN_DEBOUNCE_MS) {
+				lastTokenEmitTime = now;
+				emitStatus();
+			} else if (!pendingTokenEmit) {
+				// Schedule a delayed emit to ensure final value is sent
+				pendingTokenEmit = setTimeout(() => {
+					pendingTokenEmit = null;
+					lastTokenEmitTime = Date.now();
+					emitStatus();
+				}, TOKEN_DEBOUNCE_MS);
+			}
 		},
 
 		onTodoUpdate: (newTodos: Todo[]) => {
@@ -212,6 +229,10 @@ export function createSessionStatusManager(
 	function cleanup() {
 		isActive = false;
 		clearInterval(updateInterval);
+		if (pendingTokenEmit) {
+			clearTimeout(pendingTokenEmit);
+			pendingTokenEmit = null;
+		}
 		emitStatus(); // Final status with isActive: false
 	}
 
