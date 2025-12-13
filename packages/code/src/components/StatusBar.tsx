@@ -8,8 +8,8 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { useLensClient, type Session } from "@sylphx/code-client";
-import { formatTokenCount, type SessionStatus } from "@sylphx/code-core";
+import { useLensClient } from "@sylphx/code-client";
+import { formatTokenCount } from "@sylphx/code-core";
 import { useEnabledRuleIds, useSelectedAgentId } from "../session-state.js";
 import { Box, Spacer, Text } from "ink";
 import { getAgentById } from "../embedded-context.js";
@@ -18,10 +18,16 @@ import { useMCPStatus } from "../hooks/client/useMCPStatus.js";
 import { useModelDetails } from "../hooks/client/useModelDetails.js";
 
 interface StatusBarProps {
+	sessionId: string | null;
 	provider: string | null;
 	model: string | null;
 	modelStatus?: "available" | "unavailable" | "unknown";
 	usedTokens?: number;
+	/** Session data from parent - avoid duplicate subscription */
+	session?: {
+		totalTokens?: number;
+		status?: { tokenUsage?: number };
+	} | null;
 }
 
 /**
@@ -29,20 +35,17 @@ interface StatusBarProps {
  *
  * ARCHITECTURE: Client-agnostic design
  * - No hardcoded provider knowledge
- * - Uses lens-react hooks for all server communication
+ * - Receives session data from parent (single subscription pattern)
  * - Provider IDs are opaque strings to client
  */
-interface StatusBarPropsInternal extends StatusBarProps {
-	sessionId: string | null;
-}
-
 function StatusBarInternal({
 	sessionId,
 	provider,
 	model,
 	modelStatus,
 	usedTokens = 0,
-}: StatusBarPropsInternal) {
+	session,
+}: StatusBarProps) {
 	const client = useLensClient();
 
 	// Local state for derived values
@@ -57,18 +60,11 @@ function StatusBarInternal({
 	const enabledRuleIds = useEnabledRuleIds();
 	const enabledRulesCount = enabledRuleIds.length;
 
-	// Query hooks for session and bash data
-	// IMPORTANT: Use .useQuery() for React hook pattern, not vanilla call
-	// getSession is a LIVE QUERY that includes status with totalTokens during streaming
-	const sessionQuery = client.getSession.useQuery({
-		input: { id: sessionId || "" },
-		skip: !sessionId,
-	});
-
+	// Bash query (separate from session - no duplicate subscription issue)
 	const bashQuery = client.listBash.useQuery({});
 
-	// Get session with live status from live query
-	const session = sessionQuery.data as (Session & { status?: SessionStatus }) | null;
+	// Session data comes from parent via props (single subscription pattern)
+	// This avoids duplicate getSession subscriptions
 
 	// Sync bash data to local state
 	useEffect(() => {

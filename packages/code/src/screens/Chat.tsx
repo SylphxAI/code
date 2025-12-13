@@ -167,6 +167,7 @@ export default function Chat(props: ChatProps) {
 						model={state.currentSession?.model || state.selectedModel || null}
 						modelStatus={undefined}
 						usedTokens={state.usedTokens}
+						session={state.currentSession}
 					/>
 				</Box>
 			</Box>
