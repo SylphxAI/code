@@ -108,7 +108,6 @@ export function createSessionStatusManager(
 	let startTime = Date.now();
 	let todos = session.todos;
 	let isActive = true;
-	let updateInterval: NodeJS.Timeout;
 	let sessionTitle = session.title;
 
 	// Debounce token updates (emit at most every 500ms)
@@ -216,19 +215,15 @@ export function createSessionStatusManager(
 	// Emit initial status
 	emitStatus();
 
-	// Update duration every second (while active)
-	updateInterval = setInterval(() => {
-		if (isActive) {
-			emitStatus();
-		}
-	}, 1000);
+	// NOTE: Removed 1-second interval for duration updates
+	// Client (StatusIndicator) tracks duration locally for smooth 100ms updates
+	// Server only needs to emit on actual state changes (tool call, token update, etc.)
 
 	/**
-	 * Cleanup: Stop interval and emit final status
+	 * Cleanup: Clear pending timers and emit final status
 	 */
 	function cleanup() {
 		isActive = false;
-		clearInterval(updateInterval);
 		if (pendingTokenEmit) {
 			clearTimeout(pendingTokenEmit);
 			pendingTokenEmit = null;
