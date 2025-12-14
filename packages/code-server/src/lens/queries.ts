@@ -53,12 +53,7 @@ export const getSession = query()
 		// Lens 2.14.0+ stateless wire protocol:
 		// - emit.delta() sends ops command to client
 		// - Client applies delta via applyOps()
-		const DEBUG = process.env.DEBUG_LENS_TITLE === "true";
-		if (DEBUG) console.log(`[getSession.subscribe] Starting subscription for session: ${input.id}`);
-
 		const cleanup = subscribeToSessionStream(ctx, input.id, (payload) => {
-			if (DEBUG) console.log(`[getSession.subscribe] Received event: ${payload?.type}`);
-
 			// session-updated: merge partial update (filter undefined values)
 			if (payload?.type === "session-updated" && payload.session) {
 				const definedUpdates: Record<string, unknown> = {};
@@ -83,7 +78,6 @@ export const getSession = query()
 				emit.set("title", "");
 			}
 			if (payload?.type === "title-delta" && payload.text) {
-				if (DEBUG) console.log(`[getSession.subscribe] Emitting title delta: "${payload.text}"`);
 				emit.delta("title", [{ position: Infinity, insert: payload.text }]);
 			}
 			// title-end: no action needed

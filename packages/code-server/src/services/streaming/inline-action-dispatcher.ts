@@ -75,58 +75,46 @@ export function createInlineActionDispatcher(
 				break;
 
 			// Title streaming
+			// Note: Events are automatically forwarded to event stream by streaming-mutations.service.ts
+			// Only emit to observer here - no direct publish needed
 			case "title-start":
 				titleStarted = true;
 				accumulatedTitle = "";
 				emitTitleStart(opts.observer);
-				// Publish to event stream for Lens Live Query
-				publishTitleEvent(opts, { type: "title-start" });
 				break;
 			case "title-delta":
 				accumulatedTitle += action.content;
 				emitTitleDelta(opts.observer, action.content);
-				// Publish to event stream for Lens Live Query (streaming)
-				publishTitleEvent(opts, { type: "title-delta", text: action.content });
 				break;
 			case "title-end":
 				emitTitleEnd(opts.observer);
-				// Publish to event stream for Lens Live Query
-				publishTitleEvent(opts, { type: "title-end" });
 				// Persist title to session (fire-and-forget)
 				persistTitle(opts, accumulatedTitle);
 				break;
 
 			// Suggestions streaming
+			// Note: Events are automatically forwarded to event stream by streaming-mutations.service.ts
+			// Only emit to observer here - no direct publish needed
 			case "suggestions-start":
 				accumulatedSuggestions.clear();
 				emitSuggestionsStart(opts.observer);
-				// Publish to event stream for Lens Live Query
-				publishSuggestionEvent(opts, { type: "suggestions-start" });
 				break;
 			case "suggestion-start":
 				accumulatedSuggestions.set(action.index, "");
 				emitSuggestionStart(opts.observer, action.index);
-				publishSuggestionEvent(opts, { type: "suggestion-start", index: action.index });
 				break;
 			case "suggestion-delta":
 				{
 					const current = accumulatedSuggestions.get(action.index) ?? "";
 					accumulatedSuggestions.set(action.index, current + action.content);
 					emitSuggestionDelta(opts.observer, action.index, action.content);
-					publishSuggestionEvent(opts, {
-						type: "suggestion-delta",
-						index: action.index,
-						text: action.content,
-					});
 				}
 				break;
 			case "suggestion-end":
 				emitSuggestionEnd(opts.observer, action.index);
-				publishSuggestionEvent(opts, { type: "suggestion-end", index: action.index });
 				break;
 			case "suggestions-end":
 				emitSuggestionsEnd(opts.observer);
-				publishSuggestionEvent(opts, { type: "suggestions-end" });
 				break;
 
 			// Plain text outside tags - treat as message content
@@ -200,40 +188,3 @@ async function persistTitle(
 	}
 }
 
-/**
- * Publish suggestion event to event stream (async, fire-and-forget)
- * This enables Lens Live Query to receive suggestion updates
- */
-function publishSuggestionEvent(
-	opts: InlineActionDispatcherOptions,
-	event: { type: string; index?: number; text?: string },
-): void {
-	// Fire and forget - don't await
-	opts.appContext.eventStream
-		.publish(`session-stream:${opts.sessionId}`, event)
-		.catch((error) => {
-			console.error("[InlineActionDispatcher] Failed to publish suggestion event:", error);
-		});
-}
-
-/**
- * Publish title event to event stream (async, fire-and-forget)
- * This enables Lens Live Query to receive title streaming updates
- */
-function publishTitleEvent(
-	opts: InlineActionDispatcherOptions,
-	event: { type: string; text?: string },
-): void {
-	const DEBUG = process.env.DEBUG_LENS_TITLE === "true";
-	if (DEBUG) {
-		console.log(`[publishTitleEvent] Publishing ${event.type} to session-stream:${opts.sessionId}, timestamp: ${Date.now()}`);
-		if (event.text) console.log(`[publishTitleEvent] Text: "${event.text}"`);
-	}
-
-	// Fire and forget - don't await
-	opts.appContext.eventStream
-		.publish(`session-stream:${opts.sessionId}`, event)
-		.catch((error) => {
-			console.error("[InlineActionDispatcher] Failed to publish title event:", error);
-		});
-}

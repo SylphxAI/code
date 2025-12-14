@@ -51,25 +51,13 @@ export function subscribeToSessionStream(
 	const subscriptionStartTime = Date.now();
 	let cancelled = false;
 
-	const DEBUG = process.env.DEBUG_LENS_TITLE === "true";
-	if (DEBUG) {
-		console.log(`[subscribeToSessionStream] Created subscription for ${channel}, startTime: ${subscriptionStartTime}`);
-	}
-
 	(async () => {
 		for await (const { payload, timestamp } of ctx.eventStream.subscribe(channel)) {
 			if (cancelled) break;
 
 			// Skip replayed events (events from before subscription started)
 			if (timestamp && timestamp < subscriptionStartTime) {
-				if (DEBUG && (payload?.type === "title-delta" || payload?.type === "title-start")) {
-					console.log(`[subscribeToSessionStream] FILTERED OUT ${payload?.type}, event timestamp: ${timestamp}, subscription startTime: ${subscriptionStartTime}, diff: ${subscriptionStartTime - timestamp}ms`);
-				}
 				continue;
-			}
-
-			if (DEBUG && (payload?.type === "title-delta" || payload?.type === "title-start" || payload?.type === "title-end")) {
-				console.log(`[subscribeToSessionStream] PASSED ${payload?.type}, event timestamp: ${timestamp || "none"}, subscription startTime: ${subscriptionStartTime}`);
 			}
 
 			await handler(payload);
@@ -78,9 +66,6 @@ export function subscribeToSessionStream(
 
 	return () => {
 		cancelled = true;
-		if (DEBUG) {
-			console.log(`[subscribeToSessionStream] Cleanup called for ${channel}`);
-		}
 	};
 }
 
