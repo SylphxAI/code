@@ -3,6 +3,8 @@
  *
  * Connects InlineActionParser to event emitters and side effects.
  * Routes parsed actions to appropriate handlers.
+ *
+ * Uses StreamPublisher for direct eventStream publishing.
  */
 
 import {
@@ -11,7 +13,6 @@ import {
 	type InlineActionParser,
 	type SessionRepository,
 } from "@sylphx/code-core";
-import type { Observer } from "@trpc/server/observable";
 import type { AppContext } from "../../context.js";
 import {
 	emitSuggestionDelta,
@@ -24,10 +25,10 @@ import {
 	emitTitleEnd,
 	emitTitleStart,
 } from "./event-emitter.js";
-import type { StreamEvent } from "./types.js";
+import type { StreamPublisher } from "./types.js";
 
 export interface InlineActionDispatcherOptions {
-	observer: Observer<StreamEvent, unknown>;
+	publisher: StreamPublisher;
 	sessionId: string;
 	sessionRepository: SessionRepository;
 	appContext: AppContext;
@@ -66,7 +67,7 @@ export function createInlineActionDispatcher(
 				// No-op: text-start already emitted by stream handler
 				break;
 			case "message-delta":
-				emitTextDelta(opts.observer, action.content);
+				emitTextDelta(opts.publisher, action.content);
 				// Callback for persistence (text without XML tags)
 				opts.onParsedText?.(action.content);
 				break;
@@ -74,52 +75,48 @@ export function createInlineActionDispatcher(
 				// No-op: text-end already emitted by stream handler
 				break;
 
-			// Title streaming
-			// Note: Events are automatically forwarded to event stream by streaming-mutations.service.ts
-			// Only emit to observer here - no direct publish needed
+			// Title streaming - publishes directly to eventStream via publisher
 			case "title-start":
 				titleStarted = true;
 				accumulatedTitle = "";
-				emitTitleStart(opts.observer);
+				emitTitleStart(opts.publisher);
 				break;
 			case "title-delta":
 				accumulatedTitle += action.content;
-				emitTitleDelta(opts.observer, action.content);
+				emitTitleDelta(opts.publisher, action.content);
 				break;
 			case "title-end":
-				emitTitleEnd(opts.observer);
+				emitTitleEnd(opts.publisher);
 				// Persist title to session (fire-and-forget)
 				persistTitle(opts, accumulatedTitle);
 				break;
 
-			// Suggestions streaming
-			// Note: Events are automatically forwarded to event stream by streaming-mutations.service.ts
-			// Only emit to observer here - no direct publish needed
+			// Suggestions streaming - publishes directly to eventStream via publisher
 			case "suggestions-start":
 				accumulatedSuggestions.clear();
-				emitSuggestionsStart(opts.observer);
+				emitSuggestionsStart(opts.publisher);
 				break;
 			case "suggestion-start":
 				accumulatedSuggestions.set(action.index, "");
-				emitSuggestionStart(opts.observer, action.index);
+				emitSuggestionStart(opts.publisher, action.index);
 				break;
 			case "suggestion-delta":
 				{
 					const current = accumulatedSuggestions.get(action.index) ?? "";
 					accumulatedSuggestions.set(action.index, current + action.content);
-					emitSuggestionDelta(opts.observer, action.index, action.content);
+					emitSuggestionDelta(opts.publisher, action.index, action.content);
 				}
 				break;
 			case "suggestion-end":
-				emitSuggestionEnd(opts.observer, action.index);
+				emitSuggestionEnd(opts.publisher, action.index);
 				break;
 			case "suggestions-end":
-				emitSuggestionsEnd(opts.observer);
+				emitSuggestionsEnd(opts.publisher);
 				break;
 
 			// Plain text outside tags - treat as message content
 			case "text-delta":
-				emitTextDelta(opts.observer, action.content);
+				emitTextDelta(opts.publisher, action.content);
 				// Callback for persistence (text outside tags)
 				opts.onParsedText?.(action.content);
 				break;

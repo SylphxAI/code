@@ -20,7 +20,7 @@
 	],
 	"scripts": {
 		"build": "bunup && cp -r assets dist/ && node fix-exports.js",
-		"dev": "bunup --watch",
+		"dev": "bunup && node fix-exports.js",
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"type-check": "tsc --noEmit",

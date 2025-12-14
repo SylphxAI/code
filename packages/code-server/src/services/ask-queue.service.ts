@@ -6,13 +6,13 @@
  * - Server manages one queue per session (not global)
  * - Ask tool execution creates pending ask in session
  * - Any connected client can answer
- * - All clients receive events via stream
+ * - All clients receive events via eventStream subscription
  * - Restorable from message parts
+ *
+ * Uses direct eventStream publishing (no Observer pattern)
  */
 
-import type { Observer } from "@trpc/server/observable";
-import { emitAskQuestionAnswered, emitAskQuestionStart } from "./streaming/event-emitter.js";
-import type { StreamEvent } from "./streaming/types.js";
+import type { AppContext } from "../context.js";
 
 export interface AskQuestion {
 	id: string; // Unique ID for this ask (toolCallId)
@@ -45,64 +45,68 @@ const sessionAskQueues = new Map<string, AskQuestion[]>();
 const processingAsks = new Map<string, AskQuestion>();
 
 /**
- * Stream observers per session for broadcasting events
- * Map<sessionId, Observer[]>
+ * AppContext reference for eventStream publishing
  */
-const sessionObservers = new Map<string, Observer<StreamEvent, unknown>[]>();
+let appContextRef: AppContext | null = null;
 
 /**
- * Register observer for session to receive ask events
+ * Initialize ask queue service with app context
+ * Must be called before using the service
  */
-export function registerAskObserver(
-	sessionId: string,
-	observer: Observer<StreamEvent, unknown>,
-): void {
-	const observers = sessionObservers.get(sessionId) || [];
-	observers.push(observer);
-	sessionObservers.set(sessionId, observers);
+export function initializeAskQueue(appContext: AppContext): void {
+	appContextRef = appContext;
+}
 
-	// If there's a processing ask for this session, immediately broadcast it
-	const processingAsk = processingAsks.get(sessionId);
-	if (processingAsk) {
-		emitAskQuestionStart(
-			observer,
+/**
+ * Publish ask-question-start event to eventStream
+ */
+function publishAskQuestionStart(
+	sessionId: string,
+	ask: AskQuestion,
+): void {
+	if (!appContextRef) {
+		console.error("[AskQueue] AppContext not initialized");
+		return;
+	}
+
+	appContextRef.eventStream
+		.publish(`session-stream:${sessionId}`, {
+			type: "ask-question-start",
 			sessionId,
-			processingAsk.id,
-			processingAsk.question,
-			processingAsk.options,
-			processingAsk.multiSelect,
-			processingAsk.preSelected,
-		);
-	}
+			toolCallId: ask.id,
+			question: ask.question,
+			options: ask.options,
+			multiSelect: ask.multiSelect,
+			preSelected: ask.preSelected,
+		})
+		.catch((err) => {
+			console.error("[AskQueue] Failed to publish ask-question-start:", err);
+		});
 }
 
 /**
- * Unregister observer for session
+ * Publish ask-question-answered event to eventStream
  */
-export function unregisterAskObserver(
+function publishAskQuestionAnswered(
 	sessionId: string,
-	observer: Observer<StreamEvent, unknown>,
+	toolCallId: string,
+	answer: string,
 ): void {
-	const observers = sessionObservers.get(sessionId) || [];
-	const filtered = observers.filter((obs) => obs !== observer);
-	if (filtered.length === 0) {
-		sessionObservers.delete(sessionId);
-	} else {
-		sessionObservers.set(sessionId, filtered);
+	if (!appContextRef) {
+		console.error("[AskQueue] AppContext not initialized");
+		return;
 	}
-}
 
-/**
- * Broadcast event to all observers of a session
- */
-function broadcastToSession(
-	sessionId: string,
-	emitFn: (observer: Observer<StreamEvent, unknown>) => void,
-): void {
-	const observers = sessionObservers.get(sessionId) || [];
-	for (const observer of observers) {
-		emitFn(observer);
-	}
+	appContextRef.eventStream
+		.publish(`session-stream:${sessionId}`, {
+			type: "ask-question-answered",
+			sessionId,
+			toolCallId,
+			answer,
+		})
+		.catch((err) => {
+			console.error("[AskQueue] Failed to publish ask-question-answered:", err);
+		});
 }
 
 /**
@@ -156,18 +160,8 @@ function processNextAsk(sessionId: string): void {
 	sessionAskQueues.set(sessionId, queue);
 	processingAsks.set(sessionId, ask);
 
-	// Broadcast ask-question-start to all clients watching this session
-	broadcastToSession(sessionId, (observer) =>
-		emitAskQuestionStart(
-			observer,
-			sessionId,
-			ask.id,
-			ask.question,
-			ask.options,
-			ask.multiSelect,
-			ask.preSelected,
-		),
-	);
+	// Publish ask-question-start to eventStream
+	publishAskQuestionStart(sessionId, ask);
 }
 
 /**
@@ -185,14 +179,19 @@ export function answerAsk(sessionId: string, toolCallId: string, answer: string)
 	// Resolve the promise (returns answer to LLM)
 	processingAsk.resolve(answer);
 
-	// Broadcast ask-question-answered to all clients
-	broadcastToSession(sessionId, (observer) =>
-		emitAskQuestionAnswered(observer, sessionId, toolCallId, answer),
-	);
+	// Publish ask-question-answered to eventStream
+	publishAskQuestionAnswered(sessionId, toolCallId, answer);
 
 	// Remove from processing and process next
 	processingAsks.delete(sessionId);
 	processNextAsk(sessionId);
+}
+
+/**
+ * Get current processing ask for a session (for late joiners)
+ */
+export function getProcessingAsk(sessionId: string): AskQuestion | undefined {
+	return processingAsks.get(sessionId);
 }
 
 /**
@@ -215,5 +214,4 @@ export function clearSessionAsks(sessionId: string): void {
 	// Clear all maps
 	sessionAskQueues.delete(sessionId);
 	processingAsks.delete(sessionId);
-	sessionObservers.delete(sessionId);
 }

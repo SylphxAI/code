@@ -1,18 +1,16 @@
 /**
  * Streaming Service
- * Backend service for AI streaming - used by tRPC subscription
+ * Backend service for AI streaming
  *
- * Architecture:
- * - Loads session data from database
- * - Builds message context for AI
- * - Streams AI response
- * - Saves results to database
- * - Emits events to subscription observer
- *
- * This service is called by message.streamResponse subscription procedure
+ * Architecture (V2 - Perfect):
+ * - Direct eventStream publishing via StreamPublisher
+ * - Returns Promise<StreamResult> for async/await
+ * - Single event path: modules → StreamPublisher → eventStream
+ * - No Observable/Observer pattern
  */
 
-// Re-export main streaming function
-export { streamAIResponse } from "./streaming/stream-orchestrator.js";
+// Re-export main streaming function (V2)
+export { streamAIResponseV2 } from "./streaming/stream-orchestrator-v2.js";
+export type { StreamResult } from "./streaming/stream-orchestrator-v2.js";
 // Re-export types
 export type { StreamAIResponseOptions, StreamEvent } from "./streaming/types.js";

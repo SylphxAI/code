@@ -28,7 +28,7 @@ export {
 // ============================================================================
 // Ask Queue Service
 // ============================================================================
-export { enqueueAsk, registerAskObserver } from "./services/ask-queue.service.js";
+export { enqueueAsk, initializeAskQueue, answerAsk } from "./services/ask-queue.service.js";
 
 // ============================================================================
 // Streaming Service

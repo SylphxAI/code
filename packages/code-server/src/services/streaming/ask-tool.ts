@@ -1,22 +1,17 @@
 /**
  * Server-side Ask Tool
- * Replaces client-side ask tool with server-managed queue
+ * Uses server-managed queue with direct eventStream publishing
  */
 
-import type { Observer } from "@trpc/server/observable";
 import { tool } from "ai";
 import { z } from "zod";
-import { enqueueAsk, registerAskObserver } from "../ask-queue.service.js";
-import type { StreamEvent } from "./types.js";
+import { enqueueAsk } from "../ask-queue.service.js";
 
 /**
  * Create server-side ask tool with session context
- * This replaces the client-side ask tool in code-core
+ * Events are published directly to eventStream - no observer needed
  */
-export function createAskTool(sessionId: string, observer: Observer<StreamEvent, unknown>) {
-	// Register observer for this session to receive ask events
-	registerAskObserver(sessionId, observer);
-
+export function createAskTool(sessionId: string) {
 	return tool({
 		description:
 			"Ask the user a multiple choice question and wait for their selection. Supports predefined options, free text input, and default selections.",

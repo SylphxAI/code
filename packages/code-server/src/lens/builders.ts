@@ -25,6 +25,7 @@ import type { LensContext } from "./context.js";
  */
 function liveQueryMetadataPlugin(): ServerPlugin {
 	return {
+		name: "liveQueryMetadata",
 		enhanceOperationMeta: (ctx) => {
 			// Check if this is a LiveQueryDef (query with _mode: "live")
 			if (ctx.type === "query" && isLiveQueryDef(ctx.definition)) {

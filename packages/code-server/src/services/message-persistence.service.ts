@@ -11,7 +11,7 @@
  */
 
 import type { MessagePart, MessageRepository } from "@sylphx/code-core";
-import type { StreamEvent } from "./streaming.service.js";
+import type { StreamPublisher } from "./streaming/types.js";
 
 /**
  * Create user message with frozen content
@@ -21,9 +21,7 @@ export async function createUserMessage(
 	sessionId: string,
 	frozenContent: MessagePart[],
 	messageRepository: MessageRepository,
-	observer: {
-		next: (event: StreamEvent) => void;
-	},
+	publisher: StreamPublisher,
 ): Promise<{ messageId: string; messageText: string }> {
 	// Add user message to session (with frozen content)
 	const userMessageId = await messageRepository.addMessage({
@@ -43,7 +41,7 @@ export async function createUserMessage(
 		.join("");
 
 	// Emit user-message-created event
-	observer.next({
+	publisher.emit({
 		type: "user-message-created",
 		messageId: userMessageId,
 		content: userMessageText,
@@ -59,9 +57,7 @@ export async function createUserMessage(
 export async function createAssistantMessage(
 	sessionId: string,
 	messageRepository: MessageRepository,
-	observer: {
-		next: (event: StreamEvent) => void;
-	},
+	publisher: StreamPublisher,
 ): Promise<string> {
 	// Create assistant message in database BEFORE stream (need ID for prepareStep)
 	const assistantMessageId = await messageRepository.addMessage({
@@ -72,7 +68,7 @@ export async function createAssistantMessage(
 	});
 
 	// Emit assistant message created event
-	observer.next({
+	publisher.emit({
 		type: "assistant-message-created",
 		messageId: assistantMessageId,
 	});
@@ -89,16 +85,14 @@ export async function updateMessageStatus(
 	finishReason: string | undefined,
 	usage: any | undefined,
 	messageRepository: MessageRepository,
-	observer: {
-		next: (event: StreamEvent) => void;
-	},
+	publisher: StreamPublisher,
 ): Promise<void> {
 	try {
 		await messageRepository.updateMessageStatus(messageId, status, finishReason);
 
 		// Emit message-updated event (model-level: partial message with changed fields)
 		// Frontend subscription will merge this with existing message
-		observer.next({
+		publisher.emit({
 			type: "message-updated",
 			messageId: messageId,
 			message: {
@@ -122,9 +116,7 @@ export async function createAbortNotificationMessage(
 	sessionId: string,
 	aiConfig: any,
 	messageRepository: MessageRepository,
-	observer: {
-		next: (event: StreamEvent) => void;
-	},
+	publisher: StreamPublisher,
 ): Promise<void> {
 	if (!aiConfig.notifyLLMOnAbort) {
 		return; // Feature disabled
@@ -145,7 +137,7 @@ export async function createAbortNotificationMessage(
 		});
 
 		// Emit system-message-created event
-		observer.next({
+		publisher.emit({
 			type: "system-message-created",
 			messageId: systemMessageId,
 			content: "Previous assistant message was aborted by user.",

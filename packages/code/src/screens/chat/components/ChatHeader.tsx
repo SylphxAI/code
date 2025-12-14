@@ -30,7 +30,7 @@ export function ChatHeader({
 			{title && (
 				<>
 					<Text color={colors.textDim}> › </Text>
-					<Text color={colors.text}>{title}</Text>
+					<Text italic color={colors.secondary}>{title}</Text>
 				</>
 			)}
 		</Box>

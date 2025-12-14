@@ -1,22 +1,24 @@
 /**
  * Event Emitter
  * Centralized event emission helpers for streaming service
+ *
+ * Uses StreamPublisher interface for direct eventStream publishing.
+ * No more tRPC Observable/Observer pattern.
  */
 
 import type { SessionStatus, TokenUsage } from "@sylphx/code-core";
-import type { Observer } from "@trpc/server/observable";
-import type { StreamEvent } from "./types.js";
+import type { StreamPublisher } from "./types.js";
 
 /**
  * Emit session-created event
  */
 export function emitSessionCreated(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	sessionId: string,
 	provider: string,
 	model: string,
 ): void {
-	observer.next({
+	publisher.emit({
 		type: "session-created",
 		sessionId,
 		provider,
@@ -29,11 +31,11 @@ export function emitSessionCreated(
  * Sends full session model for optimistic updates and real-time sync
  */
 export function emitSessionUpdated(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	sessionId: string,
 	session: {
 		id: string;
-		title: string;
+		title?: string;
 		status?: SessionStatus;
 		totalTokens?: number;
 		baseContextTokens?: number;
@@ -42,7 +44,7 @@ export function emitSessionUpdated(
 		updatedAt?: number;
 	},
 ): void {
-	observer.next({
+	publisher.emit({
 		type: "session-updated",
 		sessionId,
 		session,
@@ -55,11 +57,11 @@ export function emitSessionUpdated(
  * Updates unified progress indicator (status text, duration, tokens)
  */
 export function emitSessionStatusUpdated(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	sessionId: string,
 	status: SessionStatus,
 ): void {
-	observer.next({
+	publisher.emit({
 		type: "session-status-updated" as any,
 		sessionId,
 		status,
@@ -70,11 +72,11 @@ export function emitSessionStatusUpdated(
  * Emit user-message-created event
  */
 export function emitUserMessageCreated(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	messageId: string,
 	content: string,
 ): void {
-	observer.next({
+	publisher.emit({
 		type: "user-message-created",
 		messageId,
 		content,
@@ -85,10 +87,10 @@ export function emitUserMessageCreated(
  * Emit assistant-message-created event
  */
 export function emitAssistantMessageCreated(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	messageId: string,
 ): void {
-	observer.next({
+	publisher.emit({
 		type: "assistant-message-created",
 		messageId,
 	});
@@ -98,11 +100,11 @@ export function emitAssistantMessageCreated(
  * Emit system-message-created event
  */
 export function emitSystemMessageCreated(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	messageId: string,
 	content: string,
 ): void {
-	observer.next({
+	publisher.emit({
 		type: "system-message-created",
 		messageId,
 		content,
@@ -114,7 +116,7 @@ export function emitSystemMessageCreated(
  * Sends full message model for optimistic updates and real-time sync
  */
 export function emitMessageUpdated(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	messageId: string,
 	message: {
 		id: string;
@@ -124,7 +126,7 @@ export function emitMessageUpdated(
 		content?: any[];
 	},
 ): void {
-	observer.next({
+	publisher.emit({
 		type: "message-updated",
 		messageId,
 		message,
@@ -136,13 +138,13 @@ export function emitMessageUpdated(
  * Emit message-status-updated event
  */
 export function emitMessageStatusUpdated(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	messageId: string,
 	status: "active" | "completed" | "error" | "abort",
 	finishReason?: string,
 	usage?: TokenUsage,
 ): void {
-	observer.next({
+	publisher.emit({
 		type: "message-status-updated" as any,
 		messageId,
 		status,
@@ -154,8 +156,8 @@ export function emitMessageStatusUpdated(
 /**
  * Emit error event
  */
-export function emitError(observer: Observer<StreamEvent, unknown>, error: string): void {
-	observer.next({
+export function emitError(publisher: StreamPublisher, error: string): void {
+	publisher.emit({
 		type: "error",
 		error,
 	});
@@ -164,43 +166,43 @@ export function emitError(observer: Observer<StreamEvent, unknown>, error: strin
 /**
  * Emit text-start event
  */
-export function emitTextStart(observer: Observer<StreamEvent, unknown>): void {
-	observer.next({ type: "text-start" });
+export function emitTextStart(publisher: StreamPublisher): void {
+	publisher.emit({ type: "text-start" });
 }
 
 /**
  * Emit text-delta event
  */
-export function emitTextDelta(observer: Observer<StreamEvent, unknown>, text: string): void {
-	observer.next({ type: "text-delta", text });
+export function emitTextDelta(publisher: StreamPublisher, text: string): void {
+	publisher.emit({ type: "text-delta", text });
 }
 
 /**
  * Emit text-end event
  */
-export function emitTextEnd(observer: Observer<StreamEvent, unknown>): void {
-	observer.next({ type: "text-end" });
+export function emitTextEnd(publisher: StreamPublisher): void {
+	publisher.emit({ type: "text-end" });
 }
 
 /**
  * Emit reasoning-start event
  */
-export function emitReasoningStart(observer: Observer<StreamEvent, unknown>): void {
-	observer.next({ type: "reasoning-start" });
+export function emitReasoningStart(publisher: StreamPublisher): void {
+	publisher.emit({ type: "reasoning-start" });
 }
 
 /**
  * Emit reasoning-delta event
  */
-export function emitReasoningDelta(observer: Observer<StreamEvent, unknown>, text: string): void {
-	observer.next({ type: "reasoning-delta", text });
+export function emitReasoningDelta(publisher: StreamPublisher, text: string): void {
+	publisher.emit({ type: "reasoning-delta", text });
 }
 
 /**
  * Emit reasoning-end event
  */
-export function emitReasoningEnd(observer: Observer<StreamEvent, unknown>, duration: number): void {
-	observer.next({ type: "reasoning-end", duration });
+export function emitReasoningEnd(publisher: StreamPublisher, duration: number): void {
+	publisher.emit({ type: "reasoning-end", duration });
 }
 
 // ============================================================================
@@ -210,119 +212,119 @@ export function emitReasoningEnd(observer: Observer<StreamEvent, unknown>, durat
 /**
  * Emit title-start event
  */
-export function emitTitleStart(observer: Observer<StreamEvent, unknown>): void {
-	observer.next({ type: "title-start" });
+export function emitTitleStart(publisher: StreamPublisher): void {
+	publisher.emit({ type: "title-start" });
 }
 
 /**
  * Emit title-delta event
  */
-export function emitTitleDelta(observer: Observer<StreamEvent, unknown>, text: string): void {
-	observer.next({ type: "title-delta", text });
+export function emitTitleDelta(publisher: StreamPublisher, text: string): void {
+	publisher.emit({ type: "title-delta", text });
 }
 
 /**
  * Emit title-end event
  */
-export function emitTitleEnd(observer: Observer<StreamEvent, unknown>): void {
-	observer.next({ type: "title-end" });
+export function emitTitleEnd(publisher: StreamPublisher): void {
+	publisher.emit({ type: "title-end" });
 }
 
 /**
  * Emit suggestions-start event
  */
-export function emitSuggestionsStart(observer: Observer<StreamEvent, unknown>): void {
-	observer.next({ type: "suggestions-start" });
+export function emitSuggestionsStart(publisher: StreamPublisher): void {
+	publisher.emit({ type: "suggestions-start" });
 }
 
 /**
  * Emit suggestion-start event
  */
-export function emitSuggestionStart(observer: Observer<StreamEvent, unknown>, index: number): void {
-	observer.next({ type: "suggestion-start", index });
+export function emitSuggestionStart(publisher: StreamPublisher, index: number): void {
+	publisher.emit({ type: "suggestion-start", index });
 }
 
 /**
  * Emit suggestion-delta event
  */
 export function emitSuggestionDelta(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	index: number,
 	text: string,
 ): void {
-	observer.next({ type: "suggestion-delta", index, text });
+	publisher.emit({ type: "suggestion-delta", index, text });
 }
 
 /**
  * Emit suggestion-end event
  */
-export function emitSuggestionEnd(observer: Observer<StreamEvent, unknown>, index: number): void {
-	observer.next({ type: "suggestion-end", index });
+export function emitSuggestionEnd(publisher: StreamPublisher, index: number): void {
+	publisher.emit({ type: "suggestion-end", index });
 }
 
 /**
  * Emit suggestions-end event
  */
-export function emitSuggestionsEnd(observer: Observer<StreamEvent, unknown>): void {
-	observer.next({ type: "suggestions-end" });
+export function emitSuggestionsEnd(publisher: StreamPublisher): void {
+	publisher.emit({ type: "suggestions-end" });
 }
 
 /**
  * Emit tool-call event
  */
 export function emitToolCall(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	toolCallId: string,
 	toolName: string,
 	input: any,
 	startTime: number,
 ): void {
-	observer.next({ type: "tool-call", toolCallId, toolName, input, startTime });
+	publisher.emit({ type: "tool-call", toolCallId, toolName, input, startTime });
 }
 
 /**
  * Emit tool-input-start event
  */
 export function emitToolInputStart(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	toolCallId: string,
 	startTime: number,
 ): void {
-	observer.next({ type: "tool-input-start", toolCallId, startTime });
+	publisher.emit({ type: "tool-input-start", toolCallId, startTime });
 }
 
 /**
  * Emit tool-input-delta event
  */
 export function emitToolInputDelta(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	toolCallId: string,
 	inputTextDelta: string,
 ): void {
-	observer.next({ type: "tool-input-delta", toolCallId, inputTextDelta });
+	publisher.emit({ type: "tool-input-delta", toolCallId, inputTextDelta });
 }
 
 /**
  * Emit tool-input-end event
  */
 export function emitToolInputEnd(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	toolCallId: string,
 ): void {
-	observer.next({ type: "tool-input-end", toolCallId });
+	publisher.emit({ type: "tool-input-end", toolCallId });
 }
 
 /**
  * Emit tool-result event
  */
 export function emitToolResult(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	toolCallId: string,
 	toolName: string,
 	result: any,
 	duration: number,
 ): void {
-	observer.next({
+	publisher.emit({
 		type: "tool-result",
 		toolCallId,
 		toolName,
@@ -335,13 +337,13 @@ export function emitToolResult(
  * Emit tool-error event
  */
 export function emitToolError(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	toolCallId: string,
 	toolName: string,
 	error: string,
 	duration: number,
 ): void {
-	observer.next({
+	publisher.emit({
 		type: "tool-error",
 		toolCallId,
 		toolName,
@@ -354,11 +356,11 @@ export function emitToolError(
  * Emit file event
  */
 export function emitFile(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	mediaType: string,
 	base64: string,
 ): void {
-	observer.next({ type: "file", mediaType, base64 });
+	publisher.emit({ type: "file", mediaType, base64 });
 }
 
 /**
@@ -366,7 +368,7 @@ export function emitFile(
  * Broadcasts to all clients that ask tool is waiting for user input
  */
 export function emitAskQuestionStart(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	sessionId: string,
 	toolCallId: string,
 	question: string,
@@ -380,7 +382,7 @@ export function emitAskQuestionStart(
 	multiSelect?: boolean,
 	preSelected?: string[],
 ): void {
-	observer.next({
+	publisher.emit({
 		type: "ask-question-start",
 		sessionId,
 		toolCallId,
@@ -396,12 +398,12 @@ export function emitAskQuestionStart(
  * Broadcasts to all clients that question has been answered
  */
 export function emitAskQuestionAnswered(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	sessionId: string,
 	toolCallId: string,
 	answer: string,
 ): void {
-	observer.next({
+	publisher.emit({
 		type: "ask-question-answered",
 		sessionId,
 		toolCallId,

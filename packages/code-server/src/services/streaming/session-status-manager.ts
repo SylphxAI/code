@@ -1,18 +1,17 @@
 /**
  * Session Status Manager
- * Subscribes to streaming events and emits session-status-updated
+ * Manages session status and emits updates via eventStream
  *
- * Architecture: Pub-Sub pattern
+ * Architecture: Pub-Sub pattern with direct eventStream publishing
  * - Provides callbacks for stream-orchestrator to call
  * - Maintains internal state (currentTool, tokenUsage, etc.)
- * - Emits session-status-updated when state changes
+ * - Publishes session-status-updated when state changes
  * - Separation of concerns: Tool execution doesn't know about status
  */
 
 import type { Session, SessionStatus, Todo } from "@sylphx/code-core";
-import type { Observer } from "@trpc/server/observable";
 import { emitSessionUpdated } from "./event-emitter.js";
-import type { StreamEvent } from "./types.js";
+import type { StreamPublisher } from "./types.js";
 import type { AppContext } from "../../context.js";
 
 /**
@@ -87,16 +86,16 @@ function determineStatusText(
 
 /**
  * Create session status manager
- * Maintains state and emits session-updated events (model-level)
+ * Maintains state and emits session-updated events
  *
- * @param observer - tRPC observer to emit events
+ * @param publisher - StreamPublisher for emitting events
  * @param sessionId - Session ID
  * @param session - Full session model
  * @param appContext - App context for event stream publishing
  * @returns Manager instance with callbacks and cleanup function
  */
 export function createSessionStatusManager(
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	sessionId: string,
 	session: Session,
 	appContext: AppContext,
@@ -108,7 +107,8 @@ export function createSessionStatusManager(
 	let startTime = Date.now();
 	let todos = session.todos;
 	let isActive = true;
-	let sessionTitle = session.title;
+	// NOTE: title is NOT managed here - it's handled by inline-action-dispatcher
+	// to avoid race conditions during title streaming
 
 	// Debounce token updates (emit at most every 500ms)
 	let lastTokenEmitTime = 0;
@@ -116,9 +116,8 @@ export function createSessionStatusManager(
 	const TOKEN_DEBOUNCE_MS = 500;
 
 	/**
-	 * Emit session-status-updated event (field-level, not entity-level)
-	 * Only updates the status field, not the whole session
-	 * This is more efficient for Lens Live Query
+	 * Emit session-status-updated event
+	 * Publishes via StreamPublisher and also directly to eventStream for field-level updates
 	 */
 	function emitStatus() {
 		const statusText = determineStatusText(todos, currentTool ?? undefined, isActive);
@@ -131,19 +130,18 @@ export function createSessionStatusManager(
 			isActive,
 		};
 
-		// For tRPC observable (legacy), still emit full session update
+		// Emit session status update via StreamPublisher
+		// NOTE: title is NOT included - managed separately by inline-action-dispatcher
 		const sessionUpdate = {
 			id: sessionId,
-			title: sessionTitle,
 			status,
 			totalTokens: currentTokens,
 			baseContextTokens,
 			updatedAt: Date.now(),
 		};
-		emitSessionUpdated(observer, sessionId, sessionUpdate);
+		emitSessionUpdated(publisher, sessionId, sessionUpdate);
 
-		// For Lens Live Query: emit field-level event (session-status-updated)
-		// This only updates the status field, not the whole session
+		// Also publish field-level event for Lens Live Query
 		// getSession.subscribe() handles this via emit.set("status", ...)
 		appContext.eventStream.publish(`session-stream:${sessionId}`, {
 			type: "session-status-updated",
@@ -197,19 +195,6 @@ export function createSessionStatusManager(
 			isActive = false;
 			emitStatus();
 		},
-	};
-
-	/**
-	 * Update session metadata (called when external updates occur)
-	 */
-	const updateSessionMetadata = (updates: {
-		title?: string;
-		totalTokens?: number;
-		baseContextTokens?: number;
-	}) => {
-		if (updates.title !== undefined) sessionTitle = updates.title;
-		if (updates.totalTokens !== undefined) currentTokens = updates.totalTokens;
-		if (updates.baseContextTokens !== undefined) baseContextTokens = updates.baseContextTokens;
 	};
 
 	// Emit initial status

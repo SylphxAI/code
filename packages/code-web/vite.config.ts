@@ -35,6 +35,8 @@ export default defineConfig({
 				"drizzle-orm",
 				"better-sqlite3",
 				"ink",
+				// lens-core has Node.js-specific code (createRequire) - should be handled by lens-client
+				"@sylphx/lens-core",
 			],
 			// Suppress warnings about imports from workspace dependencies
 			onwarn(warning, warn) {

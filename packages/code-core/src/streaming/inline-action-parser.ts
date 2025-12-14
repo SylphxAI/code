@@ -42,7 +42,66 @@ export class InlineActionParser {
 			}
 		}
 
-		return actions;
+		// Merge consecutive delta actions of the same type
+		// This prevents character-by-character events
+		return this.mergeConsecutiveDeltas(actions);
+	}
+
+	/**
+	 * Merge consecutive delta actions of the same type
+	 * e.g., [title-delta "C", title-delta "u", title-delta "s"] -> [title-delta "Cus"]
+	 */
+	private mergeConsecutiveDeltas(actions: InlineAction[]): InlineAction[] {
+		if (actions.length <= 1) return actions;
+
+		const merged: InlineAction[] = [];
+		let i = 0;
+
+		while (i < actions.length) {
+			const current = actions[i];
+
+			// Check if this is a mergeable delta action
+			if (
+				current.type === "message-delta" ||
+				current.type === "title-delta" ||
+				current.type === "text-delta"
+			) {
+				// Collect consecutive same-type deltas
+				let content = current.content;
+				let j = i + 1;
+
+				while (j < actions.length && actions[j].type === current.type) {
+					content += (actions[j] as { content: string }).content;
+					j++;
+				}
+
+				merged.push({ ...current, content } as InlineAction);
+				i = j;
+			} else if (current.type === "suggestion-delta") {
+				// For suggestion-delta, also check index matches
+				let content = current.content;
+				const index = current.index;
+				let j = i + 1;
+
+				while (
+					j < actions.length &&
+					actions[j].type === "suggestion-delta" &&
+					(actions[j] as { index: number }).index === index
+				) {
+					content += (actions[j] as { content: string }).content;
+					j++;
+				}
+
+				merged.push({ type: "suggestion-delta", index, content });
+				i = j;
+			} else {
+				// Non-delta action, keep as-is
+				merged.push(current);
+				i++;
+			}
+		}
+
+		return merged;
 	}
 
 	/**

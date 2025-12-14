@@ -1,10 +1,11 @@
 /**
  * AI Orchestrator
  * Handles AI streaming coordination and stream processing
+ *
+ * Uses StreamPublisher for direct eventStream publishing.
  */
 
 import type { MessagePart, StreamCallbacks } from "@sylphx/code-core";
-import type { Observer } from "@trpc/server/observable";
 import { type CoreMessage, type LanguageModel, stepCountIs, streamText, type TextStreamPart } from "ai";
 import type { AppContext } from "../../context.js";
 import { updateTokensFromDelta } from "../token-tracking.service.js";
@@ -17,7 +18,7 @@ import {
 	emitToolInputStart,
 	emitToolResult,
 } from "./event-emitter.js";
-import type { StreamEvent } from "./types.js";
+import type { StreamPublisher } from "./types.js";
 
 /**
  * Tool tracking information
@@ -96,12 +97,12 @@ export interface ParsedTextHandler {
  */
 export async function processAIStream(
 	fullStream: AsyncIterable<TextStreamPart<any>>,
-	observer: Observer<StreamEvent, unknown>,
+	publisher: StreamPublisher,
 	state: StreamState,
 	tokenContext: TokenTrackingContext | null,
 	callbacks: StreamCallbacks,
-	persistence?: PersistenceContext, // NEW: Optional persistence during migration
-	parsedTextHandler?: ParsedTextHandler, // NEW: Handler for parsed text (XML tags stripped)
+	persistence?: PersistenceContext, // Optional persistence during migration
+	parsedTextHandler?: ParsedTextHandler, // Handler for parsed text (XML tags stripped)
 ): Promise<{ finalUsage: any; finalFinishReason: string | undefined; hasError: boolean }> {
 	let finalUsage: any;
 	let finalFinishReason: string | undefined;
@@ -358,7 +359,7 @@ export async function processAIStream(
 						input: "",
 					});
 
-					emitToolInputStart(observer, chunk.id, toolStartTime);
+					emitToolInputStart(publisher, chunk.id, toolStartTime);
 					break;
 				}
 
@@ -377,7 +378,7 @@ export async function processAIStream(
 						toolPart.input = currentInput + chunk.delta;
 					}
 
-					emitToolInputDelta(observer, chunk.id, chunk.delta);
+					emitToolInputDelta(publisher, chunk.id, chunk.delta);
 					break;
 				}
 
@@ -405,7 +406,7 @@ export async function processAIStream(
 						}
 					}
 
-					emitToolInputEnd(observer, chunk.id);
+					emitToolInputEnd(publisher, chunk.id);
 					break;
 				}
 
@@ -441,7 +442,7 @@ export async function processAIStream(
 
 						state.hasEmittedAnyEvent = true;
 						emitToolResult(
-							observer,
+							publisher,
 							chunk.toolCallId,
 							chunk.toolName,
 							"output" in chunk ? chunk.output : undefined,
@@ -475,7 +476,7 @@ export async function processAIStream(
 
 						state.hasEmittedAnyEvent = true;
 						emitToolError(
-							observer,
+							publisher,
 							chunk.toolCallId,
 							chunk.toolName,
 							String(chunk.error),
@@ -501,7 +502,7 @@ export async function processAIStream(
 						status: "completed",
 					});
 
-					emitFile(observer, chunk.file.mediaType, chunk.file.base64);
+					emitFile(publisher, chunk.file.mediaType, chunk.file.base64);
 					callbacks.onFile?.(chunk.file.mediaType, chunk.file.base64);
 					break;
 				}
@@ -533,7 +534,7 @@ export async function processAIStream(
 							status: "completed",
 						});
 						hasError = true;
-						emitError(observer, errorStr);
+						emitError(publisher, errorStr);
 						callbacks.onError?.(errorStr);
 					}
 					break;
@@ -580,7 +581,7 @@ export async function processAIStream(
 				status: "completed",
 			});
 			hasError = true;
-			emitError(observer, errorMessage);
+			emitError(publisher, errorMessage);
 			callbacks.onError?.(errorMessage);
 		}
 	}

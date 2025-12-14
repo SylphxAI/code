@@ -5,11 +5,14 @@
  * LENS ARCHITECTURE:
  * All streaming state comes from server via useQuery session data.
  * Server uses emit API to push updates, client just reads.
+ *
+ * NOTE: This hook accepts session data as parameters to avoid duplicate
+ * useCurrentSession() calls. The parent (useChatState) should call
+ * useCurrentSession() once and pass the data here.
  */
 
 import type { MessagePart as StreamPart } from "@sylphx/code-core";
 import { useRef } from "react";
-import { useCurrentSession } from "../../../hooks/client/useCurrentSession.js";
 
 export interface StreamingState {
 	isStreaming: boolean;
@@ -30,9 +33,13 @@ export interface StreamingState {
 	streamingOutputTokens: number;
 }
 
-export function useStreamingState(): StreamingState {
-	// Get streaming state from session via Live Query
-	const { currentSession, isStreaming } = useCurrentSession();
+interface UseStreamingStateParams {
+	currentSession: { title?: string } | null;
+	isStreaming: boolean;
+}
+
+export function useStreamingState(params: UseStreamingStateParams): StreamingState {
+	const { currentSession, isStreaming } = params;
 
 	// Derive streaming state from session (server-driven)
 	const isTitleStreaming = false; // Title streaming not yet implemented in Session type

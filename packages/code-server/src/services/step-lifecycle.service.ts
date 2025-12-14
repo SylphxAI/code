@@ -24,7 +24,7 @@ import {
 	updateStepParts,
 } from "@sylphx/code-core";
 import type { AppContext } from "../context.js";
-import type { StreamEvent } from "./streaming.service.js";
+import type { StreamPublisher } from "./streaming/types.js";
 import { recalculateTokensAtCheckpoint } from "./token-tracking.service.js";
 
 /**
@@ -44,9 +44,7 @@ export async function prepareStep(
 	providerInstance: any,
 	modelName: string,
 	providerConfig: any,
-	observer: {
-		next: (event: StreamEvent) => void;
-	},
+	publisher: StreamPublisher,
 	stepIdMap: Map<number, string>, // Track generated step IDs
 	appContext: AppContext, // For publishing Lens entity events
 ): Promise<{ messages?: any[] } | {}> {
@@ -101,7 +99,7 @@ export async function prepareStep(
 				: [];
 
 		// 4.5. Queue message injection DISABLED
-		// ARCHITECTURE CHANGE: Queue processing moved to post-stream (stream-orchestrator.ts)
+		// ARCHITECTURE CHANGE: Queue processing moved to post-stream (stream-orchestrator-v2.ts)
 		// Reason: AI SDK's prepareStep continue flag doesn't work reliably in 5.x
 		// New approach: After stream completes, check queue and trigger new stream recursively
 		// This ensures ALL queued messages are sent together in one new stream
@@ -132,8 +130,8 @@ export async function prepareStep(
 			throw stepError; // CRITICAL: Must propagate - can't continue without step record
 		}
 
-		// 6. Emit step-start event for UI (legacy tRPC)
-		observer.next({
+		// 6. Emit step-start event for UI
+		publisher.emit({
 			type: "step-start",
 			stepId,
 			stepIndex: stepNumber,
@@ -234,9 +232,7 @@ export async function completeStep(
 	messageRepository: MessageRepository,
 	tokenTracker: any, // StreamingTokenTracker
 	appContext: AppContext,
-	observer: {
-		next: (event: StreamEvent) => void;
-	},
+	publisher: StreamPublisher,
 	session: { provider: string; model: string },
 	cwd: string,
 	stepIdMap: Map<number, string>, // Retrieve generated step ID
@@ -288,9 +284,9 @@ export async function completeStep(
 			console.error(`[StepLifecycle] Failed to complete step ${stepNumber}:`, dbError);
 		}
 
-		// Emit step-complete event (legacy tRPC)
+		// Emit step-complete event
 		const duration = Date.now() - stepStartTime;
-		observer.next({
+		publisher.emit({
 			type: "step-complete",
 			stepId,
 			usage: stepResult.usage || {

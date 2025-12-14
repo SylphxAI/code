@@ -36,11 +36,12 @@ export function useChatState(_props: ChatProps) {
 	const selectedProvider = useSelectedProvider();
 	const selectedModel = useSelectedModel();
 
-	// Session data
+	// Session data (single source of truth - only call useCurrentSession once)
 	const sessionData = useCurrentSession();
 	const currentSession = sessionData?.currentSession;
 	const currentSessionId = sessionData?.currentSessionId;
 	const sessionLoading = sessionData?.isLoading;
+	const isStreaming = sessionData?.isStreaming ?? false;
 
 	// Messages data (separate from session)
 	const { messages } = useMessages(currentSessionId);
@@ -55,8 +56,9 @@ export function useChatState(_props: ChatProps) {
 	const usedTokens = useTokenCalculation(currentSession);
 
 	// State hooks (already extracted)
+	// Pass session data to useStreamingState to avoid duplicate useCurrentSession calls
 	const inputState = useInputState();
-	const streamingState = useStreamingState();
+	const streamingState = useStreamingState({ currentSession, isStreaming });
 	const selectionState = useSelectionState();
 	const commandState = useCommandState();
 
