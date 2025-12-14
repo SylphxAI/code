@@ -98,6 +98,9 @@ interface InputSectionProps {
 	// ESC hint
 	showEscHint: boolean;
 
+	// AI suggestions (from inline actions)
+	suggestions: Array<{ index: number; text: string; isStreaming: boolean }>;
+
 	// Custom input component (replaces input area)
 	inputComponent: React.ReactNode | null;
 	inputComponentTitle: string | null;
@@ -153,6 +156,7 @@ export function InputSection({
 	hintText,
 	validTags,
 	showEscHint,
+	suggestions,
 	inputComponent,
 	inputComponentTitle,
 	isStreaming,
@@ -366,7 +370,12 @@ export function InputSection({
 											: "Type your message, / for commands, @ for files..."
 									}
 									showCursor
-									hint={hintText}
+									hint={
+										// When input is empty, show first completed suggestion as hint
+										input.length === 0 && suggestions.length > 0
+											? suggestions.find((s) => !s.isStreaming)?.text
+											: hintText
+									}
 									validTags={validTags}
 									disableUpDownArrows={
 										// Disable up/down arrows when autocomplete is active
@@ -379,7 +388,16 @@ export function InputSection({
 											: // When command autocomplete is active, handle Tab via callback
 												input.startsWith("/") && filteredCommands.length > 0
 												? onCommandAutocompleteTab
-												: undefined
+												: // When input empty and suggestion available, apply suggestion on Tab
+													input.length === 0 && suggestions.length > 0
+													? () => {
+															const firstSuggestion = suggestions.find((s) => !s.isStreaming);
+															if (firstSuggestion) {
+																setInput(firstSuggestion.text);
+																setCursor(firstSuggestion.text.length);
+															}
+														}
+													: undefined
 									}
 									onEnter={
 										// When file autocomplete is active, handle Enter

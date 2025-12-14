@@ -91,6 +91,11 @@ function TextInputWithHint({
 
 	const colors = useThemeColors();
 
+	// When input is empty and hint exists, show hint as ghost text (like suggestion)
+	// When input has content and hint exists, show hint after the text
+	const showHintAsGhost = hint && value.length === 0;
+	const showHintAfterText = hint && value.length > 0;
+
 	return (
 		<Box>
 			<ControlledTextInput
@@ -99,7 +104,7 @@ function TextInputWithHint({
 				cursor={cursor}
 				onCursorChange={onCursorChange}
 				onSubmit={handleSubmit}
-				placeholder={placeholder}
+				placeholder={showHintAsGhost ? undefined : placeholder}
 				showCursor={showCursor}
 				focus={focus}
 				validTags={validTags}
@@ -114,7 +119,8 @@ function TextInputWithHint({
 				onCtrlP={onCtrlP}
 				maxLines={maxLines}
 			/>
-			{hint && value.length > 0 ? <Text color={colors.textDim}>{hint}</Text> : null}
+			{showHintAsGhost ? <Text color={colors.textDim}>{hint}</Text> : null}
+			{showHintAfterText ? <Text color={colors.textDim}>{hint}</Text> : null}
 		</Box>
 	);
 }

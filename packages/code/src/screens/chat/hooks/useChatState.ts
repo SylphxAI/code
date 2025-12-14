@@ -42,6 +42,7 @@ export function useChatState(_props: ChatProps) {
 	const currentSessionId = sessionData?.currentSessionId;
 	const sessionLoading = sessionData?.isLoading;
 	const isStreaming = sessionData?.isStreaming ?? false;
+	const suggestions = sessionData?.suggestions ?? [];
 
 	// Messages data (separate from session)
 	const { messages } = useMessages(currentSessionId);
@@ -174,6 +175,9 @@ export function useChatState(_props: ChatProps) {
 
 		// Autocomplete
 		hintText,
+
+		// AI suggestions (from inline actions)
+		suggestions,
 
 		// Display settings
 		hideMessageTitles,

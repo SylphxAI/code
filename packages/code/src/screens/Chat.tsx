@@ -130,6 +130,7 @@ export default function Chat(props: ChatProps) {
 						cachedOptions={state.commandState.cachedOptions}
 						hintText={state.hintText || ""}
 						validTags={new Set(state.validTags)}
+						suggestions={state.suggestions}
 						currentSessionId={state.currentSessionId}
 						setInput={state.inputState.setInput}
 						setCursor={state.inputState.setCursor}
