@@ -76,7 +76,9 @@ export { parseUserInput } from "./utils/parse-user-input.js";
 export type { ProviderModelResult } from "./utils/config.js";
 export { resolveProviderAndModel } from "./utils/config.js";
 
-export { extractFileReferences, renderTextWithTags } from "./utils/text-rendering-utils.js";
+export { extractFileReferences } from "./utils/text-utils.js";
+
+// Note: renderTextWithTags is TUI-only (uses ink) - import directly from ./utils/text-rendering-utils.js
 
 export {
 	formatTodoChange,
