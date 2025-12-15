@@ -135,11 +135,8 @@ export class CodeServer {
 				next();
 			});
 
-			// Handle CORS preflight
-			this.expressApp.options("/lens", (_req, res) => {
-				res.sendStatus(204);
-			});
-			this.expressApp.options("/lens/*", (_req, res) => {
+			// Handle CORS preflight (use regex for Express 5 compatibility)
+			this.expressApp.options(/^\/lens(\/.*)?$/, (_req, res) => {
 				res.sendStatus(204);
 			});
 
@@ -192,9 +189,8 @@ export class CodeServer {
 				}
 			};
 
-			// Register handler for all /lens routes
-			this.expressApp.all("/lens", handleLensRequest);
-			this.expressApp.all("/lens/*", handleLensRequest);
+			// Register handler for all /lens routes (use regex for Express 5)
+			this.expressApp.all(/^\/lens(\/.*)?$/, handleLensRequest);
 
 			console.log("✅ Lens HTTP handler initialized (standard protocol)");
 			console.log("   - Endpoint: /lens/*");
