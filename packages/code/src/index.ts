@@ -69,7 +69,7 @@ import {
 import { CodeServer, createLensServer } from "@sylphx/code-server";
 import chalk from "chalk";
 import { Command } from "commander";
-import { checkServer } from "./trpc-client.js";
+import { checkServer } from "./server-health.js";
 
 // Read version from package.json
 const __filename = fileURLToPath(import.meta.url);

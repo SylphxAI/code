@@ -5,13 +5,13 @@
 
 import { existsSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as trpcClient from "./trpc-client.js";
+import * as serverHealth from "./server-health.js";
 
 // Mock dependencies
 vi.mock("fs", () => ({
 	existsSync: vi.fn(),
 }));
-vi.mock("./trpc-client.js", () => ({
+vi.mock("./server-health.js", () => ({
 	checkServer: vi.fn(),
 	waitForServer: vi.fn(),
 }));
@@ -61,7 +61,7 @@ describe("server-manager", () => {
 	describe("ensureServer", () => {
 		it("should return true if server already running", async () => {
 			// Mock server already running
-			(trpcClient.checkServer as any).mockResolvedValue(true);
+			(serverHealth.checkServer as any).mockResolvedValue(true);
 
 			const { ensureServer } = await import("./server-manager.js");
 
@@ -72,7 +72,7 @@ describe("server-manager", () => {
 
 		it("should return false when autoStart=false and server not running", async () => {
 			// Mock server not running
-			(trpcClient.checkServer as any).mockResolvedValue(false);
+			(serverHealth.checkServer as any).mockResolvedValue(false);
 
 			const { ensureServer } = await import("./server-manager.js");
 
@@ -83,8 +83,8 @@ describe("server-manager", () => {
 
 		it("should attempt to start server when autoStart=true", async () => {
 			// Mock server not running initially
-			(trpcClient.checkServer as any).mockResolvedValue(false);
-			(trpcClient.waitForServer as any).mockResolvedValue(false);
+			(serverHealth.checkServer as any).mockResolvedValue(false);
+			(serverHealth.waitForServer as any).mockResolvedValue(false);
 			(existsSync as any).mockReturnValue(false);
 
 			const { ensureServer } = await import("./server-manager.js");
@@ -98,7 +98,7 @@ describe("server-manager", () => {
 
 	describe("getServerStatus", () => {
 		it("should return correct status when server is running", async () => {
-			(trpcClient.checkServer as any).mockResolvedValue(true);
+			(serverHealth.checkServer as any).mockResolvedValue(true);
 			(existsSync as any).mockReturnValue(true);
 
 			const { getServerStatus } = await import("./server-manager.js");
@@ -110,7 +110,7 @@ describe("server-manager", () => {
 		});
 
 		it("should return correct status when server is not running", async () => {
-			(trpcClient.checkServer as any).mockResolvedValue(false);
+			(serverHealth.checkServer as any).mockResolvedValue(false);
 
 			const { getServerStatus } = await import("./server-manager.js");
 

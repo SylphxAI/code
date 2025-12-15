@@ -207,6 +207,9 @@ export type StreamEvent =
 	// Error events
 	| { type: "error"; error: string }
 
+	// Stream completion event
+	| { type: "complete" }
+
 	// Lens entity events (event-carried state for live queries)
 	| {
 			type: "step-added";

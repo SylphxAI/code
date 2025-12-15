@@ -3,7 +3,7 @@
  */
 
 import { spawn } from "node:child_process";
-import { checkServer, waitForServer } from "./trpc-client.js";
+import { checkServer, waitForServer } from "./server-health.js";
 
 /**
  * Ensure code-server is running

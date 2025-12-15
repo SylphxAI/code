@@ -4,7 +4,6 @@
  */
 
 import { useAskToolHandler } from "../../../hooks/client/useAskToolHandler.js";
-import { useChat } from "../../../hooks/client/useChat.js";
 import { useCurrentSession } from "../../../hooks/client/useCurrentSession.js";
 import { useFileAttachments } from "../../../hooks/client/useFileAttachments.js";
 import { useMessages } from "../../../hooks/client/useMessages.js";
@@ -52,8 +51,7 @@ export function useChatState(_props: ChatProps) {
 		addDebugLog(message);
 	}, []);
 
-	// Client actions
-	const { sendMessage } = useChat();
+	// Token calculation
 	const usedTokens = useTokenCalculation(currentSession);
 
 	// State hooks (already extracted)
@@ -140,8 +138,7 @@ export function useChatState(_props: ChatProps) {
 		// Messages
 		messages,
 
-		// Client actions
-		sendMessage,
+		// Token usage
 		usedTokens,
 
 		// State (from hooks)

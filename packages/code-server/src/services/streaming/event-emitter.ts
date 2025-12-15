@@ -51,50 +51,6 @@ export function emitSessionUpdated(
 	});
 }
 
-/**
- * @deprecated Use emitSessionUpdated with full session model
- * Emit session-status-updated event
- * Updates unified progress indicator (status text, duration, tokens)
- */
-export function emitSessionStatusUpdated(
-	publisher: StreamPublisher,
-	sessionId: string,
-	status: SessionStatus,
-): void {
-	publisher.emit({
-		type: "session-status-updated" as any,
-		sessionId,
-		status,
-	} as any);
-}
-
-/**
- * Emit user-message-created event
- */
-export function emitUserMessageCreated(
-	publisher: StreamPublisher,
-	messageId: string,
-	content: string,
-): void {
-	publisher.emit({
-		type: "user-message-created",
-		messageId,
-		content,
-	});
-}
-
-/**
- * Emit assistant-message-created event
- */
-export function emitAssistantMessageCreated(
-	publisher: StreamPublisher,
-	messageId: string,
-): void {
-	publisher.emit({
-		type: "assistant-message-created",
-		messageId,
-	});
-}
 
 /**
  * Emit system-message-created event
@@ -131,26 +87,6 @@ export function emitMessageUpdated(
 		messageId,
 		message,
 	});
-}
-
-/**
- * @deprecated Use emitMessageUpdated with full message model
- * Emit message-status-updated event
- */
-export function emitMessageStatusUpdated(
-	publisher: StreamPublisher,
-	messageId: string,
-	status: "active" | "completed" | "error" | "abort",
-	finishReason?: string,
-	usage?: TokenUsage,
-): void {
-	publisher.emit({
-		type: "message-status-updated" as any,
-		messageId,
-		status,
-		usage,
-		finishReason,
-	} as any);
 }
 
 /**

@@ -8,7 +8,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
-import { checkServer, waitForServer } from "./trpc-client.js";
+import { checkServer, waitForServer } from "./server-health.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
