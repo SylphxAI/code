@@ -5,7 +5,7 @@
  */
 
 import { Link, useParams } from "react-router-dom";
-import { useLensClient } from "@sylphx/code-client";
+import { useLensClient } from "../lib/lens-client";
 import { clsx } from "clsx";
 
 interface Session {
