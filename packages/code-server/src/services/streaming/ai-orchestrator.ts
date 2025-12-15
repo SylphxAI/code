@@ -127,6 +127,9 @@ export async function processAIStream(
 
 				case "text-delta": {
 					if (state.currentTextPartIndex !== null) {
+						// Track parsed content length BEFORE callback (for accurate token delta)
+						const lengthBefore = parsedTextHandler?.getAccumulatedContent().length ?? 0;
+
 						const part = state.currentStepParts[state.currentTextPartIndex];
 						if (part && part.type === "text") {
 							// NOTE: Call callback first - this triggers inline action parsing
@@ -156,15 +159,29 @@ export async function processAIStream(
 						}
 						state.hasEmittedAnyEvent = true;
 
-						// Update tokens in real-time (incremental)
+						// Update tokens in real-time using PARSED delta (matches final calculation)
+						// This prevents token count from "jumping back" after streaming completes
 						if (tokenContext) {
-							await updateTokensFromDelta(
-								tokenContext.tracker,
-								chunk.text,
-								tokenContext.sessionId,
-								tokenContext.baseContextTokens,
-								tokenContext.appContext,
-							);
+							let deltaText = chunk.text;
+							if (parsedTextHandler) {
+								const lengthAfter = parsedTextHandler.getAccumulatedContent().length;
+								if (lengthAfter > lengthBefore) {
+									// Use only the parsed text delta (XML tags stripped)
+									deltaText = parsedTextHandler.getAccumulatedContent().slice(lengthBefore, lengthAfter);
+								} else {
+									// No parsed content added (inside XML tag) - skip token update
+									deltaText = "";
+								}
+							}
+							if (deltaText) {
+								await updateTokensFromDelta(
+									tokenContext.tracker,
+									deltaText,
+									tokenContext.sessionId,
+									tokenContext.baseContextTokens,
+									tokenContext.appContext,
+								);
+							}
 						}
 					}
 					break;
