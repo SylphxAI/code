@@ -20,7 +20,7 @@ import {
 	initializeAppContext,
 } from "./context.js";
 import { createLensServer, appRouter, type AppRouter } from "./lens/server.js";
-import { createHandler, type LensServer } from "@sylphx/lens-server";
+import { createFrameworkHandler, type LensServer } from "@sylphx/lens-server";
 
 export interface ServerConfig {
 	/**
@@ -119,9 +119,9 @@ export class CodeServer {
 		if (!this.expressApp) {
 			this.expressApp = express();
 
-			// Standard Lens HTTP handler (supports /__lens/metadata, /__lens/sse, etc.)
-			const lensHandler = createHandler(this.lensServer!, {
-				pathPrefix: "/lens",
+			// Framework handler for per-operation SSE (supports Accept: text/event-stream)
+			const lensHandler = createFrameworkHandler(this.lensServer!, {
+				basePath: "/lens",
 			});
 
 			// Parse JSON body for Lens requests
@@ -192,10 +192,11 @@ export class CodeServer {
 			// Register handler for all /lens routes (use regex for Express 5)
 			this.expressApp.all(/^\/lens(\/.*)?$/, handleLensRequest);
 
-			console.log("✅ Lens HTTP handler initialized (standard protocol)");
+			console.log("✅ Lens Framework handler initialized (per-operation SSE)");
 			console.log("   - Endpoint: /lens/*");
-			console.log("   - Metadata: /lens/__lens/metadata");
-			console.log("   - SSE: /lens/__lens/sse");
+			console.log("   - Queries: GET /lens/{operation}");
+			console.log("   - Mutations: POST /lens/{operation}");
+			console.log("   - SSE: GET /lens/{operation} with Accept: text/event-stream");
 
 			// Static files for Web UI
 			await this.setupStaticFiles();
