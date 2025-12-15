@@ -93,11 +93,9 @@ function TextInputWithHint({
 
 	// When input is empty and hint exists, show hint as ghost text (like suggestion)
 	// When input has content and hint exists, show hint after the text
+	// No "Tab" label needed - ghost text pattern is standard UX (VS Code, Copilot, zsh)
 	const showHintAsGhost = hint && value.length === 0;
 	const showHintAfterText = hint && value.length > 0;
-
-	// Show "Tab" hint when there's a suggestion that can be applied
-	const showTabHint = showHintAsGhost && onTab;
 
 	return (
 		<Box>
@@ -122,13 +120,8 @@ function TextInputWithHint({
 				onCtrlP={onCtrlP}
 				maxLines={maxLines}
 			/>
-			{showHintAsGhost ? (
-				<>
-					<Text color={colors.textDim}>{hint}</Text>
-					{showTabHint ? <Text color={colors.textMuted}> Tab</Text> : null}
-				</>
-			) : null}
-			{showHintAfterText ? <Text color={colors.textDim}>{hint}</Text> : null}
+			{showHintAsGhost && <Text color={colors.textDim}>{hint}</Text>}
+			{showHintAfterText && <Text color={colors.textDim}>{hint}</Text>}
 		</Box>
 	);
 }
