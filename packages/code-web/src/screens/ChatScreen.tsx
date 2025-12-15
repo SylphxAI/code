@@ -5,7 +5,7 @@
  */
 
 import { useParams, useNavigate } from "react-router-dom";
-import { useLensClient } from "../lib/lens-client";
+import { useLensClient } from "@sylphx/code-client/browser";
 import { useState, useRef, useEffect } from "react";
 import { MessageList } from "../components/chat/MessageList";
 import { ChatInput } from "../components/chat/ChatInput";
