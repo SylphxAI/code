@@ -18,8 +18,7 @@ export function Sidebar() {
 	const { sessionId } = useParams();
 
 	// Fetch recent sessions (Live Query)
-	// Type cast due to workspace TypeScript issues
-	const { data: sessions, loading } = (client as any).listSessions.useQuery({
+	const { data: sessions, loading } = client.listSessions.useQuery({
 		input: { limit: 20 },
 	});
 

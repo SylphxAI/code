@@ -41,25 +41,22 @@ export function ChatScreen() {
 	const [input, setInput] = useState("");
 	const [sending, setSending] = useState(false);
 
-	// Type cast client due to workspace TypeScript issues
-	const typedClient = client as any;
-
 	// Query session data (Live Query)
-	const { data: sessionData } = typedClient.getSession.useQuery({
+	const { data: sessionData } = client.getSession.useQuery({
 		input: { id: sessionId || "" },
 		skip: !sessionId,
 	});
 	const session = sessionData as Session | undefined;
 
 	// Query messages for current session (Live Query)
-	const { data: messagesData, loading: messagesLoading } = typedClient.listMessages.useQuery({
+	const { data: messagesData, loading: messagesLoading } = client.listMessages.useQuery({
 		input: { sessionId: sessionId || "" },
 		skip: !sessionId,
 	});
 	const messages = (messagesData as Message[] | undefined) || [];
 
 	// Mutation hook - returns { mutate } function
-	const { mutate: sendMessage } = typedClient.sendMessage.useMutation();
+	const { mutate: sendMessage } = client.sendMessage.useMutation();
 
 	// Scroll to bottom when messages change
 	useEffect(() => {

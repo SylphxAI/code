@@ -1,20 +1,19 @@
 /**
  * Browser-safe Lens Client
  *
- * This client is designed for browser use only, without importing
- * from code-server which pulls in Node.js-only dependencies.
- *
- * Types are defined locally rather than inferred from AppRouter.
+ * Uses type-only import from code-server for full TypeScript support.
+ * Type imports are erased at runtime, so no Node.js dependencies are bundled.
  */
 
-import { createClient } from "@sylphx/lens-react";
+import { createClient, type TypedClient } from "@sylphx/lens-react";
 import { http, type Transport } from "@sylphx/lens-client";
+import type { AppRouter } from "@sylphx/code-server";
 
 // =============================================================================
-// Client Type (browser-safe, no server imports)
+// Client Type (fully typed from AppRouter)
 // =============================================================================
 
-export type CodeClient = ReturnType<typeof createClient>;
+export type CodeClient = TypedClient<AppRouter>;
 
 // =============================================================================
 // Module Singleton
@@ -23,7 +22,7 @@ export type CodeClient = ReturnType<typeof createClient>;
 let _client: CodeClient | null = null;
 
 export function createCodeClient(transport: Transport): CodeClient {
-	return createClient({ transport });
+	return createClient<AppRouter>({ transport });
 }
 
 export function initClient(client: CodeClient): void {

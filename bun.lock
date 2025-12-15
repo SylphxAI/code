@@ -213,6 +213,7 @@
         "superjson": "^2.2.5",
       },
       "devDependencies": {
+        "@sylphx/code-server": "workspace:*",
         "@tailwindcss/vite": "^4.1.10",
         "@types/node": "^24.9.2",
         "@types/react": "^19.1.8",
