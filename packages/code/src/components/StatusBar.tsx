@@ -82,6 +82,16 @@ function StatusBarInternal({
 		session?.status?.tokenUsage || 0,
 	);
 
+	// DEBUG: Log token data changes
+	useEffect(() => {
+		console.log("[StatusBar] Token data changed:", {
+			"session.totalTokens": session?.totalTokens,
+			"session.baseContextTokens": session?.baseContextTokens,
+			"session.status?.tokenUsage": session?.status?.tokenUsage,
+			"computed totalTokens": totalTokens,
+		});
+	}, [session?.totalTokens, session?.baseContextTokens, session?.status?.tokenUsage, totalTokens]);
+
 	// MCP status (event-driven via eventBus, not Lens)
 	const mcpStatus = useMCPStatus();
 

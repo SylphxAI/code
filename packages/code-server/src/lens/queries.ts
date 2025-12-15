@@ -28,6 +28,9 @@ import {
 	AskRequest,
 } from "./entities.js";
 import { subscribeToSessionStream, subscribeToChannel } from "./subscription-utils.js";
+import { createLogger } from "@sylphx/code-core";
+
+const log = createLogger("lens:queries");
 
 // =============================================================================
 // Session Queries
@@ -81,10 +84,14 @@ export const getSession = query()
 
 			// session-tokens-updated: update token counts (for StatusBar)
 			if (payload?.type === "session-tokens-updated") {
+				log("getSession.subscribe RECEIVED session-tokens-updated totalTokens=%d baseContextTokens=%d",
+					payload.totalTokens, payload.baseContextTokens);
 				if (payload.totalTokens !== undefined) {
+					log("getSession.subscribe emit.set totalTokens=%d", payload.totalTokens);
 					emit.set("totalTokens", payload.totalTokens);
 				}
 				if (payload.baseContextTokens !== undefined) {
+					log("getSession.subscribe emit.set baseContextTokens=%d", payload.baseContextTokens);
 					emit.set("baseContextTokens", payload.baseContextTokens);
 				}
 			}

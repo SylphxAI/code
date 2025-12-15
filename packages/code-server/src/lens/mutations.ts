@@ -18,8 +18,10 @@ import { z } from "zod";
 import { entity as e, temp, now } from "@sylphx/reify";
 import { Session, Message, Step, Part, Todo } from "./entities.js";
 import type { LensContext } from "./context.js";
-import { calculateBaseContextTokens } from "@sylphx/code-core";
+import { calculateBaseContextTokens, createLogger } from "@sylphx/code-core";
 import type { AppContext } from "../context.js";
+
+const log = createLogger("lens:mutations");
 
 // =============================================================================
 // Input Schemas
@@ -54,6 +56,9 @@ async function calculateBaseContextTokensAsync(
 	enabledRuleIds: string[],
 	appContext: AppContext,
 ): Promise<void> {
+	log("calculateBaseContextTokensAsync START sessionId=%s model=%s agentId=%s",
+		sessionId, modelName, agentId);
+
 	const cwd = process.cwd();
 
 	// Calculate base context tokens (system prompt + tools)
@@ -63,23 +68,32 @@ async function calculateBaseContextTokensAsync(
 		enabledRuleIds,
 		cwd,
 	);
+	log("calculateBaseContextTokensAsync baseContextTokens=%d", baseContextTokens);
 
 	// totalTokens = baseContext (no messages yet)
 	const totalTokens = baseContextTokens;
 
 	// Persist to database
+	log("calculateBaseContextTokensAsync PERSIST to database...");
 	await appContext.database.getSessionRepository().updateSessionTokens(sessionId, {
 		baseContextTokens,
 		totalTokens,
 	});
+	log("calculateBaseContextTokensAsync PERSIST SUCCESS");
 
 	// Emit event for live query subscribers
-	await appContext.eventStream.publish(`session-stream:${sessionId}`, {
+	const channel = `session-stream:${sessionId}`;
+	const event = {
 		type: "session-tokens-updated",
 		sessionId,
 		totalTokens,
 		baseContextTokens,
-	});
+	};
+	log("calculateBaseContextTokensAsync EMIT channel=%s event=%o", channel, event);
+	await appContext.eventStream.publish(channel, event);
+	log("calculateBaseContextTokensAsync EMIT SUCCESS");
+
+	log("calculateBaseContextTokensAsync END totalTokens=%d", totalTokens);
 }
 
 // =============================================================================
