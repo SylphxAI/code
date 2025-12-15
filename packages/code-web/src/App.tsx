@@ -7,11 +7,11 @@
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { createCodeClient, http, initClient } from "@sylphx/code-client";
+import { createCodeClient, sse, initClient } from "@sylphx/code-client";
 import { ChatScreen } from "./screens/ChatScreen";
 import { Layout } from "./components/Layout";
 
-// Initialize Lens client with HTTP transport
+// Initialize Lens client with SSE transport (event-driven, no polling)
 const LENS_URL = import.meta.env.VITE_LENS_URL || "http://localhost:3000/lens";
 
 function App() {
@@ -21,7 +21,7 @@ function App() {
 	useEffect(() => {
 		// Initialize Lens client
 		try {
-			const client = createCodeClient(http({ url: LENS_URL }));
+			const client = createCodeClient(sse({ url: LENS_URL }));
 			initClient(client);
 			setIsReady(true);
 		} catch (err) {

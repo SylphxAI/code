@@ -17,6 +17,7 @@ export {
 	useLensClient,
 	direct,
 	http,
+	sse,
 	type CodeClient,
 	type Transport,
 } from "./lens.js";
