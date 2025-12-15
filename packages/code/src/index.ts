@@ -142,9 +142,12 @@ async function main() {
 				console.log(chalk.cyan("Starting standalone HTTP server..."));
 				console.log(chalk.dim("Use Ctrl+C to stop"));
 
-				const server = new CodeServer({ port: 3000 });
+				const server = new CodeServer();
 				await server.initialize();
-				await server.startHTTP();
+
+				// Start web server
+				const { startWebServer } = await import("./web-server.js");
+				await startWebServer({ lensServer: server.getLensServer(), port: 3000 });
 
 				// Keep process alive
 				await new Promise(() => {});
@@ -194,7 +197,10 @@ async function main() {
 				if (!options.quiet) {
 					console.error(chalk.dim("Starting HTTP server for Web GUI..."));
 				}
-				await codeServer.startHTTP(3000);
+
+				// Start web server (in code package, not code-server)
+				const { startWebServer } = await import("./web-server.js");
+				await startWebServer({ lensServer: lens, port: 3000 });
 
 				// Open browser and wait (no TUI needed)
 				const { launchWeb } = await import("./web-launcher.js");
