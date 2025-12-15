@@ -96,6 +96,9 @@ function TextInputWithHint({
 	const showHintAsGhost = hint && value.length === 0;
 	const showHintAfterText = hint && value.length > 0;
 
+	// Show "Tab" hint when there's a suggestion that can be applied
+	const showTabHint = showHintAsGhost && onTab;
+
 	return (
 		<Box>
 			<ControlledTextInput
@@ -119,7 +122,12 @@ function TextInputWithHint({
 				onCtrlP={onCtrlP}
 				maxLines={maxLines}
 			/>
-			{showHintAsGhost ? <Text color={colors.textDim}>{hint}</Text> : null}
+			{showHintAsGhost ? (
+				<>
+					<Text color={colors.textDim}>{hint}</Text>
+					{showTabHint ? <Text color={colors.textMuted}> Tab</Text> : null}
+				</>
+			) : null}
 			{showHintAfterText ? <Text color={colors.textDim}>{hint}</Text> : null}
 		</Box>
 	);
