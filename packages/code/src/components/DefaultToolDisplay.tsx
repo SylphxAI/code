@@ -58,7 +58,7 @@ export function createDefaultToolDisplay(
 	formatResult: ResultFormatter,
 ): React.FC<ToolDisplayProps> {
 	return function DefaultToolDisplay(props: ToolDisplayProps) {
-		const { status, duration, input, result, error, startTime } = props;
+		const { status, duration, input, result, error, startTime, showDetails = true } = props;
 		const colors = useThemeColors();
 		const { stdout } = useStdout();
 		const terminalWidth = stdout?.columns || 80;
@@ -95,9 +95,10 @@ export function createDefaultToolDisplay(
 			) : null;
 
 		// Prepare details content (show formatted lines if available)
+		// Respect showDetails setting from user config
 		// Truncate lines to prevent wrapping which breaks display
 		const details =
-			status === "completed" && formattedResult.lines.length > 0 ? (
+			status === "completed" && showDetails && formattedResult.lines.length > 0 ? (
 				<>
 					{formattedResult.lines.map((line, i) => (
 						<Text key={`${i}-${line.slice(0, 30)}`} color={colors.textDim}>

@@ -39,7 +39,7 @@ function isBashToolInput(input: unknown): input is BashToolInput {
 }
 
 export function BashToolDisplay(props: ToolDisplayProps) {
-	const { status, duration, startTime, input, result } = props;
+	const { status, duration, startTime, input, result, showDetails = true } = props;
 	const colors = useThemeColors();
 	const { stdout } = useStdout();
 	const terminalWidth = stdout?.columns || 80;
@@ -155,9 +155,10 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 	})();
 
 	// Prepare details content (output from result)
+	// Respect showDetails setting from user config
 	// Truncate lines to prevent wrapping which breaks display
 	const details =
-		!isBackgroundMode && displayLines.length > 0 ? (
+		!isBackgroundMode && showDetails && displayLines.length > 0 ? (
 			<>
 				{displayLines.map((line, i) => (
 					<Text key={`${i}-${line.slice(0, 20)}`} color={colors.textDim}>
