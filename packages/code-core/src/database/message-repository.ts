@@ -275,15 +275,6 @@ export class MessageRepository {
 	}
 
 	/**
-	 * @deprecated Use updateStepParts instead
-	 * Legacy method for backward compatibility - updates step-0 parts
-	 */
-	async updateMessageParts(messageId: string, parts: MessagePart[]): Promise<void> {
-		const stepId = `${messageId}-step-0`;
-		await this.updateStepParts(stepId, parts);
-	}
-
-	/**
 	 * Update message status (used when streaming completes/aborts)
 	 */
 	async updateMessageStatus(
@@ -304,16 +295,6 @@ export class MessageRepository {
 
 			await this.db.update(messages).set(updates).where(eq(messages.id, messageId));
 		});
-	}
-
-	/**
-	 * @deprecated Message usage table removed
-	 * Usage is now computed from stepUsage table on demand
-	 * This method is a no-op for backward compatibility
-	 */
-	async updateMessageUsage(_messageId: string, _usage: TokenUsage): Promise<void> {
-		// No-op: messageUsage table removed, usage computed from stepUsage
-		// Kept for backward compatibility during migration
 	}
 
 	/**

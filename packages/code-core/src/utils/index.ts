@@ -32,12 +32,6 @@ export {
 } from "./database-errors.js";
 // Diff formatting utilities
 export { formatDiffLine, formatDiffLines } from "./diff-formatter.js";
-// Error handling
-export {
-	CLIError,
-	createAsyncHandler,
-	handleError,
-} from "./error-handler.js";
 // File operations
 export type {
 	FileCopyOptions,
@@ -87,8 +81,6 @@ export {
 	getDefaultTarget,
 	getSettingsPath,
 	loadSettings,
-	ProjectSettings,
-	projectSettings,
 	saveSettings,
 	setDefaultTarget,
 	settingsExists,

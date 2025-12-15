@@ -29,7 +29,6 @@ export type { SystemMessageType } from "./ai/system-messages/index.js";
 // System Messages (Dynamic LLM Hints)
 // ============================================================================
 export {
-	createSystemMessage,
 	isSystemMessage,
 	parseSystemMessageType,
 	SystemMessages,
@@ -212,7 +211,6 @@ export {
 export {
 	convertAllMCPToolsToAISDK,
 	convertAllMCPToolsToMetadata,
-	convertMCPToolToAISDK,
 	convertMCPToolToMetadata,
 	getAllMCPTools,
 	getMCPTool,
@@ -303,7 +301,7 @@ export {
 	moveCursorDown,
 	moveCursorUp,
 } from "./utils/cursor-utils.js";
-export { createLogger, debugLog } from "./utils/debug-logger.js";
+export { createLogger } from "./utils/debug-logger.js";
 export { formatDiffLine, formatDiffLines } from "./utils/diff-formatter.js";
 export { type FileInfo, filterFiles } from "./utils/file-scanner.js";
 // Legacy file-based session management (deprecated, use SessionRepository for new code)

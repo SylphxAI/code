@@ -13,9 +13,7 @@ const mockSessionRepository: Partial<SessionRepository> = {
 	createSession: vi.fn(),
 	getSessionById: vi.fn(),
 	addMessage: vi.fn(),
-	updateMessageParts: vi.fn(),
 	updateMessageStatus: vi.fn(),
-	updateMessageUsage: vi.fn(),
 	updateSession: vi.fn(),
 };
 

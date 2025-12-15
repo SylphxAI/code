@@ -39,12 +39,3 @@ import debug from "debug";
 export function createLogger(namespace: string): debug.Debugger {
 	return debug(`sylphx:${namespace}`);
 }
-
-/**
- * For backwards compatibility
- * @deprecated Use createLogger instead
- */
-export function debugLog(namespace: string, ...args: unknown[]): void {
-	const log = debug(`sylphx:${namespace}`);
-	log(...args);
-}

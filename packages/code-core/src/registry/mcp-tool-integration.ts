@@ -19,68 +19,6 @@ const logger = createLogger("MCPToolIntegration");
 const mcpToolRegistry = new Map<string, MCPToolInfo>();
 
 /**
- * Convert MCP tool to AI SDK tool
- * Tool ID format: serverId__toolName (e.g., "github__create-issue")
- * IMPORTANT: Use double underscore (__) instead of colon (:) for OpenAI compatibility
- * OpenAI only allows tool names matching: ^[a-zA-Z0-9_-]+
- *
- * @deprecated This function is no longer used. Use convertAllMCPToolsToAISDK() instead,
- * which directly uses AI SDK's native tools() method without manual execute wrapper.
- */
-export function convertMCPToolToAISDK(mcpTool: MCPToolInfo): CoreTool {
-	const toolId = `${mcpTool.serverId}__${mcpTool.name}`;
-	const mcpManager = getMCPManager();
-
-	return {
-		type: "function",
-		name: toolId,
-		description: mcpTool.description,
-		parameters: mcpTool.inputSchema,
-		execute: async (args: unknown) => {
-			logger.debug("Executing MCP tool", {
-				toolId,
-				serverId: mcpTool.serverId,
-				toolName: mcpTool.name,
-			});
-
-			try {
-				const client = mcpManager.getClient(mcpTool.serverId);
-				if (!client) {
-					throw new Error(`MCP server '${mcpTool.serverId}' not connected`);
-				}
-
-				// Get tools from MCP client (returns Record<string, Tool>)
-				const toolsRecord = await client.tools();
-				const tool = toolsRecord[mcpTool.name];
-
-				if (!tool || !tool.execute) {
-					throw new Error(`Tool '${mcpTool.name}' not found on server '${mcpTool.serverId}'`);
-				}
-
-				const result = await tool.execute(args);
-
-				logger.debug("MCP tool executed successfully", {
-					toolId,
-					serverId: mcpTool.serverId,
-					toolName: mcpTool.name,
-				});
-
-				return result;
-			} catch (error) {
-				logger.error("Failed to execute MCP tool", {
-					toolId,
-					serverId: mcpTool.serverId,
-					toolName: mcpTool.name,
-					error: error instanceof Error ? error.message : String(error),
-				});
-
-				throw error;
-			}
-		},
-	};
-}
-
-/**
  * Convert MCP tool to tool metadata
  * For display in tool registry UI
  * Tool ID format: serverId__toolName (double underscore for OpenAI compatibility)

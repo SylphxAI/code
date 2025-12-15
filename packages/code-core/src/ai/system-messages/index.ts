@@ -160,16 +160,6 @@ This is a temporary condition and should resolve as tasks complete.
 };
 
 /**
- * Helper to create system message content
- * Wraps content in <system_message> tags
- *
- * @deprecated Use SystemMessages builders instead
- */
-export function createSystemMessage(type: string, content: string): string {
-	return `<system_message type="${type}">\n${content}\n</system_message>`;
-}
-
-/**
  * Parse system message to extract type
  * Used for deduplication (ensure each type only appears once)
  */
