@@ -135,14 +135,16 @@ export class CodeServer {
 				next();
 			});
 
-			// Handle CORS preflight (Express 5 requires named wildcard)
-			this.expressApp.options("/lens/{*path}", (_req, res) => {
+			// Handle CORS preflight
+			this.expressApp.options("/lens", (_req, res) => {
+				res.sendStatus(204);
+			});
+			this.expressApp.options("/lens/*", (_req, res) => {
 				res.sendStatus(204);
 			});
 
-			// Lens routes - adapter from Web API handler to Express
-			// Express 5 requires named wildcard syntax: {*path}
-			this.expressApp.all("/lens/{*path}", async (req: Request, res: Response) => {
+			// Lens route handler - adapter from Web API handler to Express
+			const handleLensRequest = async (req: Request, res: Response) => {
 				try {
 					// Convert Express request to Web API Request
 					const url = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
@@ -188,7 +190,11 @@ export class CodeServer {
 					console.error("[Lens HTTP] Error:", error);
 					res.status(500).json({ error: "Internal server error" });
 				}
-			});
+			};
+
+			// Register handler for all /lens routes
+			this.expressApp.all("/lens", handleLensRequest);
+			this.expressApp.all("/lens/*", handleLensRequest);
 
 			console.log("✅ Lens HTTP handler initialized (standard protocol)");
 			console.log("   - Endpoint: /lens/*");
