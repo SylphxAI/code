@@ -1,65 +1,49 @@
 /**
- * MessageList Component
- * Scrollable message container with auto-scroll
+ * Message List Component
+ *
+ * Displays a list of chat messages with proper styling for user/assistant roles.
  */
 
-import { useEffect, useRef } from "preact/hooks";
-import type { SessionMessage } from "@sylphx/code-core";
 import { MessageItem } from "./MessageItem";
-import { StreamingIndicator } from "./StreamingIndicator";
-import styles from "../../styles/components/chat/messagelist.module.css";
 
-interface MessageListProps {
-	messages: SessionMessage[];
-	isStreaming: boolean;
+interface Message {
+	id: string;
+	role: string;
+	steps?: Array<{
+		id: string;
+		parts?: Array<{
+			type: string;
+			content?: string;
+			name?: string;
+			input?: unknown;
+			result?: unknown;
+			status?: string;
+		}>;
+	}>;
+	timestamp?: number;
 }
 
-export function MessageList({ messages, isStreaming }: MessageListProps) {
-	const containerRef = useRef<HTMLDivElement>(null);
-	const shouldAutoScrollRef = useRef(true);
+interface MessageListProps {
+	messages: Message[];
+}
 
-	// Auto-scroll to bottom when new messages arrive or streaming updates
-	useEffect(() => {
-		if (shouldAutoScrollRef.current && containerRef.current) {
-			containerRef.current.scrollTop = containerRef.current.scrollHeight;
-		}
-	}, [messages, isStreaming]);
-
-	// Track if user has scrolled up (disable auto-scroll)
-	const handleScroll = () => {
-		if (!containerRef.current) return;
-
-		const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-		const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-		shouldAutoScrollRef.current = isNearBottom;
-	};
-
+export function MessageList({ messages }: MessageListProps) {
 	if (messages.length === 0) {
 		return (
-			<div class={styles.welcomeContainer}>
-				<div class={styles.welcomeMessage}>
-					<h3>Welcome to Sylphx Code</h3>
-					<p>Start chatting by typing a message below.</p>
-					<p class={styles.welcomeHint}>
-						Use <code>/</code> for commands, <code>@</code> for files
-					</p>
+			<div className="flex-1 flex items-center justify-center p-8">
+				<div className="text-[var(--color-text-dim)] text-center">
+					<p>No messages yet</p>
+					<p className="text-sm mt-1">Start a conversation below</p>
 				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div
-			ref={containerRef}
-			class={styles.container}
-			onScroll={handleScroll}
-		>
-			<div class={styles.messageList}>
-				{messages.map((message) => (
-					<MessageItem key={message.id} message={message} />
-				))}
-				{isStreaming && <StreamingIndicator />}
-			</div>
+		<div className="flex flex-col gap-4 p-4 max-w-4xl mx-auto">
+			{messages.map((message) => (
+				<MessageItem key={message.id} message={message} />
+			))}
 		</div>
 	);
 }

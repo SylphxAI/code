@@ -1,107 +1,139 @@
 /**
- * Chat Screen (Preact)
- * Main chat interface using Lens client
+ * Chat Screen
  *
- * MIGRATED: zen signals → Lens queries (2025-01-24)
- * - Uses getClient() to access global Lens client
- * - Local state with polling for now (TODO: live queries)
+ * Main chat interface with message list and input.
  */
 
-import { getClient, type Session, type Message } from "@sylphx/code-client";
-import { useEffect, useState } from "preact/hooks";
-import { MessageList, ChatInput } from "../components/chat";
-import styles from "../styles/components/chat/chatscreen.module.css";
+import { useParams, useNavigate } from "react-router-dom";
+import { useLensClient } from "@sylphx/code-client";
+import { useState, useRef, useEffect } from "react";
+import { MessageList } from "../components/chat/MessageList";
+import { ChatInput } from "../components/chat/ChatInput";
+import { ChatHeader } from "../components/chat/ChatHeader";
+
+interface Session {
+	id: string;
+	title?: string;
+}
+
+interface Message {
+	id: string;
+	role: string;
+	steps?: Array<{
+		id: string;
+		parts?: Array<{
+			type: string;
+			content?: string;
+			name?: string;
+			input?: unknown;
+			result?: unknown;
+			status?: string;
+		}>;
+	}>;
+	timestamp?: number;
+}
 
 export function ChatScreen() {
-	const [currentSession, setCurrentSession] = useState<Session | null>(null);
-	const [messages, setMessages] = useState<Message[]>([]);
-	const [isStreaming, setIsStreaming] = useState(false);
-	const [sessionId, setSessionId] = useState<string | null>(null);
+	const { sessionId } = useParams();
+	const navigate = useNavigate();
+	const client = useLensClient();
+	const messagesEndRef = useRef<HTMLDivElement>(null);
+	const [input, setInput] = useState("");
+	const [sending, setSending] = useState(false);
 
-	// Load session and messages
+	// Type cast client due to workspace TypeScript issues
+	const typedClient = client as any;
+
+	// Fetch session data
+	const { data: sessionData } = typedClient.getSession.useQuery({
+		input: { id: sessionId || "" },
+		skip: !sessionId,
+	});
+	const session = sessionData as Session | undefined;
+
+	// Fetch messages for current session
+	const { data: messagesData, loading: messagesLoading } = typedClient.listMessages.useQuery({
+		input: { sessionId: sessionId || "" },
+		skip: !sessionId,
+	});
+	const messages = (messagesData as Message[] | undefined) || [];
+
+	// Send message mutation
+	const sendMessageMutation = typedClient.sendMessage.useMutation();
+
+	// Scroll to bottom when messages change
 	useEffect(() => {
-		const loadData = async () => {
-			const client = getClient();
-			if (!client) {
-				console.warn("[ChatScreen] Lens client not initialized");
-				return;
-			}
+		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+	}, [messages]);
 
-			try {
-				// Get recent sessions
-				const sessionsResult = await client.getSessions.fetch({ input: { limit: 1 } });
-				const sessions = (sessionsResult as any)?.data || sessionsResult || [];
+	const handleSend = async () => {
+		if (!input.trim() || sending) return;
 
-				if (sessions.length > 0) {
-					const session = sessions[0];
-					setCurrentSession(session);
-					setSessionId(session.id);
-					setIsStreaming(session.streamingStatus === "streaming");
-
-					// Load messages for this session
-					const sessionResult = await client.getSession.fetch({ input: { id: session.id } });
-					const fullSession = (sessionResult as any)?.data || sessionResult;
-					if (fullSession?.messages) {
-						setMessages(fullSession.messages);
-					}
-				}
-			} catch (error) {
-				console.error("[ChatScreen] Failed to load data:", error);
-			}
-		};
-
-		loadData();
-		// Poll for updates (TODO: replace with Lens live queries)
-		const interval = setInterval(loadData, 2000);
-		return () => clearInterval(interval);
-	}, []);
-
-	const handleSendMessage = async (content: string) => {
-		const client = getClient();
-		if (!client) {
-			console.error("[ChatScreen] Lens client not initialized");
-			return;
-		}
+		const message = input.trim();
+		setInput("");
+		setSending(true);
 
 		try {
-			// Trigger streaming
-			const result = await client.triggerStream.fetch({
-				input: {
-					sessionId: sessionId,
-					content: [{ type: "text", content }],
-				},
+			const result = await sendMessageMutation.mutate({
+				sessionId: sessionId || undefined,
+				content: message,
 			});
-			const newSessionId = (result as any)?.data?.sessionId || (result as any)?.sessionId;
-			if (newSessionId && newSessionId !== sessionId) {
-				setSessionId(newSessionId);
+			// If this was a new session, navigate to it
+			if (!sessionId && result && typeof result === "object" && "sessionId" in result) {
+				navigate(`/chat/${(result as { sessionId: string }).sessionId}`);
 			}
-			setIsStreaming(true);
 		} catch (error) {
-			console.error("[ChatScreen] Failed to send message:", error);
+			console.error("Failed to send message:", error);
+		} finally {
+			setSending(false);
 		}
 	};
 
+	// Empty state for new chat
+	if (!sessionId) {
+		return (
+			<div className="flex-1 flex flex-col">
+				<ChatHeader title="New Chat" />
+				<div className="flex-1 flex items-center justify-center">
+					<div className="text-center max-w-md px-4">
+						<h2 className="text-2xl font-semibold text-[var(--color-text)] mb-4">
+							Start a new conversation
+						</h2>
+						<p className="text-[var(--color-text-secondary)] mb-8">
+							Ask me anything about your code. I can help with debugging, refactoring, documentation,
+							and more.
+						</p>
+					</div>
+				</div>
+				<ChatInput value={input} onChange={setInput} onSend={handleSend} disabled={sending} />
+			</div>
+		);
+	}
+
 	return (
-		<div class={styles.chatScreen}>
-			<div class={styles.chatHeader}>
-				<h2>Chat</h2>
-				{currentSession ? (
-					<span class={styles.sessionInfo}>
-						Session: {currentSession.id}
-					</span>
+		<div className="flex-1 flex flex-col">
+			<ChatHeader title={session?.title || "Chat"} />
+
+			{/* Messages */}
+			<div className="flex-1 overflow-y-auto">
+				{messagesLoading ? (
+					<div className="flex items-center justify-center h-full">
+						<div className="text-[var(--color-text-dim)]">Loading messages...</div>
+					</div>
 				) : (
-					<span class={styles.sessionInfo}>No active session</span>
+					<>
+						<MessageList messages={messages} />
+						<div ref={messagesEndRef} />
+					</>
 				)}
 			</div>
 
-			<MessageList
-				messages={messages}
-				isStreaming={isStreaming}
-			/>
-
+			{/* Input */}
 			<ChatInput
-				onSend={handleSendMessage}
-				isStreaming={isStreaming}
+				value={input}
+				onChange={setInput}
+				onSend={handleSend}
+				disabled={sending}
 			/>
 		</div>
 	);

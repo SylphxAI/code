@@ -1,78 +1,67 @@
 /**
- * Root App Component (Preact)
- * Sets up Lens provider and renders main UI
+ * Sylphx Code Web App
  *
- * MIGRATED: tRPC → Lens (2025-01-23)
- * - TRPCProvider → LensProvider (TEMP DISABLED - bundling issue)
- * - HTTP transport (port 3100 → 3000)
- * - Field-level subscriptions enabled
- *
- * TODO: Fix @sylphx/code-api bundling issue to re-enable LensProvider
- * For now: using direct signal access (signals init on import)
+ * Main app component with routing and Lens client setup.
+ * Uses HTTP transport to connect to code-server via /lens endpoint.
  */
 
-import { useEffect, useState } from "preact/hooks";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { createCodeClient, http, initClient } from "@sylphx/code-client";
 import { ChatScreen } from "./screens/ChatScreen";
-import { BashScreen } from "./screens/BashScreen";
-import { Header, Sidebar, StatusBar } from "./components/layout";
-import { useGlobalKeyboard } from "./hooks/useGlobalKeyboard";
+import { Layout } from "./components/Layout";
 
-// Initialize Lens HTTP client (side effect on import)
-// This sets up the global client for signals to use
-import "./lens-init.js";
+// Initialize Lens client with HTTP transport
+const LENS_URL = import.meta.env.VITE_LENS_URL || "http://localhost:3000/lens";
 
-function AppContent() {
-	const [currentScreen, setCurrentScreen] = useState<"chat" | "bash">("chat");
+function App() {
+	const [isReady, setIsReady] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
-	// Enable global keyboard shortcuts (Ctrl+B for demoting active bash)
-	useGlobalKeyboard();
+	useEffect(() => {
+		// Initialize Lens client
+		try {
+			const client = createCodeClient(http({ url: LENS_URL }));
+			initClient(client);
+			setIsReady(true);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Failed to initialize client");
+		}
+	}, []);
+
+	if (error) {
+		return (
+			<div className="flex h-screen items-center justify-center bg-[var(--color-bg)]">
+				<div className="text-center">
+					<h1 className="text-xl font-bold text-[var(--color-error)] mb-4">
+						Connection Error
+					</h1>
+					<p className="text-[var(--color-text-secondary)] mb-4">{error}</p>
+					<p className="text-[var(--color-text-dim)] text-sm">
+						Make sure the server is running: <code>code --server</code>
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (!isReady) {
+		return (
+			<div className="flex h-screen items-center justify-center bg-[var(--color-bg)]">
+				<div className="text-[var(--color-text-secondary)]">Connecting...</div>
+			</div>
+		);
+	}
 
 	return (
-		<div class="app-container">
-			<Header />
-			<div class="app-body">
-				<Sidebar />
-				<main class="app-main">
-					{/* Simple screen switcher (TODO: proper routing) */}
-					<div class="screen-tabs border-b border-gray-700 px-4 flex gap-2">
-						<button
-							onClick={() => setCurrentScreen("chat")}
-							class={`px-4 py-2 ${currentScreen === "chat" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-400"}`}
-						>
-							Chat
-						</button>
-						<button
-							onClick={() => setCurrentScreen("bash")}
-							class={`px-4 py-2 ${currentScreen === "bash" ? "border-b-2 border-blue-500 text-blue-500" : "text-gray-400"}`}
-						>
-							Bash Processes
-						</button>
-					</div>
-
-					<div class="screen-content flex-1 overflow-hidden">
-						{currentScreen === "chat" && <ChatScreen />}
-						{currentScreen === "bash" && <BashScreen />}
-					</div>
-				</main>
-			</div>
-			<StatusBar />
-		</div>
+		<Routes>
+			<Route path="/" element={<Layout />}>
+				<Route index element={<Navigate to="/chat" replace />} />
+				<Route path="chat" element={<ChatScreen />} />
+				<Route path="chat/:sessionId" element={<ChatScreen />} />
+			</Route>
+		</Routes>
 	);
 }
 
-export function App() {
-	const [mounted, setMounted] = useState(false);
-
-	useEffect(() => {
-		setMounted(true);
-		console.log("[App] Mounted with zen@3.47.0 + Preact");
-	}, []);
-
-	if (!mounted) {
-		return <div>Loading...</div>;
-	}
-
-	// TODO: Re-enable LensProvider after fixing @sylphx/code-api bundling issue
-	// For now: Zen signals work without provider (global state)
-	return <AppContent />;
-}
+export default App;

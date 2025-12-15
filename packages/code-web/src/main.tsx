@@ -1,16 +1,18 @@
-/**
- * Main entry point for code-web (Preact)
- * Browser-based UI for Sylphx Code
- */
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import App from "./App";
+import "./index.css";
 
-import { render } from "preact";
-import { App } from "./App";
-import "./styles/global.css";
-
-// Initialize app
 const root = document.getElementById("app");
-if (root) {
-	render(<App />, root);
-} else {
-	console.error("Root element not found");
+if (!root) {
+	throw new Error("Root element not found");
 }
+
+createRoot(root).render(
+	<StrictMode>
+		<BrowserRouter>
+			<App />
+		</BrowserRouter>
+	</StrictMode>
+);

@@ -1,72 +1,75 @@
 /**
- * ChatInput Component
- * Auto-growing textarea with send functionality
+ * Chat Input Component
+ *
+ * Text input for sending messages with submit button.
  */
 
-import { useRef, useState } from "preact/hooks";
-import styles from "../../styles/components/chat/chatinput.module.css";
+import { useRef, useEffect } from "react";
 
 interface ChatInputProps {
-	onSend: (message: string) => void;
-	isStreaming: boolean;
+	value: string;
+	onChange: (value: string) => void;
+	onSend: () => void;
+	disabled?: boolean;
+	placeholder?: string;
 }
 
-export function ChatInput({ onSend, isStreaming }: ChatInputProps) {
-	const [value, setValue] = useState("");
+export function ChatInput({
+	value,
+	onChange,
+	onSend,
+	disabled = false,
+	placeholder = "Type a message...",
+}: ChatInputProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-	const handleInput = (e: Event) => {
-		const target = e.target as HTMLTextAreaElement;
-		setValue(target.value);
+	// Auto-resize textarea
+	useEffect(() => {
+		const textarea = textareaRef.current;
+		if (textarea) {
+			textarea.style.height = "auto";
+			textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+		}
+	}, [value]);
 
-		// Auto-grow textarea
-		target.style.height = "auto";
-		const newHeight = Math.min(target.scrollHeight, 200); // Max 10 lines (~20px per line)
-		target.style.height = `${newHeight}px`;
-	};
-
-	const handleKeyDown = (e: KeyboardEvent) => {
+	// Handle keyboard shortcuts
+	const handleKeyDown = (e: React.KeyboardEvent) => {
+		// Submit on Enter (without Shift)
 		if (e.key === "Enter" && !e.shiftKey) {
 			e.preventDefault();
-			handleSend();
-		}
-	};
-
-	const handleSend = () => {
-		const trimmed = value.trim();
-		if (trimmed && !isStreaming) {
-			onSend(trimmed);
-			setValue("");
-			if (textareaRef.current) {
-				textareaRef.current.style.height = "auto";
+			if (!disabled && value.trim()) {
+				onSend();
 			}
 		}
 	};
 
 	return (
-		<div class={styles.container}>
-			<div class={styles.attachmentChips}>
-				{/* Placeholder for attachment chips */}
-			</div>
-			<div class={styles.inputRow}>
-				<textarea
-					ref={textareaRef}
-					class={styles.textarea}
-					value={value}
-					onInput={handleInput}
-					onKeyDown={handleKeyDown}
-					placeholder="Type your message, / for commands, @ for files..."
-					disabled={isStreaming}
-					rows={1}
-				/>
+		<div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+			<div className="flex items-end gap-3 max-w-4xl mx-auto">
+				<div className="flex-1 relative">
+					<textarea
+						ref={textareaRef}
+						value={value}
+						onChange={(e) => onChange(e.target.value)}
+						onKeyDown={handleKeyDown}
+						placeholder={placeholder}
+						disabled={disabled}
+						rows={1}
+						className="w-full px-4 py-3 bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg text-[var(--color-text)] placeholder-[var(--color-text-dim)] resize-none focus:outline-none focus:border-[var(--color-primary)] disabled:opacity-50 disabled:cursor-not-allowed"
+						style={{ minHeight: "48px", maxHeight: "200px" }}
+					/>
+				</div>
 				<button
-					class={styles.sendButton}
-					onClick={handleSend}
-					disabled={!value.trim() || isStreaming}
-					title="Send message (Enter)"
+					onClick={onSend}
+					disabled={disabled || !value.trim()}
+					className="px-4 py-3 bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 				>
-					<span class={styles.sendIcon}>➤</span>
+					Send
 				</button>
+			</div>
+			<div className="mt-2 text-xs text-[var(--color-text-dim)] text-center">
+				Press <kbd className="px-1 py-0.5 bg-[var(--color-bg)] rounded">Enter</kbd> to send,{" "}
+				<kbd className="px-1 py-0.5 bg-[var(--color-bg)] rounded">Shift+Enter</kbd> for new line
 			</div>
 		</div>
 	);

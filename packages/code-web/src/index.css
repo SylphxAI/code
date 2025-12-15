@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/* Custom theme variables */
+:root {
+	--color-primary: #6366f1;
+	--color-primary-hover: #4f46e5;
+	--color-success: #22c55e;
+	--color-warning: #f59e0b;
+	--color-error: #ef4444;
+	--color-bg: #0a0a0a;
+	--color-bg-secondary: #171717;
+	--color-bg-tertiary: #262626;
+	--color-text: #fafafa;
+	--color-text-secondary: #a3a3a3;
+	--color-text-dim: #737373;
+	--color-border: #404040;
+}
+
+/* Base styles */
+html,
+body,
+#app {
+	height: 100%;
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+	background-color: var(--color-bg);
+	color: var(--color-text);
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+::-webkit-scrollbar-track {
+	background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+	background: var(--color-border);
+	border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: var(--color-text-dim);
+}
+
+/* Focus styles */
+*:focus-visible {
+	outline: 2px solid var(--color-primary);
+	outline-offset: 2px;
+}
