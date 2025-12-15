@@ -125,16 +125,28 @@ export class SessionStore {
 
 	/**
 	 * Update session status (text, duration, isActive)
+	 * Only emits when text or isActive changes (not duration)
+	 * Client calculates duration locally for smooth updates
 	 * @owner session-status-manager
 	 */
 	setStatus(status: SessionStatus): void {
+		const prev = this.state.status;
 		this.state.status = status;
 
-		log("setStatus sessionId=%s status=%o", this.sessionId, status);
+		// Only emit when meaningful fields change (not duration)
+		// Duration changes every millisecond - client tracks it locally
+		const textChanged = prev.text !== status.text;
+		const activeChanged = prev.isActive !== status.isActive;
+		const tokensChanged = prev.tokenUsage !== status.tokenUsage;
 
-		this.emit("session-status-updated", {
-			status,
-		});
+		if (textChanged || activeChanged || tokensChanged) {
+			log("setStatus sessionId=%s status=%o (changed: text=%s active=%s tokens=%s)",
+				this.sessionId, status, textChanged, activeChanged, tokensChanged);
+
+			this.emit("session-status-updated", {
+				status,
+			});
+		}
 	}
 
 	/**
