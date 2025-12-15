@@ -103,7 +103,6 @@ export function createSessionStatusManager(
 	// Internal state
 	let currentTool: string | null = null;
 	let currentTokens = session.totalTokens || 0;
-	let baseContextTokens = session.baseContextTokens || 0;
 	let startTime = Date.now();
 	let todos = session.todos;
 	let isActive = true;
@@ -132,11 +131,10 @@ export function createSessionStatusManager(
 
 		// Emit session status update via StreamPublisher
 		// NOTE: title is NOT included - managed separately by inline-action-dispatcher
+		// NOTE: totalTokens/baseContextTokens are NOT included - managed by token-tracking.service
 		const sessionUpdate = {
 			id: sessionId,
 			status,
-			totalTokens: currentTokens,
-			baseContextTokens,
 			updatedAt: Date.now(),
 		};
 		emitSessionUpdated(publisher, sessionId, sessionUpdate);
