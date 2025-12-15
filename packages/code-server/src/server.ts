@@ -9,6 +9,9 @@
  */
 
 import type { Server } from "node:http";
+import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import express, { type Express, type Request, type Response } from "express";
 import {
 	type AppContext,
@@ -223,16 +226,23 @@ export class CodeServer {
 
 	/**
 	 * Setup static file serving for Web UI
+	 * Resolves path relative to this package to find sibling code-web package
 	 */
 	private async setupStaticFiles(): Promise<void> {
 		if (!this.expressApp) return;
 
 		try {
-			const { existsSync } = await import("node:fs");
-			const { resolve } = await import("node:path");
+			// Get path relative to this file's location
+			const __filename = fileURLToPath(import.meta.url);
+			const __dirname = dirname(__filename);
 
-			if (existsSync("./src/web/dist")) {
-				this.expressApp.use(express.static("./src/web/dist"));
+			// Navigate from code-server/src (or dist) to code-web/dist
+			// Works for both development (src) and production (dist)
+			const webDistPath = resolve(__dirname, "..", "..", "code-web", "dist");
+
+			if (existsSync(webDistPath)) {
+				console.log(`   - Static files: ${webDistPath}`);
+				this.expressApp.use(express.static(webDistPath));
 
 				// SPA fallback - serve index.html for all non-API routes
 				this.expressApp.use((req, res, next) => {
@@ -242,10 +252,11 @@ export class CodeServer {
 					}
 
 					// Serve index.html for all other routes (SPA routing)
-					res.sendFile(resolve("./src/web/dist/index.html"));
+					res.sendFile(join(webDistPath, "index.html"));
 				});
 			} else {
-				// Development mode - no static files yet
+				// Development mode - no static files yet, show helpful message
+				console.log(`   ⚠ Web UI not built at: ${webDistPath}`);
 				this.expressApp.get("/", (_req, res) => {
 					res.send(`
             <html>
@@ -253,8 +264,9 @@ export class CodeServer {
                 <h1>🚀 Sylphx Code Server</h1>
                 <p>Server is running, but Web UI is not built yet.</p>
                 <p><strong>To build the Web UI:</strong></p>
-                <pre>cd src/web && bun install && bun run build</pre>
+                <pre>cd packages/code-web && bun install && bun run build</pre>
                 <p><strong>API Status:</strong> ✅ Lens endpoints available at <code>/lens</code></p>
+                <p><strong>Development:</strong> Run <code>bun dev:web</code> for hot-reload dev server on port 5173</p>
               </body>
             </html>
           `);
