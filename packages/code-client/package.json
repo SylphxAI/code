@@ -25,11 +25,11 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@sylphx/code-server": "workspace:*",
 		"@sylphx/lens-client": "^2.2.1",
 		"@sylphx/lens-react": "^2.5.6"
 	},
 	"devDependencies": {
+		"@sylphx/code-server": "workspace:*",
 		"@testing-library/jest-dom": "^6.9.1",
 		"@testing-library/react": "^16.3.0",
 		"@types/node": "^24.9.2",
