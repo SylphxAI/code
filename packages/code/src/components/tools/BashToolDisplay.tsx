@@ -5,10 +5,19 @@
 
 import type { ToolDisplayProps } from "@sylphx/code-client";
 import { truncateString, getRelativePath } from "@sylphx/code-core";
-import { Text } from "ink";
+import { Text, useStdout } from "ink";
 import { useElapsedTime } from "../../hooks/client/useElapsedTime.js";
 import { BaseToolDisplay } from "../BaseToolDisplay.js";
 import { useThemeColors } from "../../theme.js";
+
+/**
+ * Truncate a line to fit terminal width
+ */
+function truncateLine(line: string, terminalWidth: number): string {
+	const maxWidth = terminalWidth - 8; // Leave margin for prefix
+	if (line.length <= maxWidth) return line;
+	return line.slice(0, maxWidth - 3) + "...";
+}
 
 /**
  * Type guard for Bash tool input
@@ -32,6 +41,8 @@ function isBashToolInput(input: unknown): input is BashToolInput {
 export function BashToolDisplay(props: ToolDisplayProps) {
 	const { status, duration, startTime, input, result } = props;
 	const colors = useThemeColors();
+	const { stdout } = useStdout();
+	const terminalWidth = stdout?.columns || 80;
 
 	// Validate and extract bash tool input
 	const bashInput = isBashToolInput(input) ? input : null;
@@ -144,12 +155,13 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 	})();
 
 	// Prepare details content (output from result)
+	// Truncate lines to prevent wrapping which breaks display
 	const details =
 		!isBackgroundMode && displayLines.length > 0 ? (
 			<>
 				{displayLines.map((line, i) => (
 					<Text key={`${i}-${line.slice(0, 20)}`} color={colors.textDim}>
-						{line}
+						{truncateLine(line, terminalWidth)}
 					</Text>
 				))}
 				{hasMore && (

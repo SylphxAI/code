@@ -8,10 +8,20 @@ import type { ToolDisplayProps } from "@sylphx/code-client";
 import { useElapsedTime } from "../hooks/client/useElapsedTime.js";
 import type { InputFormatter, ResultFormatter } from "@sylphx/code-core";
 import dJSON from "dirty-json";
-import { Text } from "ink";
+import { Text, useStdout } from "ink";
 import type React from "react";
 import { BaseToolDisplay } from "./BaseToolDisplay.js";
 import { useThemeColors, getColors } from "../theme.js";
+
+/**
+ * Truncate a line to fit terminal width
+ * Accounts for indentation prefix (4 chars for "    ")
+ */
+function truncateLine(line: string, terminalWidth: number): string {
+	const maxWidth = terminalWidth - 8; // Leave margin for prefix and safety
+	if (line.length <= maxWidth) return line;
+	return line.slice(0, maxWidth - 3) + "...";
+}
 
 /**
  * Parse partial/dirty JSON into an object with best-effort parsing
@@ -50,6 +60,8 @@ export function createDefaultToolDisplay(
 	return function DefaultToolDisplay(props: ToolDisplayProps) {
 		const { status, duration, input, result, error, startTime } = props;
 		const colors = useThemeColors();
+		const { stdout } = useStdout();
+		const terminalWidth = stdout?.columns || 80;
 
 		// Calculate real-time elapsed time for running tools
 		const { display: durationDisplay } = useElapsedTime({
@@ -83,12 +95,13 @@ export function createDefaultToolDisplay(
 			) : null;
 
 		// Prepare details content (show formatted lines if available)
+		// Truncate lines to prevent wrapping which breaks display
 		const details =
 			status === "completed" && formattedResult.lines.length > 0 ? (
 				<>
 					{formattedResult.lines.map((line, i) => (
 						<Text key={`${i}-${line.slice(0, 30)}`} color={colors.textDim}>
-							{line}
+							{truncateLine(line, terminalWidth)}
 						</Text>
 					))}
 				</>
