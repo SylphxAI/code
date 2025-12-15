@@ -75,8 +75,8 @@ export function ChatScreen() {
 
 		try {
 			const result = await sendMessageMutation.mutate({
-				sessionId: sessionId || undefined,
-				content: message,
+				sessionId: sessionId || null,
+				content: [{ type: "text", content: message }],
 			});
 			// If this was a new session, navigate to it
 			if (!sessionId && result && typeof result === "object" && "sessionId" in result) {
