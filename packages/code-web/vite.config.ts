@@ -56,7 +56,7 @@ export default defineConfig({
 		},
 	},
 	server: {
-		port: 3000,
+		port: 5173, // Different from code-server (3000)
 		open: true,
 	},
 });
