@@ -79,6 +79,16 @@ export const getSession = query()
 				emit.set("status", payload.status);
 			}
 
+			// session-tokens-updated: update token counts (for StatusBar)
+			if (payload?.type === "session-tokens-updated") {
+				if (payload.totalTokens !== undefined) {
+					emit.set("totalTokens", payload.totalTokens);
+				}
+				if (payload.baseContextTokens !== undefined) {
+					emit.set("baseContextTokens", payload.baseContextTokens);
+				}
+			}
+
 			// Title streaming events (for real-time title updates)
 			// Lens 2.14.0+: emit.delta() sends ops command, client applies
 			if (payload?.type === "title-start") {
