@@ -7,7 +7,7 @@
 
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { createCodeClient, http, initClient } from "@sylphx/code-client/browser";
+import { createCodeClient, http, initClient } from "@sylphx/code-client";
 import { ChatScreen } from "./screens/ChatScreen";
 import { Layout } from "./components/Layout";
 

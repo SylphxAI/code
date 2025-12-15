@@ -1,8 +1,9 @@
 /**
  * @sylphx/code-client
  *
- * Lens client + utilities for Sylphx Code.
- * All types auto-inferred from server.
+ * Shared Lens client for TUI and GUI.
+ * Browser-safe - no Node.js dependencies.
+ * Types auto-inferred from server's AppRouter.
  */
 
 // ============================================================================
@@ -20,15 +21,10 @@ export {
 	type Transport,
 } from "./lens.js";
 
-// Backward compatibility
-export { useLensClient as useTRPCClient } from "./lens.js";
-
 // ============================================================================
-// Types from code-core
+// Types
 // ============================================================================
-export type { MessagePart, ProviderId } from "@sylphx/code-core";
 
-// Provider and Model types (used by hooks)
 export interface Provider {
 	id: string;
 	name: string;
@@ -42,7 +38,6 @@ export interface ModelInfo {
 	maxOutputTokens?: number;
 }
 
-// Bash process type (used by hooks)
 export interface BashProcess {
 	id: string;
 	command: string;
@@ -59,40 +54,7 @@ export interface BashProcess {
 }
 
 // ============================================================================
-// Utilities (from code-core)
-// ============================================================================
-export {
-	type AppEvents,
-	calculateScrollViewport,
-	clampCursor,
-	eventBus,
-	type FormattedResult,
-	getAbsoluteCursorPosition,
-	getCursorLinePosition,
-	getRelativePath,
-	type InputFormatter,
-	isDefaultCwd,
-	type LinePosition,
-	moveCursorDown,
-	moveCursorUp,
-	pluralize,
-	type ResultFormatter,
-	type ScrollViewportResult,
-	truncateString,
-} from "@sylphx/code-core";
-
-// ============================================================================
-// API Functions
-// ============================================================================
-export { getLastSession, getRecentSessions, type SessionListItem } from "./api/sessions.js";
-
-// ============================================================================
-// Optimistic Updates
-// ============================================================================
-export * from "./optimistic/index.js";
-
-// ============================================================================
-// Command Types
+// Command Types (browser-safe - type-only imports)
 // ============================================================================
 export type {
 	Command,
@@ -102,16 +64,20 @@ export type {
 	SelectOption,
 	WaitForInputOptions,
 } from "./types/command-types.js";
+
 export type { ToolConfig, ToolDisplayProps } from "./types/tool.types.js";
 
 // ============================================================================
-// Utilities
+// Utilities (browser-safe - no Node.js deps)
 // ============================================================================
-export type { ProviderModelResult } from "./utils/config.js";
-export { resolveProviderAndModel } from "./utils/config.js";
 export type { ParsedContentPart, ParsedUserInput } from "./utils/parse-user-input.js";
 export { parseUserInput } from "./utils/parse-user-input.js";
+
+export type { ProviderModelResult } from "./utils/config.js";
+export { resolveProviderAndModel } from "./utils/config.js";
+
 export { extractFileReferences, renderTextWithTags } from "./utils/text-rendering-utils.js";
+
 export {
 	formatTodoChange,
 	formatTodoCount,
