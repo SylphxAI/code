@@ -189,16 +189,17 @@ async function main() {
 			// Store lens server globally for TUI
 			lensServer = lens;
 
-			// If --web flag, start HTTP server
+			// If --web flag, start HTTP server and open browser (GUI mode only)
 			if (options.web) {
 				if (!options.quiet) {
 					console.error(chalk.dim("Starting HTTP server for Web GUI..."));
 				}
 				await codeServer.startHTTP(3000);
 
-				// Open browser
+				// Open browser and wait (no TUI needed)
 				const { launchWeb } = await import("./web-launcher.js");
 				await launchWeb();
+				return; // GUI mode - don't start TUI
 			}
 
 			// Headless mode: if prompt provided OR --print flag
