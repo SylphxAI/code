@@ -44,17 +44,34 @@ export function ChatScreen() {
 	// Type cast client due to workspace TypeScript issues
 	const typedClient = client as any;
 
-	// Subscribe to session data (real-time updates via SSE)
+	// Subscribe to session data - select only needed fields
 	const { data: sessionData } = typedClient.getSession.useSubscription({
 		input: { id: sessionId || "" },
 		enabled: !!sessionId,
+		select: { id: true, title: true },
 	});
 	const session = sessionData as Session | undefined;
 
-	// Subscribe to messages for current session (real-time updates via SSE)
+	// Subscribe to messages - select only needed fields for display
 	const { data: messagesData, loading: messagesLoading } = typedClient.listMessages.useSubscription({
 		input: { sessionId: sessionId || "" },
 		enabled: !!sessionId,
+		select: {
+			id: true,
+			role: true,
+			timestamp: true,
+			steps: {
+				id: true,
+				parts: {
+					type: true,
+					content: true,
+					name: true,
+					input: true,
+					result: true,
+					status: true,
+				},
+			},
+		},
 	});
 	const messages = (messagesData as Message[] | undefined) || [];
 
