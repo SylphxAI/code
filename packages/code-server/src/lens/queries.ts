@@ -53,6 +53,13 @@ export const getSession = query()
 		// Lens 2.14.0+ stateless wire protocol:
 		// - emit.delta() sends ops command to client
 		// - Client applies delta via applyOps()
+
+		// Track suggestions state for accumulation
+		let suggestionsState: {
+			suggestions: Array<{ index: number; text: string; isStreaming: boolean }>;
+			isStreaming: boolean;
+		} | null = null;
+
 		const cleanup = subscribeToSessionStream(ctx, input.id, (payload) => {
 			// session-updated: merge partial update (filter undefined values)
 			if (payload?.type === "session-updated" && payload.session) {
@@ -85,6 +92,43 @@ export const getSession = query()
 			// session-title-updated: set complete title (fallback/final)
 			if (payload?.type === "session-title-updated" && payload.title) {
 				emit.set("title", payload.title);
+			}
+
+			// Suggestion streaming events (for AI suggestions)
+			// Track full state and emit.set() on each change
+			if (payload?.type === "suggestions-start") {
+				suggestionsState = { suggestions: [], isStreaming: true };
+				emit.set("suggestions", suggestionsState);
+			}
+			if (payload?.type === "suggestion-start" && suggestionsState) {
+				suggestionsState.suggestions.push({
+					index: payload.index,
+					text: "",
+					isStreaming: true,
+				});
+				emit.set("suggestions", { ...suggestionsState });
+			}
+			if (payload?.type === "suggestion-delta" && payload.text && suggestionsState) {
+				const suggestion = suggestionsState.suggestions.find(
+					(s: any) => s.index === payload.index,
+				);
+				if (suggestion) {
+					suggestion.text += payload.text;
+					emit.set("suggestions", { ...suggestionsState });
+				}
+			}
+			if (payload?.type === "suggestion-end" && suggestionsState) {
+				const suggestion = suggestionsState.suggestions.find(
+					(s: any) => s.index === payload.index,
+				);
+				if (suggestion) {
+					suggestion.isStreaming = false;
+					emit.set("suggestions", { ...suggestionsState });
+				}
+			}
+			if (payload?.type === "suggestions-end" && suggestionsState) {
+				suggestionsState.isStreaming = false;
+				emit.set("suggestions", { ...suggestionsState });
 			}
 		});
 
