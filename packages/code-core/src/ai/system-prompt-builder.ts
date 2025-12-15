@@ -30,17 +30,18 @@ Your response content here. Use markdown formatting as normal.
 
 ### Suggestions
 <suggestions>
-<s>Suggested action 1</s>
-<s>Suggested action 2</s>
+<s>suggested message 1</s>
+<s>suggested message 2</s>
 </suggestions>
-- Provide 2-4 actionable next steps the user might want to take
-- Keep each suggestion brief (under 8 words)
-- Include on most responses to guide the conversation
+- Provide 2-4 suggested messages the user might send next
+- Write as the user would type (their perspective, not yours)
+- Keep brief (under 8 words)
+- Examples: "run tests", "explain this error", "what's next?"
 
 ### Rules
 - <message> is REQUIRED for every response
 - <title> is REQUIRED on your first response, optional after
-- <suggestions> should be included when there are clear next actions
+- <suggestions> should be included to help guide the conversation
 - Tags can appear in any order
 `;
 
