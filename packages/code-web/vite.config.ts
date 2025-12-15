@@ -15,7 +15,7 @@ export default defineConfig({
 		outDir: "dist",
 		sourcemap: true,
 		rollupOptions: {
-			// Externalize server-only modules that are pulled in transitively
+			// Externalize server-only modules (NOT lens-core - client needs it)
 			external: [
 				// AWS SDK (server-only)
 				"@aws-sdk/client-s3",
@@ -26,8 +26,7 @@ export default defineConfig({
 				// Terminal UI
 				"ink",
 				"yoga-layout",
-				// Lens server-side
-				"@sylphx/lens-core",
+				// Lens server-side only
 				"@sylphx/lens-server",
 				// Node.js built-ins
 				"node:crypto",
@@ -47,7 +46,6 @@ export default defineConfig({
 			"better-sqlite3",
 			"ink",
 			"yoga-layout",
-			"@sylphx/lens-core",
 			"@sylphx/lens-server",
 		],
 		// Enable top-level await for esbuild
