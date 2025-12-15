@@ -86,10 +86,10 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 		return "";
 	})();
 
-	// Format output for display
+	// Format output for display (consistent with other tools: max 15 lines)
 	const outputLines = finalOutput.split("\n").filter((line) => line.trim() !== "");
-	const displayLines = outputLines.slice(0, 50); // Show max 50 lines
-	const hasMore = outputLines.length > 50;
+	const displayLines = outputLines.slice(0, 15);
+	const hasMore = outputLines.length > 15;
 
 	// Extract error from result if tool failed
 	const errorMessage =
@@ -122,7 +122,12 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 
 		// Completed with no output
 		if (status === "completed" && displayLines.length === 0) {
-			return <Text color={colors.textDim}>Command completed (no output)</Text>;
+			return <Text color={colors.textDim}>No output</Text>;
+		}
+
+		// Completed with output - show line count summary
+		if (status === "completed" && outputLines.length > 0) {
+			return <Text color={colors.textDim}>{outputLines.length} {outputLines.length === 1 ? "line" : "lines"} of output</Text>;
 		}
 
 		// Failed to start bash process
@@ -149,7 +154,7 @@ export function BashToolDisplay(props: ToolDisplayProps) {
 				))}
 				{hasMore && (
 					<Text color={colors.textDim}>
-						... {outputLines.length - 50} more lines (use Bash Processes screen to view all)
+						... {outputLines.length - 15} more lines
 					</Text>
 				)}
 			</>
