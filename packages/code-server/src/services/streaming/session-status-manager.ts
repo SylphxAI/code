@@ -1,28 +1,30 @@
 /**
  * Session Status Manager
- * Manages session status and emits updates via eventStream
+ * Manages session status updates via SessionStore (SSOT)
  *
- * Architecture: Pub-Sub pattern with direct eventStream publishing
- * - Provides callbacks for stream-orchestrator to call
- * - Maintains internal state (currentTool, tokenUsage, etc.)
- * - Publishes session-status-updated when state changes
- * - Separation of concerns: Tool execution doesn't know about status
+ * Architecture:
+ * - Uses SessionStore as Single Source of Truth
+ * - Provides callbacks for stream-orchestrator to invoke
+ * - Updates store.setCurrentTool() and store.setTodos()
+ * - Store handles status computation and event emission
+ *
+ * @owner of SessionStore.setStatus(), SessionStore.setCurrentTool()
  */
 
-import type { Session, SessionStatus, Todo } from "@sylphx/code-core";
-import { emitSessionUpdated } from "./event-emitter.js";
-import type { StreamPublisher } from "./types.js";
+import type { Session, Todo } from "@sylphx/code-core";
+import { createLogger } from "@sylphx/code-core";
 import type { AppContext } from "../../context.js";
+import { getExistingSessionStore, type SessionStore } from "../session-store.js";
+
+const log = createLogger("session-status-manager");
 
 /**
  * Callbacks for stream-orchestrator to invoke
- * These are the "subscription" points
  */
 export interface SessionStatusCallbacks {
 	onToolCall: (toolName: string) => void;
 	onToolResult: () => void;
 	onToolError: () => void;
-	onTokenUpdate: (tokenUsage: number) => void;
 	onTodoUpdate: (todos: Todo[]) => void;
 	onStreamEnd: () => void;
 }
@@ -36,116 +38,34 @@ export interface SessionStatusManager {
 }
 
 /**
- * Determine status text based on current activity
- * Priority: completed > in_progress todo > tool name > default "Thinking..."
- */
-function determineStatusText(
-	todos: Todo[] | undefined,
-	currentToolName: string | undefined,
-	isActive: boolean,
-): string {
-	// 0. If stream has completed, show "Complete"
-	if (!isActive) {
-		return "Complete";
-	}
-
-	// 1. Check for in_progress todo
-	if (todos) {
-		const inProgressTodo = todos.find((t) => t.status === "in_progress");
-		if (inProgressTodo && inProgressTodo.activeForm) {
-			return inProgressTodo.activeForm;
-		}
-	}
-
-	// 2. Use tool name if available
-	if (currentToolName) {
-		// Map tool names to readable status text
-		switch (currentToolName) {
-			case "Read":
-			case "Glob":
-			case "Grep":
-				return "Reading files...";
-			case "Write":
-			case "Edit":
-				return "Writing code...";
-			case "Bash":
-				return "Running command...";
-			case "WebFetch":
-			case "WebSearch":
-				return "Searching web...";
-			case "updateTodos":
-				return "Updating tasks...";
-			default:
-				return `Using ${currentToolName}...`;
-		}
-	}
-
-	// 3. Default
-	return "Thinking...";
-}
-
-/**
  * Create session status manager
- * Maintains state and emits session-updated events
+ * Uses SessionStore for state management and event emission
  *
- * @param publisher - StreamPublisher for emitting events
  * @param sessionId - Session ID
- * @param session - Full session model
- * @param appContext - App context for event stream publishing
+ * @param session - Full session model (for initial state)
+ * @param appContext - App context
  * @returns Manager instance with callbacks and cleanup function
  */
 export function createSessionStatusManager(
-	publisher: StreamPublisher,
+	_publisher: unknown, // Kept for backward compatibility, no longer used
 	sessionId: string,
 	session: Session,
 	appContext: AppContext,
 ): SessionStatusManager {
-	// Internal state
-	let currentTool: string | null = null;
-	let currentTokens = session.totalTokens || 0;
-	let startTime = Date.now();
-	let todos = session.todos;
-	let isActive = true;
-	// NOTE: title is NOT managed here - it's handled by inline-action-dispatcher
-	// to avoid race conditions during title streaming
-
-	// Debounce token updates (emit at most every 500ms)
-	let lastTokenEmitTime = 0;
-	let pendingTokenEmit: NodeJS.Timeout | null = null;
-	const TOKEN_DEBOUNCE_MS = 500;
+	// Get or log warning if store doesn't exist
+	const store = getExistingSessionStore(sessionId);
+	if (!store) {
+		log("WARNING: SessionStore not found for session %s", sessionId);
+	}
 
 	/**
-	 * Emit session-status-updated event
-	 * Publishes via StreamPublisher and also directly to eventStream for field-level updates
+	 * Update status in store
 	 */
-	function emitStatus() {
-		const statusText = determineStatusText(todos, currentTool ?? undefined, isActive);
-		const duration = Date.now() - startTime;
-
-		const status: SessionStatus = {
-			text: statusText,
-			duration,
-			tokenUsage: currentTokens,
-			isActive,
-		};
-
-		// Emit session status update via StreamPublisher
-		// NOTE: title is NOT included - managed separately by inline-action-dispatcher
-		// NOTE: totalTokens/baseContextTokens are NOT included - managed by token-tracking.service
-		const sessionUpdate = {
-			id: sessionId,
-			status,
-			updatedAt: Date.now(),
-		};
-		emitSessionUpdated(publisher, sessionId, sessionUpdate);
-
-		// Also publish field-level event for Lens Live Query
-		// getSession.subscribe() handles this via emit.set("status", ...)
-		appContext.eventStream.publish(`session-stream:${sessionId}`, {
-			type: "session-status-updated",
-			sessionId,
-			status,
-		});
+	function updateStatus() {
+		const currentStore = getExistingSessionStore(sessionId);
+		if (currentStore) {
+			currentStore.updateStatusFromState();
+		}
 	}
 
 	/**
@@ -153,65 +73,62 @@ export function createSessionStatusManager(
 	 */
 	const callbacks: SessionStatusCallbacks = {
 		onToolCall: (toolName: string) => {
-			currentTool = toolName;
-			emitStatus();
+			log("onToolCall sessionId=%s tool=%s", sessionId, toolName);
+			const currentStore = getExistingSessionStore(sessionId);
+			if (currentStore) {
+				currentStore.setCurrentTool(toolName);
+				currentStore.updateStatusFromState();
+			}
 		},
 
 		onToolResult: () => {
-			currentTool = null;
-			emitStatus();
+			log("onToolResult sessionId=%s", sessionId);
+			const currentStore = getExistingSessionStore(sessionId);
+			if (currentStore) {
+				currentStore.setCurrentTool(null);
+				currentStore.updateStatusFromState();
+			}
 		},
 
 		onToolError: () => {
-			currentTool = null;
-			emitStatus();
-		},
-
-		onTokenUpdate: (tokens: number) => {
-			currentTokens = tokens;
-			// Debounce token updates - too frequent otherwise
-			const now = Date.now();
-			if (now - lastTokenEmitTime >= TOKEN_DEBOUNCE_MS) {
-				lastTokenEmitTime = now;
-				emitStatus();
-			} else if (!pendingTokenEmit) {
-				// Schedule a delayed emit to ensure final value is sent
-				pendingTokenEmit = setTimeout(() => {
-					pendingTokenEmit = null;
-					lastTokenEmitTime = Date.now();
-					emitStatus();
-				}, TOKEN_DEBOUNCE_MS);
+			log("onToolError sessionId=%s", sessionId);
+			const currentStore = getExistingSessionStore(sessionId);
+			if (currentStore) {
+				currentStore.setCurrentTool(null);
+				currentStore.updateStatusFromState();
 			}
 		},
 
 		onTodoUpdate: (newTodos: Todo[]) => {
-			todos = newTodos;
-			emitStatus();
+			log("onTodoUpdate sessionId=%s count=%d", sessionId, newTodos.length);
+			const currentStore = getExistingSessionStore(sessionId);
+			if (currentStore) {
+				currentStore.setTodos(newTodos);
+				currentStore.updateStatusFromState();
+			}
 		},
 
 		onStreamEnd: () => {
-			isActive = false;
-			emitStatus();
+			log("onStreamEnd sessionId=%s", sessionId);
+			const currentStore = getExistingSessionStore(sessionId);
+			if (currentStore) {
+				currentStore.endStreaming();
+			}
 		},
 	};
 
 	// Emit initial status
-	emitStatus();
-
-	// NOTE: Removed 1-second interval for duration updates
-	// Client (StatusIndicator) tracks duration locally for smooth 100ms updates
-	// Server only needs to emit on actual state changes (tool call, token update, etc.)
+	updateStatus();
 
 	/**
-	 * Cleanup: Clear pending timers and emit final status
+	 * Cleanup: Ensure final status is emitted
 	 */
 	function cleanup() {
-		isActive = false;
-		if (pendingTokenEmit) {
-			clearTimeout(pendingTokenEmit);
-			pendingTokenEmit = null;
+		log("cleanup sessionId=%s", sessionId);
+		const currentStore = getExistingSessionStore(sessionId);
+		if (currentStore) {
+			currentStore.endStreaming();
 		}
-		emitStatus(); // Final status with isActive: false
 	}
 
 	return { callbacks, cleanup };

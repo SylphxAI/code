@@ -5,14 +5,16 @@
  * Responsibilities:
  * - Initialize token tracker with baseline
  * - Update tokens incrementally from text deltas
- * - Emit token update events to clients
  * - Checkpoint recalculation on step completion
  *
  * Architecture:
+ * - Uses SessionStore as SSOT (Single Source of Truth)
  * - NO database cache (volatile state)
  * - Content-based caching (in TokenCalculator)
  * - Optimistic updates during streaming
  * - Accurate recalculation at checkpoints
+ *
+ * @owner of SessionStore.setTokens()
  */
 
 import type { MessageRepository } from "@sylphx/code-core";
@@ -26,6 +28,7 @@ import {
 	TokenCalculator,
 } from "@sylphx/code-core";
 import type { AppContext } from "../context.js";
+import { getExistingSessionStore } from "./session-store.js";
 
 const log = createLogger("token-tracking");
 
@@ -78,22 +81,20 @@ export async function initializeTokenTracking(
 
 	const tokenTracker = new StreamingTokenTracker(calculator, baselineTotal);
 
-	// Emit initial baseline tokens immediately when streaming starts
-	// This ensures status bar shows tokens even during "Thinking..." phase
-	try {
-		const channel = `session-stream:${sessionId}`;
-		const event = {
+	// Update SessionStore (SSOT) - store handles event emission
+	const store = getExistingSessionStore(sessionId);
+	if (store) {
+		store.setTokens(baselineTotal, baseContextTokens);
+	} else {
+		// Fallback: emit directly if store not yet created
+		// This handles the case where tokens are initialized before store exists
+		log("initializeTokenTracking EMIT (no store yet)");
+		await appContext.eventStream.publish(`session-stream:${sessionId}`, {
 			type: "session-tokens-updated" as const,
 			sessionId,
 			totalTokens: baselineTotal,
 			baseContextTokens,
-			outputTokens: 0, // No output tokens yet (just baseline)
-		};
-		log("initializeTokenTracking EMIT channel=%s event=%o", channel, event);
-		await appContext.eventStream.publish(channel, event);
-		log("initializeTokenTracking EMIT SUCCESS");
-	} catch (error) {
-		log("initializeTokenTracking EMIT FAILED error=%o", error);
+		});
 	}
 
 	log("initializeTokenTracking END baselineTotal=%d", baselineTotal);
@@ -102,7 +103,7 @@ export async function initializeTokenTracking(
 
 /**
  * Update tokens from streaming text delta
- * Emits optimistic update event immediately
+ * Updates SessionStore with optimistic count
  */
 export async function updateTokensFromDelta(
 	tokenTracker: StreamingTokenTracker,
@@ -114,16 +115,13 @@ export async function updateTokensFromDelta(
 	try {
 		// Add delta to tracker (optimistic, not persisted)
 		const currentTotal = await tokenTracker.addDelta(deltaText);
-		const outputTokens = tokenTracker.getStreamingDelta();
 
-		// Emit immediate update (optimistic value, not SSOT)
-		await appContext.eventStream.publish(`session-stream:${sessionId}`, {
-			type: "session-tokens-updated" as const,
-			sessionId,
-			totalTokens: currentTotal,
-			baseContextTokens: baseContextTokens,
-			outputTokens, // Current streaming output tokens for status indicator
-		});
+		// Update SessionStore (SSOT) - store handles event emission
+		const store = getExistingSessionStore(sessionId);
+		if (store) {
+			store.setTokens(currentTotal, baseContextTokens);
+		}
+		// No fallback emit - if store doesn't exist during streaming, something is wrong
 	} catch (error) {
 		// Non-critical - don't interrupt streaming
 		log("updateTokensFromDelta FAILED error=%o", error);
@@ -183,16 +181,11 @@ export async function recalculateTokensAtCheckpoint(
 		log("recalculateTokensAtCheckpoint totalTokens=%d (base=%d + messages=%d)",
 			totalTokens, recalculatedBaseContext, recalculatedMessages);
 
-		// Emit to all clients (multi-client real-time sync)
-		const channel = `session-stream:${sessionId}`;
-		const event = {
-			type: "session-tokens-updated" as const,
-			sessionId,
-			totalTokens,
-			baseContextTokens: recalculatedBaseContext,
-		};
-		log("recalculateTokensAtCheckpoint EMIT channel=%s", channel);
-		await appContext.eventStream.publish(channel, event);
+		// Update SessionStore (SSOT) - store handles event emission
+		const store = getExistingSessionStore(sessionId);
+		if (store) {
+			store.setTokens(totalTokens, recalculatedBaseContext);
+		}
 
 		// Reset tracker with new baseline (for next streaming chunk)
 		tokenTracker.reset(totalTokens);
@@ -262,19 +255,11 @@ export async function calculateFinalTokens(
 		});
 		log("calculateFinalTokens PERSIST SUCCESS");
 
-		// Emit event with calculated token data (send data on needed)
-		// Token updates go to streaming channel
-		// All clients receive token data immediately without additional API calls
-		const channel = `session-stream:${sessionId}`;
-		const event = {
-			type: "session-tokens-updated" as const,
-			sessionId,
-			totalTokens: finalTotal,
-			baseContextTokens: finalBaseContext,
-		};
-		log("calculateFinalTokens EMIT channel=%s event=%o", channel, event);
-		await appContext.eventStream.publish(channel, event);
-		log("calculateFinalTokens EMIT SUCCESS");
+		// Update SessionStore (SSOT) - store handles event emission
+		const store = getExistingSessionStore(sessionId);
+		if (store) {
+			store.setTokens(finalTotal, finalBaseContext);
+		}
 
 		log("calculateFinalTokens END finalTotal=%d", finalTotal);
 	} catch (error) {

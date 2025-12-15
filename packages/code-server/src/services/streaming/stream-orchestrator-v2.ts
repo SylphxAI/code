@@ -71,6 +71,11 @@ import {
 	type StreamAIResponseOptions,
 	type StreamPublisher,
 } from "./types.js";
+import {
+	createSessionStore,
+	deleteSessionStore,
+	getExistingSessionStore,
+} from "../session-store.js";
 
 /**
  * Result of streamAIResponse
@@ -255,7 +260,6 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 	let assistantMessageId: string | undefined;
 	let state: StreamState | null = null;
 	let statusManager: SessionStatusManager | null = null;
-	let tokenSubscription: any = null;
 	let publisher: StreamPublisher;
 
 	try {
@@ -305,21 +309,23 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 			return { success: false, sessionId, error: "Session not found" };
 		}
 
-		// 4. Create Session Status Manager
+		// 4. Create SessionStore (SSOT for session state)
+		const sessionStore = createSessionStore(sessionId, appContext, {
+			totalTokens: session.totalTokens || 0,
+			baseContextTokens: session.baseContextTokens || 0,
+			title: session.title || "",
+			todos: session.todos || [],
+		});
+
+		// Start streaming mode in store
+		sessionStore.startStreaming();
+
+		// 5. Create Session Status Manager (uses SessionStore internally)
 		statusManager = createSessionStatusManager(publisher, sessionId, session, appContext);
 
-		// Subscribe to token updates
-		tokenSubscription = appContext.eventStream
-			.subscribe(`session-stream:${sessionId}`)
-			.subscribe((event) => {
-				if (event.type === "session-tokens-updated" && statusManager) {
-					const payload = event.payload as any;
-					const tokenUsage = payload.outputTokens ?? payload.totalTokens ?? 0;
-					statusManager.callbacks.onTokenUpdate(tokenUsage);
-				}
-			});
+		// Note: Token subscription removed - token-tracking.service updates store directly
 
-		// 5. Validate provider configuration
+		// 6. Validate provider configuration
 		const validationError = validateProvider(aiConfig, session);
 		if (validationError) {
 			const errorMessageId = randomUUID();
@@ -336,10 +342,10 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 		}
 		const providerInstance = getProvider(provider);
 
-		// 6. Fetch file content from storage
+		// 7. Fetch file content from storage
 		const frozenContent = await buildFrozenContent(userMessageContent, messageRepository);
 
-		// 7. Add user message to session
+		// 8. Add user message to session
 		let userMessageText = "";
 
 		if (userMessageContent) {
@@ -365,7 +371,7 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 			});
 		}
 
-		// 8. Reload session
+		// 9. Reload session
 		const updatedSession = await sessionRepository.getSessionById(sessionId);
 		if (!updatedSession) {
 			emitError(publisher, "Session not found after adding message");
@@ -373,7 +379,7 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 			return { success: false, sessionId, error: "Session not found after adding message" };
 		}
 
-		// 9. Lazy load model capabilities
+		// 10. Lazy load model capabilities
 		let modelCapabilities = providerInstance.getModelCapabilities(modelName);
 		if (modelCapabilities.size === 0) {
 			try {
@@ -384,14 +390,14 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 			}
 		}
 
-		// 10. Build ModelMessage[] for AI
+		// 11. Build ModelMessage[] for AI
 		const messages = await buildModelMessages(
 			updatedSession.messages,
 			modelCapabilities,
 			messageRepository.getFileRepository(),
 		);
 
-		// 11. Build system prompt
+		// 12. Build system prompt
 		const agentId = inputAgentId || session.agentId || "coder";
 		const agents = appContext.agentManager.getAll();
 		const enabledRuleIds = session.enabledRuleIds || [];
@@ -400,10 +406,10 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 			enableInlineActions: true,
 		});
 
-		// 12. Create AI model
+		// 13. Create AI model
 		const model = await providerInstance.createClient(providerConfig, modelName);
 
-		// 13. Load tools
+		// 14. Load tools
 		const supportsTools = modelCapabilities.has("tools");
 		let tools: Record<string, any> | undefined;
 		if (supportsTools) {
@@ -422,12 +428,12 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 			};
 		}
 
-		// 14. Check if title generation is needed
+		// 15. Check if title generation is needed
 		const isFirstMessage =
 			updatedSession.messages.filter((m) => m.role === "user").length === 1;
 		const needsTitle = needsTitleGeneration(updatedSession, isNewSession, isFirstMessage);
 
-		// 15. Create assistant message
+		// 16. Create assistant message
 		assistantMessageId = await createAssistantMessage(
 			sessionId,
 			messageRepository,
@@ -446,7 +452,7 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 			},
 		});
 
-		// 16. Initialize stream state
+		// 17. Initialize stream state
 		state = createStreamState();
 
 		if (abortSignal) {
@@ -461,7 +467,7 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 		const streamStartTime = Date.now();
 		const stepIdMap = new Map<number, string>();
 
-		// 17. Initialize token tracking
+		// 18. Initialize token tracking
 		const cwd = process.cwd();
 		const { tracker: tokenTracker, baseContextTokens } = await initializeTokenTracking(
 			sessionId,
@@ -478,7 +484,7 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 			appContext,
 		};
 
-		// 18. Create parsed text handler
+		// 19. Create parsed text handler
 		let accumulatedParsedText = "";
 		const parsedTextHandler: ParsedTextHandler = {
 			onParsedText: (text: string) => {
@@ -487,7 +493,7 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 			getAccumulatedContent: () => accumulatedParsedText,
 		};
 
-		// 19. Create inline action dispatcher
+		// 20. Create inline action dispatcher
 		const inlineActionDispatcher: InlineActionDispatcher = createInlineActionDispatcher({
 			publisher,
 			sessionId,
@@ -496,7 +502,7 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 			onParsedText: parsedTextHandler.onParsedText,
 		});
 
-		// 20. Create callbacks
+		// 21. Create callbacks
 		const callbacks: StreamCallbacks = {
 			onTextStart: () => emitTextStart(publisher),
 			onTextDelta: (text) => {
@@ -543,7 +549,7 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 			},
 		};
 
-		// 21. Manual agent loop
+		// 22. Manual agent loop
 		let currentMessages = messages;
 		let finalUsage: any;
 		let finalFinishReason: string | undefined;
@@ -830,7 +836,7 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 		// Cleanup
 		statusManager?.callbacks.onStreamEnd();
 		statusManager?.cleanup();
-		tokenSubscription?.unsubscribe();
+		deleteSessionStore(sessionId);
 
 		// Complete stream
 		publisher.complete();
@@ -848,7 +854,9 @@ export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise
 
 		// Cleanup
 		statusManager?.cleanup();
-		tokenSubscription?.unsubscribe();
+		if (sessionId!) {
+			deleteSessionStore(sessionId);
+		}
 
 		if (publisher!) {
 			publisher.complete();

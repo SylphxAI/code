@@ -4,7 +4,10 @@
  * Connects InlineActionParser to event emitters and side effects.
  * Routes parsed actions to appropriate handlers.
  *
- * Uses StreamPublisher for direct eventStream publishing.
+ * Uses StreamPublisher for streaming events.
+ * Uses SessionStore for title persistence (SSOT pattern).
+ *
+ * @owner of SessionStore.setTitle()
  */
 
 import {
@@ -14,6 +17,7 @@ import {
 	type SessionRepository,
 } from "@sylphx/code-core";
 import type { AppContext } from "../../context.js";
+import { getExistingSessionStore } from "../session-store.js";
 import {
 	emitSuggestionDelta,
 	emitSuggestionEnd,
@@ -162,6 +166,7 @@ export function createInlineActionDispatcher(
 
 /**
  * Persist title to session (async, fire-and-forget)
+ * Uses SessionStore for event emission (SSOT pattern)
  */
 async function persistTitle(
 	opts: InlineActionDispatcherOptions,
@@ -170,16 +175,16 @@ async function persistTitle(
 	if (!title.trim()) return;
 
 	try {
+		// Persist to database
 		await opts.sessionRepository.updateSession(opts.sessionId, {
 			title: title.trim(),
 		});
 
-		// Publish to event stream for live queries
-		await opts.appContext.eventStream.publish(`session-stream:${opts.sessionId}`, {
-			type: "session-title-updated",
-			sessionId: opts.sessionId,
-			title: title.trim(),
-		});
+		// Update SessionStore (SSOT) - store handles event emission
+		const store = getExistingSessionStore(opts.sessionId);
+		if (store) {
+			store.setTitle(title.trim());
+		}
 	} catch (error) {
 		console.error("[InlineActionDispatcher] Failed to persist title:", error);
 	}
