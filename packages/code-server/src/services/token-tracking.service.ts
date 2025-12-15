@@ -227,6 +227,13 @@ export async function calculateFinalTokens(
 
 		const finalTotal = finalBaseContext + finalMessages;
 
+		// Persist token data to database (critical for accurate cumulative count!)
+		// Without this, each new message would start token counting from 0
+		await sessionRepository.updateSessionTokens(sessionId, {
+			totalTokens: finalTotal,
+			baseContextTokens: finalBaseContext,
+		});
+
 		// Emit event with calculated token data (send data on needed)
 		// Token updates go to streaming channel
 		// All clients receive token data immediately without additional API calls
