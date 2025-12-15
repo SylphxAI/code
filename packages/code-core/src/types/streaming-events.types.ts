@@ -45,12 +45,17 @@ export type TodoSnapshot = Todo[];
 /**
  * Session status - current activity state
  * Controls unified progress indicator across UI
+ *
+ * Architecture:
+ * - Server emits startTime once when streaming begins
+ * - Client calculates duration locally: Date.now() - startTime
+ * - This prevents constant re-renders from server pushing duration updates
  */
 export interface SessionStatus {
 	/** Status text (e.g., "Implementing user auth", "Thinking...", "Reading files...") */
 	text: string;
-	/** Milliseconds since activity started */
-	duration: number;
+	/** Timestamp when activity started (client calculates duration locally) */
+	startTime: number;
 	/** Cumulative tokens used in current activity */
 	tokenUsage: number;
 	/** true = streaming/active, false = completed/idle */

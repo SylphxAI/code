@@ -104,7 +104,7 @@ export const useIsStreaming = () => useStore(streamingState);
 export interface SessionStatusState {
 	isActive: boolean;
 	text: string;
-	duration: number;
+	startTime: number;
 	tokenUsage: number;
 	totalTokens?: number; // Total session tokens (for StatusBar real-time updates)
 }

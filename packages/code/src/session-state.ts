@@ -99,7 +99,8 @@ export const useEnabledRuleIds = () => useStore(enabledRuleIdsState);
 
 export interface SessionStatus {
 	text: string;
-	duration: number;
+	/** Timestamp when streaming started (client calculates duration locally) */
+	startTime: number;
 	tokenUsage: number;
 	isActive: boolean;
 }

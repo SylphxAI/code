@@ -29,10 +29,11 @@ import type { LensContext } from "./context.js";
 
 /**
  * SessionStatus - Live streaming status for session
+ * Client calculates duration from startTime locally
  */
 interface SessionStatus {
 	text: string;
-	duration: number;
+	startTime: number;
 	tokenUsage: number;
 	isActive: boolean;
 }

@@ -31,23 +31,26 @@ export function StatusIndicator({ sessionStatus }: StatusIndicatorProps) {
 	// console.log(`[StatusIndicator] currentSession:`, currentSession?.id, `status:`, sessionStatus);
 
 	// Local duration tracking for smooth updates
+	// Server sends startTime, client calculates duration locally
 	const [localDuration, setLocalDuration] = useState(0);
 
 	// Update local duration every 100ms when status is active
 	useEffect(() => {
-		if (!sessionStatus?.isActive) {
+		if (!sessionStatus?.isActive || !sessionStatus?.startTime) {
 			setLocalDuration(0);
 			return;
 		}
 
-		// Start local timer
-		const startTime = Date.now();
+		// Calculate duration from server-provided startTime
 		const interval = setInterval(() => {
-			setLocalDuration(Date.now() - startTime + (sessionStatus.duration || 0));
+			setLocalDuration(Date.now() - sessionStatus.startTime);
 		}, 100); // Update every 100ms for smooth display
 
+		// Set initial duration immediately
+		setLocalDuration(Date.now() - sessionStatus.startTime);
+
 		return () => clearInterval(interval);
-	}, [sessionStatus?.isActive, sessionStatus?.duration]);
+	}, [sessionStatus?.isActive, sessionStatus?.startTime]);
 
 	// Format duration display (milliseconds to seconds)
 	const formatDuration = (ms: number) => {
@@ -89,9 +92,8 @@ export function StatusIndicator({ sessionStatus }: StatusIndicatorProps) {
 		);
 	}
 
-	// Use local duration if backend duration is 0 (optimistic update)
-	// Otherwise use backend duration (more accurate, includes network latency)
-	const displayDuration = sessionStatus.duration > 0 ? sessionStatus.duration : localDuration;
+	// Duration is always calculated locally from server-provided startTime
+	const displayDuration = localDuration;
 
 	return (
 		<Box paddingY={1}>

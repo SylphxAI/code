@@ -41,7 +41,7 @@ export interface SessionState {
 
 const DEFAULT_STATUS: SessionStatus = {
 	text: "Ready",
-	duration: 0,
+	startTime: 0,
 	tokenUsage: 0,
 	isActive: false,
 };
@@ -124,24 +124,22 @@ export class SessionStore {
 	}
 
 	/**
-	 * Update session status (text, duration, isActive)
-	 * Only emits when text or isActive changes (not duration)
-	 * Client calculates duration locally for smooth updates
+	 * Update session status (text, startTime, tokenUsage, isActive)
+	 * Only emits when fields actually change
 	 * @owner session-status-manager
 	 */
 	setStatus(status: SessionStatus): void {
 		const prev = this.state.status;
 		this.state.status = status;
 
-		// Only emit when meaningful fields change (not duration)
-		// Duration changes every millisecond - client tracks it locally
+		// Only emit when fields actually change
 		const textChanged = prev.text !== status.text;
 		const activeChanged = prev.isActive !== status.isActive;
 		const tokensChanged = prev.tokenUsage !== status.tokenUsage;
+		const startTimeChanged = prev.startTime !== status.startTime;
 
-		if (textChanged || activeChanged || tokensChanged) {
-			log("setStatus sessionId=%s status=%o (changed: text=%s active=%s tokens=%s)",
-				this.sessionId, status, textChanged, activeChanged, tokensChanged);
+		if (textChanged || activeChanged || tokensChanged || startTimeChanged) {
+			log("setStatus sessionId=%s status=%o", this.sessionId, status);
 
 			this.emit("session-status-updated", {
 				status,
@@ -194,11 +192,11 @@ export class SessionStore {
 		this.streamStartTime = Date.now();
 		this.state.currentTool = null;
 
-		log("startStreaming sessionId=%s", this.sessionId);
+		log("startStreaming sessionId=%s startTime=%d", this.sessionId, this.streamStartTime);
 
 		this.setStatus({
 			text: "Thinking...",
-			duration: 0,
+			startTime: this.streamStartTime,
 			tokenUsage: this.state.totalTokens,
 			isActive: true,
 		});
@@ -212,24 +210,18 @@ export class SessionStore {
 		this.state.isStreaming = false;
 		this.state.currentTool = null;
 
-		const duration = this.streamStartTime ? Date.now() - this.streamStartTime : 0;
+		// Keep startTime for client to calculate final duration if needed
+		const startTime = this.streamStartTime || 0;
 		this.streamStartTime = null;
 
-		log("endStreaming sessionId=%s duration=%d", this.sessionId, duration);
+		log("endStreaming sessionId=%s", this.sessionId);
 
 		this.setStatus({
 			text: "Complete",
-			duration,
+			startTime,
 			tokenUsage: this.state.totalTokens,
 			isActive: false,
 		});
-	}
-
-	/**
-	 * Get current stream duration (for status updates)
-	 */
-	getStreamDuration(): number {
-		return this.streamStartTime ? Date.now() - this.streamStartTime : 0;
 	}
 
 	// =========================================================================
@@ -243,11 +235,10 @@ export class SessionStore {
 	 */
 	updateStatusFromState(): void {
 		const statusText = this.computeStatusText();
-		const duration = this.getStreamDuration();
 
 		this.setStatus({
 			text: statusText,
-			duration,
+			startTime: this.streamStartTime || 0,
 			tokenUsage: this.state.totalTokens,
 			isActive: this.state.isStreaming,
 		});
