@@ -42,9 +42,11 @@ export async function startWebServer(config: WebServerConfig): Promise<Server> {
 		console.log(`   ⚠ Web UI not built: ${webDistPath}`);
 	}
 
-	const server = Bun.serve({
-		port,
-		async fetch(req) {
+	let server;
+	try {
+		server = Bun.serve({
+			port,
+			async fetch(req) {
 			const url = new URL(req.url);
 
 			// Lens API requests
@@ -83,8 +85,16 @@ export async function startWebServer(config: WebServerConfig): Promise<Server> {
 				</html>`,
 				{ headers: { "Content-Type": "text/html" } }
 			);
-		},
-	});
+			},
+		});
+	} catch (error: any) {
+		if (error.code === "EADDRINUSE" || error.message?.includes("address already in use")) {
+			console.error(`\n❌ Port ${port} is already in use`);
+			console.error(`   Kill existing process: lsof -ti :${port} | xargs kill`);
+			process.exit(1);
+		}
+		throw error;
+	}
 
 	console.log(`\n🚀 Sylphx Code Web`);
 	console.log(`   URL: http://localhost:${port}`);
