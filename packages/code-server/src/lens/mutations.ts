@@ -18,6 +18,8 @@ import { z } from "zod";
 import { entity as e, temp, now } from "@sylphx/reify";
 import { Session, Message, Step, Part, Todo } from "./entities.js";
 import type { LensContext } from "./context.js";
+import { calculateBaseContextTokens } from "@sylphx/code-core";
+import type { AppContext } from "../context.js";
 
 // =============================================================================
 // Input Schemas
@@ -38,6 +40,49 @@ const ContentPartSchema = z.discriminatedUnion("type", [
 ]);
 
 // =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Async calculate base context tokens and emit update
+ * Fire-and-forget: called after session creation to update token counts
+ */
+async function calculateBaseContextTokensAsync(
+	sessionId: string,
+	modelName: string,
+	agentId: string,
+	enabledRuleIds: string[],
+	appContext: AppContext,
+): Promise<void> {
+	const cwd = process.cwd();
+
+	// Calculate base context tokens (system prompt + tools)
+	const baseContextTokens = await calculateBaseContextTokens(
+		modelName,
+		agentId,
+		enabledRuleIds,
+		cwd,
+	);
+
+	// totalTokens = baseContext (no messages yet)
+	const totalTokens = baseContextTokens;
+
+	// Persist to database
+	await appContext.database.getSessionRepository().updateSessionTokens(sessionId, {
+		baseContextTokens,
+		totalTokens,
+	});
+
+	// Emit event for live query subscribers
+	await appContext.eventStream.publish(`session-stream:${sessionId}`, {
+		type: "session-tokens-updated",
+		sessionId,
+		totalTokens,
+		baseContextTokens,
+	});
+}
+
+// =============================================================================
 // Session Mutations
 // =============================================================================
 
@@ -46,6 +91,9 @@ const ContentPartSchema = z.discriminatedUnion("type", [
  *
  * Optimistic: Client immediately sees new session via .optimistic("create")
  * Live: Publishes session-created event for listSessions subscribers
+ *
+ * After creation, async calculates base context tokens so StatusBar
+ * shows context usage even before first message is sent.
  */
 export const createSession = mutation()
 	.input(
@@ -64,15 +112,19 @@ export const createSession = mutation()
 		const now = Date.now();
 		const sessionId = crypto.randomUUID();
 
+		const agentId = input.agentId || "coder";
+		const modelName = input.model;
+		const enabledRuleIds = input.enabledRuleIds || [];
+
 		const session = await ctx.db.session.create({
 			data: {
 				id: sessionId,
 				title: input.title || "New Chat",
-				agentId: input.agentId || "coder",
+				agentId,
 				modelId: input.modelId,
 				provider: input.provider,
-				model: input.model,
-				enabledRuleIds: input.enabledRuleIds || [],
+				model: modelName,
+				enabledRuleIds,
 				nextTodoId: 1,
 				created: now,
 				updated: now,
@@ -84,6 +136,20 @@ export const createSession = mutation()
 			type: "session-created",
 			session,
 		});
+
+		// Async calculate base context tokens (fire-and-forget)
+		// This allows StatusBar to show context usage before first message
+		if (modelName) {
+			calculateBaseContextTokensAsync(
+				sessionId,
+				modelName,
+				agentId,
+				enabledRuleIds,
+				ctx.appContext,
+			).catch((err) => {
+				console.error("[createSession] Failed to calculate base context tokens:", err);
+			});
+		}
 
 		return session;
 	});
