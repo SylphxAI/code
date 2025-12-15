@@ -9,17 +9,15 @@
  */
 
 import type { Server } from "node:http";
-import express, { type Express } from "express";
+import express, { type Express, type Request, type Response } from "express";
 import {
 	type AppContext,
 	closeAppContext,
 	createAppContext,
 	initializeAppContext,
 } from "./context.js";
-import { initializeLensAPI } from "./lens/index.js";
-import { createLensHTTPHandler } from "./lens/http-handler.js";
 import { createLensServer, appRouter, type AppRouter } from "./lens/server.js";
-import type { LensServer } from "@sylphx/lens-server";
+import { createHandler, type LensServer } from "@sylphx/lens-server";
 
 export interface ServerConfig {
 	/**
@@ -118,18 +116,81 @@ export class CodeServer {
 		if (!this.expressApp) {
 			this.expressApp = express();
 
-			// Lens HTTP middleware
-			// Initialize Lens API with AppContext (context is pre-bound)
-			const lensAPI = initializeLensAPI(this.appContext!);
-			const lensHandler = createLensHTTPHandler(lensAPI);
+			// Standard Lens HTTP handler (supports /__lens/metadata, /__lens/sse, etc.)
+			const lensHandler = createHandler(this.lensServer!, {
+				pathPrefix: "/lens",
+			});
 
 			// Parse JSON body for Lens requests
 			this.expressApp.use("/lens", express.json());
-			this.expressApp.post("/lens", lensHandler);
 
-			console.log("✅ Lens HTTP handler initialized");
-			console.log("   - Endpoint: POST /lens");
-			console.log("   - Context: Pre-bound with AppContext");
+			// CORS for development (web app on different port)
+			this.expressApp.use("/lens", (_req, res, next) => {
+				res.header("Access-Control-Allow-Origin", "*");
+				res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+				res.header("Access-Control-Allow-Headers", "Content-Type");
+				next();
+			});
+
+			// Handle CORS preflight (Express 5 requires named wildcard)
+			this.expressApp.options("/lens/{*path}", (_req, res) => {
+				res.sendStatus(204);
+			});
+
+			// Lens routes - adapter from Web API handler to Express
+			// Express 5 requires named wildcard syntax: {*path}
+			this.expressApp.all("/lens/{*path}", async (req: Request, res: Response) => {
+				try {
+					// Convert Express request to Web API Request
+					const url = `${req.protocol}://${req.get("host")}${req.originalUrl}`;
+					const webRequest = new globalThis.Request(url, {
+						method: req.method,
+						headers: req.headers as HeadersInit,
+						body: ["GET", "HEAD"].includes(req.method)
+							? undefined
+							: JSON.stringify(req.body),
+					});
+
+					// Call lens handler
+					const webResponse = await lensHandler(webRequest);
+
+					// Handle SSE response
+					if (webResponse.headers.get("content-type")?.includes("text/event-stream")) {
+						res.setHeader("Content-Type", "text/event-stream");
+						res.setHeader("Cache-Control", "no-cache");
+						res.setHeader("Connection", "keep-alive");
+						res.flushHeaders();
+
+						const reader = webResponse.body?.getReader();
+						if (reader) {
+							const decoder = new TextDecoder();
+							while (true) {
+								const { done, value } = await reader.read();
+								if (done) break;
+								res.write(decoder.decode(value, { stream: true }));
+							}
+						}
+						res.end();
+						return;
+					}
+
+					// Regular response
+					res.status(webResponse.status);
+					webResponse.headers.forEach((value, key) => {
+						res.setHeader(key, value);
+					});
+					const body = await webResponse.text();
+					res.send(body);
+				} catch (error) {
+					console.error("[Lens HTTP] Error:", error);
+					res.status(500).json({ error: "Internal server error" });
+				}
+			});
+
+			console.log("✅ Lens HTTP handler initialized (standard protocol)");
+			console.log("   - Endpoint: /lens/*");
+			console.log("   - Metadata: /lens/__lens/metadata");
+			console.log("   - SSE: /lens/__lens/sse");
 
 			// Static files for Web UI
 			await this.setupStaticFiles();
