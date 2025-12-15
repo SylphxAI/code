@@ -17,11 +17,10 @@ export function Sidebar() {
 	const client = useLensClient();
 	const { sessionId } = useParams();
 
-	// Fetch recent sessions - select only needed fields
+	// Fetch recent sessions (Live Query)
 	// Type cast due to workspace TypeScript issues
-	const { data: sessions, loading } = (client as any).listSessions.useSubscription({
+	const { data: sessions, loading } = (client as any).listSessions.useQuery({
 		input: { limit: 20 },
-		select: { id: true, title: true, updated: true },
 	});
 
 	// Type the sessions data

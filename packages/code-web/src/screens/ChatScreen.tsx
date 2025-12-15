@@ -44,39 +44,22 @@ export function ChatScreen() {
 	// Type cast client due to workspace TypeScript issues
 	const typedClient = client as any;
 
-	// Subscribe to session data - select only needed fields
-	const { data: sessionData } = typedClient.getSession.useSubscription({
+	// Query session data (Live Query)
+	const { data: sessionData } = typedClient.getSession.useQuery({
 		input: { id: sessionId || "" },
-		enabled: !!sessionId,
-		select: { id: true, title: true },
+		skip: !sessionId,
 	});
 	const session = sessionData as Session | undefined;
 
-	// Subscribe to messages - select only needed fields for display
-	const { data: messagesData, loading: messagesLoading } = typedClient.listMessages.useSubscription({
+	// Query messages for current session (Live Query)
+	const { data: messagesData, loading: messagesLoading } = typedClient.listMessages.useQuery({
 		input: { sessionId: sessionId || "" },
-		enabled: !!sessionId,
-		select: {
-			id: true,
-			role: true,
-			timestamp: true,
-			steps: {
-				id: true,
-				parts: {
-					type: true,
-					content: true,
-					name: true,
-					input: true,
-					result: true,
-					status: true,
-				},
-			},
-		},
+		skip: !sessionId,
 	});
 	const messages = (messagesData as Message[] | undefined) || [];
 
-	// Send message mutation
-	const sendMessageMutation = typedClient.sendMessage.useMutation();
+	// Mutation hook - returns { mutate } function
+	const { mutate: sendMessage } = typedClient.sendMessage.useMutation();
 
 	// Scroll to bottom when messages change
 	useEffect(() => {
@@ -91,13 +74,15 @@ export function ChatScreen() {
 		setSending(true);
 
 		try {
-			const result = await sendMessageMutation.mutate({
+			// Call mutation directly with input fields
+			const result = await sendMessage({
 				sessionId: sessionId || null,
 				content: [{ type: "text", content: message }],
 			});
 			// If this was a new session, navigate to it
-			if (!sessionId && result && typeof result === "object" && "sessionId" in result) {
-				navigate(`/chat/${(result as { sessionId: string }).sessionId}`);
+			if (!sessionId && result && typeof result === "object" && "session" in result) {
+				const session = (result as { session: { id: string } }).session;
+				navigate(`/chat/${session.id}`);
 			}
 		} catch (error) {
 			console.error("Failed to send message:", error);
