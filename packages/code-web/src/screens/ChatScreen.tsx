@@ -71,9 +71,9 @@ export function ChatScreen() {
 		setSending(true);
 
 		try {
-			// Call mutation with input wrapper
+			// Call mutation with args wrapper
 			const result = await sendMessage({
-				input: {
+				args: {
 					sessionId: sessionId || null,
 					content: [{ type: "text" as const, content: message }],
 				},
