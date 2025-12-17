@@ -4,7 +4,7 @@
  * Serves:
  * - Lens API over HTTP at /lens
  *   - POST / for queries/mutations (via direct app)
- *   - GET /{path}?_sse=1 for subscriptions (via handleWebSSE)
+ *   - GET /{path}?_sse=1 for subscriptions (custom SSE handler)
  * - Static files from code-web/dist
  */
 
@@ -12,7 +12,104 @@ import type { Server } from "node:http";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { handleWebSSE, type LensServer } from "@sylphx/lens-server";
+import type { LensServer } from "@sylphx/lens-server";
+
+/**
+ * Custom SSE handler that sends the full Result envelope.
+ *
+ * The lens-server handleWebSSE sends value.data (unwrapped) but
+ * the lens-client expects the full Result envelope { "$": "snapshot", "data": ... }.
+ */
+function handleSSE(
+	server: LensServer,
+	path: string,
+	url: URL,
+	signal?: AbortSignal,
+): Response {
+	const inputParam = url.searchParams.get("input");
+
+	// Parse input with error handling
+	let input: unknown;
+	if (inputParam) {
+		try {
+			input = JSON.parse(inputParam);
+		} catch (parseError) {
+			const encoder = new TextEncoder();
+			const errorStream = new ReadableStream({
+				start(controller) {
+					const errMsg = parseError instanceof Error ? parseError.message : "Invalid JSON";
+					const data = `event: error\ndata: ${JSON.stringify({ error: `Invalid input JSON: ${errMsg}` })}\n\n`;
+					controller.enqueue(encoder.encode(data));
+					controller.close();
+				},
+			});
+			return new Response(errorStream, {
+				headers: {
+					"Content-Type": "text/event-stream",
+					"Cache-Control": "no-cache",
+					Connection: "keep-alive",
+				},
+			});
+		}
+	}
+
+	const stream = new ReadableStream({
+		start(controller) {
+			const encoder = new TextEncoder();
+
+			try {
+				const result = server.execute({ path, input });
+
+				if (result && typeof result === "object" && "subscribe" in result) {
+					const observable = result as {
+						subscribe: (handlers: {
+							next: (value: unknown) => void;
+							error: (err: Error) => void;
+							complete: () => void;
+						}) => { unsubscribe: () => void };
+					};
+
+					const subscription = observable.subscribe({
+						next: (value) => {
+							// Send the FULL Result envelope, not just value.data
+							const data = `data: ${JSON.stringify(value)}\n\n`;
+							controller.enqueue(encoder.encode(data));
+						},
+						error: (err) => {
+							const data = `event: error\ndata: ${JSON.stringify({ error: err.message })}\n\n`;
+							controller.enqueue(encoder.encode(data));
+							controller.close();
+						},
+						complete: () => {
+							controller.close();
+						},
+					});
+
+					// Clean up on abort
+					if (signal) {
+						signal.addEventListener("abort", () => {
+							subscription.unsubscribe();
+							controller.close();
+						});
+					}
+				}
+			} catch (execError) {
+				const errMsg = execError instanceof Error ? execError.message : "Internal error";
+				const data = `event: error\ndata: ${JSON.stringify({ error: errMsg })}\n\n`;
+				controller.enqueue(encoder.encode(data));
+				controller.close();
+			}
+		},
+	});
+
+	return new Response(stream, {
+		headers: {
+			"Content-Type": "text/event-stream",
+			"Cache-Control": "no-cache",
+			Connection: "keep-alive",
+		},
+	});
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -95,10 +192,10 @@ export async function startWebServer(config: WebServerConfig): Promise<WebServer
 					req.headers.get("accept") === "text/event-stream";
 
 				if (isSSE && operationPath) {
-					// Handle SSE subscription with handleWebSSE
+					// Handle SSE subscription with custom handler that sends full Result envelope
 					const sseUrl = new URL(req.url);
 					sseUrl.pathname = "/" + operationPath;
-					const response = handleWebSSE(lensServer, operationPath, sseUrl, req.signal);
+					const response = handleSSE(lensServer, operationPath, sseUrl, req.signal);
 
 					// Add CORS headers
 					const headers = new Headers(response.headers);
