@@ -11,7 +11,7 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { LensServer } from "@sylphx/lens-server";
-import { createHandler } from "@sylphx/lens-server";
+import { createFrameworkHandler } from "@sylphx/lens-server";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -56,9 +56,9 @@ export async function startWebServer(config: WebServerConfig): Promise<WebServer
 		console.log(`   Port ${requestedPort} in use, using ${port}`);
 	}
 
-	// Unified HTTP + SSE handler (httpSse client compatible)
-	const lensHandler = createHandler(lensServer, {
-		pathPrefix: "/lens",
+	// Per-operation SSE handler (httpSse client compatible)
+	const lensHandler = createFrameworkHandler(lensServer, {
+		basePath: "/lens",
 	});
 
 	// Find web dist path
