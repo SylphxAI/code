@@ -12,7 +12,7 @@
  */
 
 import { createApp } from "@sylphx/lens-server";
-import { router } from "@sylphx/lens-core";
+import { router, type RouterDef } from "@sylphx/lens-core";
 import { getSessionMessages, messages, messageSteps, stepParts } from "@sylphx/code-core";
 import type { AppContext } from "../context.js";
 
@@ -20,9 +20,75 @@ import type { AppContext } from "../context.js";
 import * as entities from "./entities.js";
 // Note: relations not yet supported by lens-server
 
-// Operations
-import * as queries from "./queries.js";
-import * as mutations from "./mutations.js";
+// Operations - Queries
+import {
+	getSession,
+	listSessions,
+	getLastSession,
+	searchSessions,
+	getSessionCount,
+	getMessage,
+	listMessages,
+	getRecentUserMessages,
+	getStep,
+	listSteps,
+	getPart,
+	listParts,
+	listTodos,
+	subscribeSessionList,
+	subscribeToSession,
+	loadConfig,
+	getProviders,
+	getProviderSchema,
+	fetchModels,
+	scanProjectFiles,
+	countFileTokens,
+	listBash,
+	getBash,
+	getActiveBash,
+	getTokenizerInfo,
+	getModelDetails,
+	getContextInfo,
+	listAgents,
+	getAgent,
+	listRules,
+	getRule,
+	listProviders,
+	listModels,
+	listTools,
+	listMcpServers,
+	listCredentials,
+	getAskRequest,
+} from "./queries.js";
+
+// Operations - Mutations
+import {
+	createSession,
+	updateSession,
+	deleteSession,
+	sendMessage,
+	abortStream,
+	createTodo,
+	updateTodo,
+	deleteTodo,
+	syncTodos,
+	saveConfig,
+	setProviderSecret,
+	executeBash,
+	killBash,
+	demoteBash,
+	promoteBash,
+	uploadFile,
+	answerAsk,
+	addSystemMessage,
+	triggerStream,
+	connectMcpServer,
+	disconnectMcpServer,
+	createCredential,
+	deleteCredential,
+	toggleTool,
+	toggleRule,
+} from "./mutations.js";
 
 // Plugins (optimistic updates, etc.)
 import { plugins } from "./builders.js";
@@ -32,15 +98,84 @@ import { plugins } from "./builders.js";
 // =============================================================================
 
 /**
+ * App routes combining all queries and mutations.
+ * Defined explicitly for proper type inference with bunup.
+ */
+const appRoutes = {
+	// Queries
+	getSession,
+	listSessions,
+	getLastSession,
+	searchSessions,
+	getSessionCount,
+	getMessage,
+	listMessages,
+	getRecentUserMessages,
+	getStep,
+	listSteps,
+	getPart,
+	listParts,
+	listTodos,
+	subscribeSessionList,
+	subscribeToSession,
+	loadConfig,
+	getProviders,
+	getProviderSchema,
+	fetchModels,
+	scanProjectFiles,
+	countFileTokens,
+	listBash,
+	getBash,
+	getActiveBash,
+	getTokenizerInfo,
+	getModelDetails,
+	getContextInfo,
+	listAgents,
+	getAgent,
+	listRules,
+	getRule,
+	listProviders,
+	listModels,
+	listTools,
+	listMcpServers,
+	listCredentials,
+	getAskRequest,
+	// Mutations
+	createSession,
+	updateSession,
+	deleteSession,
+	sendMessage,
+	abortStream,
+	createTodo,
+	updateTodo,
+	deleteTodo,
+	syncTodos,
+	saveConfig,
+	setProviderSecret,
+	executeBash,
+	killBash,
+	demoteBash,
+	promoteBash,
+	uploadFile,
+	answerAsk,
+	addSystemMessage,
+	triggerStream,
+	connectMcpServer,
+	disconnectMcpServer,
+	createCredential,
+	deleteCredential,
+	toggleTool,
+	toggleRule,
+};
+
+/**
  * App router combining all queries and mutations.
  * This creates a proper RouterDef type for client type inference.
  */
-export const appRouter = router({
-	// Queries
-	...queries,
-	// Mutations
-	...mutations,
-});
+export const appRouter = router(appRoutes);
+
+// Export the routes type for use in AppRouter
+export type AppRoutes = typeof appRoutes;
 
 // Entity Resolvers Factory (inline resolvers on entities, lens-core 2.4.0+)
 // Note: createResolvers is deprecated - entities with inline resolvers are automatically extracted

@@ -3,18 +3,17 @@
  * Opens browser for Web GUI mode
  */
 
-import { getServerURL } from "@sylphx/code-core";
 import chalk from "chalk";
 
 /**
  * Launch Web GUI mode
  * Opens browser to the web UI
  */
-export async function launchWeb(): Promise<void> {
+export async function launchWeb(serverUrl?: string): Promise<void> {
 	console.error(chalk.cyan("Launching Web GUI..."));
 
 	// Open browser
-	const url = process.env.CODE_SERVER_URL || getServerURL();
+	const url = serverUrl || process.env.CODE_SERVER_URL || "http://localhost:3000";
 	console.error(chalk.cyan(`\nOpening browser: ${url}`));
 
 	try {

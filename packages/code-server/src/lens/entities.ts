@@ -1,18 +1,12 @@
 /**
- * Lens Entity Definitions with Inline Resolvers
+ * Lens Entity Definitions
  *
- * Defines all data entities for Sylphx Code using Lens 2.6.0+ unified API.
- * Entity names are derived from export keys (e.g., `export const Session` → "Session")
+ * Defines all data entities for Sylphx Code using Lens 4.0 API.
  *
- * Architecture (lens-core 2.6.0+):
- * - model() with builder pattern: entity<Context>("Name").define((t) => ({ ... }))
- * - Two-Phase Field Resolution (ADR-002):
- *   - .resolve() for initial value (batchable with DataLoader)
- *   - .subscribe() returns publisher function for live updates
- *   - .resolve().subscribe() combines both (recommended for live fields)
- * - Lazy relations for circular refs: t.many(() => Entity)
- * - createResolverFromEntity() to get resolver at runtime
- * - Type-safe context in resolvers: ctx is typed as Context
+ * API (lens-core 4.0+):
+ * - model("Name", { field: type() }) defines pure type entities
+ * - id(), string(), int(), float(), boolean(), list(), nullable(), json()
+ * - Resolvers are separate via resolver() function
  *
  * Data Model:
  * - Session (1:N) → Message (1:N) → Step (1:N) → Part
@@ -20,8 +14,17 @@
  * - StepUsage (1:1) → Step
  */
 
-import { model } from "@sylphx/lens-core";
-import type { LensContext } from "./context.js";
+import {
+	id,
+	string,
+	int,
+	float,
+	boolean,
+	list,
+	nullable,
+	json,
+	model,
+} from "@sylphx/lens-core";
 
 // =============================================================================
 // Types
@@ -51,18 +54,6 @@ interface SessionSuggestions {
 }
 
 // =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Get session stream channel for events
- */
-function getSessionChannel(sessionId: string): string {
-	return `session-stream:${sessionId}`;
-}
-
-
-// =============================================================================
 // Session Entity
 // =============================================================================
 
@@ -70,93 +61,52 @@ function getSessionChannel(sessionId: string): string {
  * Session - Chat session with AI
  *
  * Contains configuration, metadata, and token tracking.
- * Messages are loaded via relations, not embedded.
- * Status field uses Two-Phase Resolution for live streaming updates.
+ * Messages are loaded via queries, not embedded relations.
  */
-export const Session = model<LensContext>("Session", (t) => ({
+export const Session = model("Session", {
 	// Primary key
-	id: t.id(),
+	id: id(),
 
 	// Metadata
-	title: t.string().optional(),
-	flags: t.json().optional(), // System message flags: Record<string, boolean>
+	title: nullable(string()),
+	flags: nullable(json<Record<string, boolean>>()), // System message flags
 
 	// AI Configuration (new normalized format)
-	modelId: t.string().optional(), // e.g., 'claude-sonnet-4', 'gpt-4o'
+	modelId: nullable(string()), // e.g., 'claude-sonnet-4', 'gpt-4o'
 
 	// Legacy AI config (deprecated, kept for migration)
-	provider: t.string().optional(),
-	model: t.string().optional(),
+	provider: nullable(string()),
+	model: nullable(string()),
 
 	// Agent configuration
-	agentId: t.string(),
+	agentId: string(),
 
 	// Enabled features
-	enabledRuleIds: t.json(), // string[]
-	enabledToolIds: t.json().optional(), // string[] | undefined
-	enabledMcpServerIds: t.json().optional(), // string[] | undefined
+	enabledRuleIds: json<string[]>(),
+	enabledToolIds: nullable(json<string[]>()),
+	enabledMcpServerIds: nullable(json<string[]>()),
 
 	// Token usage (server-computed)
-	baseContextTokens: t.int().optional(),
-	totalTokens: t.int().optional(),
+	baseContextTokens: nullable(int()),
+	totalTokens: nullable(int()),
 
 	// Live streaming status - transient, not in DB
-	status: t.json<SessionStatus | null>(),
+	status: nullable(json<SessionStatus>()),
 
 	// Live AI suggestions - transient, not in DB
-	suggestions: t.json<SessionSuggestions | null>(),
+	suggestions: nullable(json<SessionSuggestions>()),
 
 	// Message queue (for queuing during streaming)
-	messageQueue: t.json().optional(), // QueuedMessage[]
+	messageQueue: nullable(json()),
 
 	// Todo tracking
-	nextTodoId: t.int(),
+	nextTodoId: int(),
 
 	// Timestamps (Unix ms) - match database column names
-	created: t.int(),
-	updated: t.int(),
-	lastAccessedAt: t.int().optional(),
-
-	// Relations
-	messages: t.many(() => Message),
-	todos: t.many(() => Todo),
-	askRequests: t.many(() => AskRequest),
-}))
-.resolve({
-	// Title: resolve from source (DB row)
-	title: ({ source }) => (source as { title?: string }).title,
-
-	// Status: transient, starts null
-	status: () => null,
-
-	// Suggestions: transient, starts null
-	suggestions: () => null,
-
-	// Messages: load from DB
-	messages: async ({ source, ctx }) => {
-		const session = source as { id: string };
-		return ctx.db.message.findMany({
-			where: { sessionId: session.id },
-		});
-	},
-
-	// Todos: load from DB
-	todos: async ({ source, ctx }) => {
-		const session = source as { id: string };
-		return ctx.db.todo.findMany({
-			where: { sessionId: session.id },
-		});
-	},
-
-	// AskRequests: load from DB
-	askRequests: async ({ source, ctx }) => {
-		const session = source as { id: string };
-		return ctx.db.askRequest.findMany({
-			where: { sessionId: session.id },
-		});
-	},
-})
-;
+	created: int(),
+	updated: int(),
+	lastAccessedAt: nullable(int()),
+});
 
 // =============================================================================
 // Message Entity
@@ -166,70 +116,26 @@ export const Session = model<LensContext>("Session", (t) => ({
  * Message - User or assistant message
  *
  * Container for conversation turns.
- * Steps field uses Two-Phase Resolution for live streaming updates.
+ * Steps are loaded via queries.
  */
-export const Message = model<LensContext>("Message", (t) => ({
+export const Message = model("Message", {
 	// Primary key
-	id: t.id(),
+	id: id(),
 
 	// Foreign key
-	sessionId: t.string(),
+	sessionId: string(),
 
 	// Metadata
-	role: t.string(), // 'user' | 'assistant' | 'system'
-	timestamp: t.int(), // Unix ms
-	ordering: t.int(), // Display order within session
+	role: string(), // 'user' | 'assistant' | 'system'
+	timestamp: int(), // Unix ms
+	ordering: int(), // Display order within session
 
 	// Aggregated status (derived from steps)
-	finishReason: t.string().optional(), // 'stop' | 'tool-calls' | 'length' | 'error'
-	status: t.string(), // 'active' | 'completed' | 'error' | 'abort'
+	finishReason: nullable(string()), // 'stop' | 'tool-calls' | 'length' | 'error'
+	status: string(), // 'active' | 'completed' | 'error' | 'abort'
 
-	// Relations
-	session: t.one(() => Session),
-	steps: t.many(() => Step),
-}))
-.resolve({
-	session: async ({ source, ctx }) => {
-		const message = source as { sessionId: string };
-		return ctx.db.session.findUnique({ where: { id: message.sessionId } });
-	},
-	steps: ({ source }) => {
-		const message = source as { steps?: any[] };
-		return message.steps || [];
-	},
-})
-.subscribe({
-	steps: ({ source, ctx }) => ({ emit, onCleanup }) => {
-		const message = source as { id: string; sessionId: string };
-		const channel = getSessionChannel(message.sessionId);
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-
-				if (payload?.type === "step-added" && payload.messageId === message.id) {
-					emit.push(payload.step);
-				}
-				if (payload?.type === "step-updated" && payload.messageId === message.id) {
-					emit.patch([
-						{ op: "replace", path: `/${payload.stepIndex}`, value: payload.step },
-					]);
-				}
-				if (payload?.type === "part-content-delta" && payload.messageId === message.id) {
-					emit.patch([
-						{
-							op: "replace",
-							path: `/${payload.stepIndex}/parts/${payload.partIndex}/content`,
-							value: payload.content,
-						},
-					]);
-				}
-			}
-		})();
-
-		onCleanup(() => { cancelled = true; });
-	},
+	// Embedded steps (loaded by query)
+	steps: nullable(json()),
 });
 
 // =============================================================================
@@ -241,45 +147,33 @@ export const Message = model<LensContext>("Message", (t) => ({
  *
  * Each step = one LLM call.
  * Assistant messages may have multiple steps (tool execution loops).
- * Parts are resolved from parent data (updates driven by Message.steps).
  */
-export const Step = model<LensContext>("Step", (t) => ({
+export const Step = model("Step", {
 	// Primary key
-	id: t.id(),
+	id: id(),
 
 	// Foreign key
-	messageId: t.string(),
+	messageId: string(),
 
 	// Metadata
-	stepIndex: t.int(), // 0, 1, 2, ... (order within message)
+	stepIndex: int(), // 0, 1, 2, ... (order within message)
 
 	// System messages for this step
-	systemMessages: t.json().optional(), // SystemMessage[]
+	systemMessages: nullable(json()),
 
 	// Execution metadata
-	provider: t.string().optional(),
-	model: t.string().optional(),
-	duration: t.int().optional(), // Execution time (ms)
-	finishReason: t.string().optional(),
-	status: t.string(), // 'active' | 'completed' | 'error' | 'abort'
+	provider: nullable(string()),
+	model: nullable(string()),
+	duration: nullable(int()), // Execution time (ms)
+	finishReason: nullable(string()),
+	status: string(), // 'active' | 'completed' | 'error' | 'abort'
 
 	// Timestamps
-	startTime: t.int().optional(),
-	endTime: t.int().optional(),
+	startTime: nullable(int()),
+	endTime: nullable(int()),
 
-	// Relations
-	message: t.one(() => Message),
-	parts: t.many(() => Part),
-}))
-.resolve({
-	message: ({ source }) => {
-		const step = source as { messageId: string; _message?: any };
-		return step._message || { id: step.messageId };
-	},
-	parts: ({ source }) => {
-		const step = source as { parts?: any[] };
-		return step.parts || [];
-	},
+	// Embedded parts (loaded by query)
+	parts: nullable(json()),
 });
 
 // =============================================================================
@@ -292,37 +186,37 @@ export const Step = model<LensContext>("Step", (t) => ({
  * Types: text, reasoning, tool, error, file, file-ref, system-message
  * This entity matches the MessagePart discriminated union from code-core.
  */
-export const Part = model<LensContext>("Part", (t) => ({
+export const Part = model("Part", {
 	// Discriminator field (required for all parts)
-	type: t.string(), // 'text' | 'reasoning' | 'tool' | 'error' | 'file' | 'file-ref' | 'system-message'
+	type: string(), // 'text' | 'reasoning' | 'tool' | 'error' | 'file' | 'file-ref' | 'system-message'
 
 	// Common fields
-	status: t.string(), // 'pending' | 'active' | 'completed' | 'error' | 'abort'
+	status: string(), // 'pending' | 'active' | 'completed' | 'error' | 'abort'
 
 	// Text/Reasoning content (for type: 'text' | 'reasoning')
-	content: t.string().optional(),
+	content: nullable(string()),
 
 	// Tool fields (for type: 'tool')
-	toolId: t.string().optional(),
-	name: t.string().optional(),
-	mcpServerId: t.string().optional(),
-	input: t.json().optional(),
-	result: t.json().optional(),
-	error: t.string().optional(),
-	duration: t.int().optional(),
-	startTime: t.int().optional(),
+	toolId: nullable(string()),
+	name: nullable(string()),
+	mcpServerId: nullable(string()),
+	input: nullable(json()),
+	result: nullable(json()),
+	error: nullable(string()),
+	duration: nullable(int()),
+	startTime: nullable(int()),
 
 	// File fields (for type: 'file' | 'file-ref')
-	relativePath: t.string().optional(),
-	size: t.int().optional(),
-	mediaType: t.string().optional(),
-	base64: t.string().optional(), // Legacy file
-	fileContentId: t.string().optional(), // File reference
+	relativePath: nullable(string()),
+	size: nullable(int()),
+	mediaType: nullable(string()),
+	base64: nullable(string()), // Legacy file
+	fileContentId: nullable(string()), // File reference
 
 	// System message fields (for type: 'system-message')
-	messageType: t.string().optional(),
-	timestamp: t.int().optional(),
-}));
+	messageType: nullable(string()),
+	timestamp: nullable(int()),
+});
 
 // =============================================================================
 // StepUsage Entity
@@ -334,15 +228,15 @@ export const Part = model<LensContext>("Part", (t) => ({
  * 1:1 relationship with Step.
  * Only assistant steps have usage data.
  */
-export const StepUsage = model<LensContext>("StepUsage", (t) => ({
+export const StepUsage = model("StepUsage", {
 	// Primary key (same as step ID)
-	stepId: t.id(),
+	stepId: id(),
 
 	// Token counts
-	promptTokens: t.int(),
-	completionTokens: t.int(),
-	totalTokens: t.int(),
-}));
+	promptTokens: int(),
+	completionTokens: int(),
+	totalTokens: int(),
+});
 
 // =============================================================================
 // Todo Entity
@@ -354,37 +248,28 @@ export const StepUsage = model<LensContext>("StepUsage", (t) => ({
  * Note: id is per-session, not globally unique.
  * Combined primary key: (sessionId, id)
  */
-export const Todo = model<LensContext>("Todo", (t) => ({
+export const Todo = model("Todo", {
 	// Per-session ID
-	id: t.int(),
+	id: int(),
 
 	// Foreign key
-	sessionId: t.string(),
+	sessionId: string(),
 
 	// Content
-	content: t.string(),
-	activeForm: t.string(),
-	status: t.string(), // 'pending' | 'in_progress' | 'completed'
-	ordering: t.int(),
+	content: string(),
+	activeForm: string(),
+	status: string(), // 'pending' | 'in_progress' | 'completed'
+	ordering: int(),
 
 	// Entity relationships
-	createdByToolId: t.string().optional(),
-	createdByStepId: t.string().optional(),
-	relatedFiles: t.json().optional(), // string[]
-	metadata: t.json().optional(),
+	createdByToolId: nullable(string()),
+	createdByStepId: nullable(string()),
+	relatedFiles: nullable(json<string[]>()),
+	metadata: nullable(json()),
 
 	// Timestamps
-	createdAt: t.int().optional(),
-	completedAt: t.int().optional(),
-
-	// Relations
-	session: t.one(() => Session),
-}))
-.resolve({
-	session: async ({ source, ctx }) => {
-		const todo = source as { sessionId: string };
-		return ctx.db.session.findUnique({ where: { id: todo.sessionId } });
-	},
+	createdAt: nullable(int()),
+	completedAt: nullable(int()),
 });
 
 // =============================================================================
@@ -394,70 +279,31 @@ export const Todo = model<LensContext>("Todo", (t) => ({
 /**
  * BashProcess - Running or completed bash process
  *
- * Live fields for real-time output streaming.
- * Uses Two-Phase Resolution for status and output updates.
+ * Live output streamed via subscriptions.
  */
-export const BashProcess = model<LensContext>("BashProcess", (t) => ({
+export const BashProcess = model("BashProcess", {
 	// Primary key
-	id: t.id(),
+	id: id(),
 
 	// Command info
-	command: t.string(),
-	cwd: t.string().optional(),
+	command: string(),
+	cwd: nullable(string()),
 
 	// Mode and status
-	mode: t.string(), // 'active' | 'background'
-	status: t.string(), // 'running' | 'completed' | 'error' | 'killed'
+	mode: string(), // 'active' | 'background'
+	status: string(), // 'running' | 'completed' | 'error' | 'killed'
 
 	// Timing
-	startTime: t.int(),
-	endTime: t.int().optional(),
-	duration: t.int().optional(),
+	startTime: int(),
+	endTime: nullable(int()),
+	duration: nullable(int()),
 
 	// Result
-	exitCode: t.int().optional(),
+	exitCode: nullable(int()),
 
-	// Live output
-	stdout: t.string(),
-	stderr: t.string(),
-}))
-.resolve({
-	stdout: () => "",
-	stderr: () => "",
-})
-.subscribe({
-	stdout: ({ source, ctx }) => ({ emit, onCleanup }) => {
-		const bash = source as { id: string };
-		const channel = `bash:${bash.id}`;
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-				if (payload?.type === "bash-output" && payload.stream === "stdout") {
-					emit.delta(payload.data);
-				}
-			}
-		})();
-
-		onCleanup(() => { cancelled = true; });
-	},
-	stderr: ({ source, ctx }) => ({ emit, onCleanup }) => {
-		const bash = source as { id: string };
-		const channel = `bash:${bash.id}`;
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-				if (payload?.type === "bash-output" && payload.stream === "stderr") {
-					emit.delta(payload.data);
-				}
-			}
-		})();
-
-		onCleanup(() => { cancelled = true; });
-	},
+	// Output (populated by query)
+	stdout: string(),
+	stderr: string(),
 });
 
 // =============================================================================
@@ -470,24 +316,24 @@ export const BashProcess = model<LensContext>("BashProcess", (t) => ({
  * Agents define different AI behaviors (coder, planner, etc.)
  * Can be builtin or user-defined.
  */
-export const Agent = model<LensContext>("Agent", (t) => ({
+export const Agent = model("Agent", {
 	// Primary key
-	id: t.id(), // e.g., 'coder', 'planner', 'reviewer'
+	id: id(), // e.g., 'coder', 'planner', 'reviewer'
 
 	// Metadata
-	name: t.string(),
-	description: t.string(),
+	name: string(),
+	description: string(),
 
 	// System prompt content
-	systemPrompt: t.string(),
+	systemPrompt: string(),
 
 	// Source info
-	isBuiltin: t.boolean(),
-	filePath: t.string().optional(),
+	isBuiltin: boolean(),
+	filePath: nullable(string()),
 
 	// Associated rules
-	defaultRuleIds: t.json().optional(), // string[]
-}));
+	defaultRuleIds: nullable(json<string[]>()),
+});
 
 // =============================================================================
 // Rule Entity
@@ -499,27 +345,27 @@ export const Agent = model<LensContext>("Agent", (t) => ({
  * Rules add content to system prompts for all agents.
  * Can be enabled/disabled per session.
  */
-export const Rule = model<LensContext>("Rule", (t) => ({
+export const Rule = model("Rule", {
 	// Primary key
-	id: t.id(), // e.g., 'coding/typescript', 'style/concise'
+	id: id(), // e.g., 'coding/typescript', 'style/concise'
 
 	// Metadata
-	name: t.string(),
-	description: t.string(),
+	name: string(),
+	description: string(),
 
 	// Content
-	content: t.string(),
+	content: string(),
 
 	// Source info
-	isBuiltin: t.boolean(),
-	filePath: t.string().optional(),
+	isBuiltin: boolean(),
+	filePath: nullable(string()),
 
 	// Glob patterns for auto-apply
-	globs: t.json().optional(), // string[]
+	globs: nullable(json<string[]>()),
 
 	// Auto-apply behavior
-	alwaysApply: t.boolean(),
-}));
+	alwaysApply: boolean(),
+});
 
 // =============================================================================
 // Provider Entity
@@ -531,38 +377,20 @@ export const Rule = model<LensContext>("Rule", (t) => ({
  * Represents providers like Anthropic, OpenAI, etc.
  * isConfigured indicates if API key is set.
  */
-export const Provider = model<LensContext>("Provider", (t) => ({
+export const Provider = model("Provider", {
 	// Primary key
-	id: t.id(), // e.g., 'anthropic', 'openai', 'google'
+	id: id(), // e.g., 'anthropic', 'openai', 'google'
 
 	// Metadata
-	name: t.string(),
-	description: t.string(),
+	name: string(),
+	description: string(),
 
 	// Status
-	isConfigured: t.boolean(),
-	isEnabled: t.boolean(),
+	isConfigured: boolean(),
+	isEnabled: boolean(),
 
 	// Config schema fields (for UI)
-	configFields: t.json().optional(), // ConfigField[]
-
-	// Relations
-	models: t.many(() => Model),
-	credentials: t.many(() => Credential),
-}))
-.resolve({
-	models: async ({ source, ctx }) => {
-		const provider = source as { id: string };
-		return ctx.db.model.findMany({
-			where: { providerId: provider.id },
-		});
-	},
-	credentials: async ({ source, ctx }) => {
-		const provider = source as { id: string };
-		return ctx.db.credential.findMany({
-			where: { providerId: provider.id },
-		});
-	},
+	configFields: nullable(json()),
 });
 
 // =============================================================================
@@ -574,40 +402,31 @@ export const Provider = model<LensContext>("Provider", (t) => ({
  *
  * Models have capabilities, context limits, and pricing.
  */
-export const Model = model<LensContext>("Model", (t) => ({
+export const Model = model("Model", {
 	// Primary key
-	id: t.id(), // e.g., 'claude-sonnet-4-20250514'
+	id: id(), // e.g., 'claude-sonnet-4-20250514'
 
 	// Provider
-	providerId: t.string(),
+	providerId: string(),
 
 	// Metadata
-	name: t.string(),
-	description: t.string().optional(),
+	name: string(),
+	description: nullable(string()),
 
 	// Capabilities
-	contextLength: t.int().optional(),
-	maxOutputTokens: t.int().optional(),
-	supportsVision: t.boolean().optional(),
-	supportsTools: t.boolean().optional(),
-	supportsStreaming: t.boolean().optional(),
+	contextLength: nullable(int()),
+	maxOutputTokens: nullable(int()),
+	supportsVision: nullable(boolean()),
+	supportsTools: nullable(boolean()),
+	supportsStreaming: nullable(boolean()),
 
 	// Pricing (per 1M tokens)
-	inputPrice: t.float().optional(),
-	outputPrice: t.float().optional(),
+	inputPrice: nullable(float()),
+	outputPrice: nullable(float()),
 
 	// Status
-	isAvailable: t.boolean(),
-	isDefault: t.boolean().optional(),
-
-	// Relations
-	provider: t.one(() => Provider),
-}))
-.resolve({
-	provider: async ({ source, ctx }) => {
-		const m = source as { providerId: string };
-		return ctx.db.provider.findUnique({ where: { id: m.providerId } });
-	},
+	isAvailable: boolean(),
+	isDefault: nullable(boolean()),
 });
 
 // =============================================================================
@@ -620,37 +439,27 @@ export const Model = model<LensContext>("Model", (t) => ({
  * Tools can be builtin, from MCP servers, or plugins.
  * Can be enabled/disabled per session.
  */
-export const Tool = model<LensContext>("Tool", (t) => ({
+export const Tool = model("Tool", {
 	// Primary key
-	id: t.id(), // e.g., 'Read', 'Write', 'Bash', 'mcp__server__tool'
+	id: id(), // e.g., 'Read', 'Write', 'Bash', 'mcp__server__tool'
 
 	// Metadata
-	name: t.string(),
-	description: t.string(),
-	category: t.string(), // 'filesystem' | 'shell' | 'search' | 'interaction' | 'todo' | 'mcp'
+	name: string(),
+	description: string(),
+	category: string(), // 'filesystem' | 'shell' | 'search' | 'interaction' | 'todo' | 'mcp'
 
 	// Capabilities
-	isAsync: t.boolean(),
-	isDangerous: t.boolean().optional(),
-	requiresConfirmation: t.boolean().optional(),
+	isAsync: boolean(),
+	isDangerous: nullable(boolean()),
+	requiresConfirmation: nullable(boolean()),
 
 	// Source
-	source: t.string(), // 'builtin' | 'mcp' | 'plugin'
-	mcpServerId: t.string().optional(),
+	source: string(), // 'builtin' | 'mcp' | 'plugin'
+	mcpServerId: nullable(string()),
 
 	// Status
-	isEnabled: t.boolean(),
-	enabledByDefault: t.boolean(),
-
-	// Relations
-	mcpServer: t.one(() => MCPServer).optional(),
-}))
-.resolve({
-	mcpServer: async ({ source, ctx }) => {
-		const tool = source as { mcpServerId?: string };
-		if (!tool.mcpServerId) return null;
-		return ctx.db.mcpServer.findUnique({ where: { id: tool.mcpServerId } });
-	},
+	isEnabled: boolean(),
+	enabledByDefault: boolean(),
 });
 
 // =============================================================================
@@ -660,65 +469,34 @@ export const Tool = model<LensContext>("Tool", (t) => ({
 /**
  * MCPServer - Model Context Protocol server
  *
- * Live status field for connection state.
- * Uses Two-Phase Resolution for real-time status updates.
+ * Connection status managed by queries/subscriptions.
  */
-export const MCPServer = model<LensContext>("MCPServer", (t) => ({
+export const MCPServer = model("MCPServer", {
 	// Primary key
-	id: t.id(), // Server identifier
+	id: id(), // Server identifier
 
 	// Config
-	name: t.string(),
-	description: t.string().optional(),
-	transportType: t.string(), // 'http' | 'sse' | 'stdio'
+	name: string(),
+	description: nullable(string()),
+	transportType: string(), // 'http' | 'sse' | 'stdio'
 
-	// Live status
-	status: t.string(),
+	// Status
+	status: string(),
 
 	// Stats
-	toolCount: t.int(),
-	resourceCount: t.int().optional(),
-	promptCount: t.int().optional(),
+	toolCount: int(),
+	resourceCount: nullable(int()),
+	promptCount: nullable(int()),
 
 	// Error info
-	error: t.string().optional(),
+	error: nullable(string()),
 
 	// Timestamps
-	connectedAt: t.int().optional(),
-	lastActivity: t.int().optional(),
+	connectedAt: nullable(int()),
+	lastActivity: nullable(int()),
 
 	// Enabled state
-	enabled: t.boolean(),
-
-	// Relations
-	tools: t.many(() => Tool),
-}))
-.resolve({
-	status: () => "disconnected",
-	tools: async ({ source, ctx }) => {
-		const server = source as { id: string };
-		return ctx.db.tool.findMany({
-			where: { mcpServerId: server.id },
-		});
-	},
-})
-.subscribe({
-	status: ({ source, ctx }) => ({ emit, onCleanup }) => {
-		const server = source as { id: string };
-		const channel = "mcp-events";
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-				if (payload?.serverId === server.id && payload?.type === "mcp-status-changed") {
-					emit(payload.status);
-				}
-			}
-		})();
-
-		onCleanup(() => { cancelled = true; });
-	},
+	enabled: boolean(),
 });
 
 // =============================================================================
@@ -731,37 +509,28 @@ export const MCPServer = model<LensContext>("MCPServer", (t) => ({
  * API keys are masked for display.
  * Never expose full API key to client.
  */
-export const Credential = model<LensContext>("Credential", (t) => ({
+export const Credential = model("Credential", {
 	// Primary key
-	id: t.id(),
+	id: id(),
 
 	// Provider
-	providerId: t.string(),
+	providerId: string(),
 
 	// Display
-	label: t.string().optional(),
-	maskedApiKey: t.string(), // e.g., 'sk-...abc123'
+	label: nullable(string()),
+	maskedApiKey: string(), // e.g., 'sk-...abc123'
 
 	// Scope
-	scope: t.string(), // 'global' | 'project'
+	scope: string(), // 'global' | 'project'
 
 	// Status
-	status: t.string(), // 'active' | 'expired' | 'revoked' | 'invalid'
-	isDefault: t.boolean(),
+	status: string(), // 'active' | 'expired' | 'revoked' | 'invalid'
+	isDefault: boolean(),
 
 	// Timestamps
-	createdAt: t.int(),
-	lastUsedAt: t.int().optional(),
-	expiresAt: t.int().optional(),
-
-	// Relations
-	provider: t.one(() => Provider),
-}))
-.resolve({
-	provider: async ({ source, ctx }) => {
-		const cred = source as { providerId: string };
-		return ctx.db.provider.findUnique({ where: { id: cred.providerId } });
-	},
+	createdAt: int(),
+	lastUsedAt: nullable(int()),
+	expiresAt: nullable(int()),
 });
 
 // =============================================================================
@@ -773,21 +542,21 @@ export const Credential = model<LensContext>("Credential", (t) => ({
  *
  * Stores metadata for uploaded files (images, documents, etc.)
  */
-export const File = model<LensContext>("File", (t) => ({
+export const File = model("File", {
 	// Primary key
-	id: t.id(), // File content ID
+	id: id(), // File content ID
 
 	// Metadata
-	relativePath: t.string(),
-	mediaType: t.string(),
-	size: t.int(),
+	relativePath: string(),
+	mediaType: string(),
+	size: int(),
 
 	// Timestamps
-	uploadedAt: t.int(),
+	uploadedAt: int(),
 
 	// Session association (optional)
-	sessionId: t.string().optional(),
-}));
+	sessionId: nullable(string()),
+});
 
 // =============================================================================
 // AskRequest Entity
@@ -797,50 +566,27 @@ export const File = model<LensContext>("File", (t) => ({
  * AskRequest - User confirmation request
  *
  * For tools that require user approval before execution.
- * Live status field for pending/answered state.
  */
-export const AskRequest = model<LensContext>("AskRequest", (t) => ({
+export const AskRequest = model("AskRequest", {
 	// Primary key
-	id: t.id(), // Question ID
+	id: id(), // Question ID
 
 	// Session
-	sessionId: t.string(),
+	sessionId: string(),
 
 	// Request type
-	type: t.string(), // 'tool-approval' | 'question' | 'confirmation'
+	type: string(), // 'tool-approval' | 'question' | 'confirmation'
 
 	// Questions
-	questions: t.json(), // Question[]
+	questions: json(),
 
-	// Live status
-	status: t.string(),
+	// Status
+	status: string(),
 
 	// Answers (populated after user responds)
-	answers: t.json().optional(), // Record<string, string | string[]>
+	answers: nullable(json<Record<string, string | string[]>>()),
 
 	// Timestamps
-	createdAt: t.int(),
-	answeredAt: t.int().optional(),
-}))
-.resolve({
-	status: () => "pending",
-})
-.subscribe({
-	status: ({ source, ctx }) => ({ emit, onCleanup }) => {
-		const ask = source as { id: string; sessionId: string };
-		const channel = getSessionChannel(ask.sessionId);
-		let cancelled = false;
-
-		(async () => {
-			for await (const { payload } of ctx.eventStream.subscribe(channel)) {
-				if (cancelled) break;
-				if (payload?.type === "ask-answered" && payload.questionId === ask.id) {
-					emit("answered");
-				}
-			}
-		})();
-
-		onCleanup(() => { cancelled = true; });
-	},
+	createdAt: int(),
+	answeredAt: nullable(int()),
 });
-

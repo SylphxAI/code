@@ -21,14 +21,43 @@ export interface WebServerConfig {
 	port?: number;
 }
 
+export interface WebServerResult {
+	server: Server;
+	port: number;
+	url: string;
+}
+
+/**
+ * Find an available port starting from the given port (like Vite)
+ */
+async function findAvailablePort(startPort: number): Promise<number> {
+	let port = startPort;
+	while (port < 65535) {
+		try {
+			const server = Bun.serve({ port, fetch: () => new Response("") });
+			server.stop();
+			return port;
+		} catch {
+			port++;
+		}
+	}
+	throw new Error("No available port found");
+}
+
 /**
  * Start HTTP server for web GUI
  */
-export async function startWebServer(config: WebServerConfig): Promise<Server> {
-	const { lensServer, port = 3000 } = config;
+export async function startWebServer(config: WebServerConfig): Promise<WebServerResult> {
+	const { lensServer, port: requestedPort = 3000 } = config;
 
-	// Use Bun.serve for simplicity (native fetch handler)
-	const handler = createHandler(lensServer, {
+	// Find an available port
+	const port = await findAvailablePort(requestedPort);
+	if (port !== requestedPort) {
+		console.log(`   Port ${requestedPort} in use, using ${port}`);
+	}
+
+	// Unified HTTP + SSE handler (httpSse client compatible)
+	const lensHandler = createHandler(lensServer, {
 		pathPrefix: "/lens",
 	});
 
@@ -42,21 +71,46 @@ export async function startWebServer(config: WebServerConfig): Promise<Server> {
 		console.log(`   ⚠ Web UI not built: ${webDistPath}`);
 	}
 
-	let server;
-	try {
-		server = Bun.serve({
-			port,
-			async fetch(req) {
+	const server = Bun.serve({
+		port,
+		async fetch(req) {
 			const url = new URL(req.url);
 
-			// Lens API requests
+			// Lens metadata endpoint
+			if (url.pathname === "/lens/__lens/metadata") {
+				return new Response(JSON.stringify(lensServer.getMetadata()), {
+					headers: {
+						"Content-Type": "application/json",
+						"Access-Control-Allow-Origin": "*",
+					},
+				});
+			}
+
+			// Lens API requests (framework handler supports per-operation SSE)
 			if (url.pathname.startsWith("/lens")) {
-				return handler(req);
+				const response = await lensHandler(req);
+				// Add CORS headers
+				const headers = new Headers(response.headers);
+				headers.set("Access-Control-Allow-Origin", "*");
+				return new Response(response.body, {
+					status: response.status,
+					headers,
+				});
+			}
+
+			// CORS preflight
+			if (req.method === "OPTIONS") {
+				return new Response(null, {
+					headers: {
+						"Access-Control-Allow-Origin": "*",
+						"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+						"Access-Control-Allow-Headers": "Content-Type, Accept",
+					},
+				});
 			}
 
 			// Static files
 			if (hasWebDist) {
-				// Try to serve static file
 				const filePath = join(webDistPath, url.pathname);
 				const file = Bun.file(filePath);
 
@@ -64,7 +118,7 @@ export async function startWebServer(config: WebServerConfig): Promise<Server> {
 					return new Response(file);
 				}
 
-				// SPA fallback - serve index.html
+				// SPA fallback
 				const indexFile = Bun.file(join(webDistPath, "index.html"));
 				if (await indexFile.exists()) {
 					return new Response(indexFile, {
@@ -73,7 +127,7 @@ export async function startWebServer(config: WebServerConfig): Promise<Server> {
 				}
 			}
 
-			// Fallback message
+			// Fallback
 			return new Response(
 				`<html>
 					<body style="font-family: sans-serif; padding: 40px; max-width: 600px; margin: 0 auto;">
@@ -85,21 +139,14 @@ export async function startWebServer(config: WebServerConfig): Promise<Server> {
 				</html>`,
 				{ headers: { "Content-Type": "text/html" } }
 			);
-			},
-		});
-	} catch (error: any) {
-		if (error.code === "EADDRINUSE" || error.message?.includes("address already in use")) {
-			console.error(`\n❌ Port ${port} is already in use`);
-			console.error(`   Kill existing process: lsof -ti :${port} | xargs kill`);
-			process.exit(1);
-		}
-		throw error;
-	}
+		},
+	});
+
+	const url = `http://localhost:${port}`;
 
 	console.log(`\n🚀 Sylphx Code Web`);
-	console.log(`   URL: http://localhost:${port}`);
-	console.log(`   Lens: http://localhost:${port}/lens`);
+	console.log(`   URL: ${url}`);
+	console.log(`   Lens: ${url}/lens`);
 
-	// Return a mock Server object for compatibility
-	return server as unknown as Server;
+	return { server: server as unknown as Server, port, url };
 }

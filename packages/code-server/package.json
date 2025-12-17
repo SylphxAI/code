@@ -13,6 +13,10 @@
 		".": {
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
+		},
+		"./src/*": {
+			"import": "./src/*",
+			"types": "./src/*"
 		}
 	},
 	"files": [
@@ -31,8 +35,8 @@
 	"dependencies": {
 		"@sylphx/code-api": "workspace:*",
 		"@sylphx/code-core": "workspace:*",
-		"@sylphx/lens-core": "2.4.0",
-		"@sylphx/lens-server": "^2.3.0",
+		"@sylphx/lens-core": "4.0.1",
+		"@sylphx/lens-server": "4.0.0",
 		"@sylphx/reify": "^0.1.3",
 		"mime-types": "^2.1.35",
 		"rxjs": "^7.8.2",

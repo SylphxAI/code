@@ -15,8 +15,7 @@
 
 import { mutation } from "./builders.js";
 import { z } from "zod";
-import { entity as e, temp, now } from "@sylphx/reify";
-import { Session, Message, Step, Part, Todo } from "./entities.js";
+import { Session, Message, Todo } from "./entities.js";
 import type { LensContext } from "./context.js";
 import { calculateBaseContextTokens, createLogger } from "@sylphx/code-core";
 import type { AppContext } from "../context.js";
@@ -277,34 +276,8 @@ export const sendMessage = mutation()
 			assistantMessage: Message,
 		}),
 	)
-	// Multi-entity optimistic update using Reify pipeline
-	.optimistic(({ input }) => [
-		// Create user message optimistically
-		e.create(Message, {
-			id: temp(),
-			sessionId: input.sessionId || temp(),
-			role: "user",
-			timestamp: now(),
-			ordering: 0, // Will be corrected by server
-			status: "completed",
-		}),
-		// Create assistant message placeholder
-		e.create(Message, {
-			id: temp(),
-			sessionId: input.sessionId || temp(),
-			role: "assistant",
-			timestamp: now(),
-			ordering: 1, // Will be corrected by server
-			status: "active",
-		}),
-		// Update session timestamp (only if sessionId exists)
-		...(input.sessionId ? [
-			e.update(Session, {
-				id: input.sessionId,
-				updated: now(),
-			}),
-		] : []),
-	])
+	// Note: Complex multi-entity optimistic updates not yet supported with new API
+	// Server will return actual data which client will use
 	.resolve(async function* ({ input, ctx }: { input: { sessionId?: string | null; content: any[]; agentId?: string; provider?: string; model?: string }; ctx: LensContext }) {
 		// Import streaming service
 		const { triggerStreamMutation } = await import(

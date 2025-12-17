@@ -5,7 +5,7 @@
  */
 
 import { createClient, type TypedClient } from "@sylphx/lens-react";
-import { direct, http, sse, type Transport } from "@sylphx/lens-client";
+import { direct, http, httpSse, sse, routeByType, type Transport } from "@sylphx/lens-client";
 import type { AppRouter } from "@sylphx/code-server";
 
 // =============================================================================
@@ -51,5 +51,5 @@ export function useLensClient(): CodeClient {
 // Re-exports
 // =============================================================================
 
-export { direct, http, sse };
+export { direct, http, httpSse, sse, routeByType };
 export type { Transport };

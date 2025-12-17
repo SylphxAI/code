@@ -200,11 +200,11 @@ async function main() {
 
 				// Start web server (in code package, not code-server)
 				const { startWebServer } = await import("./web-server.js");
-				await startWebServer({ lensServer: lens, port: 3000 });
+				const { url } = await startWebServer({ lensServer: lens, port: 3000 });
 
 				// Open browser and wait (no TUI needed)
 				const { launchWeb } = await import("./web-launcher.js");
-				await launchWeb();
+				await launchWeb(url);
 				return; // GUI mode - don't start TUI
 			}
 
