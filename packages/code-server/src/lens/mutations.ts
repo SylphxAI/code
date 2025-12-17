@@ -109,7 +109,7 @@ async function calculateBaseContextTokensAsync(
  * shows context usage even before first message is sent.
  */
 export const createSession = mutation()
-	.input(
+	.args(
 		z.object({
 			title: z.string().optional(),
 			agentId: z.string().optional(),
@@ -121,21 +121,21 @@ export const createSession = mutation()
 	)
 	.returns(Session)
 	.optimistic("create")
-	.resolve(async ({ input, ctx }: { input: { title?: string; agentId?: string; modelId?: string; provider?: string; model?: string; enabledRuleIds?: string[] }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { title?: string; agentId?: string; modelId?: string; provider?: string; model?: string; enabledRuleIds?: string[] }; ctx: LensContext }) => {
 		const now = Date.now();
 		const sessionId = crypto.randomUUID();
 
-		const agentId = input.agentId || "coder";
-		const modelName = input.model;
-		const enabledRuleIds = input.enabledRuleIds || [];
+		const agentId = args.agentId || "coder";
+		const modelName = args.model;
+		const enabledRuleIds = args.enabledRuleIds || [];
 
 		const session = await ctx.db.session.create({
 			data: {
 				id: sessionId,
-				title: input.title || "New Chat",
+				title: args.title || "New Chat",
 				agentId,
-				modelId: input.modelId,
-				provider: input.provider,
+				modelId: args.modelId,
+				provider: args.provider,
 				model: modelName,
 				enabledRuleIds,
 				nextTodoId: 1,
@@ -174,7 +174,7 @@ export const createSession = mutation()
  * Live: Publishes session-updated event for listSessions subscribers
  */
 export const updateSession = mutation()
-	.input(
+	.args(
 		z.object({
 			id: z.string(),
 			title: z.string().optional(),
@@ -187,7 +187,7 @@ export const updateSession = mutation()
 	)
 	.returns(Session)
 	.optimistic("merge")
-	.resolve(async ({ input, ctx }: { input: { id: string; title?: string; agentId?: string; modelId?: string; provider?: string; model?: string; enabledRuleIds?: string[] }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { id: string; title?: string; agentId?: string; modelId?: string; provider?: string; model?: string; enabledRuleIds?: string[] }; ctx: LensContext }) => {
 		const { id, ...data } = input;
 
 		const session = await ctx.db.session.update({
@@ -220,16 +220,16 @@ export const updateSession = mutation()
  * Live: Publishes session-deleted event for listSessions subscribers
  */
 export const deleteSession = mutation()
-	.input(z.object({ id: z.string() }))
+	.args(z.object({ id: z.string() }))
 	.returns(Session)
 	.optimistic("delete")
-	.resolve(async ({ input, ctx }: { input: { id: string }; ctx: LensContext }) => {
-		const session = await ctx.db.session.delete({ where: { id: input.id } });
+	.resolve(async ({ args, ctx }: { args: { id: string }; ctx: LensContext }) => {
+		const session = await ctx.db.session.delete({ where: { id: args.id } });
 
 		// Publish event for live query subscribers
 		await ctx.eventStream.publish("session-events", {
 			type: "session-deleted",
-			sessionId: input.id,
+			sessionId: args.id,
 		});
 
 		return session;
@@ -260,7 +260,7 @@ export const deleteSession = mutation()
  * ```
  */
 export const sendMessage = mutation()
-	.input(
+	.args(
 		z.object({
 			sessionId: z.string().nullable().optional(),
 			content: z.array(ContentPartSchema),
@@ -278,7 +278,7 @@ export const sendMessage = mutation()
 	)
 	// Note: Complex multi-entity optimistic updates not yet supported with new API
 	// Server will return actual data which client will use
-	.resolve(async function* ({ input, ctx }: { input: { sessionId?: string | null; content: any[]; agentId?: string; provider?: string; model?: string }; ctx: LensContext }) {
+	.resolve(async function* ({ args, ctx }: { args: { sessionId?: string | null; content: any[]; agentId?: string; provider?: string; model?: string }; ctx: LensContext }) {
 		// Import streaming service
 		const { triggerStreamMutation } = await import(
 			"../services/streaming-mutations.service.js"
@@ -286,7 +286,7 @@ export const sendMessage = mutation()
 
 		// Get or create session
 		let session: any;
-		let sessionId = input.sessionId;
+		let sessionId = args.sessionId;
 
 		if (!sessionId) {
 			// Create new session
@@ -294,9 +294,9 @@ export const sendMessage = mutation()
 				data: {
 					id: crypto.randomUUID(),
 					title: "New Chat",
-					agentId: input.agentId || "coder",
-					provider: input.provider,
-					model: input.model,
+					agentId: args.agentId || "coder",
+					provider: args.provider,
+					model: args.model,
 					enabledRuleIds: [],
 					nextTodoId: 1,
 					created: Date.now(),
@@ -339,8 +339,8 @@ export const sendMessage = mutation()
 		});
 
 		// Create user parts
-		for (let i = 0; i < input.content.length; i++) {
-			const part = input.content[i];
+		for (let i = 0; i < args.content.length; i++) {
+			const part = args.content[i];
 			await ctx.db.part.create({
 				data: {
 					id: crypto.randomUUID(),
@@ -380,12 +380,12 @@ export const sendMessage = mutation()
 				sessionRepository: ctx.appContext.database.getRepository(),
 				messageRepository: ctx.appContext.database.getMessageRepository(),
 				aiConfig: ctx.appContext.aiConfig,
-				input: {
+				args: {
 					sessionId,
-					agentId: input.agentId,
-					provider: input.provider,
-					model: input.model,
-					content: input.content as any,
+					agentId: args.agentId,
+					provider: args.provider,
+					model: args.model,
+					content: args.content as any,
 				},
 			});
 
@@ -421,20 +421,20 @@ export const sendMessage = mutation()
  * Live: Publishes stream-aborted event for session subscribers
  */
 export const abortStream = mutation()
-	.input(z.object({ sessionId: z.string() }))
+	.args(z.object({ sessionId: z.string() }))
 	.returns(z.object({ success: z.boolean() }))
-	.resolve(async ({ input, ctx }: { input: { sessionId: string }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { sessionId: string }; ctx: LensContext }) => {
 		const { abortStreamMutation } = await import(
 			"../services/streaming-mutations.service.js"
 		);
 
-		const success = abortStreamMutation(input.sessionId);
+		const success = abortStreamMutation(args.sessionId);
 
 		if (success) {
 			// Publish event for live query subscribers
-			await ctx.eventStream.publish(`session-stream:${input.sessionId}`, {
+			await ctx.eventStream.publish(`session-stream:${args.sessionId}`, {
 				type: "stream-aborted",
-				sessionId: input.sessionId,
+				sessionId: args.sessionId,
 			});
 		}
 
@@ -452,7 +452,7 @@ export const abortStream = mutation()
  * Live: Publishes todo-created event for listTodos subscribers
  */
 export const createTodo = mutation()
-	.input(
+	.args(
 		z.object({
 			sessionId: z.string(),
 			content: z.string(),
@@ -462,10 +462,10 @@ export const createTodo = mutation()
 	)
 	.returns(Todo)
 	.optimistic("create")
-	.resolve(async ({ input, ctx }: { input: { sessionId: string; content: string; activeForm: string; status?: "pending" | "in_progress" | "completed" }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { sessionId: string; content: string; activeForm: string; status?: "pending" | "in_progress" | "completed" }; ctx: LensContext }) => {
 		// Get next todo ID
 		const session = await ctx.db.session.findUnique({
-			where: { id: input.sessionId },
+			where: { id: args.sessionId },
 		});
 		const todoId = session?.nextTodoId || 1;
 
@@ -473,10 +473,10 @@ export const createTodo = mutation()
 		const todo = await ctx.db.todo.create({
 			data: {
 				id: todoId,
-				sessionId: input.sessionId,
-				content: input.content,
-				activeForm: input.activeForm,
-				status: input.status || "pending",
+				sessionId: args.sessionId,
+				content: args.content,
+				activeForm: args.activeForm,
+				status: args.status || "pending",
 				ordering: todoId,
 				created: Date.now(),
 			},
@@ -484,12 +484,12 @@ export const createTodo = mutation()
 
 		// Increment session's nextTodoId
 		await ctx.db.session.update({
-			where: { id: input.sessionId },
+			where: { id: args.sessionId },
 			data: { nextTodoId: todoId + 1 },
 		});
 
 		// Publish event for live query subscribers
-		await ctx.eventStream.publish(`session-stream:${input.sessionId}`, {
+		await ctx.eventStream.publish(`session-stream:${args.sessionId}`, {
 			type: "todo-created",
 			todo,
 		});
@@ -504,7 +504,7 @@ export const createTodo = mutation()
  * Live: Publishes todo-updated event for listTodos subscribers
  */
 export const updateTodo = mutation()
-	.input(
+	.args(
 		z.object({
 			sessionId: z.string(),
 			id: z.number(),
@@ -515,7 +515,7 @@ export const updateTodo = mutation()
 	)
 	.returns(Todo)
 	.optimistic("merge")
-	.resolve(async ({ input, ctx }: { input: { sessionId: string; id: number; content?: string; activeForm?: string; status?: "pending" | "in_progress" | "completed" }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { sessionId: string; id: number; content?: string; activeForm?: string; status?: "pending" | "in_progress" | "completed" }; ctx: LensContext }) => {
 		const { sessionId, id, ...data } = input;
 
 		const updateData: any = { ...data };
@@ -544,7 +544,7 @@ export const updateTodo = mutation()
  * Live: Publishes todo-deleted event for listTodos subscribers
  */
 export const deleteTodo = mutation()
-	.input(
+	.args(
 		z.object({
 			sessionId: z.string(),
 			id: z.number(),
@@ -552,24 +552,24 @@ export const deleteTodo = mutation()
 	)
 	.returns(Todo)
 	.optimistic("delete")
-	.resolve(async ({ input, ctx }: { input: { sessionId: string; id: number }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { sessionId: string; id: number }; ctx: LensContext }) => {
 		// Get todo before deletion for return value
 		const todo = await ctx.db.todo.findUnique({
-			where: { sessionId: input.sessionId, id: input.id },
+			where: { sessionId: args.sessionId, id: args.id },
 		});
 
 		if (!todo) {
-			throw new Error(`Todo not found: ${input.sessionId}/${input.id}`);
+			throw new Error(`Todo not found: ${args.sessionId}/${args.id}`);
 		}
 
 		await ctx.db.todo.delete({
-			where: { sessionId: input.sessionId, id: input.id },
+			where: { sessionId: args.sessionId, id: args.id },
 		});
 
 		// Publish event for live query subscribers
-		await ctx.eventStream.publish(`session-stream:${input.sessionId}`, {
+		await ctx.eventStream.publish(`session-stream:${args.sessionId}`, {
 			type: "todo-deleted",
-			todoId: input.id,
+			todoId: args.id,
 		});
 
 		return todo;
@@ -583,10 +583,10 @@ export const deleteTodo = mutation()
  *
  * Note: For complex batch operations, Reify DSL would provide finer control,
  * but the simple "merge" sugar works well for todo sync where client
- * already has the complete new state in input.
+ * already has the complete new state in args.
  */
 export const syncTodos = mutation()
-	.input(
+	.args(
 		z.object({
 			sessionId: z.string(),
 			todos: z.array(
@@ -602,22 +602,22 @@ export const syncTodos = mutation()
 	.returns([Todo])
 	// Use merge strategy - client optimistically applies the todo list update
 	.optimistic("merge")
-	.resolve(async ({ input, ctx }: { input: { sessionId: string; todos: { id?: number; content: string; activeForm: string; status: "pending" | "in_progress" | "completed" }[] }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { sessionId: string; todos: { id?: number; content: string; activeForm: string; status: "pending" | "in_progress" | "completed" }[] }; ctx: LensContext }) => {
 		const results: any[] = [];
 
 		// Get current session
 		const session = await ctx.db.session.findUnique({
-			where: { id: input.sessionId },
+			where: { id: args.sessionId },
 		});
 		let nextId = session?.nextTodoId || 1;
 
-		for (let i = 0; i < input.todos.length; i++) {
-			const todo = input.todos[i];
+		for (let i = 0; i < args.todos.length; i++) {
+			const todo = args.todos[i];
 
 			if (todo.id) {
 				// Update existing
 				const updated = await ctx.db.todo.update({
-					where: { sessionId: input.sessionId, id: todo.id },
+					where: { sessionId: args.sessionId, id: todo.id },
 					data: {
 						content: todo.content,
 						activeForm: todo.activeForm,
@@ -632,7 +632,7 @@ export const syncTodos = mutation()
 				const created = await ctx.db.todo.create({
 					data: {
 						id: nextId,
-						sessionId: input.sessionId,
+						sessionId: args.sessionId,
 						content: todo.content,
 						activeForm: todo.activeForm,
 						status: todo.status,
@@ -647,12 +647,12 @@ export const syncTodos = mutation()
 
 		// Update session's nextTodoId
 		await ctx.db.session.update({
-			where: { id: input.sessionId },
+			where: { id: args.sessionId },
 			data: { nextTodoId: nextId },
 		});
 
 		// Publish event for live query subscribers (full list replacement)
-		await ctx.eventStream.publish(`session-stream:${input.sessionId}`, {
+		await ctx.eventStream.publish(`session-stream:${args.sessionId}`, {
 			type: "todos-synced",
 			todos: results,
 		});
@@ -670,22 +670,22 @@ export const syncTodos = mutation()
  * Live: Publishes config-saved event for config subscribers
  */
 export const saveConfig = mutation()
-	.input(z.object({
+	.args(z.object({
 		config: z.any(),
 		cwd: z.string().optional(),
 	}))
 	.returns(z.object({ success: z.boolean(), error: z.string().optional() }))
-	.resolve(async ({ input, ctx }: { input: { config: any; cwd?: string }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { config: any; cwd?: string }; ctx: LensContext }) => {
 		const { loadAIConfig, saveAIConfig } = await import("@sylphx/code-core");
 		const { mergeConfigWithSecrets } = await import("./config-utils.js");
-		const cwd = input.cwd || process.cwd();
+		const cwd = args.cwd || process.cwd();
 
 		// Load current config to preserve secrets
 		const currentResult = await loadAIConfig(cwd);
 		const currentConfig = currentResult.success ? currentResult.data : { providers: {} };
 
 		// Merge with secrets preserved
-		const mergedConfig = mergeConfigWithSecrets(input.config, currentConfig);
+		const mergedConfig = mergeConfigWithSecrets(args.config, currentConfig);
 
 		const result = await saveAIConfig(mergedConfig, cwd);
 		if (result.success) {
@@ -705,16 +705,16 @@ export const saveConfig = mutation()
  * Live: Publishes credential-updated event for credential subscribers
  */
 export const setProviderSecret = mutation()
-	.input(z.object({
+	.args(z.object({
 		providerId: z.string(),
 		fieldName: z.string(),
 		value: z.string(),
 		cwd: z.string().optional(),
 	}))
 	.returns(z.object({ success: z.boolean(), error: z.string().optional() }))
-	.resolve(async ({ input, ctx }: { input: { providerId: string; fieldName: string; value: string; cwd?: string }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { providerId: string; fieldName: string; value: string; cwd?: string }; ctx: LensContext }) => {
 		const { loadAIConfig, saveAIConfig, getProvider, createCredential, getDefaultCredential, updateCredential } = await import("@sylphx/code-core");
-		const cwd = input.cwd || process.cwd();
+		const cwd = args.cwd || process.cwd();
 
 		const result = await loadAIConfig(cwd);
 		if (!result.success) {
@@ -723,36 +723,36 @@ export const setProviderSecret = mutation()
 
 		// Verify field is a secret field
 		try {
-			const provider = getProvider(input.providerId as any);
+			const provider = getProvider(args.providerId as any);
 			const configSchema = provider.getConfigSchema();
-			const field = configSchema.find(f => f.key === input.fieldName);
+			const field = configSchema.find(f => f.key === args.fieldName);
 
 			if (!field) {
-				return { success: false, error: `Field ${input.fieldName} not found` };
+				return { success: false, error: `Field ${args.fieldName} not found` };
 			}
 			if (!field.secret) {
-				return { success: false, error: `Field ${input.fieldName} is not a secret field` };
+				return { success: false, error: `Field ${args.fieldName} is not a secret field` };
 			}
 		} catch (_error) {
-			return { success: false, error: `Provider ${input.providerId} not found` };
+			return { success: false, error: `Provider ${args.providerId} not found` };
 		}
 
 		// Create or update credential
-		const credential = getDefaultCredential(input.providerId) ||
+		const credential = getDefaultCredential(args.providerId) ||
 			createCredential({
-				providerId: input.providerId,
-				label: `${input.providerId} API key`,
-				apiKey: input.value,
+				providerId: args.providerId,
+				label: `${args.providerId} API key`,
+				apiKey: args.value,
 				scope: "global",
 				isDefault: true,
 			});
 
 		if (!credential.isDefault) {
-			updateCredential(credential.id, { apiKey: input.value });
+			updateCredential(credential.id, { apiKey: args.value });
 		}
 
 		// Update provider config
-		const currentProviderConfig = result.data.providers?.[input.providerId] || {};
+		const currentProviderConfig = result.data.providers?.[args.providerId] || {};
 		const { apiKey: _removed, ...configWithoutApiKey } = currentProviderConfig;
 		const updatedProviderConfig = {
 			...configWithoutApiKey,
@@ -763,7 +763,7 @@ export const setProviderSecret = mutation()
 			...result.data,
 			providers: {
 				...result.data.providers,
-				[input.providerId]: updatedProviderConfig,
+				[args.providerId]: updatedProviderConfig,
 			},
 		};
 
@@ -772,7 +772,7 @@ export const setProviderSecret = mutation()
 			// Publish event for live query subscribers
 			await ctx.eventStream.publish("credential-events", {
 				type: "credential-updated",
-				providerId: input.providerId,
+				providerId: args.providerId,
 				credentialId: credential.id,
 			});
 			return { success: true };
@@ -790,7 +790,7 @@ export const setProviderSecret = mutation()
  * Live: Publishes bash-created event for listBash subscribers
  */
 export const executeBash = mutation()
-	.input(z.object({
+	.args(z.object({
 		command: z.string(),
 		mode: z.enum(["active", "background"]).optional(),
 		cwd: z.string().optional(),
@@ -801,17 +801,17 @@ export const executeBash = mutation()
 		command: z.string(),
 		mode: z.string(),
 	}))
-	.resolve(async ({ input, ctx }: { input: { command: string; mode?: "active" | "background"; cwd?: string; timeout?: number }; ctx: LensContext }) => {
-		const bashId = await ctx.appContext.bashManagerV2.execute(input.command, {
-			mode: input.mode || "active",
-			cwd: input.cwd,
-			timeout: input.timeout,
+	.resolve(async ({ args, ctx }: { args: { command: string; mode?: "active" | "background"; cwd?: string; timeout?: number }; ctx: LensContext }) => {
+		const bashId = await ctx.appContext.bashManagerV2.execute(args.command, {
+			mode: args.mode || "active",
+			cwd: args.cwd,
+			timeout: args.timeout,
 		});
 
 		const bash = {
 			bashId,
-			command: input.command,
-			mode: input.mode || "active",
+			command: args.command,
+			mode: args.mode || "active",
 		};
 
 		// Publish event for live query subscribers
@@ -819,25 +819,25 @@ export const executeBash = mutation()
 			type: "bash-created",
 			bash: {
 				id: bashId,
-				command: input.command,
-				mode: input.mode || "active",
+				command: args.command,
+				mode: args.mode || "active",
 				status: "running",
 				startTime: Date.now(),
-				cwd: input.cwd || process.cwd(),
+				cwd: args.cwd || process.cwd(),
 			},
 		});
 
 		// If active, also publish activation event
-		if (input.mode !== "background") {
+		if (args.mode !== "background") {
 			await ctx.eventStream.publish("bash-events", {
 				type: "bash-activated",
 				bash: {
 					id: bashId,
-					command: input.command,
+					command: args.command,
 					mode: "active",
 					status: "running",
 					startTime: Date.now(),
-					cwd: input.cwd || process.cwd(),
+					cwd: args.cwd || process.cwd(),
 				},
 			});
 		}
@@ -851,30 +851,30 @@ export const executeBash = mutation()
  * Live: Publishes bash-completed event for listBash/getBash subscribers
  */
 export const killBash = mutation()
-	.input(z.object({ bashId: z.string() }))
+	.args(z.object({ bashId: z.string() }))
 	.returns(z.object({ success: z.boolean(), bashId: z.string() }))
-	.resolve(async ({ input, ctx }: { input: { bashId: string }; ctx: LensContext }) => {
-		const success = ctx.appContext.bashManagerV2.kill(input.bashId);
+	.resolve(async ({ args, ctx }: { args: { bashId: string }; ctx: LensContext }) => {
+		const success = ctx.appContext.bashManagerV2.kill(args.bashId);
 		if (!success) {
-			throw new Error(`Failed to kill bash process: ${input.bashId}`);
+			throw new Error(`Failed to kill bash process: ${args.bashId}`);
 		}
 
 		// Publish event for live query subscribers
 		await ctx.eventStream.publish("bash-events", {
 			type: "bash-completed",
-			bashId: input.bashId,
+			bashId: args.bashId,
 			exitCode: -1, // Killed
 			endTime: Date.now(),
 		});
 
-		await ctx.eventStream.publish(`bash:${input.bashId}`, {
+		await ctx.eventStream.publish(`bash:${args.bashId}`, {
 			type: "bash-completed",
-			bashId: input.bashId,
+			bashId: args.bashId,
 			exitCode: -1,
 			endTime: Date.now(),
 		});
 
-		return { success: true, bashId: input.bashId };
+		return { success: true, bashId: args.bashId };
 	});
 
 /**
@@ -883,21 +883,21 @@ export const killBash = mutation()
  * Live: Publishes bash-deactivated event for getActiveBash subscribers
  */
 export const demoteBash = mutation()
-	.input(z.object({ bashId: z.string() }))
+	.args(z.object({ bashId: z.string() }))
 	.returns(z.object({ success: z.boolean(), bashId: z.string(), mode: z.string() }))
-	.resolve(async ({ input, ctx }: { input: { bashId: string }; ctx: LensContext }) => {
-		const success = ctx.appContext.bashManagerV2.demote(input.bashId);
+	.resolve(async ({ args, ctx }: { args: { bashId: string }; ctx: LensContext }) => {
+		const success = ctx.appContext.bashManagerV2.demote(args.bashId);
 		if (!success) {
-			throw new Error(`Failed to demote bash: ${input.bashId}`);
+			throw new Error(`Failed to demote bash: ${args.bashId}`);
 		}
 
 		// Publish event for live query subscribers
 		await ctx.eventStream.publish("bash-events", {
 			type: "bash-deactivated",
-			bashId: input.bashId,
+			bashId: args.bashId,
 		});
 
-		return { success: true, bashId: input.bashId, mode: "background" };
+		return { success: true, bashId: args.bashId, mode: "background" };
 	});
 
 /**
@@ -906,16 +906,16 @@ export const demoteBash = mutation()
  * Live: Publishes bash-activated event for getActiveBash subscribers
  */
 export const promoteBash = mutation()
-	.input(z.object({ bashId: z.string() }))
+	.args(z.object({ bashId: z.string() }))
 	.returns(z.object({ success: z.boolean(), bashId: z.string(), mode: z.string() }))
-	.resolve(async ({ input, ctx }: { input: { bashId: string }; ctx: LensContext }) => {
-		const success = await ctx.appContext.bashManagerV2.promote(input.bashId);
+	.resolve(async ({ args, ctx }: { args: { bashId: string }; ctx: LensContext }) => {
+		const success = await ctx.appContext.bashManagerV2.promote(args.bashId);
 		if (!success) {
-			throw new Error(`Failed to promote bash: ${input.bashId}`);
+			throw new Error(`Failed to promote bash: ${args.bashId}`);
 		}
 
 		// Get bash details for event
-		const proc = ctx.appContext.bashManagerV2.get(input.bashId);
+		const proc = ctx.appContext.bashManagerV2.get(args.bashId);
 
 		// Publish event for live query subscribers
 		await ctx.eventStream.publish("bash-events", {
@@ -927,10 +927,10 @@ export const promoteBash = mutation()
 				status: proc.status,
 				startTime: proc.startTime,
 				cwd: proc.cwd,
-			} : { id: input.bashId, mode: "active" },
+			} : { id: args.bashId, mode: "active" },
 		});
 
-		return { success: true, bashId: input.bashId, mode: "active" };
+		return { success: true, bashId: args.bashId, mode: "active" };
 	});
 
 // =============================================================================
@@ -941,19 +941,19 @@ export const promoteBash = mutation()
  * Upload file
  */
 export const uploadFile = mutation()
-	.input(z.object({
+	.args(z.object({
 		relativePath: z.string(),
 		mediaType: z.string(),
 		size: z.number(),
 		content: z.string(), // base64
 	}))
 	.returns(z.object({ fileId: z.string() }))
-	.resolve(async ({ input, ctx }: { input: { relativePath: string; mediaType: string; size: number; content: string }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { relativePath: string; mediaType: string; size: number; content: string }; ctx: LensContext }) => {
 		const fileId = await ctx.appContext.fileStorage.upload({
-			relativePath: input.relativePath,
-			mediaType: input.mediaType,
-			size: input.size,
-			content: input.content,
+			relativePath: args.relativePath,
+			mediaType: args.mediaType,
+			size: args.size,
+			content: args.content,
 		});
 		return { fileId };
 	});
@@ -968,24 +968,24 @@ export const uploadFile = mutation()
  * Live: Publishes ask-answered event for getAskRequest subscribers
  */
 export const answerAsk = mutation()
-	.input(z.object({
+	.args(z.object({
 		sessionId: z.string(),
 		questionId: z.string(),
 		answers: z.record(z.string(), z.union([z.string(), z.array(z.string())])),
 	}))
 	.returns(z.object({ success: z.boolean() }))
-	.resolve(async ({ input, ctx }: { input: { sessionId: string; questionId: string; answers: Record<string, string | string[]> }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { sessionId: string; questionId: string; answers: Record<string, string | string[]> }; ctx: LensContext }) => {
 		// Resolve the pending ask using the new ask manager
 		const { resolvePendingAsk } = await import("../services/ask-manager.service.js");
-		const resolved = await resolvePendingAsk(input.questionId, input.answers);
+		const resolved = await resolvePendingAsk(args.questionId, args.answers);
 
 		if (resolved) {
 			// Publish event for live query subscribers
-			await ctx.eventStream.publish(`session-stream:${input.sessionId}`, {
+			await ctx.eventStream.publish(`session-stream:${args.sessionId}`, {
 				type: "ask-answered",
-				questionId: input.questionId,
-				askRequestId: input.questionId,
-				answers: input.answers,
+				questionId: args.questionId,
+				askRequestId: args.questionId,
+				answers: args.answers,
 			});
 		}
 
@@ -1005,7 +1005,7 @@ export const answerAsk = mutation()
  * Live: Publishes message-created event for listMessages subscribers
  */
 export const addSystemMessage = mutation()
-	.input(
+	.args(
 		z.object({
 			sessionId: z.string().nullable().optional(),
 			role: z.enum(["user", "assistant", "system"]),
@@ -1020,8 +1020,8 @@ export const addSystemMessage = mutation()
 			messageId: z.string(),
 		}),
 	)
-	.resolve(async ({ input, ctx }: {
-		input: {
+	.resolve(async ({ args, ctx }: {
+		args: {
 			sessionId?: string | null;
 			role: "user" | "assistant" | "system";
 			content: string;
@@ -1030,7 +1030,7 @@ export const addSystemMessage = mutation()
 		};
 		ctx: LensContext;
 	}) => {
-		let sessionId = input.sessionId;
+		let sessionId = args.sessionId;
 		let isNewSession = false;
 
 		// Create session if needed
@@ -1040,8 +1040,8 @@ export const addSystemMessage = mutation()
 					id: crypto.randomUUID(),
 					title: "New Chat",
 					agentId: "coder",
-					provider: input.provider,
-					model: input.model,
+					provider: args.provider,
+					model: args.model,
 					enabledRuleIds: [],
 					nextTodoId: 1,
 					created: Date.now(),
@@ -1071,7 +1071,7 @@ export const addSystemMessage = mutation()
 			data: {
 				id: messageId,
 				sessionId,
-				role: input.role,
+				role: args.role,
 				timestamp,
 				ordering: nextOrdering,
 				status: "completed",
@@ -1096,7 +1096,7 @@ export const addSystemMessage = mutation()
 				stepId,
 				ordering: 0,
 				type: "text",
-				content: { type: "text", content: input.content },
+				content: { type: "text", content: args.content },
 			},
 		});
 
@@ -1112,7 +1112,7 @@ export const addSystemMessage = mutation()
 			message: {
 				id: messageId,
 				sessionId,
-				role: input.role,
+				role: args.role,
 				timestamp,
 				ordering: nextOrdering,
 				status: "completed",
@@ -1123,7 +1123,7 @@ export const addSystemMessage = mutation()
 					status: "completed",
 					parts: [{
 						type: "text",
-						content: input.content,
+						content: args.content,
 						status: "completed",
 					}],
 				}],
@@ -1146,7 +1146,7 @@ export const addSystemMessage = mutation()
  * tRPC-compatible interface for existing client code.
  */
 export const triggerStream = mutation()
-	.input(
+	.args(
 		z.object({
 			sessionId: z.string().nullable().optional(),
 			agentId: z.string().optional(),
@@ -1162,8 +1162,8 @@ export const triggerStream = mutation()
 			queued: z.boolean().optional(),
 		}),
 	)
-	.resolve(async ({ input, ctx }: {
-		input: {
+	.resolve(async ({ args, ctx }: {
+		args: {
 			sessionId?: string | null;
 			agentId?: string;
 			provider?: string;
@@ -1193,12 +1193,12 @@ export const triggerStream = mutation()
 			sessionRepository: ctx.appContext.database.getRepository(),
 			messageRepository: ctx.appContext.database.getMessageRepository(),
 			aiConfig,
-			input: {
-				sessionId: input.sessionId,
-				agentId: input.agentId,
-				provider: input.provider,
-				model: input.model,
-				content: input.content,
+			args: {
+				sessionId: args.sessionId,
+				agentId: args.agentId,
+				provider: args.provider,
+				model: args.model,
+				content: args.content,
 			},
 		});
 
@@ -1215,7 +1215,7 @@ export const triggerStream = mutation()
  * Live: Publishes mcp-server-connected event for listMcpServers subscribers
  */
 export const connectMcpServer = mutation()
-	.input(z.object({
+	.args(z.object({
 		serverId: z.string(),
 		cwd: z.string().optional(),
 	}))
@@ -1225,35 +1225,35 @@ export const connectMcpServer = mutation()
 		toolCount: z.number().optional(),
 		error: z.string().optional(),
 	}))
-	.resolve(async ({ input, ctx }: { input: { serverId: string; cwd?: string }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { serverId: string; cwd?: string }; ctx: LensContext }) => {
 		try {
 			// TODO: Implement MCP server connection via mcpManager
 			// const mcpManager = ctx.appContext.mcpManager;
-			// await mcpManager.connect(input.serverId);
-			// const tools = mcpManager.getServerTools(input.serverId);
+			// await mcpManager.connect(args.serverId);
+			// const tools = mcpManager.getServerTools(args.serverId);
 
 			// Publish event for live query subscribers
 			await ctx.eventStream.publish("mcp-events", {
 				type: "mcp-server-connected",
-				serverId: input.serverId,
+				serverId: args.serverId,
 				toolCount: 0,
 			});
 
 			return {
 				success: true,
-				serverId: input.serverId,
+				serverId: args.serverId,
 				toolCount: 0,
 			};
 		} catch (error) {
 			await ctx.eventStream.publish("mcp-events", {
 				type: "mcp-server-error",
-				serverId: input.serverId,
+				serverId: args.serverId,
 				error: error instanceof Error ? error.message : "Connection failed",
 			});
 
 			return {
 				success: false,
-				serverId: input.serverId,
+				serverId: args.serverId,
 				error: error instanceof Error ? error.message : "Connection failed",
 			};
 		}
@@ -1265,27 +1265,27 @@ export const connectMcpServer = mutation()
  * Live: Publishes mcp-server-disconnected event for listMcpServers subscribers
  */
 export const disconnectMcpServer = mutation()
-	.input(z.object({
+	.args(z.object({
 		serverId: z.string(),
 	}))
 	.returns(z.object({
 		success: z.boolean(),
 		serverId: z.string(),
 	}))
-	.resolve(async ({ input, ctx }: { input: { serverId: string }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { serverId: string }; ctx: LensContext }) => {
 		// TODO: Implement MCP server disconnection via mcpManager
 		// const mcpManager = ctx.appContext.mcpManager;
-		// await mcpManager.disconnect(input.serverId);
+		// await mcpManager.disconnect(args.serverId);
 
 		// Publish event for live query subscribers
 		await ctx.eventStream.publish("mcp-events", {
 			type: "mcp-server-disconnected",
-			serverId: input.serverId,
+			serverId: args.serverId,
 		});
 
 		return {
 			success: true,
-			serverId: input.serverId,
+			serverId: args.serverId,
 		};
 	});
 
@@ -1299,7 +1299,7 @@ export const disconnectMcpServer = mutation()
  * Live: Publishes credential-created event for listCredentials subscribers
  */
 export const createCredential = mutation()
-	.input(z.object({
+	.args(z.object({
 		providerId: z.string(),
 		label: z.string(),
 		apiKey: z.string(),
@@ -1311,16 +1311,16 @@ export const createCredential = mutation()
 		credentialId: z.string().optional(),
 		error: z.string().optional(),
 	}))
-	.resolve(async ({ input, ctx }: { input: { providerId: string; label: string; apiKey: string; scope?: "global" | "project"; isDefault?: boolean }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { providerId: string; label: string; apiKey: string; scope?: "global" | "project"; isDefault?: boolean }; ctx: LensContext }) => {
 		try {
 			const { createCredential: createCred } = await import("@sylphx/code-core");
 
 			const credential = createCred({
-				providerId: input.providerId,
-				label: input.label,
-				apiKey: input.apiKey,
-				scope: input.scope || "global",
-				isDefault: input.isDefault ?? true,
+				providerId: args.providerId,
+				label: args.label,
+				apiKey: args.apiKey,
+				scope: args.scope || "global",
+				isDefault: args.isDefault ?? true,
 			});
 
 			// Publish event for live query subscribers
@@ -1328,10 +1328,10 @@ export const createCredential = mutation()
 				type: "credential-created",
 				credential: {
 					id: credential.id,
-					providerId: input.providerId,
-					label: input.label,
-					scope: input.scope || "global",
-					isDefault: input.isDefault ?? true,
+					providerId: args.providerId,
+					label: args.label,
+					scope: args.scope || "global",
+					isDefault: args.isDefault ?? true,
 					createdAt: Date.now(),
 				},
 			});
@@ -1354,23 +1354,23 @@ export const createCredential = mutation()
  * Live: Publishes credential-deleted event for listCredentials subscribers
  */
 export const deleteCredential = mutation()
-	.input(z.object({
+	.args(z.object({
 		credentialId: z.string(),
 	}))
 	.returns(z.object({
 		success: z.boolean(),
 		error: z.string().optional(),
 	}))
-	.resolve(async ({ input, ctx }: { input: { credentialId: string }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { credentialId: string }; ctx: LensContext }) => {
 		try {
 			const { deleteCredential: deleteCred } = await import("@sylphx/code-core");
 
-			deleteCred(input.credentialId);
+			deleteCred(args.credentialId);
 
 			// Publish event for live query subscribers
 			await ctx.eventStream.publish("credential-events", {
 				type: "credential-deleted",
-				credentialId: input.credentialId,
+				credentialId: args.credentialId,
 			});
 
 			return { success: true };
@@ -1392,7 +1392,7 @@ export const deleteCredential = mutation()
  * Live: Publishes tool-toggled event for listTools subscribers
  */
 export const toggleTool = mutation()
-	.input(z.object({
+	.args(z.object({
 		toolId: z.string(),
 		enabled: z.boolean(),
 		sessionId: z.string().optional(), // Scope to session if provided
@@ -1402,7 +1402,7 @@ export const toggleTool = mutation()
 		toolId: z.string(),
 		enabled: z.boolean(),
 	}))
-	.resolve(async ({ input, ctx }: { input: { toolId: string; enabled: boolean; sessionId?: string }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { toolId: string; enabled: boolean; sessionId?: string }; ctx: LensContext }) => {
 		// TODO: Implement tool toggle in session config or global config
 		// If sessionId provided, toggle per-session
 		// Otherwise, toggle globally
@@ -1410,14 +1410,14 @@ export const toggleTool = mutation()
 		// Publish event for live query subscribers
 		await ctx.eventStream.publish("tool-events", {
 			type: "tool-toggled",
-			toolId: input.toolId,
-			isEnabled: input.enabled,
+			toolId: args.toolId,
+			isEnabled: args.enabled,
 		});
 
 		return {
 			success: true,
-			toolId: input.toolId,
-			enabled: input.enabled,
+			toolId: args.toolId,
+			enabled: args.enabled,
 		};
 	});
 
@@ -1431,7 +1431,7 @@ export const toggleTool = mutation()
  * Live: Updates session's enabledRuleIds and publishes event
  */
 export const toggleRule = mutation()
-	.input(z.object({
+	.args(z.object({
 		sessionId: z.string(),
 		ruleId: z.string(),
 		enabled: z.boolean(),
@@ -1442,27 +1442,27 @@ export const toggleRule = mutation()
 		enabled: z.boolean(),
 		enabledRuleIds: z.array(z.string()),
 	}))
-	.resolve(async ({ input, ctx }: { input: { sessionId: string; ruleId: string; enabled: boolean }; ctx: LensContext }) => {
+	.resolve(async ({ args, ctx }: { args: { sessionId: string; ruleId: string; enabled: boolean }; ctx: LensContext }) => {
 		// Get current session
 		const session = await ctx.db.session.findUnique({
-			where: { id: input.sessionId },
+			where: { id: args.sessionId },
 		});
 
 		if (!session) {
-			throw new Error(`Session not found: ${input.sessionId}`);
+			throw new Error(`Session not found: ${args.sessionId}`);
 		}
 
 		// Update enabledRuleIds
 		let enabledRuleIds = session.enabledRuleIds || [];
-		if (input.enabled && !enabledRuleIds.includes(input.ruleId)) {
-			enabledRuleIds = [...enabledRuleIds, input.ruleId];
-		} else if (!input.enabled) {
-			enabledRuleIds = enabledRuleIds.filter((id: string) => id !== input.ruleId);
+		if (args.enabled && !enabledRuleIds.includes(args.ruleId)) {
+			enabledRuleIds = [...enabledRuleIds, args.ruleId];
+		} else if (!args.enabled) {
+			enabledRuleIds = enabledRuleIds.filter((id: string) => id !== args.ruleId);
 		}
 
 		// Update session
 		await ctx.db.session.update({
-			where: { id: input.sessionId },
+			where: { id: args.sessionId },
 			data: { enabledRuleIds },
 		});
 
@@ -1474,8 +1474,8 @@ export const toggleRule = mutation()
 
 		return {
 			success: true,
-			ruleId: input.ruleId,
-			enabled: input.enabled,
+			ruleId: args.ruleId,
+			enabled: args.enabled,
 			enabledRuleIds,
 		};
 	});

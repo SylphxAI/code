@@ -47,12 +47,12 @@ const log = createLogger("lens:queries");
  *   const { data: session } = client.getSession.useQuery({ input: { id } });
  */
 export const getSession = query()
-	.input(z.object({ id: z.string() }))
+	.args(z.object({ id: z.string() }))
 	.returns(Session)
-	.resolve(async ({ input, ctx }) => {
-		return ctx.db.session.findUnique({ where: { id: input.id } });
+	.resolve(async ({ args, ctx }) => {
+		return ctx.db.session.findUnique({ where: { id: args.id } });
 	})
-	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
+	.subscribe(({ args, ctx }) => ({ emit, onCleanup }) => {
 		// Lens 2.14.0+ stateless wire protocol:
 		// - emit.delta() sends ops command to client
 		// - Client applies delta via applyOps()
@@ -63,7 +63,7 @@ export const getSession = query()
 			isStreaming: boolean;
 		} | null = null;
 
-		const cleanup = subscribeToSessionStream(ctx, input.id, (payload) => {
+		const cleanup = subscribeToSessionStream(ctx, args.id, (payload) => {
 			// session-updated: merge partial update (filter undefined values)
 			if (payload?.type === "session-updated" && payload.session) {
 				const definedUpdates: Record<string, unknown> = {};
@@ -160,7 +160,7 @@ export const getSession = query()
  * - Phase 2: .subscribe() uses delta emit for live updates
  */
 export const listSessions = query()
-	.input(
+	.args(
 		z
 			.object({
 				limit: z.number().optional(),
@@ -169,9 +169,9 @@ export const listSessions = query()
 			.optional(),
 	)
 	.returns([Session])
-	.resolve(async ({ input, ctx }) => {
-		const limit = input?.limit ?? 50;
-		const cursor = input?.cursor;
+	.resolve(async ({ args, ctx }) => {
+		const limit = args?.limit ?? 50;
+		const cursor = args?.cursor;
 
 		return ctx.db.session.findMany({
 			where: cursor ? { updatedAt: { lt: cursor } } : undefined,
@@ -211,13 +211,13 @@ export const getLastSession = query()
  * Search sessions by title
  */
 export const searchSessions = query()
-	.input(z.object({ query: z.string(), limit: z.number().optional() }))
+	.args(z.object({ query: z.string(), limit: z.number().optional() }))
 	.returns([Session])
-	.resolve(async ({ input, ctx }) => {
+	.resolve(async ({ args, ctx }) => {
 		return ctx.db.session.findMany({
-			where: { title: { contains: input.query } },
+			where: { title: { contains: args.query } },
 			orderBy: { updatedAt: "desc" },
-			take: input.limit ?? 20,
+			take: args.limit ?? 20,
 		});
 	});
 
@@ -247,9 +247,9 @@ export const getSessionCount = query()
  * Get message by ID
  */
 export const getMessage = query()
-	.input(z.object({ id: z.string() }))
+	.args(z.object({ id: z.string() }))
 	.returns(nullable(Message))
-	.resolve(async ({ input, ctx }) => ctx.db.message.findUnique({ where: { id: input.id } }));
+	.resolve(async ({ args, ctx }) => ctx.db.message.findUnique({ where: { id: args.id } }));
 
 /**
  * List messages for a session
@@ -266,25 +266,25 @@ export const getMessage = query()
  * Events: message-created → emit.push()
  */
 export const listMessages = query()
-	.input(
+	.args(
 		z.object({
 			sessionId: z.string(),
 			limit: z.number().optional(),
 		}),
 	)
 	.returns([Message])
-	.resolve(async ({ input, ctx }) => {
+	.resolve(async ({ args, ctx }) => {
 		// Phase 1: Initial fetch with eager-loaded steps/parts
 		const messages = await ctx.db.message.findMany({
-			where: { sessionId: input.sessionId },
+			where: { sessionId: args.sessionId },
 		});
-		return input.limit ? messages.slice(0, input.limit) : messages;
+		return args.limit ? messages.slice(0, args.limit) : messages;
 	})
-	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
+	.subscribe(({ args, ctx }) => ({ emit, onCleanup }) => {
 		// Phase 2: Publisher pattern with delta emit (Lens 2.7.0+)
 		// Handles all message events: creation, step-added, part-updated
 		// Uses emit.push() for new messages and emit.replace() for updates
-		const channel = `session-stream:${input.sessionId}`;
+		const channel = `session-stream:${args.sessionId}`;
 		let cancelled = false;
 
 		// Track all messages for efficient updates
@@ -300,7 +300,7 @@ export const listMessages = query()
 			// Initialize from DB to match .resolve() data
 			// This ensures we don't push duplicate messages
 			const initialMessages = await ctx.db.message.findMany({
-				where: { sessionId: input.sessionId },
+				where: { sessionId: args.sessionId },
 			});
 			for (const msg of initialMessages) {
 				const index = messages.length;
@@ -407,7 +407,7 @@ export const listMessages = query()
  * Returns user messages across all sessions, most recent first
  */
 export const getRecentUserMessages = query()
-	.input(
+	.args(
 		z.object({
 			limit: z.number().optional(),
 		}).optional(),
@@ -421,12 +421,12 @@ export const getRecentUserMessages = query()
 			size: z.number(),
 		})),
 	})))
-	.resolve(async ({ input, ctx }) => {
+	.resolve(async ({ args, ctx }) => {
 		const messageRepo = ctx.appContext.database.getMessageRepository();
 
 		// Get recent user messages from the message repository
 		// Returns { messages: [...], nextCursor: number | null }
-		const limit = input?.limit ?? 100;
+		const limit = args?.limit ?? 100;
 		const result = await messageRepo.getRecentUserMessages(limit);
 
 		// Result.messages contains the array of user messages
@@ -441,19 +441,19 @@ export const getRecentUserMessages = query()
  * Get step by ID
  */
 export const getStep = query()
-	.input(z.object({ id: z.string() }))
+	.args(z.object({ id: z.string() }))
 	.returns(nullable(Step))
-	.resolve(async ({ input, ctx }) => ctx.db.step.findUnique({ where: { id: input.id } }));
+	.resolve(async ({ args, ctx }) => ctx.db.step.findUnique({ where: { id: args.id } }));
 
 /**
  * List steps for a message
  */
 export const listSteps = query()
-	.input(z.object({ messageId: z.string() }))
+	.args(z.object({ messageId: z.string() }))
 	.returns([Step])
-	.resolve(async ({ input, ctx }) => {
+	.resolve(async ({ args, ctx }) => {
 		return ctx.db.step.findMany({
-			where: { messageId: input.messageId },
+			where: { messageId: args.messageId },
 			orderBy: { stepIndex: "asc" },
 		});
 	});
@@ -466,19 +466,19 @@ export const listSteps = query()
  * Get part by ID
  */
 export const getPart = query()
-	.input(z.object({ id: z.string() }))
+	.args(z.object({ id: z.string() }))
 	.returns(nullable(Part))
-	.resolve(async ({ input, ctx }) => ctx.db.part.findUnique({ where: { id: input.id } }));
+	.resolve(async ({ args, ctx }) => ctx.db.part.findUnique({ where: { id: args.id } }));
 
 /**
  * List parts for a step
  */
 export const listParts = query()
-	.input(z.object({ stepId: z.string() }))
+	.args(z.object({ stepId: z.string() }))
 	.returns([Part])
-	.resolve(async ({ input, ctx }) => {
+	.resolve(async ({ args, ctx }) => {
 		return ctx.db.part.findMany({
-			where: { stepId: input.stepId },
+			where: { stepId: args.stepId },
 			orderBy: { ordering: "asc" },
 		});
 	});
@@ -497,16 +497,16 @@ export const listParts = query()
  * Events: todo-created → emit.push(), todo-updated → emit.patch(), todo-deleted → emit.pull()
  */
 export const listTodos = query()
-	.input(z.object({ sessionId: z.string() }))
+	.args(z.object({ sessionId: z.string() }))
 	.returns([Todo])
-	.resolve(async ({ input, ctx }) => {
+	.resolve(async ({ args, ctx }) => {
 		return ctx.db.todo.findMany({
-			where: { sessionId: input.sessionId },
+			where: { sessionId: args.sessionId },
 			orderBy: { ordering: "asc" },
 		});
 	})
-	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
-		const cleanup = subscribeToSessionStream(ctx, input.sessionId, (payload) => {
+	.subscribe(({ args, ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToSessionStream(ctx, args.sessionId, (payload) => {
 			// Handle todo-created: push new todo to list
 			if (payload?.type === "todo-created" && payload.todo) {
 				emit.push(payload.todo);
@@ -584,17 +584,17 @@ const StoredEventSchema = z.object({
  * Matches tRPC events.subscribeToSession API for client compatibility.
  */
 export const subscribeToSession = query()
-	.input(z.object({
+	.args(z.object({
 		sessionId: z.string(),
 		replayLast: z.number().min(0).max(100).default(0),
 	}))
 	.returns(StoredEventSchema)
-	.resolve(async function* ({ input, ctx }) {
+	.resolve(async function* ({ args, ctx }) {
 		// Streaming events use session-stream:${id} channel
-		const channel = `session-stream:${input.sessionId}`;
+		const channel = `session-stream:${args.sessionId}`;
 
 		// Subscribe with history replay
-		for await (const event of ctx.eventStream.subscribeWithHistory(channel, input.replayLast)) {
+		for await (const event of ctx.eventStream.subscribeWithHistory(channel, args.replayLast)) {
 			yield event;
 		}
 	});
@@ -607,15 +607,15 @@ export const subscribeToSession = query()
  * Load AI config from file system
  */
 export const loadConfig = query()
-	.input(z.object({ cwd: z.string().optional() }).optional())
+	.args(z.object({ cwd: z.string().optional() }).optional())
 	.returns(z.object({
 		success: z.boolean(),
 		config: z.any().optional(),
 		error: z.string().optional(),
 	}))
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		const { loadAIConfig, DEFAULT_AGENT_ID } = await import("@sylphx/code-core");
-		const cwd = input?.cwd || process.cwd();
+		const cwd = args?.cwd || process.cwd();
 		const result = await loadAIConfig(cwd);
 
 		// Server provides defaults - client is just a player
@@ -647,16 +647,16 @@ export const loadConfig = query()
  * Get all available providers
  */
 export const getProviders = query()
-	.input(z.object({ cwd: z.string().optional() }).optional())
+	.args(z.object({ cwd: z.string().optional() }).optional())
 	.returns(z.record(z.object({
 		id: z.string(),
 		name: z.string(),
 		description: z.string(),
 		isConfigured: z.boolean(),
 	})))
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		const { AI_PROVIDERS, getProvider, loadAIConfig } = await import("@sylphx/code-core");
-		const cwd = input?.cwd || process.cwd();
+		const cwd = args?.cwd || process.cwd();
 		const configResult = await loadAIConfig(cwd);
 		const config = configResult.success ? configResult.data : { providers: {} };
 
@@ -679,16 +679,16 @@ export const getProviders = query()
  * Get provider config schema
  */
 export const getProviderSchema = query()
-	.input(z.object({ providerId: z.string() }))
+	.args(z.object({ providerId: z.string() }))
 	.returns(z.object({
 		success: z.boolean(),
 		schema: z.array(z.any()).optional(),
 		error: z.string().optional(),
 	}))
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		try {
 			const { getProvider } = await import("@sylphx/code-core");
-			const provider = getProvider(input.providerId as any);
+			const provider = getProvider(args.providerId as any);
 			const schema = provider.getConfigSchema();
 			return { success: true, schema };
 		} catch (error) {
@@ -700,25 +700,25 @@ export const getProviderSchema = query()
  * Fetch models for a provider
  */
 export const fetchModels = query()
-	.input(z.object({ providerId: z.string(), cwd: z.string().optional() }))
+	.args(z.object({ providerId: z.string(), cwd: z.string().optional() }))
 	.returns(z.object({
 		success: z.boolean(),
 		models: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
 		error: z.string().optional(),
 	}))
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		try {
 			const { loadAIConfig, fetchModels: fetchModelsCore } = await import("@sylphx/code-core");
-			const cwd = input.cwd || process.cwd();
+			const cwd = args.cwd || process.cwd();
 			const aiConfigResult = await loadAIConfig(cwd);
 			if (!aiConfigResult.success) {
 				return { success: false, error: aiConfigResult.error.message };
 			}
-			const providerConfig = aiConfigResult.data.providers?.[input.providerId];
+			const providerConfig = aiConfigResult.data.providers?.[args.providerId];
 			if (!providerConfig) {
-				return { success: false, error: `Provider ${input.providerId} is not configured` };
+				return { success: false, error: `Provider ${args.providerId} is not configured` };
 			}
-			const models = await fetchModelsCore(input.providerId as any, providerConfig);
+			const models = await fetchModelsCore(args.providerId as any, providerConfig);
 			return { success: true, models: models.map(m => ({ id: m.id, name: m.name })) };
 		} catch (error) {
 			return { success: false, error: error instanceof Error ? error.message : "Failed to fetch models" };
@@ -729,12 +729,12 @@ export const fetchModels = query()
  * Scan project files
  */
 export const scanProjectFiles = query()
-	.input(z.object({ cwd: z.string().optional(), query: z.string().optional() }).optional())
+	.args(z.object({ cwd: z.string().optional(), query: z.string().optional() }).optional())
 	.returns(z.object({ files: z.array(z.any()) }))
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		const { scanProjectFiles: scanFiles } = await import("@sylphx/code-core");
-		const cwd = input?.cwd || process.cwd();
-		const files = await scanFiles(cwd, input?.query);
+		const cwd = args?.cwd || process.cwd();
+		const files = await scanFiles(cwd, args?.query);
 		return { files };
 	});
 
@@ -742,18 +742,18 @@ export const scanProjectFiles = query()
  * Count tokens for file
  */
 export const countFileTokens = query()
-	.input(z.object({ filePath: z.string(), model: z.string().optional() }))
+	.args(z.object({ filePath: z.string(), model: z.string().optional() }))
 	.returns(z.object({
 		success: z.boolean(),
 		count: z.number().optional(),
 		error: z.string().optional(),
 	}))
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		const { readFile } = await import("node:fs/promises");
 		const { countTokens } = await import("@sylphx/code-core");
 		try {
-			const content = await readFile(input.filePath, "utf8");
-			const count = await countTokens(content, input.model);
+			const content = await readFile(args.filePath, "utf8");
+			const count = await countTokens(content, args.model);
 			return { success: true, count };
 		} catch (error) {
 			return { success: false, error: error instanceof Error ? error.message : "Failed to read file" };
@@ -812,12 +812,12 @@ export const listBash = query()
  * Events: bash-output → emit.patch() for stdout/stderr, bash-completed → emit.patch()
  */
 export const getBash = query()
-	.input(z.object({ bashId: z.string() }))
+	.args(z.object({ bashId: z.string() }))
 	.returns(BashProcess)
-	.resolve(async ({ input, ctx }) => {
-		const proc = ctx.appContext.bashManagerV2.get(input.bashId);
+	.resolve(async ({ args, ctx }) => {
+		const proc = ctx.appContext.bashManagerV2.get(args.bashId);
 		if (!proc) {
-			throw new Error(`Bash process not found: ${input.bashId}`);
+			throw new Error(`Bash process not found: ${args.bashId}`);
 		}
 		return {
 			id: proc.id,
@@ -834,8 +834,8 @@ export const getBash = query()
 			stderr: proc.stderr,
 		};
 	})
-	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
-		const cleanup = subscribeToChannel(ctx, `bash:${input.bashId}`, (payload) => {
+	.subscribe(({ args, ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, `bash:${args.bashId}`, (payload) => {
 			// Handle bash-output: append to stdout/stderr
 			if (payload?.type === "bash-output") {
 				if (payload.stream === "stdout" && payload.data) {
@@ -908,22 +908,22 @@ export const getActiveBash = query()
  * Returns tokenizer name and status
  */
 export const getTokenizerInfo = query()
-	.input(z.object({ model: z.string() }))
+	.args(z.object({ model: z.string() }))
 	.returns(z.object({
 		name: z.string(),
 		modelId: z.string(),
 		source: z.string(),
 	}))
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		const { getTokenizerInfo: getInfo } = await import("@sylphx/code-core");
-		return getInfo(input.model);
+		return getInfo(args.model);
 	});
 
 /**
  * Get model details (context length, pricing, capabilities, etc.)
  */
 export const getModelDetails = query()
-	.input(z.object({
+	.args(z.object({
 		providerId: z.string(),
 		modelId: z.string(),
 		cwd: z.string().optional(),
@@ -933,29 +933,29 @@ export const getModelDetails = query()
 		details: z.any().optional(),
 		error: z.string().optional(),
 	}))
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		try {
 			const { getProvider, loadAIConfig, getProviderConfigWithApiKey, enrichModelDetails, enrichCapabilities } = await import("@sylphx/code-core");
-			const provider = getProvider(input.providerId as any);
-			const cwd = input.cwd || process.cwd();
+			const provider = getProvider(args.providerId as any);
+			const cwd = args.cwd || process.cwd();
 
 			// Try to get provider config with API key (optional)
 			let config: any;
 			try {
 				const aiConfigResult = await loadAIConfig(cwd);
 				if (aiConfigResult.success) {
-					config = await getProviderConfigWithApiKey(aiConfigResult.data, input.providerId);
+					config = await getProviderConfigWithApiKey(aiConfigResult.data, args.providerId);
 				}
 			} catch {
 				// Config not available - continue without it
 			}
 
 			// Get model details and capabilities from provider
-			const details = await provider.getModelDetails(input.modelId, config);
-			const providerCapabilities = provider.getModelCapabilities(input.modelId);
+			const details = await provider.getModelDetails(args.modelId, config);
+			const providerCapabilities = provider.getModelCapabilities(args.modelId);
 
 			// Enrich with models.dev fallback (fills missing fields)
-			const enrichedDetails = await enrichModelDetails(input.modelId, details);
+			const enrichedDetails = await enrichModelDetails(args.modelId, details);
 
 			// Fetch models.dev data for capabilities enrichment
 			const modelsDevData = await fetch("https://models.dev/api.json", {
@@ -965,7 +965,7 @@ export const getModelDetails = query()
 				.catch(() => null);
 
 			const enrichedCapabilities = enrichCapabilities(
-				input.modelId,
+				args.modelId,
 				providerCapabilities,
 				modelsDevData,
 			);
@@ -994,7 +994,7 @@ export const getModelDetails = query()
  * Returns breakdown of tokens for system prompt, tools, and messages
  */
 export const getContextInfo = query()
-	.input(z.object({
+	.args(z.object({
 		sessionId: z.string().nullable(),
 		model: z.string(),
 		agentId: z.string(),
@@ -1010,7 +1010,7 @@ export const getContextInfo = query()
 		messagesTokens: z.number(),
 		toolCount: z.number(),
 	}))
-	.resolve(async ({ input, ctx }) => {
+	.resolve(async ({ args, ctx }) => {
 		try {
 			const { countTokens, loadAllAgents, loadAllRules, getAISDKTools, buildSystemPrompt, TokenCalculator, DEFAULT_AGENT_ID } = await import("@sylphx/code-core");
 			const cwd = process.cwd();
@@ -1018,11 +1018,11 @@ export const getContextInfo = query()
 			// Load agents and rules
 			const allAgents = await loadAllAgents(cwd);
 			const allRules = await loadAllRules(cwd);
-			const enabledRules = allRules.filter((rule: any) => input.enabledRuleIds.includes(rule.id));
+			const enabledRules = allRules.filter((rule: any) => args.enabledRuleIds.includes(rule.id));
 			const tools = await getAISDKTools();
 
 			// Find agent
-			const agent = allAgents.find((a: any) => a.id === input.agentId) ||
+			const agent = allAgents.find((a: any) => a.id === args.agentId) ||
 				allAgents.find((a: any) => a.id === DEFAULT_AGENT_ID);
 
 			// Calculate system prompt breakdown
@@ -1030,13 +1030,13 @@ export const getContextInfo = query()
 			let systemPromptTokens = 0;
 
 			if (agent) {
-				const agentTokens = await countTokens(agent.systemPrompt, input.model);
+				const agentTokens = await countTokens(agent.systemPrompt, args.model);
 				systemPromptBreakdown["Agent"] = agentTokens;
 				systemPromptTokens += agentTokens;
 			}
 
 			for (const rule of enabledRules) {
-				const ruleTokens = await countTokens((rule as any).content, input.model);
+				const ruleTokens = await countTokens((rule as any).content, args.model);
 				systemPromptBreakdown[(rule as any).metadata?.name || rule.id] = ruleTokens;
 				systemPromptTokens += ruleTokens;
 			}
@@ -1052,15 +1052,15 @@ export const getContextInfo = query()
 					parameters: (toolDef as any).parameters || {},
 				};
 				const toolJson = JSON.stringify(toolRepresentation, null, 0);
-				const tokens = await countTokens(toolJson, input.model);
+				const tokens = await countTokens(toolJson, args.model);
 				toolTokens[toolName] = tokens;
 				toolsTokensTotal += tokens;
 			}
 
 			// Calculate message tokens from session
 			let messagesTokens = 0;
-			if (input.sessionId) {
-				const session = await ctx.db.session.findUnique({ where: { id: input.sessionId } });
+			if (args.sessionId) {
+				const session = await ctx.db.session.findUnique({ where: { id: args.sessionId } });
 				if (session) {
 					// Use stored totalTokens if available (more accurate)
 					// Subtract base context tokens (system + tools) to get messages only
@@ -1106,11 +1106,11 @@ export const getContextInfo = query()
  * Events: agents-reloaded → emit.replace()
  */
 export const listAgents = query()
-	.input(z.object({ cwd: z.string().optional() }).optional())
+	.args(z.object({ cwd: z.string().optional() }).optional())
 	.returns([Agent])
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		const { loadAllAgents } = await import("@sylphx/code-core");
-		const cwd = input?.cwd || process.cwd();
+		const cwd = args?.cwd || process.cwd();
 		const agents = await loadAllAgents(cwd);
 		return agents.map((a: any) => ({
 			id: a.id,
@@ -1135,13 +1135,13 @@ export const listAgents = query()
  * Get agent by ID
  */
 export const getAgent = query()
-	.input(z.object({ id: z.string(), cwd: z.string().optional() }))
+	.args(z.object({ id: z.string(), cwd: z.string().optional() }))
 	.returns(nullable(Agent))
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		const { loadAllAgents } = await import("@sylphx/code-core");
-		const cwd = input.cwd || process.cwd();
+		const cwd = args.cwd || process.cwd();
 		const agents = await loadAllAgents(cwd);
-		const agent = agents.find((a: any) => a.id === input.id);
+		const agent = agents.find((a: any) => a.id === args.id);
 		if (!agent) return null;
 		return {
 			id: agent.id,
@@ -1168,11 +1168,11 @@ export const getAgent = query()
  * Events: rules-reloaded → emit.replace()
  */
 export const listRules = query()
-	.input(z.object({ cwd: z.string().optional() }).optional())
+	.args(z.object({ cwd: z.string().optional() }).optional())
 	.returns([Rule])
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		const { loadAllRules } = await import("@sylphx/code-core");
-		const cwd = input?.cwd || process.cwd();
+		const cwd = args?.cwd || process.cwd();
 		const rules = await loadAllRules(cwd);
 		return rules.map((r: any) => ({
 			id: r.id,
@@ -1198,13 +1198,13 @@ export const listRules = query()
  * Get rule by ID
  */
 export const getRule = query()
-	.input(z.object({ id: z.string(), cwd: z.string().optional() }))
+	.args(z.object({ id: z.string(), cwd: z.string().optional() }))
 	.returns(nullable(Rule))
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		const { loadAllRules } = await import("@sylphx/code-core");
-		const cwd = input.cwd || process.cwd();
+		const cwd = args.cwd || process.cwd();
 		const rules = await loadAllRules(cwd);
-		const rule = rules.find((r: any) => r.id === input.id);
+		const rule = rules.find((r: any) => r.id === args.id);
 		if (!rule) return null;
 		return {
 			id: rule.id,
@@ -1232,11 +1232,11 @@ export const getRule = query()
  * Events: config-reloaded → emit.replace()
  */
 export const listProviders = query()
-	.input(z.object({ cwd: z.string().optional() }).optional())
+	.args(z.object({ cwd: z.string().optional() }).optional())
 	.returns([Provider])
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		const { AI_PROVIDERS, getProvider, loadAIConfig } = await import("@sylphx/code-core");
-		const cwd = input?.cwd || process.cwd();
+		const cwd = args?.cwd || process.cwd();
 		const configResult = await loadAIConfig(cwd);
 		const config = configResult.success ? configResult.data : { providers: {} };
 
@@ -1272,27 +1272,27 @@ export const listProviders = query()
  * - Phase 2: .subscribe() updates when models fetched/refreshed
  */
 export const listModels = query()
-	.input(z.object({ providerId: z.string(), cwd: z.string().optional() }))
+	.args(z.object({ providerId: z.string(), cwd: z.string().optional() }))
 	.returns([Model])
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		const { loadAIConfig, fetchModels: fetchModelsCore, getProvider } = await import("@sylphx/code-core");
-		const cwd = input.cwd || process.cwd();
+		const cwd = args.cwd || process.cwd();
 
 		try {
 			const aiConfigResult = await loadAIConfig(cwd);
 			if (!aiConfigResult.success) return [];
 
-			const providerConfig = aiConfigResult.data.providers?.[input.providerId];
+			const providerConfig = aiConfigResult.data.providers?.[args.providerId];
 			if (!providerConfig) return [];
 
-			const provider = getProvider(input.providerId as any);
+			const provider = getProvider(args.providerId as any);
 			if (!provider.isConfigured(providerConfig)) return [];
 
-			const models = await fetchModelsCore(input.providerId as any, providerConfig);
+			const models = await fetchModelsCore(args.providerId as any, providerConfig);
 			return models.map((m: any) => ({
 				id: m.id,
 				name: m.name,
-				providerId: input.providerId,
+				providerId: args.providerId,
 				contextLength: m.contextLength,
 				inputPrice: m.inputPrice,
 				outputPrice: m.outputPrice,
@@ -1304,8 +1304,8 @@ export const listModels = query()
 			return [];
 		}
 	})
-	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
-		const cleanup = subscribeToChannel(ctx, `provider-models:${input.providerId}`, (payload) => {
+	.subscribe(({ args, ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToChannel(ctx, `provider-models:${args.providerId}`, (payload) => {
 			if (payload?.type === "models-fetched" && payload.models) {
 				emit.replace(payload.models);
 			}
@@ -1327,12 +1327,12 @@ export const listModels = query()
  * Events: tool-toggled → emit.patch()
  */
 export const listTools = query()
-	.input(z.object({ source: z.string().optional() }).optional())
+	.args(z.object({ source: z.string().optional() }).optional())
 	.returns([Tool])
-	.resolve(async ({ input, ctx }) => {
+	.resolve(async ({ args, ctx }) => {
 		// Use DB adapter to get tools
 		return ctx.db.tool.findMany({
-			where: input?.source ? { source: input.source } : undefined,
+			where: args?.source ? { source: args.source } : undefined,
 		});
 	})
 	.subscribe(({ ctx }) => ({ emit, onCleanup }) => {
@@ -1361,11 +1361,11 @@ export const listTools = query()
  * Events: mcp-server-connected → emit.patch(), mcp-server-disconnected → emit.patch()
  */
 export const listMcpServers = query()
-	.input(z.object({ cwd: z.string().optional() }).optional())
+	.args(z.object({ cwd: z.string().optional() }).optional())
 	.returns([MCPServer])
-	.resolve(async ({ input }) => {
+	.resolve(async ({ args }) => {
 		const { loadAIConfig } = await import("@sylphx/code-core");
-		const cwd = input?.cwd || process.cwd();
+		const cwd = args?.cwd || process.cwd();
 		const configResult = await loadAIConfig(cwd);
 
 		if (!configResult.success || !configResult.data.mcpServers) {
@@ -1429,12 +1429,12 @@ export const listMcpServers = query()
  * Events: credential-created → emit.push(), credential-deleted → emit.pull()
  */
 export const listCredentials = query()
-	.input(z.object({ providerId: z.string().optional() }).optional())
+	.args(z.object({ providerId: z.string().optional() }).optional())
 	.returns([Credential])
-	.resolve(async ({ input, ctx }) => {
+	.resolve(async ({ args, ctx }) => {
 		// Use DB adapter which masks API keys
 		return ctx.db.credential.findMany({
-			where: input?.providerId ? { providerId: input.providerId } : undefined,
+			where: args?.providerId ? { providerId: args.providerId } : undefined,
 		});
 	})
 	.subscribe(({ ctx }) => ({ emit, onCleanup }) => {
@@ -1464,18 +1464,18 @@ export const listCredentials = query()
  * Events: ask-created → emit.replace(), ask-answered → emit.replace(null)
  */
 export const getAskRequest = query()
-	.input(z.object({ sessionId: z.string() }))
+	.args(z.object({ sessionId: z.string() }))
 	.returns(nullable(AskRequest))
-	.resolve(async ({ input, ctx }) => {
+	.resolve(async ({ args, ctx }) => {
 		// Get pending ask requests for this session
 		const asks = await ctx.db.askRequest.findMany({
-			where: { sessionId: input.sessionId, status: "pending" },
+			where: { sessionId: args.sessionId, status: "pending" },
 		});
 		// Return the most recent pending ask request
 		return asks.length > 0 ? asks[0] : null;
 	})
-	.subscribe(({ input, ctx }) => ({ emit, onCleanup }) => {
-		const cleanup = subscribeToSessionStream(ctx, input.sessionId, (payload) => {
+	.subscribe(({ args, ctx }) => ({ emit, onCleanup }) => {
+		const cleanup = subscribeToSessionStream(ctx, args.sessionId, (payload) => {
 			if (payload?.type === "ask-created" && payload.askRequest) {
 				emit.replace(payload.askRequest);
 			}

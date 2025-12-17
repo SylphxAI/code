@@ -25,8 +25,8 @@
 		"clean": "rm -rf dist"
 	},
 	"dependencies": {
-		"@sylphx/lens-client": "3.0.0",
-		"@sylphx/lens-react": "2.5.14"
+		"@sylphx/lens-client": "3.1.0",
+		"@sylphx/lens-react": "2.6.0"
 	},
 	"devDependencies": {
 		"@sylphx/code-server": "workspace:*",
