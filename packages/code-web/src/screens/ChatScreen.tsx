@@ -71,10 +71,12 @@ export function ChatScreen() {
 		setSending(true);
 
 		try {
-			// Call mutation directly with input fields
+			// Call mutation with input wrapper
 			const result = await sendMessage({
-				sessionId: sessionId || null,
-				content: [{ type: "text", content: message }],
+				input: {
+					sessionId: sessionId || null,
+					content: [{ type: "text" as const, content: message }],
+				},
 			});
 			// If this was a new session, navigate to it
 			if (!sessionId && result && typeof result === "object" && "session" in result) {
