@@ -19,7 +19,7 @@ export function useModels(providerId: string | null) {
 	const client = useLensClient();
 
 	const { data, loading, error, refetch } = client.fetchModels.useQuery({
-		input: { providerId: providerId ?? "" },
+		args: { providerId: providerId ?? "" },
 		skip: !providerId, // Skip when no provider selected
 	}) as {
 		data: { success: boolean; models: ModelInfo[]; error?: string } | null;

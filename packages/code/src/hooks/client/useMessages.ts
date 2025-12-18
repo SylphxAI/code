@@ -99,7 +99,7 @@ export function useMessages(sessionId: string | null | undefined) {
 	// Use lens-react query hook
 	// Steps/parts fields use .subscribe() in resolver, so Lens auto-streams
 	const messagesQuery = client.listMessages.useQuery({
-		input: { sessionId: sessionId || "" },
+		args: { sessionId: sessionId || "" },
 		skip: !sessionId,
 	});
 

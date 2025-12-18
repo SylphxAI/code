@@ -45,12 +45,12 @@ export function useModelDetails(providerId: string | null, modelId: string | nul
 
 	// Query hooks - reactive data fetching
 	const modelDetailsQuery = client.getModelDetails.useQuery({
-		input: { providerId: providerId || "", modelId: modelId || "" },
+		args: { providerId: providerId || "", modelId: modelId || "" },
 		skip: skipQueries,
 	});
 
 	const tokenizerQuery = client.getTokenizerInfo.useQuery({
-		input: { model: modelId || "" },
+		args: { model: modelId || "" },
 		skip: skipQueries,
 	});
 

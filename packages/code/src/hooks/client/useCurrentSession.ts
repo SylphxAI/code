@@ -80,7 +80,7 @@ export function useCurrentSession() {
 	// Use lens-react query hook for session data
 	// The status field uses .subscribe() in the resolver, so Lens auto-streams
 	const { data: session, loading, error, refetch } = client.getSession.useQuery({
-		input: { id: currentSessionId || "" },
+		args: { id: currentSessionId || "" },
 		skip,
 		debug: DEBUG ? {
 			onData: (data: SessionWithStatus | null) => {

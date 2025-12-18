@@ -25,7 +25,6 @@ export async function getSessionById(
 		return null;
 	}
 
-
 	// Get messages with all parts, attachments, usage
 	const sessionMessages = await getSessionMessages(db, sessionId);
 

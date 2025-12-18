@@ -54,7 +54,7 @@ export function useInputState(): InputState {
 	// Query hook for message history
 	// Use .useQuery() for React hook pattern (not vanilla Promise call)
 	const historyQuery = client.getRecentUserMessages.useQuery({
-		input: { limit: 100 },
+		args: { limit: 100 },
 	});
 
 	// Sync query data to global state

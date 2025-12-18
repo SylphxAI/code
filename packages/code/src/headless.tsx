@@ -48,7 +48,7 @@ function HeadlessApp({ prompt, options }: HeadlessProps) {
 
 	// Query hooks - use .useQuery() for React hook pattern
 	const sessionQuery = client.getSession.useQuery({
-		input: { id: sessionId || "" },
+		args: { id: sessionId || "" },
 		skip: !sessionId,
 	});
 
