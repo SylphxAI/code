@@ -118,7 +118,7 @@ export default function BashList({ onClose, onSelectBash }: BashListProps) {
 			if (char === "K") {
 				const selectedProc = processes[selection.selectedIndex];
 				if (selectedProc) {
-					killBashMutate({ input: { bashId: selectedProc.id } })
+					killBashMutate({ args: { bashId: selectedProc.id } })
 						.then(() => bashListQuery.refetch())
 						.catch((error) => console.error("[BashList] Failed to kill:", error));
 				}

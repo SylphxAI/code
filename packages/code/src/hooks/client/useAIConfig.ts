@@ -75,7 +75,7 @@ export function useAIConfig() {
 	const saveConfig = useCallback(
 		async (config: AIConfig) => {
 			try {
-				const result = await saveConfigMutate({ input: { config } }) as { success: boolean; error?: string };
+				const result = await saveConfigMutate({ args: { config } }) as { success: boolean; error?: string };
 
 				if (result.success) {
 					setAIConfig(config);

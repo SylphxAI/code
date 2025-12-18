@@ -439,7 +439,7 @@ export function InputSection({
 										// Use query data and mutation to demote active bash
 										const active = activeBashQuery.data as { id: string } | null;
 										if (active) {
-											demoteBashMutate({ input: { bashId: active.id } }).catch((error: any) => {
+											demoteBashMutate({ args: { bashId: active.id } }).catch((error: any) => {
 												console.error("[InputSection] Failed to demote active bash:", error);
 											});
 										}

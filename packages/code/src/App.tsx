@@ -55,7 +55,7 @@ function AppContent() {
 			if (key.ctrl && input === "b") {
 				const active = activeBashQuery.data as { id: string } | null;
 				if (active) {
-					demoteBashMutate({ input: { bashId: active.id } }).catch((err: Error) => {
+					demoteBashMutate({ args: { bashId: active.id } }).catch((err: Error) => {
 						console.error("[App] Failed to demote active bash:", err);
 					});
 				}

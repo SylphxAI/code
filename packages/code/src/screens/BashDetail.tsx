@@ -67,7 +67,7 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 
 			// Kill bash
 			if (input === "K") {
-				killBashMutate({ input: { bashId } })
+				killBashMutate({ args: { bashId } })
 					.then(() => {
 						// Reload process info
 						bashQuery.refetch();
@@ -79,7 +79,7 @@ export default function BashDetail({ bashId, onClose }: BashDetailProps) {
 			// Promote to active
 			if (input === "A") {
 				if (!process?.isActive && process?.status === "running") {
-					promoteBashMutate({ input: { bashId } })
+					promoteBashMutate({ args: { bashId } })
 						.then(() => {
 							// Reload process info
 							bashQuery.refetch();
