@@ -22,7 +22,7 @@ export const newCommand: Command = {
 
 		// Create new session with current provider and model using vanilla client call
 		const result = await context.client.createSession({
-			input: { provider: selectedProvider, model: selectedModel },
+			args: { provider: selectedProvider, model: selectedModel },
 		});
 
 		// Set as current session

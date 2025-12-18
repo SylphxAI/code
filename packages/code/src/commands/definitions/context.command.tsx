@@ -75,7 +75,7 @@ export const contextCommand: Command = {
 
 			// Use vanilla client call
 			const modelDetailsResult = (await commandContext.client.getModelDetails({
-				input: {
+				args: {
 					providerId: providerId,
 					modelId: modelName,
 				},
@@ -116,7 +116,7 @@ export const contextCommand: Command = {
 			console.log("[Context] Calling Lens getContextInfo...");
 			// Use vanilla client call to get context info
 			const result = (await commandContext.client.getContextInfo({
-				input: {
+				args: {
 					sessionId: sessionId,
 					model: modelName, // Pass current model for dynamic calculation
 					agentId: agentId, // Pass current agent for SSOT

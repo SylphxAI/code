@@ -198,7 +198,7 @@ export async function switchToProvider(
 	const currentSessionId = getCurrentSessionId();
 	if (currentSessionId) {
 		await context.client.updateSession({
-			input: { id: currentSessionId, provider: providerId, model: defaultModel },
+			args: { id: currentSessionId, provider: providerId, model: defaultModel },
 		});
 	}
 	// No fallback: Config is updated, next message will create session automatically

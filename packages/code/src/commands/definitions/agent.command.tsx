@@ -43,7 +43,7 @@ export const agentCommand: Command = {
 			const currentSessionId = getCurrentSessionId();
 			if (currentSessionId) {
 				await context.client.updateSession({
-					input: { id: currentSessionId, agentId },
+					args: { id: currentSessionId, agentId },
 				});
 			}
 
@@ -90,7 +90,7 @@ export const agentCommand: Command = {
 					const currentSessionId = getCurrentSessionId();
 					if (currentSessionId) {
 						await context.client.updateSession({
-							input: { id: currentSessionId, agentId },
+							args: { id: currentSessionId, agentId },
 						});
 					}
 

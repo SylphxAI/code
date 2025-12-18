@@ -19,7 +19,7 @@ export function Sidebar() {
 
 	// Fetch recent sessions (Live Query)
 	const { data: sessions, loading } = client.listSessions.useQuery({
-		input: { limit: 20 },
+		args: { limit: 20 },
 	});
 
 	// Type the sessions data

@@ -44,7 +44,7 @@ const log = createLogger("lens:queries");
  * - Phase 2: .subscribe() listens for session-updated events
  *
  * Client usage:
- *   const { data: session } = client.getSession.useQuery({ input: { id } });
+ *   const { data: session } = client.getSession.useQuery({ args: { id } });
  */
 export const getSession = query()
 	.args(z.object({ id: z.string() }))

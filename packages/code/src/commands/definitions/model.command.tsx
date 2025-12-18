@@ -87,7 +87,7 @@ export const modelCommand: Command = {
 			const currentSessionId = getCurrentSessionId();
 			if (currentSessionId) {
 				await context.client.updateSession({
-					input: { id: currentSessionId, model: modelId },
+					args: { id: currentSessionId, model: modelId },
 				});
 			}
 
@@ -153,7 +153,7 @@ export const modelCommand: Command = {
 					// Update current session's model (preserve history)
 					if (freshCurrentSessionId) {
 						await context.client.updateSession({
-							input: { id: freshCurrentSessionId, model: modelId },
+							args: { id: freshCurrentSessionId, model: modelId },
 						});
 					}
 
@@ -174,7 +174,7 @@ export const modelCommand: Command = {
 		// Use vanilla client call
 		try {
 			const result = await context.client.fetchModels({
-				input: { providerId: currentProviderId },
+				args: { providerId: currentProviderId },
 			});
 
 			if (!result.success) {
