@@ -64,7 +64,7 @@ export async function getProviderCompletions(
 ): Promise<CompletionOption[]> {
 	try {
 		// Use vanilla client call
-		const result = await client.getProviders({ input: {} });
+		const result = await client.getProviders({ args: {} });
 
 		const providers = Object.keys(result);
 		const filtered = partial
@@ -116,7 +116,7 @@ export async function getProviderKeyCompletions(
 ): Promise<CompletionOption[]> {
 	try {
 		// Use vanilla client call
-		const result = await client.getProviderSchema({ input: { providerId } }) as {
+		const result = await client.getProviderSchema({ args: { providerId } }) as {
 			success: boolean;
 			schema?: Array<{ key: string }>;
 		};

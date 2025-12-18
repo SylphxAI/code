@@ -40,7 +40,7 @@ export async function getModelCompletions(
 		}
 
 		// Use vanilla client call
-		const result = await client.fetchModels({ input: { providerId: currentProviderId } }) as {
+		const result = await client.fetchModels({ args: { providerId: currentProviderId } }) as {
 			success: boolean;
 			error?: string;
 			models?: Array<{ id: string; name: string }>;

@@ -51,7 +51,7 @@ export const modelCommand: Command = {
 			try {
 				context.addLog(`Loading models from ${provider}...`);
 				// Use vanilla client call
-				const result = await context.client.fetchModels({ input: { providerId: provider } });
+				const result = await context.client.fetchModels({ args: { providerId: provider } });
 
 				if (result.success && result.models) {
 					const modelExists = result.models.some((m) => m.id === modelId);

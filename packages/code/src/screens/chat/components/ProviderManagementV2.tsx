@@ -82,7 +82,7 @@ export function ProviderManagement({
 		async function loadProviderMetadata() {
 			try {
 				// Use vanilla client call
-				const result = await client.getProviders({ input: {} }) as Record<string, ProviderInfo>;
+				const result = await client.getProviders({ args: {} }) as Record<string, ProviderInfo>;
 				// Store full provider info including isConfigured status
 				const metadata: Record<
 					string,
@@ -230,7 +230,7 @@ export function ProviderManagement({
 							// Refresh provider metadata to update isConfigured status
 							try {
 								// Use vanilla client call
-								const result = await client.getProviders({ input: {} }) as Record<string, ProviderInfo>;
+								const result = await client.getProviders({ args: {} }) as Record<string, ProviderInfo>;
 								const metadata: Record<
 									string,
 									{ name: string; description: string; isConfigured: boolean }

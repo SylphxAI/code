@@ -85,7 +85,7 @@ export function useChatEffects(state: ChatState) {
 
 				// Fetch the session data to sync agent and rules state
 				try {
-					const sessionResult = await client.getSession({ input: { id: sessionId } });
+					const sessionResult = await client.getSession({ args: { id: sessionId } });
 					const session = (sessionResult as any)?.data || sessionResult;
 					if (session) {
 						// Sync agent ID (server sets default "coder")

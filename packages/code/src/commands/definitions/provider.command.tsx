@@ -264,7 +264,7 @@ export const providerCommand: Command = {
 						try {
 							context.addLog(`Loading models from ${providerId}...`);
 							// Use vanilla client call
-							const result = await context.client.fetchModels({ input: { providerId: providerId as any } }) as { success: boolean; models?: Array<{ id: string }>; error?: string };
+							const result = await context.client.fetchModels({ args: { providerId: providerId as any } }) as { success: boolean; models?: Array<{ id: string }>; error?: string };
 
 							if (result.success && result.models && result.models.length > 0) {
 								const firstModel = result.models[0];

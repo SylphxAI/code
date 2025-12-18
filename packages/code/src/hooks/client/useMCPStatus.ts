@@ -10,7 +10,7 @@
  */
 
 import { useEffect } from "react";
-import { eventBus } from "@sylphx/code-client";
+import { eventBus } from "@sylphx/code-core";
 import {
 	useMCPStatus as useMCPStatusState,
 	setMCPStatus as setMCPStatusSignal,

@@ -39,7 +39,7 @@ export async function getRecentSessions(
 ): Promise<SessionListItem[]> {
 	const client = getClient();
 	// Use vanilla client call
-	const result = await client.listSessions({ input: { limit } });
+	const result = await client.listSessions({ args: { limit } });
 
 	// Transform to SessionListItem format
 	return (result as Session[]).map((session) => ({

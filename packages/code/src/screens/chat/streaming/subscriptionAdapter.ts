@@ -132,7 +132,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 
 				if (abortSessionId) {
 					// Use vanilla client call
-					await client.abortStream({ input: { sessionId: abortSessionId } });
+					await client.abortStream({ args: { sessionId: abortSessionId } });
 					logSession("Server notified of abort");
 				}
 			} catch (error) {
@@ -156,7 +156,7 @@ export function createSubscriptionSendUserMessageToAI(params: SubscriptionAdapte
 			// 5. Emit status updates via ctx.emit()
 			// 6. Lens auto-streams to client via .subscribe() resolver
 			const result = await client.triggerStream({
-				input: {
+				args: {
 					sessionId: currentSessionId,
 					provider: currentSessionId ? undefined : provider,
 					model: currentSessionId ? undefined : model,

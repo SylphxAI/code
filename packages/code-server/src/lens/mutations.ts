@@ -296,12 +296,8 @@ export const sendMessage = mutation()
 			console.error("[sendMessage] Failed to load AI config:", error);
 		}
 
-		// Get or create session
-		let session: any;
-		let sessionId = args.sessionId;
-
-		if (!sessionId) {
-			// Get default provider/model from aiConfig
+		// Helper to get default provider/model from aiConfig
+		const getDefaults = () => {
 			let defaultProvider = args.provider;
 			let defaultModel = args.model;
 
@@ -317,6 +313,16 @@ export const sendMessage = mutation()
 				const providerConfig = aiConfig.providers[defaultProvider] as any;
 				defaultModel = providerConfig.defaultModel || providerConfig.model;
 			}
+
+			return { defaultProvider, defaultModel };
+		};
+
+		// Get or create session
+		let session: any;
+		let sessionId = args.sessionId;
+
+		if (!sessionId) {
+			const { defaultProvider, defaultModel } = getDefaults();
 
 			// Create new session
 			session = await ctx.db.session.create({
@@ -335,6 +341,20 @@ export const sendMessage = mutation()
 			sessionId = session.id;
 		} else {
 			session = await ctx.db.session.findUnique({ where: { id: sessionId } });
+
+			// Fix: If existing session has no provider/model, set defaults
+			if (session && (!session.provider || !session.model)) {
+				const { defaultProvider, defaultModel } = getDefaults();
+				if (defaultProvider || defaultModel) {
+					session = await ctx.db.session.update({
+						where: { id: sessionId },
+						data: {
+							provider: session.provider || defaultProvider,
+							model: session.model || defaultModel,
+						},
+					});
+				}
+			}
 		}
 
 		// Get message count for ordering
