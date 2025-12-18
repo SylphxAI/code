@@ -2,9 +2,7 @@
  * Web Server for GUI mode (code --web)
  *
  * Serves:
- * - Lens API over HTTP at /lens
- *   - POST / for queries/mutations (via direct app)
- *   - GET /{path}?_sse=1 for subscriptions (via handleWebSSE)
+ * - Lens API at /lens (lens-server handles base path automatically)
  * - Static files from code-web/dist
  */
 
@@ -12,7 +10,7 @@ import type { Server } from "node:http";
 import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { handleWebSSE, type LensServer } from "@sylphx/lens-server";
+import type { LensServer } from "@sylphx/lens-server";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -69,10 +67,12 @@ export async function startWebServer(config: WebServerConfig): Promise<WebServer
 
 	const server = Bun.serve({
 		port,
+		// Disable idle timeout for SSE connections (default is 10s)
+		idleTimeout: 0,
 		async fetch(req) {
 			const url = new URL(req.url);
 
-			// CORS preflight - handle before routing
+			// CORS preflight
 			if (req.method === "OPTIONS") {
 				return new Response(null, {
 					headers: {
@@ -83,47 +83,12 @@ export async function startWebServer(config: WebServerConfig): Promise<WebServer
 				});
 			}
 
-			// Lens API
+			// Lens API - pass directly to lensServer (handles base path automatically)
 			if (url.pathname.startsWith("/lens")) {
-				// Strip /lens prefix to get the operation path
-				const operationPath = url.pathname.replace(/^\/lens\/?/, "");
-
-				// Check for SSE subscription request
-				// httpSse client uses GET with _sse=1 query param or Accept: text/event-stream
-				const isSSE =
-					url.searchParams.get("_sse") === "1" ||
-					req.headers.get("accept") === "text/event-stream";
-
-				if (isSSE && operationPath) {
-					// Handle SSE subscription
-					const sseUrl = new URL(req.url);
-					sseUrl.pathname = "/" + operationPath;
-					const response = handleWebSSE(lensServer, operationPath, sseUrl, req.signal);
-
-					// Add CORS headers
-					const headers = new Headers(response.headers);
-					headers.set("Access-Control-Allow-Origin", "*");
-					return new Response(response.body, {
-						status: response.status,
-						headers,
-					});
-				}
-
-				// For non-SSE requests, use direct app
-				const lensUrl = new URL(req.url);
-				lensUrl.pathname = operationPath ? "/" + operationPath : "/";
-				const lensReq = new Request(lensUrl.toString(), req);
-
-				// Call the lens server directly (it's a callable interface)
-				const response = await lensServer(lensReq);
-
+				const response = await lensServer(req);
 				// Add CORS headers
-				const headers = new Headers(response.headers);
-				headers.set("Access-Control-Allow-Origin", "*");
-				return new Response(response.body, {
-					status: response.status,
-					headers,
-				});
+				response.headers.set("Access-Control-Allow-Origin", "*");
+				return response;
 			}
 
 			// Static files

@@ -16,10 +16,10 @@
         "@modelcontextprotocol/sdk": "^1.21.0",
         "@openrouter/ai-sdk-provider": "^1.2.1",
         "@sylphx/lens": "3.1.0",
-        "@sylphx/lens-client": "3.1.2",
+        "@sylphx/lens-client": "3.1.7",
         "@sylphx/lens-core": "4.1.0",
-        "@sylphx/lens-react": "2.6.2",
-        "@sylphx/lens-server": "4.1.1",
+        "@sylphx/lens-react": "2.6.7",
+        "@sylphx/lens-server": "4.1.6",
         "@sylphx/zen": "3.47.0",
         "@sylphx/zen-craft": "^1.0.4",
         "@sylphx/zen-react": "^1.0.2",
@@ -112,8 +112,8 @@
       "name": "@sylphx/code-client",
       "version": "1.0.0",
       "dependencies": {
-        "@sylphx/lens-client": "3.1.0",
-        "@sylphx/lens-react": "2.6.0",
+        "@sylphx/lens-client": "^3.1.2",
+        "@sylphx/lens-react": "^2.6.2",
       },
       "devDependencies": {
         "@sylphx/code-server": "workspace:*",
@@ -165,8 +165,8 @@
       "dependencies": {
         "@sylphx/code-api": "workspace:*",
         "@sylphx/code-core": "workspace:*",
-        "@sylphx/lens-core": "4.1.0",
-        "@sylphx/lens-server": "4.1.0",
+        "@sylphx/lens-core": "^4.1.0",
+        "@sylphx/lens-server": "^4.1.6",
         "@sylphx/reify": "^0.1.3",
         "mime-types": "^2.1.35",
         "rxjs": "^7.8.2",
@@ -709,13 +709,13 @@
 
     "@sylphx/lens": ["@sylphx/lens@3.1.0", "", { "dependencies": { "@sylphx/lens-client": "^3.1.0", "@sylphx/lens-core": "^4.1.0", "@sylphx/lens-server": "^4.1.0" } }, "sha512-oAoKMbkOoS1JrGJDuDYi1x1uRPo6SzGEB4GENBk5T9ENIz+tCSNhOmFAGPW6N/Dn1JAMa/KDyIttNQM0xwyzgg=="],
 
-    "@sylphx/lens-client": ["@sylphx/lens-client@3.1.2", "", { "dependencies": { "@sylphx/lens-core": "^4.1.1", "@sylphx/reify": "^0.1.2" } }, "sha512-tIN6splwImuoZ5d7h3z/V3mOoGD60+pwQ2mLgTcZL8Yl/GFp3N4IjdG9YlImdl/e4+HwVDl56VhUd8BGYAO1VA=="],
+    "@sylphx/lens-client": ["@sylphx/lens-client@3.1.7", "", { "dependencies": { "@sylphx/lens-core": "^4.1.1", "@sylphx/reify": "^0.1.2" } }, "sha512-skebkVd4Dyn1YOOuBrfLtyZn344pGHYKE9gcA2unlYCn1+e+YWHeeJWBKmc6aNpEB2WrvI4eKfKpUCbaLq2Kuw=="],
 
     "@sylphx/lens-core": ["@sylphx/lens-core@4.1.0", "", { "dependencies": { "@sylphx/reify": "^0.1.2", "@sylphx/standard-entity": "^0.1.0" } }, "sha512-8+gge62uFkqtKtsxkZlLGGmT/JVOA0VgtYylOs6bBESAuk7KYvQWLk3WL8Xpe0LXF1kYKyQbCJKhg4PFaq1Wag=="],
 
-    "@sylphx/lens-react": ["@sylphx/lens-react@2.6.2", "", { "dependencies": { "@sylphx/lens-client": "^3.1.2", "@sylphx/lens-core": "^4.1.1" }, "peerDependencies": { "react": ">=18.0.0" } }, "sha512-pQ4cLlu7U/jxNKe+Nj1NfYlEdQBr6f+ipUo6H+XToXhHB1egbGtcsIZbt5QECiDIXx+t3llaR9zSHzJTJLO7gg=="],
+    "@sylphx/lens-react": ["@sylphx/lens-react@2.6.7", "", { "dependencies": { "@sylphx/lens-client": "^3.1.7", "@sylphx/lens-core": "^4.1.1" }, "peerDependencies": { "react": ">=18.0.0" } }, "sha512-mh/DbHSGz+qdxAFNKrbDCIKToF3rTZ33PfDhZhXWvlWVLrv9UFPFh2VFvYhGeVmWCOtHGz8z77nMtPdckoFPrQ=="],
 
-    "@sylphx/lens-server": ["@sylphx/lens-server@4.1.1", "", { "dependencies": { "@sylphx/lens-core": "^4.1.1" } }, "sha512-3ZZwDbyB6yt1jqI3HRn7PpfkYP1Npem+SiKckigRzTdu2+7BZ8Uq9eJr4YUsb9HUUQ1/2tHWBjQD2Y0Mg4Wvxg=="],
+    "@sylphx/lens-server": ["@sylphx/lens-server@4.1.6", "", { "dependencies": { "@sylphx/lens-core": "^4.1.1" } }, "sha512-M9Kxu7NwKX2pbap27kQnAk9bCLvl14BWJkMEmdA1Tkiww/Dud/UBUu9/1XDwrmpNxOHeSRkaWJ811oO7xdBWuA=="],
 
     "@sylphx/reify": ["@sylphx/reify@0.1.3", "", { "dependencies": { "@sylphx/reify-adapter-cache": "^0.1.2", "@sylphx/reify-adapter-prisma": "^0.1.2", "@sylphx/reify-core": "^0.1.2", "@sylphx/reify-entity": "^0.1.3" } }, "sha512-dw0pRyNuJ5fjXuskY0o+MJfswOAxKWy5VDe6fvXDJjgxYY7Nrd7TQvwctYPLkc64GIb9CNZ6HUVhN3mOSANgxQ=="],
 
@@ -1907,11 +1907,11 @@
 
     "@modelcontextprotocol/sdk/eventsource": ["eventsource@3.0.7", "", { "dependencies": { "eventsource-parser": "^3.0.1" } }, "sha512-CRT1WTyuQoD771GW56XEZFQ/ZoSfWid1alKGDYMmkt2yl8UXrVR4pspqWNEcqKvVIzg6PAltWjxcSSPrboA4iA=="],
 
-    "@sylphx/code-client/@sylphx/lens-client": ["@sylphx/lens-client@3.1.0", "", { "dependencies": { "@sylphx/lens-core": "^4.1.0", "@sylphx/reify": "^0.1.2" } }, "sha512-i4TCB0wMst5JxZfx8vGOZeM8ihnWaGoyY3c1OeVpv2jsqOnMatyvZ4co6FuzqdHx4V9qctT5uLsPfiUbWNmkIw=="],
+    "@sylphx/code-client/@sylphx/lens-client": ["@sylphx/lens-client@3.1.2", "", { "dependencies": { "@sylphx/lens-core": "^4.1.1", "@sylphx/reify": "^0.1.2" } }, "sha512-tIN6splwImuoZ5d7h3z/V3mOoGD60+pwQ2mLgTcZL8Yl/GFp3N4IjdG9YlImdl/e4+HwVDl56VhUd8BGYAO1VA=="],
 
-    "@sylphx/code-client/@sylphx/lens-react": ["@sylphx/lens-react@2.6.0", "", { "dependencies": { "@sylphx/lens-client": "^3.1.0", "@sylphx/lens-core": "^4.1.0" }, "peerDependencies": { "react": ">=18.0.0" } }, "sha512-I7iHg7jPfJXZZMhkX6Cb5hykmVRh4pLQoYjUmbTVjdeQ+Adt8TB0zlXq0n6wmpjfRnYntUC25AlCu7X0NW3QSQ=="],
+    "@sylphx/code-client/@sylphx/lens-react": ["@sylphx/lens-react@2.6.2", "", { "dependencies": { "@sylphx/lens-client": "^3.1.2", "@sylphx/lens-core": "^4.1.1" }, "peerDependencies": { "react": ">=18.0.0" } }, "sha512-pQ4cLlu7U/jxNKe+Nj1NfYlEdQBr6f+ipUo6H+XToXhHB1egbGtcsIZbt5QECiDIXx+t3llaR9zSHzJTJLO7gg=="],
 
-    "@sylphx/code-server/@sylphx/lens-server": ["@sylphx/lens-server@4.1.0", "", { "dependencies": { "@sylphx/lens-core": "^4.1.0" } }, "sha512-aP4UMfA3S9/K0BimTS/aRkkwOjH6wa0SYZuM/CydTC+gv1l279VDdL0Rs7vM+Kw87jaOFPoebSzHJUxZ0yKJQQ=="],
+    "@sylphx/code-server/@sylphx/lens-core": ["@sylphx/lens-core@4.1.1", "", { "dependencies": { "@sylphx/reify": "^0.1.2", "@sylphx/standard-entity": "^0.1.0" } }, "sha512-DtOOU13vRxOzJ/Uzx2W/k0N5ULt+qgKzgYiDeqCTLoXWv1VngacHPrm5dlYukf+CHn4qHGhjheUqkO0qLN7ZvA=="],
 
     "@sylphx/code-server/mime-types": ["mime-types@2.1.35", "", { "dependencies": { "mime-db": "1.52.0" } }, "sha512-ZDY+bPm5zTTF+YpCrAU9nK0UgICYPT0QtT1NZWFv4s++TNkcgVaT0g6+4R2uI4MjQjzysHB1zxuWL50hzaeXiw=="],
 
@@ -2088,6 +2088,10 @@
     "@esbuild-kit/core-utils/esbuild/@esbuild/win32-ia32": ["@esbuild/win32-ia32@0.18.20", "", { "os": "win32", "cpu": "ia32" }, "sha512-Wv7QBi3ID/rROT08SABTS7eV4hX26sVduqDOTe1MvGMjNd3EjOz4b7zeexIR62GTIEKrfJXKL9LFxTYgkyeu7g=="],
 
     "@esbuild-kit/core-utils/esbuild/@esbuild/win32-x64": ["@esbuild/win32-x64@0.18.20", "", { "os": "win32", "cpu": "x64" }, "sha512-kTdfRcSiDfQca/y9QIkng02avJ+NCaQvrMejlsB3RRv5sE9rRoeBPISaZpKxHELzRxZyLvNts1P27W3wV+8geQ=="],
+
+    "@sylphx/code-client/@sylphx/lens-client/@sylphx/lens-core": ["@sylphx/lens-core@4.1.1", "", { "dependencies": { "@sylphx/reify": "^0.1.2", "@sylphx/standard-entity": "^0.1.0" } }, "sha512-DtOOU13vRxOzJ/Uzx2W/k0N5ULt+qgKzgYiDeqCTLoXWv1VngacHPrm5dlYukf+CHn4qHGhjheUqkO0qLN7ZvA=="],
+
+    "@sylphx/code-client/@sylphx/lens-react/@sylphx/lens-core": ["@sylphx/lens-core@4.1.1", "", { "dependencies": { "@sylphx/reify": "^0.1.2", "@sylphx/standard-entity": "^0.1.0" } }, "sha512-DtOOU13vRxOzJ/Uzx2W/k0N5ULt+qgKzgYiDeqCTLoXWv1VngacHPrm5dlYukf+CHn4qHGhjheUqkO0qLN7ZvA=="],
 
     "@sylphx/code-server/mime-types/mime-db": ["mime-db@1.52.0", "", {}, "sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg=="],
 

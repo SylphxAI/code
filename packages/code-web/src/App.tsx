@@ -12,7 +12,8 @@ import { ChatScreen } from "./screens/ChatScreen";
 import { Layout } from "./components/Layout";
 
 // Initialize Lens client with HTTP+SSE transport (queries via HTTP, subscriptions via SSE)
-const LENS_URL = import.meta.env.VITE_LENS_URL || "http://localhost:3000/lens";
+// Build absolute URL from current origin so it works regardless of which port the server is running on
+const LENS_URL = import.meta.env.VITE_LENS_URL || `${window.location.origin}/lens`;
 
 function App() {
 	const [isReady, setIsReady] = useState(false);

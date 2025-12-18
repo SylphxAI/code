@@ -43,14 +43,14 @@ export function ChatScreen() {
 
 	// Query session data (Live Query)
 	const { data: sessionData } = client.getSession.useQuery({
-		input: { id: sessionId || "" },
+		args: { id: sessionId || "" },
 		skip: !sessionId,
 	});
 	const session = sessionData as Session | undefined;
 
 	// Query messages for current session (Live Query)
 	const { data: messagesData, loading: messagesLoading } = client.listMessages.useQuery({
-		input: { sessionId: sessionId || "" },
+		args: { sessionId: sessionId || "" },
 		skip: !sessionId,
 	});
 	const messages = (messagesData as Message[] | undefined) || [];
