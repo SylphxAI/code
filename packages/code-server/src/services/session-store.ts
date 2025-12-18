@@ -300,6 +300,7 @@ export class SessionStore {
 
 	private emit(type: string, payload: Record<string, unknown>): void {
 		const channel = `session-stream:${this.sessionId}`;
+		log("emit channel=%s type=%s payload=%o", channel, type, payload);
 		this.appContext.eventStream.publish(channel, {
 			type,
 			sessionId: this.sessionId,

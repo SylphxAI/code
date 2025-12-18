@@ -27,9 +27,6 @@ export function StatusIndicator({ sessionStatus }: StatusIndicatorProps) {
 	const isCompacting = useIsCompacting();
 	const colors = useThemeColors();
 
-	// Debug logging (only log when there's status to reduce spam)
-	// console.log(`[StatusIndicator] currentSession:`, currentSession?.id, `status:`, sessionStatus);
-
 	// Local duration tracking for smooth updates
 	// Server sends startTime, client calculates duration locally
 	const [localDuration, setLocalDuration] = useState(0);

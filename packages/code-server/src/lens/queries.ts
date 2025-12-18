@@ -50,9 +50,11 @@ export const getSession = query()
 	.args(z.object({ id: z.string() }))
 	.returns(Session)
 	.resolve(async ({ args, ctx }) => {
+		log("getSession.resolve id=%s", args.id);
 		return ctx.db.session.findUnique({ where: { id: args.id } });
 	})
 	.subscribe(({ args, ctx }) => ({ emit, onCleanup }) => {
+		log("getSession.subscribe STARTED id=%s", args.id);
 		// Lens 2.14.0+ stateless wire protocol:
 		// - emit.delta() sends ops command to client
 		// - Client applies delta via applyOps()
@@ -79,6 +81,7 @@ export const getSession = query()
 
 			// session-status-updated: set status field
 			if (payload?.type === "session-status-updated" && payload.status) {
+				log("getSession.subscribe RECEIVED session-status-updated status=%o", payload.status);
 				emit.set("status", payload.status);
 			}
 
