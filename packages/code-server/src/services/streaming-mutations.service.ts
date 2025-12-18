@@ -60,6 +60,12 @@ export interface TriggerStreamResult {
 export async function triggerStreamMutation(
 	params: TriggerStreamParams,
 ): Promise<TriggerStreamResult> {
+	console.log("[triggerStreamMutation] called", {
+		sessionId: params.input?.sessionId,
+		hasContent: !!params.input?.content,
+		contentLength: params.input?.content?.length,
+	});
+
 	const { appContext, sessionRepository, messageRepository, aiConfig, input } = params;
 
 	// Get or create sessionId for event channel

@@ -242,6 +242,13 @@ const STREAM_TIMEOUT_MS = 45000;
  * - Single event path: modules → StreamPublisher → eventStream
  */
 export async function streamAIResponseV2(opts: StreamAIResponseOptions): Promise<StreamResult> {
+	console.log("[StreamOrchestrator] streamAIResponseV2 called", {
+		sessionId: opts.sessionId,
+		hasContent: !!opts.userMessageContent,
+		provider: opts.provider,
+		model: opts.model,
+	});
+
 	const {
 		appContext,
 		sessionRepository,

@@ -8,7 +8,7 @@
  * - Optimized key handlers to return early when possible
  */
 
-import { renderTextWithTags } from "@sylphx/code-client/src/utils/text-rendering-utils.js";
+import { renderTextWithTags } from "../../../code-client/src/utils/text-rendering-utils.js";
 import { Box, Text, useInput, useStdout } from "ink";
 import React, { useCallback, useRef } from "react";
 import * as Cursor from "../utils/cursor-ops.js";

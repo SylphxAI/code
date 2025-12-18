@@ -71,6 +71,11 @@ export type {
 export type { ToolConfig, ToolDisplayProps } from "./types/tool.types.js";
 
 // ============================================================================
+// Event Bus (TUI-only - for cross-component events)
+// ============================================================================
+export { eventBus } from "./lib/event-bus.js";
+
+// ============================================================================
 // Utilities (browser-safe - no Node.js deps)
 // ============================================================================
 export type { ParsedContentPart, ParsedUserInput } from "./utils/parse-user-input.js";

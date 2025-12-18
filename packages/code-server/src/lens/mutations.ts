@@ -279,24 +279,53 @@ export const sendMessage = mutation()
 	// Note: Complex multi-entity optimistic updates not yet supported with new API
 	// Server will return actual data which client will use
 	.resolve(async function* ({ args, ctx }: { args: { sessionId?: string | null; content: any[]; agentId?: string; provider?: string; model?: string }; ctx: LensContext }) {
-		// Import streaming service
+		// Import streaming service and config loader
 		const { triggerStreamMutation } = await import(
 			"../services/streaming-mutations.service.js"
 		);
+		const { loadAIConfig } = await import("@sylphx/code-core");
+
+		// Load aiConfig from disk
+		let aiConfig: any = { providers: {} };
+		try {
+			const result = await loadAIConfig();
+			if (result.success) {
+				aiConfig = result.data;
+			}
+		} catch (error) {
+			console.error("[sendMessage] Failed to load AI config:", error);
+		}
 
 		// Get or create session
 		let session: any;
 		let sessionId = args.sessionId;
 
 		if (!sessionId) {
+			// Get default provider/model from aiConfig
+			let defaultProvider = args.provider;
+			let defaultModel = args.model;
+
+			if (!defaultProvider && aiConfig?.providers) {
+				// Find first configured provider
+				const configuredProviders = Object.entries(aiConfig.providers)
+					.filter(([_, config]) => config && (config as any).apiKey)
+					.map(([id]) => id);
+				defaultProvider = aiConfig.defaultProvider || configuredProviders[0];
+			}
+
+			if (!defaultModel && defaultProvider && aiConfig?.providers?.[defaultProvider]) {
+				const providerConfig = aiConfig.providers[defaultProvider] as any;
+				defaultModel = providerConfig.defaultModel || providerConfig.model;
+			}
+
 			// Create new session
 			session = await ctx.db.session.create({
 				data: {
 					id: crypto.randomUUID(),
 					title: "New Chat",
 					agentId: args.agentId || "coder",
-					provider: args.provider,
-					model: args.model,
+					provider: defaultProvider,
+					model: defaultModel,
 					enabledRuleIds: [],
 					nextTodoId: 1,
 					created: Date.now(),
@@ -379,7 +408,7 @@ export const sendMessage = mutation()
 				appContext: ctx.appContext,
 				sessionRepository: ctx.appContext.database.getRepository(),
 				messageRepository: ctx.appContext.database.getMessageRepository(),
-				aiConfig: ctx.appContext.aiConfig,
+				aiConfig,
 				input: {
 					sessionId,
 					agentId: args.agentId,
