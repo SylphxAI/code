@@ -380,7 +380,7 @@ export const sendMessage = mutation()
 				sessionRepository: ctx.appContext.database.getRepository(),
 				messageRepository: ctx.appContext.database.getMessageRepository(),
 				aiConfig: ctx.appContext.aiConfig,
-				args: {
+				input: {
 					sessionId,
 					agentId: args.agentId,
 					provider: args.provider,
@@ -1193,7 +1193,7 @@ export const triggerStream = mutation()
 			sessionRepository: ctx.appContext.database.getRepository(),
 			messageRepository: ctx.appContext.database.getMessageRepository(),
 			aiConfig,
-			args: {
+			input: {
 				sessionId: args.sessionId,
 				agentId: args.agentId,
 				provider: args.provider,
