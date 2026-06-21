@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "repo": "SylphxAI/code",
+    "name": "Sylphx Code",
+    "lifecycle": "active",
+    "layer": "tooling",
+    "summary": "Bun and TypeScript monorepo for an AI code assistant with headless SDK, server API, shared client package, terminal UI, and web UI.",
+    "goals": [
+      "Provide the @sylphx/code-core, @sylphx/code-api, @sylphx/code-server, @sylphx/code-client, @sylphx/code, and @sylphx/code-web workspace packages.",
+      "Own AI provider adapters, tool execution, session persistence, server streaming API, multi-client state sync, terminal UI, and web UI in this monorepo.",
+      "Keep package boundaries layered so UI clients consume shared client and server surfaces instead of duplicating core business logic."
+    ],
+    "nonGoals": [
+      "Own enterprise doctrine, model vendor account operations, customer-specific prompting policy, hosted platform deployment, or unrelated downstream agent behavior.",
+      "Own the @sylphx/lens packages consumed by the code client and server packages.",
+      "Own product-specific workflow behavior outside the code-assistant package and interface contracts."
+    ]
+  },
+  "boundaries": {
+    "owns": [
+      {
+        "name": "code-core-sdk",
+        "description": "The @sylphx/code-core headless SDK, AI providers, tool execution, session persistence, configuration, and core package documentation."
+      },
+      {
+        "name": "code-api-server-client",
+        "description": "The @sylphx/code-api, @sylphx/code-server, and @sylphx/code-client package contracts for type-safe API, streaming server, and shared client state."
+      },
+      {
+        "name": "code-interfaces",
+        "description": "The @sylphx/code terminal UI and @sylphx/code-web browser UI that consume the shared code-assistant package surfaces."
+      }
+    ],
+    "doesNotOwn": [
+      "Enterprise engineering doctrine and manifest schema owned by SylphxAI/doctrine.",
+      "Model vendor account operations, hosted platform deployment, or customer-specific prompting policy.",
+      "@sylphx/lens package internals or unrelated downstream agent product behavior."
+    ],
+    "publicSurfaces": [
+      {
+        "type": "package-export",
+        "name": "Workspace package exports",
+        "location": "package.json and packages/*/package.json"
+      },
+      {
+        "type": "cli",
+        "name": "sylphx-code CLI binary",
+        "location": "packages/code/package.json"
+      },
+      {
+        "type": "cli",
+        "name": "sylphx-code-server binary",
+        "location": "packages/code-server/package.json"
+      },
+      {
+        "type": "api",
+        "name": "Code server and API package contracts",
+        "location": "packages/code-api/ and packages/code-server/"
+      },
+      {
+        "type": "documentation",
+        "name": "Repository and package documentation",
+        "location": "README.md, docs/, and packages/*/README.md"
+      },
+      {
+        "type": "workflow",
+        "name": "Main-branch release workflow",
+        "location": ".github/workflows/release.yml"
+      }
+    ],
+    "allowedDependencies": [
+      {
+        "repo": "SylphxAI/doctrine",
+        "surface": "project manifest schema and engineering doctrine",
+        "direction": "peer-public"
+      },
+      {
+        "repo": "SylphxAI/.github",
+        "surface": "reusable release workflow",
+        "direction": "peer-public"
+      },
+      {
+        "repo": "SylphxAI/lens",
+        "surface": "@sylphx/lens package exports",
+        "direction": "peer-public"
+      }
+    ],
+    "forbiddenCouplings": [
+      "Do not put UI-specific state or product-specific workflow decisions inside the headless core package.",
+      "Do not make terminal or web clients depend on server or core internals instead of package exports and documented API surfaces.",
+      "Do not fork doctrine standards into this repository."
+    ]
+  },
+  "documentation": {
+    "adr": {
+      "path": ".sylphx/decisions/",
+      "status": "present"
+    },
+    "specs": {
+      "path": ".internal/requirements/",
+      "status": "present"
+    },
+    "catalog": {
+      "path": ".doctrine/project.json",
+      "status": "present"
+    },
+    "runbooks": {
+      "path": "README.md and package READMEs",
+      "status": "present"
+    },
+    "generatedReferences": {
+      "path": "packages/*/package.json",
+      "status": "present"
+    }
+  },
+  "delivery": {
+    "ciModel": "none",
+    "requiredContexts": [],
+    "deployPath": "Main-branch Release delegates to SylphxAI/.github reusable release workflow; no separate PR CI workflow is present in this repository baseline.",
+    "productionProof": "Relevant package typecheck, tests, builds, release workflow success, and package or deployment readback for published versions.",
+    "recoveryClass": "forward-fix-only"
+  },
+  "adoption": {
+    "status": "baseline",
+    "gaps": [
+      {
+        "id": "pr-ci-workflow-missing",
+        "description": "The repository has package scripts and a main-branch release workflow, but no PR or merge_group CI workflow recorded at this baseline.",
+        "owner": "SylphxAI/code",
+        "target": "before adoption.status becomes full"
+      },
+      {
+        "id": "doc-current-state-consolidation",
+        "description": "The repo contains multiple internal planning and architecture documents; consolidate durable current-state facts into canonical manifests, ADRs, package docs, or generated references before production lifecycle promotion.",
+        "owner": "SylphxAI/code",
+        "target": "before production lifecycle promotion"
+      }
+    ]
+  }
+}
