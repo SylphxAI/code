@@ -5,6 +5,7 @@
     "name": "Sylphx Code",
     "lifecycle": "active",
     "layer": "tooling",
+    "policyPool": "agent-tool",
     "summary": "Bun and TypeScript monorepo for an AI code assistant with headless SDK, server API, shared client package, terminal UI, and web UI.",
     "goals": [
       "Provide the @sylphx/code-core, @sylphx/code-api, @sylphx/code-server, @sylphx/code-client, @sylphx/code, and @sylphx/code-web workspace packages.",
@@ -119,7 +120,17 @@
     "requiredContexts": [],
     "deployPath": "Main-branch Release delegates to SylphxAI/.github reusable release workflow; no separate PR CI workflow is present in this repository baseline.",
     "productionProof": "Relevant package typecheck, tests, builds, release workflow success, and package or deployment readback for published versions.",
-    "recoveryClass": "forward-fix-only"
+    "recoveryClass": "forward-fix-only",
+    "deployable": false,
+    "packageRelease": {
+      "publishesPackages": true,
+      "ecosystems": ["npm"],
+      "releaseIntent": "Changesets in .changeset/ declare version and changelog intent for workspace package releases.",
+      "versionPr": "The release path must use a bot or GitHub App-owned Changesets version PR, with sylphx-release-bot as the default identity when installed.",
+      "publisher": "Protected GitHub Actions release workflow publishes through OIDC/trusted publishing where supported, with any npm token kept as a bounded fallback.",
+      "requiredContexts": ["release"],
+      "publishProof": "Release workflow success plus npm registry readback and provenance or attestation evidence for published @sylphx/code workspace versions."
+    }
   },
   "adoption": {
     "status": "baseline",
