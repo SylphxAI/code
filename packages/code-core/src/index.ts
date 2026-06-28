@@ -110,7 +110,7 @@ export {
 	calculateModelMessagesTokens,
 	clearMessageTokenCache,
 } from "./ai/model-message-token-calculator.js";
-export type { ProviderConfig } from "./ai/providers/base-provider.js";
+export type { ConfigField, ProviderConfig } from "./ai/providers/base-provider.js";
 // ============================================================================
 // Session Management
 // ============================================================================
