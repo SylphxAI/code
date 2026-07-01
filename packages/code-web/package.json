@@ -1,6 +1,6 @@
 {
 	"name": "@sylphx/code-web",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Sylphx Code Web - Browser-based UI for AI Development Assistant",
 	"type": "module",
 	"scripts": {
