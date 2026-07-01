@@ -1,6 +1,6 @@
 {
 	"name": "@sylphx/code-server",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Sylphx Code Server - Lens server for AI streaming",
 	"type": "module",
 	"main": "./dist/index.js",
