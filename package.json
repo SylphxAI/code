@@ -50,7 +50,7 @@
 		"build:code": "bun --cwd packages/code build",
 		"changeset": "changeset",
 		"changeset:version": "changeset version",
-		"changeset:publish": "changeset publish"
+		"changeset:publish": "echo \"Direct changeset publish is unsafe for Bun workspaces; use the Sylphx release workflow.\" && exit 1"
 	},
 	"engines": {
 		"node": ">=18.0.0"
